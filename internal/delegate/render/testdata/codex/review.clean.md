@@ -1,0 +1,21 @@
+```text
+user
+review the diff
+codex
+Looks fine.
+- one
+- two
+```
+
+````text
+```
+````
+
+```text
+OpenAI Codex v9 (second banner kept)
+--------
+tokens used
+12,345
+mcp: codex/list_mcp_resources started (kept: not exact)
+```
+

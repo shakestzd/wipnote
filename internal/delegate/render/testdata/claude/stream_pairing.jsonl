@@ -1,0 +1,3 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "a", "name": "Bash", "input": {"command": "echo A"}}, {"type": "tool_use", "id": "b", "name": "Bash", "input": {"command": "echo B"}}, {"type": "tool_use", "id": "c", "name": "Bash", "input": {"command": "echo C"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "b", "content": "R-b", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "a", "content": "R-a", "is_error": false}]}}

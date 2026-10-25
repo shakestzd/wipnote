@@ -132,6 +132,7 @@ func edgePassSteps(database *sql.DB, wipnoteDir string, validIDs map[string]bool
 		func() { reindexPlanEdges(database, wipnoteDir) },
 		func() { reindexPlanFeedback(database, wipnoteDir) },
 		func() { reindexGateRecords(database, wipnoteDir, false) },
+		func() { reindexDelegationRuns(database, wipnoteDir, false) },
 		func() { reindexRecaps(database, wipnoteDir, projectDir, false) },
 	}
 }

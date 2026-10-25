@@ -1,0 +1,285 @@
+> Bash: |> q*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+> x y: <!--&
+> x y: *
+  =  ```$"éa
+> Bash:  ~~~~~~<!-- /fold -->
+> x y: {"zz":"<!--```"}
+--- ` in 47s, 3 turns, 5 in / 6 out tokens, $0.7919022908924784 ---
+  = \---->"|
+  = --\-->-->"~~~``` (error)
+---     ```| in 58s, 3 turns, 5 in / 6 out tokens, $0.39607418752258194 ---
+<!-- fold closed: x -->'	<b>
+  = _ " ```" - lié
+ *<!-- /fold -->-->
+  = 
+[1m--`<b>--> ``` 
+
+'```a<b><!-- /fold -->aé &
+> x y: '_ 
+  = '- li|<!-- fold closed: x --> ```a éé 
+  =   (error)
+"
+  = ~~~'#<!-- fold closed: x -->> q
+  =  ```<!-- /fold -->\<!--<!--<!-- /fold -->```<!-- fold closed: x -->a> q (error)
+  = #|
+
+  = 
+<!-- fold closed: x -->\
+  = <!-- 
+  = &"$ ```&é  (error)
+  = |" #$ $# <!-- fold closed: x --> (error)
+  = "&é
+  = &*> q<!-- /fold -->``` [1m (error)
+*éxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+---  in 96s, 3 turns, 5 in / 6 out tokens, $0.3603643629416021 ---
+
+~~~--"`
+  = | '|' --><b>a (error)
+> x y: 
+  =  ````- li```
+~~~--``
+> Bash: #
+  = a<!-- fold closed: x --> (error)
+\<!-- /fold -->aé     ```[1m'
+  =  é $~~~$
+---  in 83s, 3 turns, 5 in / 6 out tokens, $0.005250969820406071 ---
+  =  
+éxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxé    ```a> q> q--
+> Read: $" |<!--
+é	#<!-- fold closed: x --><!-- fold closed: x -->> q"<!--> q#
+-->_~~~    ```_
+  = 
+> Bash: <!-- fold closed: x -->$`\"
+  =  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx <!-- /fold -->|[1mxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx``
+> x y: ```\- li<!---->
+  = $<!-- fold closed: x --> <b>a
+<!-- /fold -->
+  = - li <b>``` [1m\ 
+> x y: {"zz":" <!-- fold closed: x -->\""}
+```<b>\	&'	
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+> Read:  ` ``` ``` 
+> Bash: {"zz":"|- li```"}
+> x y: |
+> x y:  ````` 
+a
+&
+  = <b>'> q ``` ~~~é
+> Bash: {"zz":"<!--<!-- fold closed: x -->"}
+<!-- fold closed: x -->|-- 
+> Read: {"zz":"\r<b>"}
+\    ```- li
+  = '<b> ``` é (error)
+é <!-- /fold -->#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx[1m<b>&    ```
+> Bash: {"zz":""}
+`` ```	- li_a*- li#
+  = *~~~&
+> Bash: {"zz":"#<!-- fold closed: x -->xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
+  = 
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx[1m
+  = ~~~ <!-- fold closed: x -->é& (error)
+  =  é$~~~[1m#
+  = ~~~_ '|`` 
+<!--<!--	
+ - li
+<b>- li
+
+<b>```> q
+ `
+  = '"
+_``	    ```
+``*|    ```   --
+  = ``` " \*\* ' (error)
+  = ~~~<!-- fold closed: x -->``
+<!-- /fold -->``é    ```-->* 
+> Bash: &```-->--
+a
+
+> Bash:  
+  =  |<!-- (error)
+  = & (error)
+  = 
+` &_
+> x y: {"zz":""}
+> Read: -->~~~--*~~~"
+  = #' 
+  = 
+  =  <b> \ "*- li
+  =  ```*
+  = `` <!-- fold closed: x --># (error)
+  = - li |
+> x y: {"zz":"$|"}
+  = a - li 
+---  in 53s, 3 turns, 5 in / 6 out tokens, $0.6047571547289052 ---
+    ``` [1m'
+<!-- /fold -->
+-->``& $_
+> Bash: "
+--- | in 65s, 3 turns, 5 in / 6 out tokens, $0.31849337336259875 ---
+`-->
+> x y: 
+'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<!-- /fold -->[1m\$<!-- 
+``$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx--~~~    ``` é> q
+~~~<b>-- 
+  =  
+  = \<!-- /fold -->é*- li "
+
+* $\_<!-- /fold -->
+> Bash: |`<!-- fold closed: x -->
+> Read: {"zz":"<!-- /fold -->``&"}
+  =  (error)
+  =  <!-- /fold -->|\|<!--[1m``<!-- fold closed: x -->
+"\<!-- fold closed: x -->-->	`
+  = *_``|
+> x y: {"zz":"\u001b[1m```&"}
+> Read: 
+--- --> in 52s, 3 turns, 5 in / 6 out tokens, $0.21393698881359868 ---
+> Bash: {"zz":"\u001b[1m```$"}
+  = -- (error)
+`\
+  =  <!-- ``é (error)
+> Read: 
+> x y: {"zz":"<!--#"}
+[1m #
+  = <!-- /fold --> \ <!-- /fold --> ``|
+  =  ```
+---     ```<b> in 44s, 3 turns, 5 in / 6 out tokens, $0.6156848534190191 ---
+> Bash:  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<b><b>
+  = [1m "& a
+  = <!-- fold closed: x -->"*é" ` 
+  = 
+> Read: \
+  =  'é> q````<!--
+> Read: 
+
+$ a
+    ``` &	é
+> Read: &a-->&"
+> Bash: <b>
+> x y: {"zz":"\t > q"}
+-->> q> q~~~``- li$	-->#
+# -->`<b>a     ``` 
+> x y:  <!-- fold closed: x --> ~~~
+> Bash: {"zz":""}
+*--é`--$a	
+--- -- in 73s, 3 turns, 5 in / 6 out tokens, $0.6198443294525642 ---
+> x y: {"zz":""}
+    ```&``&``
+<!--
+> Bash: {"zz":""}
+[1m~~~
+> Read: {"zz":""}
+
+&<!--$    ```&
+  
+  = ``` _[1mxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<!-- fold closed: x -->```<!-- fold closed: x --> 
+`*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*> qé
+a 
+> Read: {"zz":"a-->"}
+---  in 69s, 3 turns, 5 in / 6 out tokens, $0.16130519736449445 ---
+  = '\ `` ```* (error)
+--><!--
+&&[1ma<!-- fold closed: x -->
+  = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*[1m|-->'<!-- fold closed: x --> 
+~~~		|
+> x y: 
+~~~
+  = --<!-- /fold -->xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_`<!-- fold closed: x --> | _
+  = 'é& $#`
+  = a<b>  (error)
+  = <!-- fold closed: x -->_ ~~~
+  = <!-- fold closed: x --> # [1m (error)
+---  in 46s, 3 turns, 5 in / 6 out tokens, $0.36363330142335093 ---
+> x y: *
+ #<b>#$\
+<!-- fold closed: x -->a `$\-->
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx- li````    ```- li
+
+> Read: {"zz":" "}
+> Bash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx> q
+ 	--#> q
+  = $`` <!-- --><!--*
+> Bash:  `````` 
+  = `&<!-- /fold -->\  (error)
+-- > q #- li```\~~~$
+  = 
+> Bash: 
+  = & [1mxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx```<b> 
+  =  *a\> q# (error)
+> x y: {"zz":"<b>"}
+  =  ```<!-- /fold -->#é (error)
+ \*-->a~~~
+  =  ```> q$```<!-- fold closed: x -->-->``<!-- /fold -->  (error)
+```é *#*
+
+  = <!-- fold closed: x -->#~~~<!-- /fold --> ` (error)
+  =  
+  = ``xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-->- li<!--\<!--<b>
+  = $_<!-- fold closed: x -->--> \<!--<!-- fold closed: x --> 
+> q&éaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx> q'_    ```é
+  =  & |```#
+  = - li\```#&<!-- /fold -->`` --```
+  = > q
+ *|\``[1m&
+  = \ <!-- fold closed: x --> (error)
+ <b>a<!-- /fold --> 	
+  = --> (error)
+-->  ``
+<b>
+	<!--"é[1m
+> Read: 
+
+	 <!-- fold closed: x -->
+'--- li~~~<b>
+  = 
+  = [1m # > q (error)
+  =  ```# > q ```a (error)
+  =  ```--><!-- fold closed: x -->-- <!--' #
+&    ```<b>_
+<!-- fold closed: x -->```* 
+|é<!--
+é
+[1m é---->~~~_
+``--<!--\> q
+> Bash: $ > q 
+--#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxé> q\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxé 
+
+<!-- /fold -->``` ```	    ```
+  =  ' <!-- (error)
+> x y: {"zz":""}
+```<!--`	é**-->_
+> x y: 
+--- `` in 12s, 3 turns, 5 in / 6 out tokens, $0.2595689068954805 ---
+  = ```<b>- li (error)
+  =  <!-- fold closed: x -->--
+> x y:  a#
+  =  é#
+  =  \"|$ (error)
+  = --é$ 
+' "_é```     ```
+> Bash: 
+	
+> Bash: {"zz":"\r> q$"}
+> x y:  "
+  = <!-- > qxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx a#&&
+> x y: {"zz":""}
+> Read:  
+"`# #\*
+> Read: '--
+  = --a~~~$*_ 
+  = \ &-- --&--
+~~~~~~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  = <!-- fold closed: x --><!-- /fold --> (error)
+    ``` 
+a'*--><!-- fold closed: x -->#<!--
+  = _<b>`` ```&<!-- /fold --> -- 
+	
+--- ~~~ in 41s, 3 turns, 5 in / 6 out tokens, $0.45997071394024236 ---
+"*&
+> Bash: 
+> Read: - li> q<!-- /fold -->
+> Read: --
+"
+  = `" '"|
+> x y: > q"--| 

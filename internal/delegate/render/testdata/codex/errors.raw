@@ -1,0 +1,6 @@
+{"type": "item.completed", "item": {"id": "item_1", "type": "command_execution", "command": "cat f", "aggregated_output": "boom `x`", "exit_code": 2}}
+{"type": "error", "message": "bad *thing* # [x](y) <b>"}
+{"type": "turn.failed", "error": {"message": "quota <b>"}}
+{"type": "turn.failed"}
+{"type": "item.completed", "item": {"id": "i", "type": "error", "message": "item failed & ~gone~"}}
+{"type": "item.completed", "item": {"id": "i", "type": "reasoning", "text": "let me   think\nzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"}}

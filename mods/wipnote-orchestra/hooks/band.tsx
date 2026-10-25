@@ -1,7 +1,8 @@
 import type { EngineInterface } from 'claude-code'
 
-import type { AgentRow, PromptInfo, Tally, WorkCard } from '../types'
+import type { AgentRow, PromptInfo, RunRow, Tally, WorkCard } from '../types'
 import type { Segment, Span } from './model'
+import { visibleRuns } from './runs'
 import {
   attentionSpans,
   clip,
@@ -13,6 +14,7 @@ import {
   limitSpans,
   lineSpans,
   needsAttention,
+  runSpans,
   tallyText,
   wrapSegments,
 } from './model'
@@ -29,6 +31,8 @@ export type BandData = {
   work: string[]
   cards: WorkCard[]
   doing: string | null
+  /** The project's delegate runs (.wipnote/delegate/runs/), live and ended. */
+  runs: RunRow[]
   at: number
   zone: string
 }
@@ -105,7 +109,8 @@ function segmentsOf(
 /**
  * The band's tree, or null with nothing to show; drawn above or below the prompt alike.
  * Claude Code's own agent panel lists every agent (and opens one with Enter), so the band adds
- * what it does not show: agents grouped by work item, and the ones that need a look.
+ * what it does not show: agents grouped by work item, the ones that need a look, and the
+ * project's delegate runs (one row per run).
  */
 export function drawBand({ Box, Text }: Elements, data: BandData, room: BandRoom) {
   const live = data.rows.filter(row => isLive(row.status)).length
@@ -141,7 +146,8 @@ export function drawBand({ Box, Text }: Elements, data: BandData, room: BandRoom
     const steps = it?.stepsTotal !== undefined ? `${it.stepsDone ?? 0}/${it.stepsTotal} steps` : ''
     return { key: `g-${group.item}`, spans: groupSpans(group, clip(it?.title ?? group.item, 40), steps) }
   })
-  const rows = [...flags, ...groups]
+  const runs = visibleRuns(data.runs, data.at).map(run => ({ key: `r-${run.id}`, spans: runSpans(run) }))
+  const rows = [...flags, ...runs, ...groups]
   // Rows past the room left: the last one that fits says how many more there are
   const fits = Math.max(0, room.maxRows - 1 - bar.length)
   const shown = rows.length > fits ? rows.slice(0, Math.max(0, fits - 1)) : rows

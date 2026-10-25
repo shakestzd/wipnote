@@ -96,6 +96,7 @@ func buildRoot() *cobra.Command {
 	initClaimLedgerCommitSeam()
 	initSessionLedgerCommitSeam()
 	initGateLedgerCommitSeam()
+	initDelegationLedgerCommitSeam()
 
 	spike := workitemCmd("spike", "spikes")
 	spike.AddCommand(spikeResetCmd())
@@ -191,6 +192,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "dev", Command: buildCmd()},
 			{GroupID: "dev", Command: agentInitCmd()},
 			{GroupID: "dev", Command: shCmd()},
+			{GroupID: "dev", Command: delegateCmd()},
 		},
 		Ungrouped: []*cobra.Command{
 			versionCmd(),
@@ -279,6 +281,10 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 	//   2. _serve-child (the writer daemon) builds its own projection in runWriterOnly.
 	// Neither command participates in agent session tracking or the project registry.
 	case "otel-collect", "_serve-child":
+		return nil
+	// `wipnote delegate run-pane` is the pane worker a delegate run types
+	// into its herdr pane; the caller's run already did the session work.
+	case "run-pane":
 		return nil
 	}
 	// Skip hook subtree — hooks manage their own session lifecycle.

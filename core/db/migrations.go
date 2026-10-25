@@ -14,7 +14,7 @@ import (
 // executes ZERO CREATE / ALTER / DROP / trigger / normalisation statements —
 // avoiding the write-lock acquisition that caused SQLITE_BUSY in short-lived
 // hook processes.
-const currentSchemaVersion = 23
+const currentSchemaVersion = 24
 
 // copySwapStepName is the name of the agent_events copy-and-swap migration
 // step. Exposed via CopySwapStepName() so tests can assert it runs at most
@@ -156,6 +156,11 @@ var migrations = []migrationStep{
 		version: 23,
 		name:    "023_otel_session_kind_index",
 		apply:   stepOtelSessionKindIndex,
+	},
+	{
+		version: 24,
+		name:    "024_delegation_runs_table",
+		apply:   stepDelegationRunsTable,
 	},
 }
 

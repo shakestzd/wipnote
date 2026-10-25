@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# A stand-in for ccx task in delegate run tests. It writes its own
+# stream-json run log into CCX_RUNS_DIR a line at a time (STUB_STDOUT), then
+# prints its status line and result on stdout and a warning on stderr.
+printf '%s\n' "$@" > "${STUB_ARGV:-/dev/null}"
+sleep "${STUB_DELAY:-0}"
+log="$STUB_RUNS/run-$$.jsonl"
+while IFS= read -r l; do printf '%s\n' "$l" >> "$log"; sleep 0.05; done < "$STUB_STDOUT"
+echo "ccx: task done in 1s"
+printf '%s\n' "${STUB_ANSWER:-the result}"
+echo "ccx warning" >&2
+exit "${STUB_EXIT:-0}"

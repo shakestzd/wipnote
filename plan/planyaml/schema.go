@@ -35,6 +35,14 @@ type PlanMeta struct {
 
 	CreatedBy string `yaml:"created_by,omitempty"`
 	Version   int    `yaml:"version"`
+
+	// Workspace fields (optional; plans without them stay valid). They say
+	// where the plan's work happens and how it is checked, and feed
+	// `wipnote plan project-instructions`. Validated by validateMetaWorkspace.
+	Repositories []string `yaml:"repositories,omitempty"` // e.g. owner/repo
+	BaseBranch   string   `yaml:"base_branch,omitempty"`  // branch work starts from
+	PRNaming     string   `yaml:"pr_naming,omitempty"`    // pull-request title rule
+	Gates        []string `yaml:"gates,omitempty"`        // quality-gate commands
 }
 
 // PlanDesign captures the problem statement, goals, constraints, and

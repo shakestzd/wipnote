@@ -1,0 +1,14 @@
+{
+  "rules": [
+    { "match": ["pane", "get", "*"], "replies": [ { "shape": { "as": "pane_info", "pane_id": "${argv.2}" } } ] },
+    { "match": ["tab", "create", "--workspace", "w1", "--label", "workers:abcd1234", "--cwd", "/proj", "--no-focus"],
+      "replies": [ { "shape": { "as": "tab_created", "tab_id": "w1:t2", "pane_id": "w1:p20" } } ], "repeat": "once" },
+    { "match": ["pane", "split", "w1:p20", "--direction", "right", "--cwd", "/proj", "--no-focus"],
+      "replies": [ { "shape": { "as": "pane_info", "pane_id": "w1:p21" } } ], "repeat": "once" },
+    { "match": ["pane", "split", "w1:p20", "--direction", "down", "--cwd", "/proj", "--no-focus"],
+      "replies": [ { "shape": { "as": "pane_info", "pane_id": "w1:p22" } } ], "repeat": "once" },
+    { "match": ["pane", "split", "w1:p21", "--direction", "down", "--cwd", "/proj", "--no-focus"],
+      "replies": [ { "shape": { "as": "pane_info", "pane_id": "w1:p23" } } ], "repeat": "once" },
+    { "match": ["tab", "close", "w1:t2"], "replies": [ { "shape": { "as": "ok" } } ], "repeat": "once" }
+  ]
+}

@@ -1,0 +1,2 @@
+{"v":1,"seq":1,"ts":1789990000,"session":"alpha","kind":"session_start","sid":"sess-alpha-old","source":"startup"}
+{"v":1,"seq":2,"ts":1789990900,"session":"alpha","kind":"stop","sid":"sess-alpha-old"}
