@@ -156,6 +156,12 @@ var hookEventNameSpecs = []hookEventNameSpec{
 		Harnesses:  map[string]string{"claude": "PermissionRequest", "codex": "PermissionRequest"},
 	},
 	{
+		Name:       "PermissionDenied",
+		DocURL:     "https://code.claude.com/docs/en/hooks#permissiondenied",
+		Provenance: "Claude Code hooks doc (verified 2026-10-25): fires when auto mode denies a tool call; input carries tool_name, tool_input, tool_use_id, reason. Not in Codex 0.163.0 HOOK_EVENT_NAMES or agy v1.0.8.",
+		Harnesses:  map[string]string{"claude": "PermissionDenied"},
+	},
+	{
 		Name:       "PreCompact",
 		DocURL:     "https://code.claude.com/docs/en/hooks",
 		Provenance: "Claude Code hooks doc; Codex 0.147.0 HookEventNameWire.",

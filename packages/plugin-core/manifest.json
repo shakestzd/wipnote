@@ -85,6 +85,7 @@
       { "name": "WorktreeRemove",     "handler": "worktree-remove",     "targets": ["claude"], "timeout": 30 },
       { "name": "TaskCreated", "handler": "task-created", "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "PermissionRequest",  "handler": "permission-request",  "targets": ["claude"], "timeout": 10 },
+      { "name": "PermissionDenied",   "handler": "permission-denied",   "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "ConfigChange", "handler": "config-change", "targets": ["claude"], "timeout": 15, "async": true }
     ]
   }

@@ -22,6 +22,10 @@ var asyncSafeHandlers = map[string]bool{
 	// recordSimpleEventWithOutput, which returns {Continue:true} on every path;
 	// Claude Code ignores StopFailure output anyway.
 	"stop-failure": true,
+	// permission-denied (feat-ddeaa0d1): core/hooks.PermissionDenied only
+	// appends the failed tool-log line and the session HTML entry, and returns
+	// {Continue:true} on every path; it never asks for a retry.
+	"permission-denied": true,
 }
 
 func TestLiveManifestAsyncOnlyOnVerifiedRecordOnlyHandlers(t *testing.T) {

@@ -285,6 +285,23 @@
         ]
       }
     ],
+    "PermissionDenied": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "permission-denied"
+            ],
+            "timeout": 15,
+            "async": true
+          }
+        ]
+      }
+    ],
     "ConfigChange": [
       {
         "matcher": "",
