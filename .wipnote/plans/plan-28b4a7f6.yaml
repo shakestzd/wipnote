@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 41
+    version: 42
 design:
     problem: |
         ## Problem
@@ -1752,7 +1752,7 @@ slices:
         - Inside herdr a Claude run spawns a worker and prints the same report as claude -p
         - Workspace trust and onboarding are pre-seeded so no dialog blocks the first prompt
         - The worker gets a known --session-id and the run folder records the transcript path
-        - Stop and StopFailure and SessionEnd hooks record the result and error and end reason
+        - Stop and StopFailure and SessionEnd hooks record the end state and error; the answer is the worker's result file (decision R)
         - The status line command records cost and token totals
         - Turn and budget caps are enforced by wipnote because the print-only flags do nothing interactively
         - A worker whose SessionStart never fires or whose plugin did not load fails with a named reason
@@ -1760,8 +1760,34 @@ slices:
       effort: L
       risk: High
       tests: 'Integration (fake herdr and claude stub): TestClaudeRun_InteractiveInHerdr, TestClaudeRun_HeadlessOutsideHerdr, TestClaudeRun_PreseedsTrust, TestClaudeRun_SessionIDKnown, TestClaudeRun_ResultFromStopHook, TestClaudeRun_ErrorFromStopFailure, TestClaudeRun_CostFromStatusLine, TestClaudeRun_TurnCapEnforced, TestClaudeRun_BudgetCapEnforced, TestClaudeRun_SessionStartTimeout, TestClaudeRun_PluginNotLoadedFails, TestClaudeRun_PromptBeforeVariadicFlags, TestClaudeRun_PlanModeModelWarning.'
+      complexity: complex
       approved: false
       comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/cli-reference
+          claim: Interactive claude takes --plugin-dir, --append-system-prompt, --allowedTools, --model, --mcp-config, --permission-mode, --settings and --session-id; --output-format, --max-turns and --max-budget-usd are print-only.
+          accessed: "2026-10-25"
+        - url: https://code.claude.com/docs/en/hooks
+          claim: Stop carries last_assistant_message; StopFailure and SessionEnd carry the error and end reason.
+          accessed: "2026-10-25"
+        - url: https://code.claude.com/docs/en/statusline
+          claim: The status line command receives cost.total_cost_usd and token totals.
+          accessed: "2026-10-25"
+      questions:
+        - id: q-oneshot-harness
+          text: After the spike, how do one-shot runs work per harness?
+          answer: Claude runs inside herdr become interactive workers (this slice); Codex keeps codex exec until the Mac probes pass (owner 2026-10-25).
+        - id: q-no-herdr
+          text: What does a Claude one-shot run do outside herdr?
+          answer: Fall back to claude -p with the same report (owner 2026-10-25).
+      decisions_notes: |
+        **Source:** spike spk-87139e0e, docs/design/delegate-interactive-parity.md (probes on claude 2.1.310). Owner chose Claude interactive and Codex exec on 2026-10-25.
+        **Trigger:** delegate run -- claude ... with HERDR_ENV=1. Outside herdr, slice 8's claude -p path runs instead with the same report (owner 2026-10-25).
+        **Flow:** spawn (slice 10) with the wrapper, send the task (slice 11), wait for the result file, then stop. The report matches slice 8's.
+        **Wrapper (spike list):** pre-seed onboarding and workspace trust for the worker dir; pass --session-id; ship Stop, StopFailure and SessionEnd hooks and a status line command that saves cost; enforce turn and budget caps in wipnote; time out when SessionStart never fires and check that the plugin loaded; put the prompt before variadic flags such as --mcp-config; warn when plan mode is set, since the probe saw plan mode change the model.
+        **Result (decision R):** the answer is the worker's result file, not a transcript or Stop payload.
+        **Codex:** stays on codex exec until the slice 2 Mac probes show the TUI Stop payload has the reply, token counts are non-zero and the plugin loads in both modes; switching Codex is a later slice.
+        **Rejected:** refusing Claude runs outside herdr; a tmux fallback (owner 2026-10-25).
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
