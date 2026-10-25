@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Lineage shows delegations; retire orchlink</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-7c862865"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-25T14:56:33.004908"
+             data-updated="2026-10-25T14:56:33.081834" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
+
+        <header>
+            <h1>Lineage shows delegations; retire orchlink</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../features/feat-dd8b0cde.html" data-relationship="blocked_by">feat-dd8b0cde</a></li>
+                    <li><a href="../features/feat-ee335139.html" data-relationship="blocked_by">feat-ee335139</a></li>
+                    <li><a href="../features/feat-3d08f822.html" data-relationship="blocked_by">feat-3d08f822</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-25T14:56:33.006129">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-28b4a7f6.html" data-relationship="planned_in" data-since="2026-10-25T14:56:33.005389">plan-28b4a7f6</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>wipnote lineage &lt;work-item&gt; gains a delegations section from the ledger. It shows tagged rows, and untagged rows whose worker sessions belong to the item (derived and labelled). Add wipnote lineage dlg-&lt;id&gt;. Delete internal/orchlink and lineage_orch.go after import-orch (slice 18) has run (q-orch-import).
+
+## Accepted Design Decisions
+- **Adopt or wrap the herdr plugin herdr-orch, or port orch?** → Port orch to Go as planned; take ideas from herdr-orch, cbds, pod and herdr-mail (Q: q-adopt-vs-port)
+- **What is the command name?** → wipnote delegate (Q: q-command-name)
+- **Where does live run state live?** → .wipnote/delegate/ in the project, gitignored like sessions/ (Q: q-live-store)
+- **How should a bare codex exec or claude -p in the Bash tool be handled?** → Deny with a reason; the model re-runs it as wipnote delegate run (no permission change) (Q: q-intercept)
+- **Outside herdr, does a Claude Code pane still show the run?** → Fold a view-only run pane into the wipnote-orchestra mod (Q: q-claude-pane)
+- **Keep the Python Textual pane viewer?** → Replace it with the Go viewer (wipnote delegate view) (Q: q-viewer)
+- **What label goes into the committed ledger?** → Only an explicit --label; derived labels stay in the run folder (Q: q-label)
+- **Does a spawned worker claim the work item?** → The worker starts the same work item (shared claim) (Q: q-worker-claim)
+- **What happens when Codex&#39;s sandbox fails (bwrap in a container)?** → Allow a per-host setting that passes --sandbox danger-full-access (Q: q-codex-sandbox)
+- **Import orch history into the ledger?** → One-shot wipnote delegate import-orch, then delete orchlink (Q: q-orch-import)
+- **How does the orch source enter the repo?** → README and inventory only; the source stays outside the repo (Q: q-orch-source)
+- **Should chained delegations (pipes, ;) be wrapped in v1?** → Later, if usage shows the need (Q: q-chained)
+- **Can the orchestrator answer a worker&#39;s question?** → Also answer it (as herdr-orch ask/reply does) (Q: q-answer-questions)
+- **When is mods/codex-herdr-pane removed?** → In the release that ships delegate run and the redirect (Q: q-mod-removal)
+- **Are Antigravity workers in scope for v1?** → No; Claude and Codex only (Q: q-antigravity)
+- **When a spawned worker claims the work item, what happens to the orchestrator&#39;s claim?** → Co-claim: the orchestrator keeps its episode, the worker opens its own in its own shard, and the collision gate treats the caller&#39;s live workers (from the delegations ledger) as family (Q: q-claim-handoff)
+- **Can several workers hold claims on one work item at the same time?** → One live worker per work item; spawn refuses a second (Q: q-concurrent-workers)</p>
+        </section>
+    </article>
+</body>
+</html>
