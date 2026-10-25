@@ -1,0 +1,1 @@
+{ "rules": [ { "match": ["pane", "get", "w1:p2"], "replies": [ { "shape": { "as": "pane_info", "pane_id": "w1:p2" } } ], "repeat": "once" } ] }

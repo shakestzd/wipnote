@@ -1,0 +1,5 @@
+{
+  "rules": [
+    { "match": ["pane", "get", "*"], "replies": [ { "delay_ms": 5000, "shape": { "as": "pane_info", "pane_id": "${argv.2}" } } ] }
+  ]
+}

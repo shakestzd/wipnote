@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Stub herdr. Every call is logged ("herdr <args>"). split returns a fresh pane id and records
+# "<target> <direction>" in $SIMLOG.splits; closed panes are files $SIMLOG.closed.<id>, and
+# `pane get` fails for them (as the real herdr does: pane_not_found). Splits are serialised by the
+# wrapper's registry lock, so counting lines in the splits file gives unique ids.
+echo "herdr $*" >> "$SIMLOG"
+case "$2" in
+  split)
+    shift 2; target=; dir=
+    while [ $# -gt 0 ]; do
+      case "$1" in --direction) dir="$2"; shift;; --current) target=current;; --cwd) shift;; --*) ;; *) target="$1";; esac
+      shift
+    done
+    n=$(( $(wc -l < "$SIMLOG.splits" 2>/dev/null || echo 0) + 1 ))
+    echo "$target $dir" >> "$SIMLOG.splits"
+    [ -n "$SIMSLOWSPLIT" ] && sleep "$SIMSLOWSPLIT"
+    echo "{\"result\":{\"pane\":{\"pane_id\":\"w1:p$((100+n))\"}}}";;
+  run) shift 3; ( "$@" ) >/dev/null 2>&1 & ;;
+  get) [ -f "$SIMLOG.closed.$3" ] && exit 1; exit 0;;
+  close) touch "$SIMLOG.closed.$3";;
+esac
