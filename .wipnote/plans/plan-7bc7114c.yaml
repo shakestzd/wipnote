@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 8
+    version: 9
 design:
     problem: ""
     goals: []
@@ -141,6 +141,28 @@ slices:
         - A benchmark shows the pretooluse handler time before and after
         - No hook opens a file-backed SQLite database
         - Hook behaviour tests pass
+      effort: L
+      risk: Med
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-0b3b7eea
+      num: 7
+      title: Speed up slow CLI paths
+      what: Compute completion evidence once in feature complete (4 identical git log --all --grep scans today); stop the status line and hook-spawned task-step commands from loading the whole project and rewriting the registry; batch git timestamps for recaps; replace WalkAreas per-file LIKE scans with one grouped query; write OTel replay in chunks; append session HTML events at the tail instead of rewriting the file; make the Stop hook read the transcript once from a saved offset.
+      why: feature complete costs about 3 s of git on this repo, code-areas did not finish in 5 minutes, and session HTML and Stop work grow with session length.
+      files:
+        - cmd/wipnote/workitem.go
+        - cmd/wipnote/statusline.go
+        - cmd/wipnote/main.go
+        - internal/blame
+        - observe/otel/indexer
+        - core/hooks/session_html.go
+        - core/hooks/transcript_assistant.go
+      deps: []
+      done_when:
+        - Timings before and after are recorded for complete and statusline and code-areas
+        - Full test suite passes
       effort: L
       risk: Med
       tests: ""
