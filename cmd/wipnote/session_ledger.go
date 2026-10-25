@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/shakestzd/wipnote/core/sessionledger"
 )
@@ -32,8 +31,8 @@ func initSessionLedgerCommitSeam() {
 // how work-item artifacts and the claim ledger behave under that same opt-in.
 func persistSessionLedgerWrite(wipnoteDir, relPath, action string) {
 	msg := "wipnote: record " + action
-	switch workitemArtifactCommitPolicyForEnv() {
-	case workitemArtifactCommitPolicyDefer:
+	switch policy := workitemArtifactCommitPolicyForEnv(); {
+	case policy == workitemArtifactCommitPolicyDefer || (commitIntentLight.Load() && policy != workitemArtifactCommitPolicyNone):
 		if err := enqueueSessionLedgerCommitIntent(wipnoteDir, relPath, msg); err != nil && os.Getenv("WIPNOTE_DEBUG") == "1" {
 			fmt.Fprintf(stderr, "session ledger commit defer: %v\n", err)
 		}
@@ -45,9 +44,5 @@ func persistSessionLedgerWrite(wipnoteDir, relPath, action string) {
 }
 
 func enqueueSessionLedgerCommitIntent(wipnoteDir, relPath, msg string) error {
-	repoRoot := filepath.Dir(wipnoteDir)
-	if skipWipnoteGitMutation(wipnoteDir, "session ledger commit defer") {
-		return nil
-	}
-	return recordCommitIntent(repoRoot, []string{relPath}, msg, "", "session")
+	return enqueueLedgerCommitIntent(wipnoteDir, relPath, msg, "session", "session ledger commit defer")
 }

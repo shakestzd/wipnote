@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+
+	"github.com/shakestzd/wipnote/core/fsprobe"
 )
 
 // ledgerHeader and ledgerFooter bracket the row lines. They are byte-stable
@@ -121,6 +123,7 @@ func sanitize(v string) string {
 // failing the whole file, so one bad row can never hide every other session.
 // This matches the claim ledger's and the archive ledger's behaviour.
 func ReadFile(path string) ([]Record, error) {
+	fsprobe.Touch(fsprobe.OpRead, path)
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -319,6 +322,7 @@ func appendOffset(f *os.File, size int64) (int64, error) {
 //
 // The caller must already hold the write guard for path.
 func writeAllLocked(path string, records []Record) error {
+	fsprobe.Touch(fsprobe.OpWrite, path)
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("sessionledger: mkdir %s: %w", dir, err)

@@ -9,8 +9,11 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
+
+	"github.com/shakestzd/wipnote/core/fsprobe"
 )
 
 // ledgerHeader and ledgerFooter bracket the row lines. They are byte-stable
@@ -112,6 +115,7 @@ func sanitize(v string) string {
 // than failing the whole file, so one bad row can never hide a session's other
 // episodes. This matches the archive ledger's behaviour.
 func ReadFile(path string) ([]Episode, error) {
+	fsprobe.Touch(fsprobe.OpRead, path)
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -195,6 +199,7 @@ func appendRowLocked(path string, e Episode) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("claimledger: mkdir %s: %w", filepath.Dir(path), err)
 	}
+	removeStaleTemps(filepath.Dir(path), time.Now())
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		return fmt.Errorf("claimledger: open %s: %w", path, err)
@@ -287,10 +292,12 @@ func appendOffset(f *os.File, size int64) (int64, error) {
 //
 // The caller must already hold the write guard for path.
 func writeAllLocked(path string, episodes []Episode) error {
+	fsprobe.Touch(fsprobe.OpWrite, path)
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("claimledger: mkdir %s: %w", dir, err)
 	}
+	removeStaleTemps(dir, time.Now())
 
 	sorted := make([]Episode, len(episodes))
 	copy(sorted, episodes)

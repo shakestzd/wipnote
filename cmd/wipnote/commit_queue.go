@@ -5,6 +5,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -36,23 +37,53 @@ func openCommitOutbox(repoRoot string) (*commitqueue.Outbox, error) {
 // the durable alternative to direct autocommit record an intent here; the
 // serialized `wipnote commit-queue flush` later drains it.
 func recordCommitIntent(repoRoot string, relPaths []string, message, workItemID, action string) error {
-	ob, err := openCommitOutbox(repoRoot)
-	if err != nil {
-		return err
-	}
-	if err := ob.AppendCoalescingByRelPath(commitqueue.Intent{
-		RepoRoot:   repoRoot,
-		RelPaths:   relPaths,
-		Message:    message,
-		WorkItemID: workItemID,
-		Action:     action,
-	}); err != nil {
+	if err := appendCommitIntent(repoRoot, relPaths, message, workItemID, action); err != nil {
 		return err
 	}
 	// GH#172: say at enqueue time when the path can never be committed
 	// because git ignores it, instead of letting the intent retry blind.
 	warnIfIntentPathsIgnored(stderr, repoRoot, relPaths)
 	return nil
+}
+
+// commitIntentLight is set by the SessionEnd hook process. Claude Code gives
+// that hook 1.5s, and each git spawn on a slow mount costs a visible slice of
+// it, so in that process the ledger commit intents are enqueued with no git
+// call at all (no rev-parse --git-dir, no check-ignore). `wipnote commit-queue
+// flush` does the git work: outboxCommitter checks isGitRepo and classifies an
+// ignored path itself.
+var commitIntentLight atomic.Bool
+
+// enqueueLedgerCommitIntent records a canonical ledger file for the deferred
+// commit. In the SessionEnd hook (commitIntentLight) it never calls git; in every
+// other process it keeps the isGitRepo and check-ignore guards.
+func enqueueLedgerCommitIntent(wipnoteDir, relPath, msg, action, label string) error {
+	repoRoot := filepath.Dir(wipnoteDir)
+	if commitIntentLight.Load() {
+		if skipWipnoteGitMutationPath(wipnoteDir, label) {
+			return nil
+		}
+		return appendCommitIntent(repoRoot, []string{relPath}, msg, "", action)
+	}
+	if skipWipnoteGitMutation(wipnoteDir, label) {
+		return nil
+	}
+	return recordCommitIntent(repoRoot, []string{relPath}, msg, "", action)
+}
+
+// appendCommitIntent is the git-free half of recordCommitIntent.
+func appendCommitIntent(repoRoot string, relPaths []string, message, workItemID, action string) error {
+	ob, err := openCommitOutbox(repoRoot)
+	if err != nil {
+		return err
+	}
+	return ob.AppendCoalescingByRelPath(commitqueue.Intent{
+		RepoRoot:   repoRoot,
+		RelPaths:   relPaths,
+		Message:    message,
+		WorkItemID: workItemID,
+		Action:     action,
+	})
 }
 
 // outboxCommitter is the production Committer: it stages and commits the
