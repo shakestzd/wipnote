@@ -26,6 +26,7 @@ func init() {
 	hooks.SessionTelemetryFn = finalizeSessionTelemetry
 	hooks.PortDriftPathsFn = portDriftPaths
 	hooks.ReapCollectorFn = collector.ReapCollector
+	hooks.CollectorAliveFn = collector.IsCollectorAlive
 }
 
 // sessionStartCatchUpBudget bounds telemetry catch-up inside the SessionStart

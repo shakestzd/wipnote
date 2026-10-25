@@ -39,6 +39,8 @@ func telemetryFinalizeBudget() time.Duration {
 // waits up to the collector drain budget (collectorDrainWait; 3s outside Codex)
 // for a clean drain, then falls back to SIGKILL.
 // All errors are silently logged — the collector PID file is best-effort.
+// SessionEnd finalize and this signal are best effort: the hook can be cut off
+// during harness teardown. The writer daemon's catch-up is the guarantee.
 func signalCollector(projectDir, sessionID string) {
 	// The launcher keys the collector's directory by its own OTel id
 	// (WIPNOTE_OTEL_SESSION_ID), not the harness session id the hook receives.
@@ -50,6 +52,19 @@ func signalCollector(projectDir, sessionID string) {
 	signalCollectorDir(projectDir, sessionID)
 }
 
+// collectorPID extracts the collector pid from the PID file contents. The
+// writer records "<pid>\n<starttime>". When CollectorAliveFn is wired it also
+// proves the pid is still the same collector, so a reused pid is never signalled.
+func collectorPID(sessDir string, data []byte) (int, bool) {
+	if CollectorAliveFn != nil {
+		alive, pid := CollectorAliveFn(sessDir)
+		return pid, alive && pid > 0
+	}
+	first, _, _ := strings.Cut(strings.TrimSpace(string(data)), "\n")
+	pid, err := strconv.Atoi(strings.TrimSpace(first))
+	return pid, err == nil && pid > 0
+}
+
 // signalCollectorDir signals the collector whose PID file lives under the
 // shard directory named sessionID.
 func signalCollectorDir(projectDir, sessionID string) {
@@ -59,10 +74,10 @@ func signalCollectorDir(projectDir, sessionID string) {
 		// No PID file — collector was never spawned or already cleaned up.
 		return
 	}
-	pidStr := strings.TrimSpace(string(data))
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil || pid <= 0 {
-		debugLog(projectDir, "[session-end] collector-pid: invalid pid %q for session %s", pidStr, sessionID[:minLen(sessionID, 8)])
+	pid, ok := collectorPID(filepath.Dir(pidPath), data)
+	if !ok {
+		debugLog(projectDir, "[session-end] collector-pid: no live collector in %q for session %s", strings.TrimSpace(string(data)), sessionID[:minLen(sessionID, 8)])
+		_ = os.Remove(pidPath)
 		return
 	}
 
