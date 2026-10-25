@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 5
+    version: 6
 design:
     problem: ""
     goals: []
@@ -74,6 +74,26 @@ slices:
       done_when:
         - golangci-lint unused reports nothing in cmd/wipnote
         - No help text mentions the dashboard or serve
+        - Full test suite passes
+      effort: M
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-cf427ad6
+      num: 4
+      title: Delete dead code in core
+      what: Remove the unused graph SQL query layer (dsl/querybuilder/algorithms/pattern/query/sessions); dead db repo clusters (claims, features, events, messages, plan feedback, rollups, arch, lineage, gate records, pragmas, busy counters); the workitem fluent query API and unused options; dead hook runner plumbing and fallback counters; the never-written active_work_items table and its reads; the unwired Gemini after-model hook and harness emit wrappers; single dead funcs and constants.
+      why: About 4,000 lines; several clusters are read on hot paths and always return nothing.
+      files:
+        - core/graph
+        - core/db
+        - core/workitem
+        - core/hooks
+        - core/worktree/repair.go
+      deps: []
+      done_when:
+        - golangci-lint unused reports nothing in core
         - Full test suite passes
       effort: M
       risk: Low
