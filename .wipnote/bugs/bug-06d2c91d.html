@@ -10,20 +10,30 @@
 <body>
     <article id="bug-06d2c91d"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-25T02:06:59.096193"
-             data-updated="2026-10-25T05:21:15.689518" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
+             data-updated="2026-10-25T05:28:41.05091" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Writer daemon startup hydrate takes ~15 min: one git log --follow per work-item file</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="34ec3a5b59cb9f28de8c21ea3d45b8329b2673ae.html" data-relationship="committed_in" data-since="2026-10-25T01:21:16">wipnote: start bug-06d2c91d</a></li>
+                    <li><a href="bc7152e225c7b1b933f2c8ad9e2c250d9582faea.html" data-relationship="committed_in" data-since="2026-10-25T00:51:14">Merge pull request #264 from shakestzd/fix/daemon-nonblocking</a></li>
+                    <li><a href="d187ac1d0c367b061023b87002d9bfa8de25c2ca.html" data-relationship="committed_in" data-since="2026-10-25T00:43:16">test(hydrate): allow sampling the real-corpus first-add comparison (bug-06d2c91d)</a></li>
+                    <li><a href="9cd6dcf5ad22660441e16765daf7fa5858577a47.html" data-relationship="committed_in" data-since="2026-10-24T23:54:50">fix(daemon): never block the launcher or hooks on writer startup (bug-06d2c91d)</a></li>
+                    <li><a href="4a3651ecae3c0e6f57c42397872d4d1c99d1d85b.html" data-relationship="committed_in" data-since="2026-10-24T23:54:38">perf(hydrate): resolve first-add dates in one git walk, not one --follow per file (bug-06d2c91d)</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
