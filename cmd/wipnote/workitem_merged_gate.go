@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/workitem"
@@ -38,8 +37,8 @@ const allowOrphanMarker = "allow-orphan (unmerged-upstream override): "
 // provenance gate owns that case, including its --accepted-advisory path); or
 // the item is not code-bearing. Runs AFTER the provenance gate, before any
 // state transition.
-func checkMergedUpstreamCompleteGate(p *workitem.Project, col *workitem.Collection, typeName, id, allowOrphan string) error {
-	repoRoot := filepath.Dir(p.ProjectDir)
+func checkMergedUpstreamCompleteGate(col *workitem.Collection, ev *completionEvidence, typeName, id, allowOrphan string) error {
+	repoRoot := ev.repoRoot
 	if repoRoot == "" || !isGitRepo(repoRoot) {
 		return nil
 	}
@@ -47,12 +46,11 @@ func checkMergedUpstreamCompleteGate(p *workitem.Project, col *workitem.Collecti
 	if upstream == "" {
 		return nil
 	}
-	node, _ := col.Get(id)
-	commits := canonicalLinkedCommits(repoRoot, id, node)
+	commits := ev.linkedCommits()
 	if len(commits) == 0 {
 		return nil
 	}
-	if len(canonicalCodeBearingPaths(repoRoot, p.ProjectDir, id, node, commits)) == 0 {
+	if paths, _ := ev.codeBearingPaths(); len(paths) == 0 {
 		return nil
 	}
 	for _, sha := range commits {

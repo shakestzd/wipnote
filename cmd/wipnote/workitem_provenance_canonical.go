@@ -42,6 +42,11 @@ import (
 // code-bearing and is exempt. That is the honest answer: no durable artifact
 // links it to any source change, so there is nothing for the gate to point at.
 
+// linkedCommitsFn is the completion path's entry to canonicalLinkedCommits. It
+// is a seam so a test can count how many `git log --all` walks one completion
+// runs (feat-c30d0792).
+var linkedCommitsFn = canonicalLinkedCommits
+
 // canonicalLinkedCommits returns the commits that carry provenance for
 // workItemID, from BOTH canonical sources:
 //

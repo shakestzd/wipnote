@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/shakestzd/wipnote/core/models"
 )
 
 // Item-scoped dirty-source completion gate (bug-34c27c22, GH-#261).
@@ -128,8 +126,8 @@ func ownDirtyError(id string, scope completionScope, own []dirtyFile) error {
 //
 // The scan is scoped to the completing agent's own worktree (bug-6c953712):
 // a file dirty in the .wipnote owner's checkout or a sibling tree is never read.
-func checkUncommittedSourceCompleteGate(wipnoteDir, id string, node *models.Node, allowDirty bool) (string, error) {
-	repoRoot := filepath.Dir(wipnoteDir)
+func checkUncommittedSourceCompleteGate(ev *completionEvidence, allowDirty bool) (string, error) {
+	repoRoot, id := ev.repoRoot, ev.id
 	if !isGitRepo(repoRoot) {
 		return "", nil
 	}
@@ -139,7 +137,7 @@ func checkUncommittedSourceCompleteGate(wipnoteDir, id string, node *models.Node
 		return "", err
 	}
 
-	commits := canonicalLinkedCommits(repoRoot, id, node)
+	commits := ev.linkedCommits()
 	own, other := partitionDirty(dirty, ownItemPaths(repoRoot, commits, scope))
 	noCommits := len(commits) == 0
 	if noCommits {
