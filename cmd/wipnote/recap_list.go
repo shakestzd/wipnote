@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -144,12 +143,7 @@ func runRecapList(format string) error {
 	}
 
 	if format == "json" {
-		data, mErr := json.MarshalIndent(out, "", "  ")
-		if mErr != nil {
-			return fmt.Errorf("marshal json: %w", mErr)
-		}
-		fmt.Println(string(data))
-		return nil
+		return printJSON(out)
 	}
 	printRecapListText(out)
 	return nil
@@ -192,12 +186,7 @@ func runRecapShow(id, format string) error {
 	out := recapJSONFromRow(row)
 
 	if format == "json" {
-		data, mErr := json.MarshalIndent(out, "", "  ")
-		if mErr != nil {
-			return fmt.Errorf("marshal json: %w", mErr)
-		}
-		fmt.Println(string(data))
-		return nil
+		return printJSON(out)
 	}
 	fmt.Printf("ID:        %s\n", out.ID)
 	fmt.Printf("Kind:      %s\n", out.Kind)

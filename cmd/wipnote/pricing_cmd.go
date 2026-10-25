@@ -74,9 +74,7 @@ func pricingShowCmd() *cobra.Command {
 			if !ok {
 				return fmt.Errorf("unknown model %q (try `wipnote pricing list`)", args[0])
 			}
-			enc := json.NewEncoder(cmd.OutOrStdout())
-			enc.SetIndent("", "  ")
-			return enc.Encode(p)
+			return writeJSON(cmd.OutOrStdout(), p)
 		},
 	}
 }

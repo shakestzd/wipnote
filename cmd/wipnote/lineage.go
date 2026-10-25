@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -320,9 +319,7 @@ func renderLineageJSON(w io.Writer, root string, kind lineageKind, forward, back
 	if orch != nil {
 		out.OrchSessions, out.OrchError = orch.Sessions, orch.Err
 	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return writeJSON(w, out)
 }
 
 // renderLineageTree prints a human-readable indented tree with the query node
@@ -445,9 +442,7 @@ func runLineageCommit(w io.Writer, db *sql.DB, sha string, opts lineageOpts) err
 			Kind    string              `json:"kind"`
 			Commits []dbpkg.TraceResult `json:"commits"`
 		}{Root: sha, Kind: kindCommit.String(), Commits: commits}
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return writeJSON(w, out)
 	}
 	sep := strings.Repeat("─", 60)
 	fmt.Fprintln(w, sep)
@@ -492,9 +487,7 @@ func runLineageFile(w io.Writer, db *sql.DB, filePath string, opts lineageOpts) 
 			Kind     string                  `json:"kind"`
 			Features []dbpkg.FileTraceResult `json:"features"`
 		}{Root: filePath, Kind: kindFile.String(), Features: results}
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return writeJSON(w, out)
 	}
 	sep := strings.Repeat("─", 60)
 	fmt.Fprintln(w, sep)

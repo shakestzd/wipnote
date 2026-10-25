@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -247,10 +246,5 @@ func renderHistoryTable(id string, entries []historyEntry) error {
 
 // renderHistoryJSON marshals entries to indented JSON on stdout.
 func renderHistoryJSON(entries []historyEntry) error {
-	data, err := json.MarshalIndent(entries, "", "  ")
-	if err != nil {
-		return fmt.Errorf("json marshal: %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
+	return printJSON(entries)
 }

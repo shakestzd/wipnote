@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -55,9 +54,7 @@ func runPlanBlocks(w io.Writer, asJSON bool) error {
 				RequiresEntries: s.RequiresEntries,
 			})
 		}
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		return enc.Encode(entries)
+		return writeJSON(w, entries)
 	}
 	return writeBlockCatalogText(w, catalog)
 }

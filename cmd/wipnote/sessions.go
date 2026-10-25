@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -50,9 +49,7 @@ func runSessionsResumable(jsonOut bool) error {
 		return err
 	}
 	if jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(rows)
+		return printJSON(rows)
 	}
 	renderResumableSessionsTable(os.Stdout, rows)
 	return nil

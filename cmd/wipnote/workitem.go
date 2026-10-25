@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -142,12 +141,7 @@ func runWiShowWithFormat(id, format string) error {
 
 // printNodeDetailJSON outputs a node as indented JSON.
 func printNodeDetailJSON(node *models.Node) error {
-	data, err := json.MarshalIndent(node, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal json: %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
+	return printJSON(node)
 }
 
 // wiForceStart is set by --force on the start sub-command and consumed by

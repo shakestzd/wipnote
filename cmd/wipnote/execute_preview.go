@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -74,11 +73,9 @@ func runExecutePreview(id, format string) error {
 
 	switch format {
 	case "json":
-		data, err := json.MarshalIndent(preview, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal json: %w", err)
+		if err := printJSON(preview); err != nil {
+			return err
 		}
-		fmt.Println(string(data))
 	default:
 		printExecutePreviewText(preview)
 	}

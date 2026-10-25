@@ -724,12 +724,7 @@ func printRelevantJSON(results []relevantResult, shown, total int) error {
 		Total:     total,
 		Truncated: shown < total,
 	}
-	data, err := json.MarshalIndent(resp, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal json: %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
+	return printJSON(resp)
 }
 
 // printRelevantText outputs a human-readable ranked list, followed by a

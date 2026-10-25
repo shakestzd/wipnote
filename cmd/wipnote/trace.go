@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -177,9 +176,7 @@ func runTraceCommit(sha string, jsonOut bool) error {
 				Track:   c.TrackID,
 			})
 		}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return printJSON(out)
 	}
 
 	sep := strings.Repeat("─", 60)
@@ -275,9 +272,7 @@ func runTraceFile(filePath string, jsonOut bool) error {
 		if owner := dbpkg.ResolveFileOwner(database, filePath); owner != nil {
 			out.Owner = owner.FeatureID
 		}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return printJSON(out)
 	}
 
 	sep := strings.Repeat("─", 60)
@@ -496,9 +491,7 @@ func runTraceFeatureJSON(w io.Writer, database *sql.DB, featureID string) error 
 		Files:    filePaths,
 	}
 
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return writeJSON(w, out)
 }
 
 // runTraceFeatureTests writes a human-readable list of the test files a work
@@ -564,7 +557,5 @@ func runTraceFeatureTestsJSON(w io.Writer, database *sql.DB, featureID string) e
 		})
 	}
 
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return writeJSON(w, out)
 }
