@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 12
+    version: 33
 design:
     problem: |
         ## Problem
@@ -216,9 +216,10 @@ slices:
         Check: wipnote check host-paths over the new docs.
         Review: the owner confirms the inventory against orch --help output.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Internal source import. The owner supplies the material and no external standard applies.
+      approval_status: approved
       decisions_notes: |
         **Trigger:** the owner reads the orch source on the local machine, or shares a read-only view of it.
         **State:** reference only (q-orch-source answered 2026-10-25: inventory-only). No orch code enters the repo. Nothing in docs/reference/orch/ is built, run or imported by Go code.
@@ -256,7 +257,7 @@ slices:
         Self-test in the container with HERDR_ENV unset: the script skips herdr checks and reports them as not run.
         Manual: the owner runs it on the Mac in a herdr pane and pastes the table into delegate-phase-b.md.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/hooks
@@ -268,6 +269,7 @@ slices:
         - url: https://herdr.dev/docs/integrations/
           claim: herdr's Claude and Codex integrations add their own hook entries for session identity.
           accessed: "2026-10-25"
+      approval_status: approved
       decisions_notes: |
         **Trigger:** the owner runs scripts/delegate-phase-b.sh on the Mac in a herdr pane. The container half runs in this devcontainer.
         **State:** writes only to a temp dir and one scratch session; no project file changes.
@@ -329,9 +331,10 @@ slices:
         Check: wipnote check host-paths over both docs.
         Review: every command in delegate.md exists in the slice 8, 10 and 11 help output once they land.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: A docs-only slice. Its facts come from slices 1 and 2 and the owner's answers.
+      approval_status: approved
       decisions_notes: |
         **Trigger:** slices 1 and 2 are done and the plan questions are answered.
         **State:** orch-integration.md keeps its history and gains a pointer; delegate.md becomes the spec.
@@ -371,9 +374,10 @@ slices:
         Unit: TestLedger_OpenCloseEnrichRoundTrip, TestLedger_ConcurrentOpen, TestLedger_RefusesHostPath, TestLedger_TornTailRepair, TestLedger_OpenInteractiveRowsForItem, TestLedger_OpenRowByRunID, TestLedger_IDHas12Hex, TestLedger_WorkerSessionsKeepOrder.
         Integration: TestReindex_DelegationLedgerRows.
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Follows the in-repo core/sessionledger and core/gateledger pattern. No external standard applies.
+      approval_status: approved
       questions:
         - id: q-one-type
           text: One record type for one-shot and interactive runs (Q4)?
@@ -476,7 +480,7 @@ slices:
         Redaction: TestRedact_LinearTime (8000 characters well under 10 ms).
         Contract: TestRunFolder_MatchesModContract (uses mods/codex-herdr-pane/test/fixtures); slice 7 adds TestView_ReadsGoRunFolder.
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://github.com/husniadil/herdr-mail
@@ -485,6 +489,7 @@ slices:
         - url: https://github.com/zqkra/cbds
           claim: A durable, fsynced report written before anyone is told; a later wait returns it at once.
           accessed: "2026-10-25"
+      approval_status: approved
       questions:
         - id: q-append
           text: Do several processes ever append to one file?
@@ -587,7 +592,7 @@ slices:
         Contract: TestHerdr_StubScript (testdata/herdr copied from mods/codex-herdr-pane/test/stubs/herdr), TestFake_UnscriptedCallFails, TestFake_RepliesMatchSchema.
         Live (HERDR_ENV=1 only): TestHerdr_LiveTabRoundTrip (create a tab, run, read, close).
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://herdr.dev/docs/agents/
@@ -599,6 +604,7 @@ slices:
         - url: https://herdr.dev/docs/agent-automation/
           claim: agent start runs a known agent only; pane run, send-text and send-keys drive any pane.
           accessed: "2026-10-25"
+      approval_status: approved
       decisions_notes: |
         **Trigger:** called by delegate run, spawn, send and stop.
         **State:** stateless. Pane ids live in the run folder.
@@ -687,12 +693,13 @@ slices:
         Unit: TestMarkdown_SafeFence, TestPage_EscapesHTML, TestView_FollowsToExit.
         Regression (F-4, two-sided): TestTail_KeepsLineAtWindowStart, TestTail_DropsOnlyPartialFirstLine. Redaction: TestRender_RedactLinearTime.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://learn.chatgpt.com/docs/non-interactive-mode
           claim: codex exec --json event types (thread.started, turn.*, item.*) and usage fields used by the Codex filter.
           accessed: "2026-10-25"
+      approval_status: approved
       decisions_notes: |
         **Trigger:** delegate run pipes raw output through the filter for the harness. delegate view reads clean.md.
         **State:** pure functions over bytes, plus a file follower for view.
@@ -751,12 +758,13 @@ slices:
         Integration (stubs on PATH): TestRun_CodexInPane, TestRun_Headless (only if the spike keeps headless), TestRun_PaneClosed, TestRun_ClaudePrintStreamJSON, TestRun_CcxFollowsOwnLog, TestRun_DerivedLabelNotInLedger.
         Unit: TestReport_CapsSections, TestRecipes_LeanProfileOnlyWhenPresent.
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://learn.chatgpt.com/docs/non-interactive-mode
           claim: codex exec --json and -o/--output-last-message, used for the raw log and last.md.
           accessed: "2026-10-25"
+      approval_status: approved
       questions:
         - id: q-report
           text: Must the output of run match the mod's report?
@@ -827,7 +835,7 @@ slices:
         Hook: TestPreToolUse_DeniesStandaloneDelegation, TestPreToolUse_DelegateRunPrefixNotDenied, TestPreToolUse_ChainedPassesThrough, TestPreToolUse_NeverAllowsOrRewrites, TestPreToolUse_CcxTaskDeniedWithContainerForm (its own case).
         Bench: BenchmarkPreToolUse_NonDelegation.
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/hooks
@@ -836,6 +844,7 @@ slices:
         - url: https://learn.chatgpt.com/docs/hooks
           claim: Codex PreToolUse supports permissionDecision deny with a reason; ask is parsed but not supported; updatedInput is valid only with allow. Bash and exec_command match as Bash.
           accessed: "2026-10-25"
+      approval_status: approved
       questions:
         - id: q-rewrite-support
           text: Which harnesses can rewrite a Bash call in PreToolUse?
@@ -908,7 +917,7 @@ slices:
         Hook: TestDelegateBind_FastAndFailOpen.
         Live (HERDR_ENV=1 only): TestSpawn_LiveClaudeWorker.
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/hooks
@@ -923,6 +932,7 @@ slices:
         - url: https://herdr.dev/docs/agent-automation/
           claim: herdr agent start launches a known agent and cannot run a custom command; pane run takes a shell string.
           accessed: "2026-10-25"
+      approval_status: approved
       questions:
         - id: q-settings
           text: Does a native worker need orch's --settings hook file?
@@ -1015,7 +1025,7 @@ slices:
         Hook: TestDelegateEvents_StopRecordsTurnEndOnly, TestDelegateEvents_AskCaptured, TestDelegateEvents_FailOpen.
         Claims: TestWait_GoneExpiresOnlyWorker, TestWait_AddsClearedSessionToWorkerSessions, TestWait_TimeoutLeavesClaims.
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://herdr.dev/docs/agents/
@@ -1030,6 +1040,7 @@ slices:
         - url: https://github.com/husniadil/herdr-mail
           claim: agent prompt gives no receipt, so the store, not the hint, is authoritative.
           accessed: "2026-10-25"
+      approval_status: approved
       questions:
         - id: q-settle
           text: What settles a wait?
@@ -1102,7 +1113,7 @@ slices:
         Unit: TestJSONL_ThreadIDAndUsage, TestSandboxProbe_ReportsBwrapFailure (stub codex), TestDoctor_NamesEachCheck.
         Manual: run wipnote delegate doctor in this devcontainer and on the Mac.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://learn.chatgpt.com/docs/non-interactive-mode
@@ -1114,6 +1125,7 @@ slices:
         - url: https://codex.danielvaughan.com/2026/04/20/codex-cli-devcontainers-docker-sandboxes-secure-containerised-agents/
           claim: 'Third party, unverified: Docker''s default seccomp and AppArmor block bwrap user namespaces; the options are to loosen the container or use danger-full-access inside it.'
           accessed: "2026-10-25"
+      approval_status: approved
       decisions_notes: |
         **Trigger:** delegate doctor, and a cached preflight before the first Codex spawn or run per host.
         **State:** the probe result is cached in the run store with a short TTL.
@@ -1164,9 +1176,10 @@ slices:
         Unit: TestLineageDelegations_TagAndSid, TestLineageDelegations_NeverDeriveForeignTag, TestLineageDlgRoot.
         Regression: the existing lineage_orch tests keep passing until removal, then are deleted with orchlink.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: An in-repo lineage change. Its rules come from internal/orchlink and feat-ac66c687's decision Q1.
+      approval_status: approved
       decisions_notes: |
         **Trigger:** wipnote lineage on a work item or a dlg- id.
         **State:** reads the ledger, never live run files.
@@ -1234,12 +1247,13 @@ slices:
         Unit: TestMods_NoCodexHerdrPane, TestSettingsNotice_OnceForModUsers.
         Build: wipnote plugin build-ports --target claude/codex/antigravity, then the port-drift check.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/hooks
           claim: Plugin hooks merge with user and project hooks, so removing the mod leaves wipnote's plugin hooks as the only delegation path.
           accessed: "2026-10-25"
+      approval_status: approved
       decisions_notes: |
         **Trigger:** slices 8 to 13 pass their gates.
         **State:** guidance lives in plugin/skills/delegate/SKILL.md (shared source) and the system prompt.
@@ -1281,12 +1295,13 @@ slices:
       risk: Low
       tests: 'Unit: worker name built from item id and slug, truncated to 32 (two-sided: no item gives the old name). Unit: user-prompt hook emits sessionTitle once after a claim. Integration against a fake harness: spawn passes the name flag; --name and resume keep theirs.'
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/hooks
           claim: UserPromptSubmit and SessionStart hook output can set sessionTitle, which renames the live session.
           accessed: "2026-10-25"
+      approval_status: approved
       decisions_notes: |
         **Trigger:** spawn builds the worker name; a claim in a live session marks a pending title.
         **State:** the pending title lives with the session; the user-prompt hook reads it once.
@@ -1330,9 +1345,10 @@ slices:
         Concurrency: TestSpawn_RefusesSecondLiveWorkerOnItem, TestSpawn_AllowsAfterWorkerPaneGone, TestSpawn_OneShotRunsDoNotCount.
         Complete: TestComplete_WarnsOnLiveDelegation.
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Extends the in-repo claim-episode model (core/claimledger, cmd/wipnote/claim_ledger.go). No external standard applies.
+      approval_status: approved
       questions:
         - id: q-worker-family
           text: Do a caller's live workers count as its claim family?
@@ -1380,7 +1396,7 @@ slices:
         Integration (herdr fake): TestAnswer_SendTextThenEnter, TestAnswer_NeverUsesAgentPrompt, TestAnswer_RefusesPaneMismatch, TestAnswer_RefusesTerminalIDMismatch, TestAnswer_RefusesWhilePermissionDialog, TestAnswer_RefusesStaleQid, TestAnswer_RefusesUnknownQid, TestAnswer_RefusesOutsideHerdr.
         Contract: TestHerdr_SendTextSendKeysFake.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://herdr.dev/docs/agents/
@@ -1389,6 +1405,7 @@ slices:
         - url: https://code.claude.com/docs/en/hooks
           claim: AskUserQuestion tool input carries questions and options.
           accessed: "2026-10-25"
+      approval_status: approved
       decisions_notes: |
         **Trigger:** the caller runs wipnote delegate answer after delegate questions lists a pending question.
         **State:** reads pending questions from the run's events (slice 11); writes an answered event so a second answer is refused.
@@ -1444,9 +1461,10 @@ slices:
         Unit: TestImportOrch_EndedFromLastEvent, TestImportOrch_NoEventsLeavesEndedEmpty, TestImportOrch_ReadsArchivedMailboxes, TestImportOrch_MailRootFlag.
         Format (two-sided): TestImportOrch_EventsV1, TestImportOrch_EventsV2, TestImportOrch_RefusesUnknownVersion.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Reads an in-repo reader (internal/orchlink) into an in-repo ledger. No external standard applies.
+      approval_status: approved
       decisions_notes: |
         **Trigger:** the owner runs it once on the machine that holds orch's registry.
         **State:** reads through internal/orchlink; writes ledger rows through core/delegationledger.
@@ -1489,9 +1507,10 @@ slices:
         Unit (mod): runs.test.ts reads Go-written run folders (fixtures from slice 5) and checks live and ended rows.
         Check: the existing orchestra tests keep passing.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: An in-repo mod change; the mods engine contract lives in mods/wipnote-orchestra and its tests.
+      approval_status: approved
       decisions_notes: |
         **Trigger:** the band's refresh in Claude Code.
         **State:** read-only over .wipnote/delegate/runs/; it never writes there.
@@ -1538,7 +1557,7 @@ slices:
         Hook: TestDelegateBind_ResumeSourceBindsSameSession.
         Live (HERDR_ENV=1 only): TestResume_LiveClaudeKeepsContext.
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/cli-reference
@@ -1547,6 +1566,7 @@ slices:
         - url: https://learn.chatgpt.com/docs/non-interactive-mode
           claim: codex exec resume <SESSION_ID> or --last continues an earlier run.
           accessed: "2026-10-25"
+      approval_status: approved
       questions:
         - id: q-resume-mode
           text: How does a later task reuse a stopped worker's context?
@@ -1614,12 +1634,13 @@ slices:
         Doctor: TestDoctor_ContainerChecks (devcontainer up, wipnote inside, a hook fires).
         Live (manual): the owner runs one container worker on the Mac (Phase B B6, B8).
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://github.com/devcontainers/cli
           claim: devcontainer up and devcontainer exec take --workspace-folder; up prints JSON with outcome, containerId, remoteUser and remoteWorkspaceFolder.
           accessed: "2026-10-25"
+      approval_status: approved
       questions:
         - id: q-container-image
           text: Which container runs a --container worker?
@@ -2154,3 +2175,108 @@ feedback:
           question_id: q-antigravity
           created_at: "2026-10-25T08:28:17Z"
           updated_at: "2026-10-25T08:28:17Z"
+        - section: slice-1
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:40Z"
+          updated_at: "2026-10-25T14:55:40Z"
+        - section: slice-2
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:40Z"
+          updated_at: "2026-10-25T14:55:40Z"
+        - section: slice-3
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:41Z"
+          updated_at: "2026-10-25T14:55:41Z"
+        - section: slice-4
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:41Z"
+          updated_at: "2026-10-25T14:55:41Z"
+        - section: slice-5
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:42Z"
+          updated_at: "2026-10-25T14:55:42Z"
+        - section: slice-6
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:42Z"
+          updated_at: "2026-10-25T14:55:42Z"
+        - section: slice-7
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:43Z"
+          updated_at: "2026-10-25T14:55:43Z"
+        - section: slice-8
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:43Z"
+          updated_at: "2026-10-25T14:55:43Z"
+        - section: slice-9
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:44Z"
+          updated_at: "2026-10-25T14:55:44Z"
+        - section: slice-10
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:44Z"
+          updated_at: "2026-10-25T14:55:44Z"
+        - section: slice-11
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:45Z"
+          updated_at: "2026-10-25T14:55:45Z"
+        - section: slice-12
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:45Z"
+          updated_at: "2026-10-25T14:55:45Z"
+        - section: slice-13
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:46Z"
+          updated_at: "2026-10-25T14:55:46Z"
+        - section: slice-14
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:46Z"
+          updated_at: "2026-10-25T14:55:46Z"
+        - section: slice-15
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:47Z"
+          updated_at: "2026-10-25T14:55:47Z"
+        - section: slice-16
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:47Z"
+          updated_at: "2026-10-25T14:55:47Z"
+        - section: slice-17
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:48Z"
+          updated_at: "2026-10-25T14:55:48Z"
+        - section: slice-18
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:48Z"
+          updated_at: "2026-10-25T14:55:48Z"
+        - section: slice-19
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:49Z"
+          updated_at: "2026-10-25T14:55:49Z"
+        - section: slice-20
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:49Z"
+          updated_at: "2026-10-25T14:55:49Z"
+        - section: slice-21
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T14:55:50Z"
+          updated_at: "2026-10-25T14:55:50Z"
