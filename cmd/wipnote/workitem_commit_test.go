@@ -324,12 +324,12 @@ func TestCheckUncommittedSourceCompleteGate_Unchanged(t *testing.T) {
 	}
 
 	// Clean tree → nil.
-	if err := checkUncommittedSourceCompleteGate(wipnoteDir, "feat-gate1", false); err != nil {
+	if err := gateOnly(wipnoteDir, "feat-9a7e0001", false); err != nil {
 		t.Fatalf("clean tree should pass, got: %v", err)
 	}
 
 	// Dirty .wipnote-only change must NOT trip the gate (gate ignores .wipnote).
-	wpFile := filepath.Join(wipnoteDir, "features", "feat-gate1.html")
+	wpFile := filepath.Join(wipnoteDir, "features", "feat-9a7e0001.html")
 	if err := os.MkdirAll(filepath.Dir(wpFile), 0o755); err != nil {
 		t.Fatalf("mkdir features: %v", err)
 	}
@@ -339,26 +339,32 @@ func TestCheckUncommittedSourceCompleteGate_Unchanged(t *testing.T) {
 	if out, err := exec.Command("git", "-C", mainRepo, "add", ".wipnote").CombinedOutput(); err != nil {
 		t.Fatalf("git add .wipnote: %v\n%s", err, out)
 	}
-	if err := checkUncommittedSourceCompleteGate(wipnoteDir, "feat-gate1", false); err != nil {
+	if err := gateOnly(wipnoteDir, "feat-9a7e0001", false); err != nil {
 		t.Fatalf("dirty .wipnote-only should pass, got: %v", err)
 	}
 
-	// Dirty tracked SOURCE file → refusal that names the file.
+	// Dirty tracked SOURCE file that belongs to the item → refusal naming it.
+	provGit(t, mainRepo, "commit", "-q", "--allow-empty", "-m", "feat-9a7e0001: baseline")
+	if err := os.WriteFile(filepath.Join(mainRepo, "README.md"), []byte("# Test\nimpl\n"), 0o644); err != nil {
+		t.Fatalf("write README: %v", err)
+	}
+	provGit(t, mainRepo, "add", "README.md")
+	provGit(t, mainRepo, "commit", "-q", "-m", "feat-9a7e0001: implement")
 	if err := os.WriteFile(filepath.Join(mainRepo, "README.md"),
 		[]byte("# Test\nmodified\n"), 0o644); err != nil {
 		t.Fatalf("modify README: %v", err)
 	}
-	gateErr := checkUncommittedSourceCompleteGate(wipnoteDir, "feat-gate1", false)
+	gateErr := gateOnly(wipnoteDir, "feat-9a7e0001", false)
 	if gateErr == nil {
 		t.Fatal("dirty source must be refused, got nil")
 	}
 	if !strings.Contains(gateErr.Error(), "README.md") ||
-		!strings.Contains(gateErr.Error(), "uncommitted source changes outside .wipnote/") {
+		!strings.Contains(gateErr.Error(), "files from this item have uncommitted changes") {
 		t.Errorf("refusal must name the dirty file and reason, got: %v", gateErr)
 	}
 
 	// allowDirty=true → nil despite the dirty source file.
-	if err := checkUncommittedSourceCompleteGate(wipnoteDir, "feat-gate1", true); err != nil {
+	if err := gateOnly(wipnoteDir, "feat-9a7e0001", true); err != nil {
 		t.Fatalf("allowDirty should bypass the gate, got: %v", err)
 	}
 }
@@ -385,7 +391,7 @@ func TestCheckUncommittedSourceCompleteGate_IgnoresSettingsLocal(t *testing.T) {
 		t.Fatalf("write settings.local.json: %v", err)
 	}
 
-	if err := checkUncommittedSourceCompleteGate(wipnoteDir, "feat-gate2", false); err != nil {
+	if err := gateOnly(wipnoteDir, "feat-gate2", false); err != nil {
 		t.Fatalf("settings.local.json should be ignored, got: %v", err)
 	}
 }

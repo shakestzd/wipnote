@@ -1625,12 +1625,23 @@ func setupDirtySourceGateRepo(t *testing.T) (repoRoot, wipnoteDir string) {
 	if err := os.WriteFile(filepath.Join(repoRoot, "main.go"), []byte("package main\n"), 0o644); err != nil {
 		t.Fatalf("write source: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(wipnoteDir, "features", "feat-dirty.html"), []byte("<html></html>\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(wipnoteDir, "features", "feat-d1a7e000.html"), []byte("<html></html>\n"), 0o644); err != nil {
 		t.Fatalf("write artifact: %v", err)
 	}
 	gitCmd(t, repoRoot, "add", ".")
 	gitCmd(t, repoRoot, "commit", "-m", "initial")
 	return repoRoot, wipnoteDir
+}
+
+// commitLinkedSource commits a change to rel with the item id in the message,
+// so rel counts as one of the item's own files.
+func commitLinkedSource(t *testing.T, repoRoot, id, rel string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(repoRoot, rel), []byte("package main\n\n// "+id+"\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", rel, err)
+	}
+	gitCmd(t, repoRoot, "add", rel)
+	gitCmd(t, repoRoot, "commit", "-m", id+": implement")
 }
 
 func gitCmd(t *testing.T, dir string, args ...string) {
@@ -1643,16 +1654,17 @@ func gitCmd(t *testing.T, dir string, args ...string) {
 
 func TestUncommittedSourceCompleteGate_BlocksTrackedSource(t *testing.T) {
 	repoRoot, wipnoteDir := setupDirtySourceGateRepo(t)
+	commitLinkedSource(t, repoRoot, "feat-d1a7e000", "main.go")
 	if err := os.WriteFile(filepath.Join(repoRoot, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatalf("modify source: %v", err)
 	}
 
-	err := checkUncommittedSourceCompleteGate(wipnoteDir, "feat-dirty", false)
+	err := gateOnly(wipnoteDir, "feat-d1a7e000", false)
 	if err == nil {
 		t.Fatal("expected dirty source gate to block")
 	}
 	msg := err.Error()
-	for _, want := range []string{"refusing to complete feat-dirty", "main.go", "git add main.go", "git commit -m \"feat-dirty: commit implementation\"", "--allow-dirty"} {
+	for _, want := range []string{"refusing to complete feat-d1a7e000", "main.go", "git add main.go", "git commit -m \"feat-d1a7e000: commit implementation\"", "--allow-dirty"} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("gate error missing %q:\n%s", want, msg)
 		}
@@ -1661,34 +1673,35 @@ func TestUncommittedSourceCompleteGate_BlocksTrackedSource(t *testing.T) {
 
 func TestUncommittedSourceCompleteGate_IgnoresWipnoteOnly(t *testing.T) {
 	_, wipnoteDir := setupDirtySourceGateRepo(t)
-	if err := os.WriteFile(filepath.Join(wipnoteDir, "features", "feat-dirty.html"), []byte("<html>updated</html>\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(wipnoteDir, "features", "feat-d1a7e000.html"), []byte("<html>updated</html>\n"), 0o644); err != nil {
 		t.Fatalf("modify artifact: %v", err)
 	}
 
-	if err := checkUncommittedSourceCompleteGate(wipnoteDir, "feat-dirty", false); err != nil {
+	if err := gateOnly(wipnoteDir, "feat-d1a7e000", false); err != nil {
 		t.Fatalf("expected .wipnote-only changes to pass, got: %v", err)
 	}
 }
 
 func TestUncommittedSourceCompleteGate_AllowDirtyBypasses(t *testing.T) {
 	repoRoot, wipnoteDir := setupDirtySourceGateRepo(t)
+	commitLinkedSource(t, repoRoot, "feat-d1a7e000", "main.go")
 	if err := os.WriteFile(filepath.Join(repoRoot, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatalf("modify source: %v", err)
 	}
 
-	if err := checkUncommittedSourceCompleteGate(wipnoteDir, "feat-dirty", true); err != nil {
+	if err := gateOnly(wipnoteDir, "feat-d1a7e000", true); err != nil {
 		t.Fatalf("allow dirty should bypass gate, got: %v", err)
 	}
 }
 
-func TestUncommittedSourceCompleteGate_IgnoresUntrackedSource(t *testing.T) {
+func TestUncommittedSourceCompleteGate_UnrelatedUntrackedDoesNotBlock(t *testing.T) {
 	repoRoot, wipnoteDir := setupDirtySourceGateRepo(t)
 	if err := os.WriteFile(filepath.Join(repoRoot, "new.go"), []byte("package main\n"), 0o644); err != nil {
 		t.Fatalf("write untracked source: %v", err)
 	}
 
-	if err := checkUncommittedSourceCompleteGate(wipnoteDir, "feat-dirty", false); err != nil {
-		t.Fatalf("untracked source should not block tracked-file gate, got: %v", err)
+	if err := gateOnly(wipnoteDir, "feat-d1a7e000", false); err != nil {
+		t.Fatalf("unrelated untracked source must not block, got: %v", err)
 	}
 }
 
