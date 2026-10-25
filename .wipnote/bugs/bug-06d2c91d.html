@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Writer daemon startup hydrate takes ~15 min: one git log --follow per work-item file</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-06d2c91d"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-25T02:06:59.096193"
+             data-updated="2026-10-25T05:21:15.689518" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
+
+        <header>
+            <h1>Writer daemon startup hydrate takes ~15 min: one git log --follow per work-item file</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/b0991d53-1a24-4f08-85e1-85786a570a50.html" data-relationship="implemented_in" data-since="2026-10-25T03:11:40.599741">session b0991d53-1a24-4f08-85e1-85786a570a50</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-25T02:06:59.124755">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="spawned_from">
+                <h3>Spawned From:</h3>
+                <ul>
+                    <li><a href="../bugs/bug-98f32723.html" data-relationship="spawned_from" data-since="2026-10-25T02:07:05.18244">SessionEnd finalize is a no-op for launcher sessions: Claude session ID used, telemetry keyed by launcher ID</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-bug-06d2c91d-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Socket first: daemon binds writer.sock before the hydrate</li>
+                <li data-completed="true" data-step-id="step-bug-06d2c91d-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fast hydrate: one git log pass instead of ~1650 calls, with benchmark</li>
+                <li data-completed="true" data-step-id="step-bug-06d2c91d-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Short write transactions so hooks wait no more than ~50ms</li>
+                <li data-completed="true" data-step-id="step-bug-06d2c91d-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Launcher does not wait for the daemon; no alarming warning (Claude, Codex, Antigravity)</li>
+                <li data-completed="true" data-step-id="step-bug-06d2c91d-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Hooks fall back at once when the daemon is not ready</li>
+                <li data-completed="true" data-step-id="step-bug-06d2c91d-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ PR open with CI green and before/after numbers</li>
+                <li data-completed="true" data-step-id="step-bug-06d2c91d-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Merge (with #259), rebuild, restart: no warning, fast hooks</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Daemon started 21:22:43, printed &#39;writer-only daemon ready&#39; and bound writer.sock only at 21:38:06. runWriterOnly calls hydrateCompatibilityDB before serving; it runs one &#39;git log --diff-filter=A --follow&#39; per work-item file (~1650 files, cmd/wipnote/git_timestamps.go:64). While it runs, the socket is not bound, so hook writes cannot reach the daemon. Seen while testing bug-98f32723 (PR #259 moves catch-up before the hydrate, but the hydrate itself is still slow). Fix ideas: one batched git log over all files, cache timestamps, or bind the socket before hydrating.</p>
+        </section>
+    </article>
+</body>
+</html>
