@@ -363,16 +363,16 @@ func TestBuildCodexArgs_PutsWritableRootsBeforeResume(t *testing.T) {
 //     cache_pollution_test.go is the guard that the redirect still works. The
 //     variable, its reader in core/storage, and every pin on it stay until no
 //     code path can create a DB file at all — see that guard for why.
-//   - the SOURCE ASSERTION. The child env is assembled inline in execCodex,
+//   - the SOURCE ASSERTION. The child env is assembled in execCodex (codex_exec.go),
 //     which needs a real Codex binary to exercise, so the removal of the
 //     propagation itself is pinned by scanning the source.
 func TestCodexLauncherNeverPropagatesDBPath(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "cache", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 
-	data, err := os.ReadFile("codex.go")
+	data, err := os.ReadFile("codex_exec.go")
 	if err != nil {
-		t.Fatalf("read codex.go: %v", err)
+		t.Fatalf("read codex_exec.go: %v", err)
 	}
 	src := string(data)
 	for _, forbidden := range []string{
@@ -382,7 +382,7 @@ func TestCodexLauncherNeverPropagatesDBPath(t *testing.T) {
 		"EnsureDBDir(",
 	} {
 		if strings.Contains(src, forbidden) {
-			t.Fatalf("codex.go still references %q — the Codex launcher must not know about a project DB", forbidden)
+			t.Fatalf("codex_exec.go still references %q — the Codex launcher must not know about a project DB", forbidden)
 		}
 	}
 
