@@ -1247,12 +1247,14 @@ func TestLockfile_Concurrent(t *testing.T) {
 
 	lockPath := filepath.Join(locksDir, "compliance-feat-test.lock")
 
-	// Write a lockfile with the current PID (simulating ourselves holding the lock).
-	if err := os.WriteFile(lockPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0o644); err != nil {
-		t.Fatalf("write lockfile: %v", err)
+	// Hold the lock for real: a PID in a file is not a lock (bug: PID reuse).
+	release, err := acquireComplianceLock(lockPath)
+	if err != nil {
+		t.Fatalf("first acquire: %v", err)
 	}
+	defer release()
 
-	_, err := acquireComplianceLock(lockPath)
+	_, err = acquireComplianceLock(lockPath)
 	if err == nil {
 		t.Error("expected error when lockfile is held by current PID")
 		return

@@ -32,9 +32,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
+	"github.com/gofrs/flock"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
@@ -469,38 +469,36 @@ func resolveGitRoot(dir string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// acquireComplianceLock creates a lockfile at lockPath containing the current PID.
-// Returns a cleanup function that removes the lockfile, or an error if another
-// process already holds the lock (determined by a live PID in the lockfile).
+// acquireComplianceLock takes an exclusive, non-blocking flock on lockPath and
+// records the holder's PID in it for diagnostics. It returns a release function,
+// or an error when another live process holds the lock. The kernel drops the
+// flock on process death, so a crashed holder never leaves a stale lock, and a
+// reused PID in the file means nothing. release never removes the file:
+// deleting a flock file lets a second process lock a new inode while the first
+// still holds the old one.
 func acquireComplianceLock(lockPath string) (func(), error) {
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
 		return nil, fmt.Errorf("create locks dir: %w", err)
 	}
-
-	// Check if lockfile already exists with a live PID.
-	if data, err := os.ReadFile(lockPath); err == nil {
-		pidStr := strings.TrimSpace(string(data))
-		if pid, err := strconv.Atoi(pidStr); err == nil {
-			// Check if the process is alive by sending signal 0.
-			proc, err := os.FindProcess(pid)
-			if err == nil {
-				if proc.Signal(syscall.Signal(0)) == nil {
-					// Process is alive — lock is held.
-					return nil, fmt.Errorf("compliance already running for %s (pid %d)", filepath.Base(lockPath), pid)
-				}
-			}
-		}
-		// Stale lockfile — remove it.
-		os.Remove(lockPath)
+	lock := flock.New(lockPath)
+	ok, err := lock.TryLock()
+	if err != nil {
+		return nil, fmt.Errorf("lock %s: %w", filepath.Base(lockPath), err)
 	}
-
-	// Write our PID to the lockfile.
-	if err := os.WriteFile(lockPath, []byte(strconv.Itoa(os.Getpid())), 0o644); err != nil {
-		return nil, fmt.Errorf("write lockfile: %w", err)
+	if !ok {
+		return nil, fmt.Errorf("compliance already running for %s (%s)", filepath.Base(lockPath), holderPID(lockPath))
 	}
+	_ = os.WriteFile(lockPath, []byte(strconv.Itoa(os.Getpid())), 0o644)
+	return func() { _ = lock.Unlock() }, nil
+}
 
-	cleanup := func() { os.Remove(lockPath) }
-	return cleanup, nil
+// holderPID reads the PID recorded by the lock holder, for error messages.
+func holderPID(lockPath string) string {
+	data, err := os.ReadFile(lockPath)
+	if err != nil || strings.TrimSpace(string(data)) == "" {
+		return "pid unknown"
+	}
+	return "pid " + strings.TrimSpace(string(data))
 }
 
 // buildDiffBlob builds the diff text to embed in the compliance prompt.

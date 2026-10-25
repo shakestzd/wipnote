@@ -164,42 +164,62 @@ func CreateSessionHTML(projectDir string, s *models.Session) {
 	// (roborev job 272, commit 2d54416ed): the previous guard only checked
 	// for a different id, so a same-session replay could reset a 732-event
 	// session back to an empty shell.
-	if existing, readErr := os.ReadFile(htmlPath); readErr == nil {
-		existingContent := string(existing)
-		existingID := extractArticleID(existingContent)
-		if existingID != "" && existingID != s.SessionID {
-			// Different session id on disk — preserve it (UUID collision guard).
-			debugLog(projectDir,
-				"[session-html] skipping write: %s already belongs to session %q (new=%q)",
-				htmlPath, existingID, s.SessionID)
-			return
-		}
-		// Same session id (or no id found): only overwrite when the shell is
-		// empty — i.e. no events recorded and not finalized.
-		//
-		// IMPORTANT: data-event-count on the <article> tag is only updated by
-		// FinalizeSessionHTML. During a live session, AppendEventToSessionHTML
-		// inserts <li> elements but leaves data-event-count="0". So we must
-		// detect population by counting actual <li> activity entries in the
-		// section, not by reading data-event-count alone.
-		if extractEventCount(existingContent) > 0 || countActivityEntries(existingContent) > 0 {
-			debugLog(projectDir,
-				"[session-html] skipping write: %s has recorded events (same session %q)",
-				htmlPath, s.SessionID)
-			return
-		}
-		existingStatus := extractArticleStatus(existingContent)
-		if existingStatus != "" && existingStatus != "active" {
-			debugLog(projectDir,
-				"[session-html] skipping write: %s is already %q (same session %q)",
-				htmlPath, existingStatus, s.SessionID)
+	f, err := os.OpenFile(htmlPath, os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		debugLog(projectDir, "[session-html] open %s: %v", htmlPath, err)
+		return
+	}
+	defer f.Close()
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		debugLog(projectDir, "[session-html] flock %s: %v", htmlPath, err)
+		return
+	}
+	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck
+
+	// Read under the lock so the guard and the write see the same file.
+	if existing, readErr := io.ReadAll(f); readErr == nil && len(existing) > 0 {
+		if !sessionHTMLMayOverwrite(projectDir, htmlPath, s.SessionID, string(existing)) {
 			return
 		}
 	}
-
-	if err := os.WriteFile(htmlPath, []byte(b.String()), 0o644); err != nil {
+	if err := rewriteLocked(f, b.String()); err != nil {
 		debugLog(projectDir, "[session-html] write %s: %v", htmlPath, err)
 	}
+}
+
+// rewriteLocked replaces the contents of f, which the caller has flocked.
+func rewriteLocked(f *os.File, content string) error {
+	if err := f.Truncate(0); err != nil {
+		return err
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return err
+	}
+	_, err := f.WriteString(content)
+	return err
+}
+
+// sessionHTMLMayOverwrite applies the CreateSessionHTML clobber guard to the
+// existing file content. Only a same-session, empty, still-active shell may be
+// re-initialised: a different session id (UUID collision), recorded events, or
+// a finalized status all keep the file as is.
+//
+// data-event-count is only updated by FinalizeSessionHTML, so population is
+// detected by counting <li> entries too (roborev job 272, commit 2d54416ed).
+func sessionHTMLMayOverwrite(projectDir, htmlPath, sessionID, existing string) bool {
+	if id := extractArticleID(existing); id != "" && id != sessionID {
+		debugLog(projectDir, "[session-html] skipping write: %s already belongs to session %q (new=%q)", htmlPath, id, sessionID)
+		return false
+	}
+	if extractEventCount(existing) > 0 || countActivityEntries(existing) > 0 {
+		debugLog(projectDir, "[session-html] skipping write: %s has recorded events (same session %q)", htmlPath, sessionID)
+		return false
+	}
+	if st := extractArticleStatus(existing); st != "" && st != "active" {
+		debugLog(projectDir, "[session-html] skipping write: %s is already %q (same session %q)", htmlPath, st, sessionID)
+		return false
+	}
+	return true
 }
 
 // SetSessionHTMLActiveFeature persists the session's current root work-item
@@ -210,11 +230,20 @@ func SetSessionHTMLActiveFeature(projectDir, sessionID, featureID string) error 
 		return nil
 	}
 	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html")
-	data, err := os.ReadFile(htmlPath)
+	f, err := os.OpenFile(htmlPath, os.O_RDWR, 0o644)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
+		return err
+	}
+	defer f.Close()
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		return err
+	}
+	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck
+	data, err := io.ReadAll(f)
+	if err != nil {
 		return err
 	}
 	content := removeArticleDataAttr(string(data), "data-active-feature-id")
@@ -226,7 +255,7 @@ func SetSessionHTMLActiveFeature(projectDir, sessionID, featureID string) error 
 	if updated == content {
 		return nil
 	}
-	return os.WriteFile(htmlPath, []byte(updated), 0o644)
+	return rewriteLocked(f, updated)
 }
 
 func removeArticleDataAttr(htmlText, attr string) string {

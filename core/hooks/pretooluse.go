@@ -276,11 +276,11 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		if warn := checkYoloCodeHealthGuard(event, ctx.IsYoloMode); warn != "" {
 			debugLog(ctx.ProjectDir, "[wipnote] YOLO code health warning: %s", warn)
 		}
-		testRan := hasRecentTestRun(database, ctx.SessionID)
+		testRan := hasRecentTestRun(ctx.ProjectDir, ctx.SessionID)
 		if warn := checkYoloCommitGuard(event, ctx.IsYoloMode, testRan); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
-		if warn := checkYoloDiffReviewGuard(event, ctx.IsYoloMode, hasRecentDiffReview(database, ctx.SessionID)); warn != "" {
+		if warn := checkYoloDiffReviewGuard(event, ctx.IsYoloMode, hasRecentDiffReview(ctx.ProjectDir, ctx.SessionID)); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, database, ctx.SessionID, ctx.ProjectDir); warn != "" {
