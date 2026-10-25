@@ -1207,7 +1207,13 @@ Defined behaviour, which follows from that model whatever q-claim-handoff decide
 - **Orchestrator ends first.** Its SessionEnd closes only its own rows. Workers keep their claims, and their delegation rows stay open until they end.
 - **Completion.** Whoever completes the item closes every open episode on it, worker and orchestrator alike (existing `CloseWorkItem`).
 
-Open choices (new questions): what the orchestrator&#39;s own claim does while workers hold the item (q-claim-handoff: co-claim through the delegations ledger, co-claim through the caller&#39;s shard, or release then reclaim), and whether several workers may claim one item at once (q-concurrent-workers). Whether the claim &#34;returns&#34; to the orchestrator depends on q-claim-handoff. Under co-claim it never leaves. Under release-reclaim, the caller&#39;s next `delegate` call after the last worker ends reopens it through the normal start path.
+**Handoff (q-claim-handoff answered 2026-10-25: co-claim, workers count as family).** The orchestrator keeps its episode while a worker holds its own, so the claim never leaves the orchestrator and nothing has to return. The claim gate (`liveForeignClaims` and `checkLiveCollisionGate` in `cmd/wipnote/claim_ledger.go`, called by `&lt;kind&gt; start` in `cmd/wipnote/workitem.go`) treats an episode as family in two cases:
+- It is held by a worker session listed in `worker_sessions` of an open interactive delegation row whose `caller_session` is the caller. This lets the orchestrator re-start or review.
+- The caller is a worker (`WIPNOTE_DELEGATE_RUN` names an open row) and the episode is held by that row&#39;s `caller_session` or its root. This lets the worker claim beside the orchestrator.
+
+An unreadable delegations ledger fails open, as an unreadable claim ledger does today. Completion has no claim gate, so the orchestrator can review and complete. Completion closes every open episode on the item, the worker&#39;s included (`CloseWorkItem`). The guidance therefore says to stop the worker before completing.
+
+**Concurrency (q-concurrent-workers answered 2026-10-25: one worker per item in v1).** `spawn` refuses when an open interactive row for the item has a live worker. A row whose pane is gone is closed first, through the worker-loss path. One-shot runs (`delegate run`) do not claim and do not count: q-worker-claim covers spawned workers.
 
 ## Prior art: herdr plugins (surveyed 2026-10-25)
 
@@ -1818,7 +1824,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Open, Close and Enrich round-trip every field through the HTML, and reindex yields the same rows</li><li>Concurrent Open calls from 8 goroutines and 2 processes lose no row (core/filelock.Guard)</li><li>A field holding an absolute host path or a home directory is refused at write time</li><li>A torn last row is detected and repaired the way core/sessionledger does it</li></ul>
+        <ul class="slice-done-list"><li>Open, Close and Enrich round-trip every field through the HTML, and reindex yields the same rows</li><li>Concurrent Open calls from 8 goroutines and 2 processes lose no row (core/filelock.Guard)</li><li>A field holding an absolute host path or a home directory is refused at write time</li><li>A torn last row is detected and repaired the way core/sessionledger does it</li><li>A read helper answers the claim gate&#39;s two questions from one parse: the open interactive rows for a work item (caller_session, worker_sessions), and the open row for a run id</li></ul>
       </div>
       
     
@@ -1835,7 +1841,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>Q3:</strong> spawn and stop persist. Tool, prompt and turn-stop events do not: they duplicate agent_events.
 <strong>Rejected:</strong> one HTML file per run (a file per codex exec call, and lineage would have to glob them all). Per-session shards are rejected because lineage queries by work item. SQLite only is rejected because it is purgeable (bug-550c1cd8).
 <strong>Commit:</strong> rows go through the existing artifact commit path. No write waits on the daemon.
-<strong>Claims:</strong> caller_session and worker_sessions are what the co-claim-gate option of q-claim-handoff would read to treat a caller&#39;s live workers as family.
+<strong>Claims (q-claim-handoff answered: co-claim-gate):</strong> the claim gate reads mode, work_item, ended, caller_session and worker_sessions. Only open interactive rows count. The read helper returns ok=false on an unreadable ledger, so the gate fails open. worker_sessions must hold every session a worker has used, because the gate matches episodes by session id.
 <strong>Promotion:</strong> feature_id is feat-dd8b0cde, so promote-slice reuses it instead of creating a duplicate.
 <strong>Parallel:</strong> yes, with slices 1, 2, 5 and 6.</p>
 </div>
@@ -1898,7 +1904,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
           
           <div class="test-group" data-kind="unit">
             <span class="test-chip">UNIT &middot; 1</span>
-            <ul><li>TestLedger_OpenCloseEnrichRoundTrip, TestLedger_ConcurrentOpen, TestLedger_RefusesHostPath, TestLedger_TornTailRepair.</li></ul>
+            <ul><li>TestLedger_OpenCloseEnrichRoundTrip, TestLedger_ConcurrentOpen, TestLedger_RefusesHostPath, TestLedger_TornTailRepair, TestLedger_OpenInteractiveRowsForItem, TestLedger_OpenRowByRunID.</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
@@ -2911,7 +2917,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list slice-done-list--grid"><li>spawn returns within 3 s with the run id, pane id and name, and refuses a name that is already live</li><li>After /clear in the worker, the run lists both session ids</li><li>stop reports verified only when the pane is gone and no worker process remains; otherwise it names what survives</li><li>tree shows caller, run, worker sessions and sub-agents, reusing RenderAgentTree</li><li>The SessionStart bind adds under 2 ms and never fails the hook</li><li>Within 10 s of spawn, .wipnote/claims/ holds an open episode for the work item and the worker session, written by the normal wipnote &lt;kind&gt; start path</li><li>spawn refuses when no work item resolves (no --work-item and no active claim in the caller)</li><li>After stop, crash or pane loss, no episode stays open for the worker session (abandoned on stop, expired on loss), and the orchestrator&#39;s claim is in the state q-claim-handoff defines</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>spawn returns within 3 s with the run id, pane id and name, and refuses a name that is already live</li><li>After /clear in the worker, the run lists both session ids</li><li>stop reports verified only when the pane is gone and no worker process remains; otherwise it names what survives</li><li>tree shows caller, run, worker sessions and sub-agents, reusing RenderAgentTree</li><li>The SessionStart bind adds under 2 ms and never fails the hook</li><li>Within 10 s of spawn, .wipnote/claims/ holds an open episode for the work item and the worker session, written by the normal wipnote &lt;kind&gt; start path</li><li>spawn refuses when no work item resolves (no --work-item and no active claim in the caller)</li><li>After stop, crash or pane loss, no episode stays open for the worker session (abandoned on stop, expired on loss), and the orchestrator&#39;s episode stays open</li><li>The claim gate admits the worker beside the orchestrator and the orchestrator beside its worker, and still refuses an unrelated live session</li><li>spawn refuses a second live worker on a work item that already has one, and proceeds once that worker&#39;s pane is gone</li></ul>
       </div>
       
     
@@ -2928,9 +2934,12 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>Names:</strong> [a-z0-9-], 1 to 32 characters, unique among live runs in the project.
 <strong>Stop:</strong> ask the agent to exit, wait, close the pane, then check herdr process-info. A worker that survives is reported, never silently killed outside the pane.
 <strong>Rejected:</strong> copying orch&#39;s --settings hook file (needless under wipnote&#39;s launchers). herdr agent start is rejected until it is known to accept a custom command.
-<strong>Claim:</strong> the worker&#39;s brief begins with wipnote &lt;kind&gt; start , so the item lock, collision gate and claim ledger run unchanged; spawn polls .wipnote/claims/ for the episode. The worker stays a root session (no WIPNOTE_PARENT_SESSION), so it gets its own sessions-ledger row and claim shard. Stop relies on the worker&#39;s SessionEnd (abandoned); the caller never writes a live worker&#39;s shard. On a lost pane, after confirming no worker process remains, stop or list closes only that session&#39;s episodes as expired. The gate change in cmd/wipnote/claim_ledger.go depends on q-claim-handoff and q-concurrent-workers.
+<strong>Claim:</strong> the worker&#39;s brief begins with wipnote &lt;kind&gt; start , so the item lock, collision gate and claim ledger run unchanged; spawn polls .wipnote/claims/ for the episode. The worker stays a root session (no WIPNOTE_PARENT_SESSION), so it gets its own sessions-ledger row and claim shard. Stop relies on the worker&#39;s SessionEnd (abandoned); the caller never writes a live worker&#39;s shard. On a lost pane, after confirming no worker process remains, stop or list closes only that session&#39;s episodes as expired.
+<strong>Family rule (q-claim-handoff answered: co-claim-gate):</strong> extend liveForeignClaims in cmd/wipnote/claim_ledger.go (called by checkLiveCollisionGate from  start, cmd/wipnote/workitem.go). An episode is family when (a) its session is in worker_sessions of an open interactive row whose caller_session is the caller, or (b) the caller&#39;s WIPNOTE_DELEGATE_RUN names an open row whose caller_session is the episode&#39;s session or root. An unreadable delegations ledger fails open. This is a cooperative gate, like --force: the env var is trusted only when it names an open row.
+<strong>Ordering:</strong> spawn waits for the SessionStart bind event, then writes the worker session into worker_sessions (ledger Enrich), and only then sends the brief that runs  start. The hook stays a fast event write. After a /clear, the new session&#39;s bind event is added to worker_sessions by the next spawn, list or wait (slice 11).
+<strong>One worker per item (q-concurrent-workers answered):</strong> spawn refuses when an open interactive row for the item has a live pane. A row whose pane is gone is closed through the worker-loss path first. One-shot runs do not claim and do not count.
 <strong>Rejected (claim):</strong> opening the episode from the SessionStart hook, because that adds an item-lock and canonical write to a hook. A new suspended outcome is also rejected: the episode model has four outcomes, and the owner asked not to invent a new model.
-<strong>Risk:</strong> bug-01f182e5 (claims reconcile treats live sessions as dead) would expire live workers&#39; episodes. Fix it before this slice ships.
+<strong>Precondition:</strong> bug-01f182e5 (claims reconcile treats live sessions as dead) must be fixed first; otherwise reconcile expires live workers&#39; and orchestrators&#39; episodes.
 <strong>Refine:</strong> check against orch&#39;s spawn, pinning and stop semantics from slice 1.
 <strong>Parallel:</strong> it can run beside slices 8, 9 and 12.</p>
 </div>
@@ -2974,8 +2983,8 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 2</span>
-            <ul><li>Integration (fake herdr): TestSpawn_RefusesLiveName, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestStop_VerifiedOnlyWhenNoProcess, TestTree_CallerRunWorkerSubagents.</li><li>Live (HERDR_ENV=1 only): TestSpawn_LiveClaudeWorker.</li></ul>
+            <span class="test-chip">OTHER &middot; 3</span>
+            <ul><li>Integration (fake herdr): TestSpawn_RefusesLiveName, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestStop_VerifiedOnlyWhenNoProcess, TestTree_CallerRunWorkerSubagents.</li><li>Gate (cmd/wipnote/claim_ledger.go): TestLiveForeignClaims_WorkerIsFamilyOfCaller, TestLiveForeignClaims_CallerIsFamilyOfWorker, TestLiveForeignClaims_UnrelatedSessionStillRefused, TestLiveForeignClaims_EndedRowIsNotFamily, TestLiveForeignClaims_UnreadableDelegationLedgerFailsOpen, TestLiveForeignClaims_ClearedWorkerSessionIsFamily.</li><li>Live (HERDR_ENV=1 only): TestSpawn_LiveClaudeWorker.</li></ul>
           </div>
           
           <div class="test-group" data-kind="hook">
@@ -2985,7 +2994,12 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
           
           <div class="test-group" data-kind="claims">
             <span class="test-chip">CLAIMS &middot; 1</span>
-            <ul><li>TestSpawn_WorkerClaimsItem, TestSpawn_RefusesWithoutWorkItem, TestStop_WorkerEpisodeAbandonedBySessionEnd, TestPaneLoss_ExpiresOnlyWorkerEpisode, TestOrchestratorEnd_WorkerKeepsClaim, TestHandoff_&lt;q-claim-handoff option&gt;.</li></ul>
+            <ul><li>TestSpawn_WorkerClaimsItem, TestSpawn_RefusesWithoutWorkItem, TestStop_WorkerEpisodeAbandonedBySessionEnd, TestPaneLoss_ExpiresOnlyWorkerEpisode, TestOrchestratorEnd_WorkerKeepsClaim.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="concurrency">
+            <span class="test-chip">CONCURRENCY &middot; 1</span>
+            <ul><li>TestSpawn_RefusesSecondLiveWorkerOnItem, TestSpawn_AllowsAfterWorkerPaneGone, TestSpawn_OneShotRunsDoNotCount.</li></ul>
           </div>
           
         </div>
@@ -3096,7 +3110,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>wait returns on the worker&#39;s Stop event for the current turn id and ignores an event from an older turn</li><li>wait without --timeout is refused, and a timed-out wait exits 124 and prints the last known state</li><li>A message is readable with wipnote delegate inbox even when the prompt hint was lost</li><li>questions lists a pending AskUserQuestion with its options and drops it once the worker continues</li><li>wait, send, result and questions open or close no claim episode. On outcome gone, wait calls slice 10&#39;s worker-loss close. Under release-reclaim it may also reopen the caller&#39;s claim.</li></ul>
+        <ul class="slice-done-list"><li>wait returns on the worker&#39;s Stop event for the current turn id and ignores an event from an older turn</li><li>wait without --timeout is refused, and a timed-out wait exits 124 and prints the last known state</li><li>A message is readable with wipnote delegate inbox even when the prompt hint was lost</li><li>questions lists a pending AskUserQuestion with its options and drops it once the worker continues</li><li>wait, send, result and questions open or close no claim episode. On outcome gone, wait calls slice 10&#39;s worker-loss close. wait also adds a newly bound worker session (after /clear) to worker_sessions.</li></ul>
       </div>
       
     
@@ -3111,7 +3125,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>State:</strong> mail files and events-*.ndjson in the run store. The turn id increments at each delivered message.
 <strong>Payload:</strong> wait prints {run, turn, outcome: done|question|timeout|gone}. result prints last.md for the turn. questions prints JSON rows.
 <strong>Polling:</strong> at most 2 Hz, plus an fs watch where available. No daemon.
-<strong>Claims:</strong> wait observes; a timeout changes no claim. When the worker is gone, wait reuses slice 10&#39;s session-scoped expired close. If the owner picks release-reclaim (q-claim-handoff), the caller&#39;s wait that sees the last worker end reopens the caller&#39;s claim through the normal start path.
+<strong>Claims (co-claim, answered 2026-10-25):</strong> wait observes; a timeout changes no claim, and the orchestrator&#39;s episode is never touched. When the worker is gone, wait reuses slice 10&#39;s session-scoped expired close. When a bind event names a session not yet in worker_sessions (the worker ran /clear), wait enriches the ledger row, so the claim gate keeps treating that session as family.
 <strong>Rejected:</strong> settling on herdr idle (a lifecycle state, not a turn result). Parsing agent read output is rejected as racy. Answering questions from the orchestrator is deferred (q-answer-questions).
 <strong>Refine:</strong> match orch&#39;s send and wait semantics from slice 1.
 <strong>Parallel:</strong> no; it needs slice 10. It can run beside slices 12 and 13.</p>
@@ -3160,6 +3174,11 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
           <div class="test-group" data-kind="hook">
             <span class="test-chip">HOOK &middot; 1</span>
             <ul><li>TestDelegateEvents_StopAndAskCaptured, TestDelegateEvents_FailOpen.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="claims">
+            <span class="test-chip">CLAIMS &middot; 1</span>
+            <ul><li>TestWait_GoneExpiresOnlyWorker, TestWait_AddsClearedSessionToWorkerSessions, TestWait_TimeoutLeavesClaims.</li></ul>
           </div>
           
         </div>
@@ -3419,7 +3438,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>lineage --json carries delegations[] with link tag or sid, and a row tagged with another item is never derived (the orchlink rule is kept)</li><li>lineage dlg-&lt;id&gt; shows the caller session, the work item and the worker sessions</li><li>Under each delegation, lineage shows each worker&#39;s claim episode (start, end, outcome) read from .wipnote/claims/</li><li>After removal, go build ./... has no orchlink import, and the lineage JSON schema note records that orch_sessions was dropped</li></ul>
+        <ul class="slice-done-list"><li>lineage --json carries delegations[] with link tag or sid, and a row tagged with another item is never derived (the orchlink rule is kept)</li><li>lineage dlg-&lt;id&gt; shows the caller session, the work item and the worker sessions</li><li>Under each delegation, lineage shows each worker&#39;s claim episode (start, end, outcome) read from .wipnote/claims/</li><li>Overlapping orchestrator and worker episodes on one item are labelled as a co-claim through their delegation id, not shown as a collision</li><li>After removal, go build ./... has no orchlink import, and the lineage JSON schema note records that orch_sessions was dropped</li></ul>
       </div>
       
     
@@ -3433,7 +3452,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> wipnote lineage on a work item or a dlg- id.
 <strong>State:</strong> reads the ledger, never live run files.
 <strong>Payload:</strong> a text section &#34;delegations&#34;, and delegations[] in --json. Each row has id, mode, harness, name, link, state and worker session ids.
-<strong>Claims:</strong> worker claim episodes come from the existing claim ledger reader, joined on worker session id; no claim data is copied into the delegations ledger.
+<strong>Claims:</strong> worker claim episodes come from the existing claim ledger reader, joined on worker session id; no claim data is copied into the delegations ledger. Under the answered co-claim rule, an orchestrator episode and a worker episode that overlap are one delegation&#39;s co-claim; lineage names the dlg- id instead of flagging two claimants.
 <strong>Kept from orchlink:</strong> tag is asserted; sid is derived and labelled; a row tagged with another item is never derived; no host path is printed.
 <strong>Rejected:</strong> keeping both orch_sessions and delegations for good (two readers drift). Deleting orchlink before the owner stops using orch is rejected: lineage would lose those links.
 <strong>Parallel:</strong> yes, with slices 11 and 12.</p>
@@ -3585,7 +3604,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>No file outside git history names codex-herdr-pane except the release note</li><li>wipnote plugin build-ports runs clean, and all three generated trees carry the delegate skill</li><li>A user with the mod&#39;s settings sees a one-time notice that names the new settings</li><li>The delegate skill describes the claim handoff as decided in q-claim-handoff and tells orchestrators not to release or force-claim by hand</li></ul>
+        <ul class="slice-done-list"><li>No file outside git history names codex-herdr-pane except the release note</li><li>wipnote plugin build-ports runs clean, and all three generated trees carry the delegate skill</li><li>A user with the mod&#39;s settings sees a one-time notice that names the new settings</li><li>The delegate skill states the claim rules: the orchestrator keeps its claim and co-claims with its worker, one worker per item, stop the worker before completing (completion closes the worker&#39;s episode too), and never release or force-claim by hand</li></ul>
       </div>
       
     

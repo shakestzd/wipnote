@@ -66,7 +66,13 @@ design:
         - **Orchestrator ends first.** Its SessionEnd closes only its own rows. Workers keep their claims, and their delegation rows stay open until they end.
         - **Completion.** Whoever completes the item closes every open episode on it, worker and orchestrator alike (existing `CloseWorkItem`).
 
-        Open choices (new questions): what the orchestrator's own claim does while workers hold the item (q-claim-handoff: co-claim through the delegations ledger, co-claim through the caller's shard, or release then reclaim), and whether several workers may claim one item at once (q-concurrent-workers). Whether the claim "returns" to the orchestrator depends on q-claim-handoff. Under co-claim it never leaves. Under release-reclaim, the caller's next `delegate` call after the last worker ends reopens it through the normal start path.
+        **Handoff (q-claim-handoff answered 2026-10-25: co-claim, workers count as family).** The orchestrator keeps its episode while a worker holds its own, so the claim never leaves the orchestrator and nothing has to return. The claim gate (`liveForeignClaims` and `checkLiveCollisionGate` in `cmd/wipnote/claim_ledger.go`, called by `<kind> start` in `cmd/wipnote/workitem.go`) treats an episode as family in two cases:
+        - It is held by a worker session listed in `worker_sessions` of an open interactive delegation row whose `caller_session` is the caller. This lets the orchestrator re-start or review.
+        - The caller is a worker (`WIPNOTE_DELEGATE_RUN` names an open row) and the episode is held by that row's `caller_session` or its root. This lets the worker claim beside the orchestrator.
+
+        An unreadable delegations ledger fails open, as an unreadable claim ledger does today. Completion has no claim gate, so the orchestrator can review and complete. Completion closes every open episode on the item, the worker's included (`CloseWorkItem`). The guidance therefore says to stop the worker before completing.
+
+        **Concurrency (q-concurrent-workers answered 2026-10-25: one worker per item in v1).** `spawn` refuses when an open interactive row for the item has a live worker. A row whose pane is gone is closed first, through the worker-loss path. One-shot runs (`delegate run`) do not claim and do not count: q-worker-claim covers spawned workers.
 
         ## Prior art: herdr plugins (surveyed 2026-10-25)
 
@@ -333,10 +339,11 @@ slices:
         - Concurrent Open calls from 8 goroutines and 2 processes lose no row (core/filelock.Guard)
         - A field holding an absolute host path or a home directory is refused at write time
         - A torn last row is detected and repaired the way core/sessionledger does it
+        - 'A read helper answers the claim gate''s two questions from one parse: the open interactive rows for a work item (caller_session, worker_sessions), and the open row for a run id'
       effort: M
       risk: Med
       tests: |
-        Unit: TestLedger_OpenCloseEnrichRoundTrip, TestLedger_ConcurrentOpen, TestLedger_RefusesHostPath, TestLedger_TornTailRepair.
+        Unit: TestLedger_OpenCloseEnrichRoundTrip, TestLedger_ConcurrentOpen, TestLedger_RefusesHostPath, TestLedger_TornTailRepair, TestLedger_OpenInteractiveRowsForItem, TestLedger_OpenRowByRunID.
         Integration: TestReindex_DelegationLedgerRows.
       complexity: complex
       approved: false
@@ -353,7 +360,7 @@ slices:
         **Q3:** spawn and stop persist. Tool, prompt and turn-stop events do not: they duplicate agent_events.
         **Rejected:** one HTML file per run (a file per codex exec call, and lineage would have to glob them all). Per-session shards are rejected because lineage queries by work item. SQLite only is rejected because it is purgeable (bug-550c1cd8).
         **Commit:** rows go through the existing artifact commit path. No write waits on the daemon.
-        **Claims:** caller_session and worker_sessions are what the co-claim-gate option of q-claim-handoff would read to treat a caller's live workers as family.
+        **Claims (q-claim-handoff answered: co-claim-gate):** the claim gate reads mode, work_item, ended, caller_session and worker_sessions. Only open interactive rows count. The read helper returns ok=false on an unreadable ledger, so the gate fails open. worker_sessions must hold every session a worker has used, because the gate matches episodes by session id.
         **Promotion:** feature_id is feat-dd8b0cde, so promote-slice reuses it instead of creating a duplicate.
         **Parallel:** yes, with slices 1, 2, 5 and 6.
       blocks:
@@ -801,13 +808,17 @@ slices:
         - The SessionStart bind adds under 2 ms and never fails the hook
         - Within 10 s of spawn, .wipnote/claims/ holds an open episode for the work item and the worker session, written by the normal wipnote <kind> start path
         - spawn refuses when no work item resolves (no --work-item and no active claim in the caller)
-        - After stop, crash or pane loss, no episode stays open for the worker session (abandoned on stop, expired on loss), and the orchestrator's claim is in the state q-claim-handoff defines
+        - After stop, crash or pane loss, no episode stays open for the worker session (abandoned on stop, expired on loss), and the orchestrator's episode stays open
+        - The claim gate admits the worker beside the orchestrator and the orchestrator beside its worker, and still refuses an unrelated live session
+        - spawn refuses a second live worker on a work item that already has one, and proceeds once that worker's pane is gone
       effort: L
       risk: High
       tests: |
         Integration (fake herdr): TestSpawn_RefusesLiveName, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestStop_VerifiedOnlyWhenNoProcess, TestTree_CallerRunWorkerSubagents.
         Hook: TestDelegateBind_FastAndFailOpen.
-        Claims: TestSpawn_WorkerClaimsItem, TestSpawn_RefusesWithoutWorkItem, TestStop_WorkerEpisodeAbandonedBySessionEnd, TestPaneLoss_ExpiresOnlyWorkerEpisode, TestOrchestratorEnd_WorkerKeepsClaim, TestHandoff_<q-claim-handoff option>.
+        Claims: TestSpawn_WorkerClaimsItem, TestSpawn_RefusesWithoutWorkItem, TestStop_WorkerEpisodeAbandonedBySessionEnd, TestPaneLoss_ExpiresOnlyWorkerEpisode, TestOrchestratorEnd_WorkerKeepsClaim.
+        Gate (cmd/wipnote/claim_ledger.go): TestLiveForeignClaims_WorkerIsFamilyOfCaller, TestLiveForeignClaims_CallerIsFamilyOfWorker, TestLiveForeignClaims_UnrelatedSessionStillRefused, TestLiveForeignClaims_EndedRowIsNotFamily, TestLiveForeignClaims_UnreadableDelegationLedgerFailsOpen, TestLiveForeignClaims_ClearedWorkerSessionIsFamily.
+        Concurrency: TestSpawn_RefusesSecondLiveWorkerOnItem, TestSpawn_AllowsAfterWorkerPaneGone, TestSpawn_OneShotRunsDoNotCount.
         Live (HERDR_ENV=1 only): TestSpawn_LiveClaudeWorker.
       complexity: complex
       approved: false
@@ -833,9 +844,12 @@ slices:
         **Names:** [a-z0-9-], 1 to 32 characters, unique among live runs in the project.
         **Stop:** ask the agent to exit, wait, close the pane, then check herdr process-info. A worker that survives is reported, never silently killed outside the pane.
         **Rejected:** copying orch's --settings hook file (needless under wipnote's launchers). herdr agent start is rejected until it is known to accept a custom command.
-        **Claim:** the worker's brief begins with wipnote <kind> start <id>, so the item lock, collision gate and claim ledger run unchanged; spawn polls .wipnote/claims/ for the episode. The worker stays a root session (no WIPNOTE_PARENT_SESSION), so it gets its own sessions-ledger row and claim shard. Stop relies on the worker's SessionEnd (abandoned); the caller never writes a live worker's shard. On a lost pane, after confirming no worker process remains, stop or list closes only that session's episodes as expired. The gate change in cmd/wipnote/claim_ledger.go depends on q-claim-handoff and q-concurrent-workers.
+        **Claim:** the worker's brief begins with wipnote <kind> start <id>, so the item lock, collision gate and claim ledger run unchanged; spawn polls .wipnote/claims/ for the episode. The worker stays a root session (no WIPNOTE_PARENT_SESSION), so it gets its own sessions-ledger row and claim shard. Stop relies on the worker's SessionEnd (abandoned); the caller never writes a live worker's shard. On a lost pane, after confirming no worker process remains, stop or list closes only that session's episodes as expired.
+        **Family rule (q-claim-handoff answered: co-claim-gate):** extend liveForeignClaims in cmd/wipnote/claim_ledger.go (called by checkLiveCollisionGate from <kind> start, cmd/wipnote/workitem.go). An episode is family when (a) its session is in worker_sessions of an open interactive row whose caller_session is the caller, or (b) the caller's WIPNOTE_DELEGATE_RUN names an open row whose caller_session is the episode's session or root. An unreadable delegations ledger fails open. This is a cooperative gate, like --force: the env var is trusted only when it names an open row.
+        **Ordering:** spawn waits for the SessionStart bind event, then writes the worker session into worker_sessions (ledger Enrich), and only then sends the brief that runs <kind> start. The hook stays a fast event write. After a /clear, the new session's bind event is added to worker_sessions by the next spawn, list or wait (slice 11).
+        **One worker per item (q-concurrent-workers answered):** spawn refuses when an open interactive row for the item has a live pane. A row whose pane is gone is closed through the worker-loss path first. One-shot runs do not claim and do not count.
         **Rejected (claim):** opening the episode from the SessionStart hook, because that adds an item-lock and canonical write to a hook. A new suspended outcome is also rejected: the episode model has four outcomes, and the owner asked not to invent a new model.
-        **Risk:** bug-01f182e5 (claims reconcile treats live sessions as dead) would expire live workers' episodes. Fix it before this slice ships.
+        **Precondition:** bug-01f182e5 (claims reconcile treats live sessions as dead) must be fixed first; otherwise reconcile expires live workers' and orchestrators' episodes.
         **Refine:** check against orch's spawn, pinning and stop semantics from slice 1.
         **Parallel:** it can run beside slices 8, 9 and 12.
       blocks:
@@ -881,12 +895,13 @@ slices:
         - wait without --timeout is refused, and a timed-out wait exits 124 and prints the last known state
         - A message is readable with wipnote delegate inbox even when the prompt hint was lost
         - questions lists a pending AskUserQuestion with its options and drops it once the worker continues
-        - wait, send, result and questions open or close no claim episode. On outcome gone, wait calls slice 10's worker-loss close. Under release-reclaim it may also reopen the caller's claim.
+        - wait, send, result and questions open or close no claim episode. On outcome gone, wait calls slice 10's worker-loss close. wait also adds a newly bound worker session (after /clear) to worker_sessions.
       effort: L
       risk: High
       tests: |
         Integration (fake herdr): TestSend_StoreFirstThenHint, TestWait_CurrentTurnOnly, TestWait_RequiresTimeout, TestResult_FromStopPayload, TestQuestions_PendingThenCleared.
         Hook: TestDelegateEvents_StopAndAskCaptured, TestDelegateEvents_FailOpen.
+        Claims: TestWait_GoneExpiresOnlyWorker, TestWait_AddsClearedSessionToWorkerSessions, TestWait_TimeoutLeavesClaims.
       complexity: complex
       approved: false
       comment: ""
@@ -909,7 +924,7 @@ slices:
         **State:** mail files and events-*.ndjson in the run store. The turn id increments at each delivered message.
         **Payload:** wait prints {run, turn, outcome: done|question|timeout|gone}. result prints last.md for the turn. questions prints JSON rows.
         **Polling:** at most 2 Hz, plus an fs watch where available. No daemon.
-        **Claims:** wait observes; a timeout changes no claim. When the worker is gone, wait reuses slice 10's session-scoped expired close. If the owner picks release-reclaim (q-claim-handoff), the caller's wait that sees the last worker end reopens the caller's claim through the normal start path.
+        **Claims (co-claim, answered 2026-10-25):** wait observes; a timeout changes no claim, and the orchestrator's episode is never touched. When the worker is gone, wait reuses slice 10's session-scoped expired close. When a bind event names a session not yet in worker_sessions (the worker ran /clear), wait enriches the ledger row, so the claim gate keeps treating that session as family.
         **Rejected:** settling on herdr idle (a lifecycle state, not a turn result). Parsing agent read output is rejected as racy. Answering questions from the orchestrator is deferred (q-answer-questions).
         **Refine:** match orch's send and wait semantics from slice 1.
         **Parallel:** no; it needs slice 10. It can run beside slices 12 and 13.
@@ -1005,6 +1020,7 @@ slices:
         - lineage --json carries delegations[] with link tag or sid, and a row tagged with another item is never derived (the orchlink rule is kept)
         - lineage dlg-<id> shows the caller session, the work item and the worker sessions
         - Under each delegation, lineage shows each worker's claim episode (start, end, outcome) read from .wipnote/claims/
+        - Overlapping orchestrator and worker episodes on one item are labelled as a co-claim through their delegation id, not shown as a collision
         - After removal, go build ./... has no orchlink import, and the lineage JSON schema note records that orch_sessions was dropped
       effort: M
       risk: Med
@@ -1019,7 +1035,7 @@ slices:
         **Trigger:** wipnote lineage on a work item or a dlg- id.
         **State:** reads the ledger, never live run files.
         **Payload:** a text section "delegations", and delegations[] in --json. Each row has id, mode, harness, name, link, state and worker session ids.
-        **Claims:** worker claim episodes come from the existing claim ledger reader, joined on worker session id; no claim data is copied into the delegations ledger.
+        **Claims:** worker claim episodes come from the existing claim ledger reader, joined on worker session id; no claim data is copied into the delegations ledger. Under the answered co-claim rule, an orchestrator episode and a worker episode that overlap are one delegation's co-claim; lineage names the dlg- id instead of flagging two claimants.
         **Kept from orchlink:** tag is asserted; sid is derived and labelled; a row tagged with another item is never derived; no host path is printed.
         **Rejected:** keeping both orch_sessions and delegations for good (two readers drift). Deleting orchlink before the owner stops using orch is rejected: lineage would lose those links.
         **Parallel:** yes, with slices 11 and 12.
@@ -1073,7 +1089,7 @@ slices:
         - No file outside git history names codex-herdr-pane except the release note
         - wipnote plugin build-ports runs clean, and all three generated trees carry the delegate skill
         - A user with the mod's settings sees a one-time notice that names the new settings
-        - The delegate skill describes the claim handoff as decided in q-claim-handoff and tells orchestrators not to release or force-claim by hand
+        - 'The delegate skill states the claim rules: the orchestrator keeps its claim and co-claims with its worker, one worker per item, stop the worker before completing (completion closes the worker''s episode too), and never release or force-claim by hand'
       effort: M
       risk: Med
       tests: |
@@ -1257,7 +1273,7 @@ questions:
       answer: null
     - id: q-claim-handoff
       text: When a spawned worker claims the work item, what happens to the orchestrator's claim?
-      description: 'A worker''s claim episode is keyed by its own session (rootSessionFor falls back to the session id), so today feature start''s collision gate (checkLiveCollisionGate) refuses the worker while the orchestrator holds a live claim. Episodes have four outcomes only (completed, released, abandoned, expired), so "suspend" has no outcome of its own: it equals release plus an automatic reclaim. In every option, completion by either side closes every open episode on the item (CloseWorkItem).'
+      description: 'A worker''s claim episode is keyed by its own session (rootSessionFor falls back to the session id), so today feature start''s collision gate (checkLiveCollisionGate) refuses the worker while the orchestrator holds a live claim. Episodes have four outcomes only (completed, released, abandoned, expired), so "suspend" has no outcome of its own: it equals release plus an automatic reclaim. In every option, completion by either side closes every open episode on the item (CloseWorkItem). ANSWERED 2026-10-25 by the owner: co-claim, workers count as family. The orchestrator keeps its claim; the claim gate treats the caller''s live workers, read from the delegations ledger (caller_session, worker_sessions), as its own family, so neither blocks the other; the orchestrator can still review and complete the item.'
       options:
         - key: co-claim-gate
           label: 'Co-claim: the orchestrator keeps its episode, the worker opens its own in its own shard, and the collision gate treats the caller''s live workers (from the delegations ledger) as family'
@@ -1265,10 +1281,10 @@ questions:
           label: 'Co-claim: the worker''s episode goes into the caller''s shard (root = caller), so the existing family rule admits it. Risks: reconcile expires the worker''s rows once the caller''s tree is dead, and two hosts write one shard (Phase B check B7)'
         - key: release-reclaim
           label: 'Release: the orchestrator''s episode closes as released at spawn; its next delegate call (wait, stop or list) after the last worker ends reopens a claim for it'
-      answer: null
+      answer: co-claim-gate
     - id: q-concurrent-workers
       text: Can several workers hold claims on one work item at the same time?
-      description: Each worker holds its own episode. The collision gate refuses a second live claimant unless it counts as family (see q-claim-handoff). Workers editing one item in one working tree can overwrite each other.
+      description: 'Each worker holds its own episode. The collision gate refuses a second live claimant unless it counts as family (see q-claim-handoff). Workers editing one item in one working tree can overwrite each other. ANSWERED 2026-10-25 by the owner: one worker per item in v1; spawn refuses a second live worker on an item that already has one.'
       options:
         - key: allow-n-worktrees
           label: Allow several, each in its own worktree; all count as family of the same caller
@@ -1276,7 +1292,7 @@ questions:
           label: One live worker per work item; spawn refuses a second
         - key: allow-n-shared-tree
           label: Allow several in one working tree, with no isolation
-      answer: null
+      answer: one-per-item
 feedback:
     entries:
         - section: questions
@@ -1303,3 +1319,15 @@ feedback:
           question_id: q-worker-claim
           created_at: "2026-10-25T07:24:37Z"
           updated_at: "2026-10-25T07:24:37Z"
+        - section: questions
+          action: answer
+          value: co-claim-gate
+          question_id: q-claim-handoff
+          created_at: "2026-10-25T07:28:44Z"
+          updated_at: "2026-10-25T07:28:44Z"
+        - section: questions
+          action: answer
+          value: one-per-item
+          question_id: q-concurrent-workers
+          created_at: "2026-10-25T07:28:44Z"
+          updated_at: "2026-10-25T07:28:44Z"
