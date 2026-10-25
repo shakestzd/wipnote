@@ -453,7 +453,7 @@ func collectionDirForID(id string) string {
 		return "tracks"
 	case strings.HasPrefix(id, "plan-"), strings.HasPrefix(id, "pln-"):
 		return "plans"
-	case strings.HasPrefix(id, "spc-"):
+	case strings.HasPrefix(id, "spec-"):
 		return "specs"
 	case isSessionID(id):
 		return "sessions"
