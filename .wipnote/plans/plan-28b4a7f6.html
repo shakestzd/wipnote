@@ -681,7 +681,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Make orch&#39;s delegation a native, Go-built wipnote feature (wipnote delegate: spawn, send, wait, result, stop, questions, tree, run) with a file mailbox, herdr panes for interactive sessions and one-shot runs on ONE path that absorbs mods/codex-herdr-pane. orch (Python, owner&#39;s machine) is the reference. Replaces the mod-vs-orch split in docs/design/orch-integration.md.</p>
   <div class="meta">
     <span class="badge badge-approved">Done</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v37 · 21 slices · Created 2026-10-25</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v38 · 21 slices · Created 2026-10-25</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -2688,7 +2688,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Golden tests: each fixture (run1 to run3 raw logs, claude.stream.jsonl) renders the same clean.log and last.md as the mod pipeline</li><li>run.html escapes raw HTML and Markdown in prose, and the cases in the mod&#39;s fixes.test.ts pass in Go</li><li>wipnote delegate view follows a live run until its exit file appears</li><li>A bounded tail read that starts on a line boundary keeps that line (orch F-4)</li></ul>
+        <ul class="slice-done-list"><li>Golden tests: each fixture (run1 to run3 raw logs, claude.stream.jsonl) renders the same clean.log and last.md as the mod pipeline</li><li>run.html escapes raw HTML and Markdown in prose, and the render case in the mod&#39;s fixes.test.ts (joinfence) passes in Go</li><li>wipnote delegate view follows a live run until its exit file appears</li><li>A bounded tail read that starts on a line boundary keeps that line (orch F-4)</li></ul>
       </div>
       
     
@@ -2850,7 +2850,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>With the codex stub, a run prints &#39;codex exited 0 after Ns, &lt;usage&gt;; ...&#39; then last.md, capped at maxReturnLines</li><li>Only if spk-87139e0e finds no parity: outside herdr the run completes headless with the same report</li><li>A pane closed early ends with exit 130 and end_reason pane_closed</li><li>The row carries the caller&#39;s active work item when --work-item is absent</li><li>A derived label is written only to the run folder&#39;s label file, never to the ledger (TestRun_DerivedLabelNotInLedger)</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>With the codex stub, a run prints &#39;codex exited 0 after Ns, &lt;usage&gt;; ...&#39; then last.md, capped at maxReturnLines</li><li>Only if spk-87139e0e finds no parity: outside herdr the run completes headless with the same report</li><li>A pane closed early ends with exit 130 and end_reason pane_closed</li><li>The row carries the caller&#39;s active work item when --work-item is absent</li><li>A derived label is written only to the run folder&#39;s label file, never to the ledger (TestRun_DerivedLabelNotInLedger)</li><li>The wrapper cases in the mod&#39;s fixes.test.ts pass in Go against delegate run (timeouts, plugin-root quoting, pane title and rename, ccx log claiming with launch lock and unbound marks, ccxRunsDir, layout auto, review output to the answer file, sweeps, per-user claims folder). Moved from slice 7 by the owner, 2026-10-25</li></ul>
       </div>
       
     
