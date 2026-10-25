@@ -181,8 +181,7 @@ func removeEnv(env []string, key string) []string {
 	return result
 }
 
-// isTruthy matches the parsing used by receiver.LoadConfigFromEnv.
-// Kept local here to avoid exporting a helper from the receiver package
+// isTruthy parses a boolean-ish env-var value.
 // for one env-var check.
 func isTruthy(s string) bool {
 	switch s {

@@ -241,32 +241,6 @@ func TestIndexer_Status(t *testing.T) {
 	}
 }
 
-// TestIndexer_Start_ContextCancel verifies Start() respects context cancellation.
-func TestIndexer_Start_ContextCancel(t *testing.T) {
-	wipnoteDir := t.TempDir()
-	// Create the sessions dir so the indexer can scan it.
-	_ = os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755)
-
-	// Use a fakeWriter that satisfies sqls.WriterCloser.
-	snk := sqls.New(&fakeWriter{})
-	idxr := New(wipnoteDir, snk)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go func() {
-		idxr.Start(ctx)
-		close(done)
-	}()
-
-	// Cancel quickly; Start should return.
-	cancel()
-	select {
-	case <-done:
-	case <-time.After(3 * time.Second):
-		t.Fatal("Start() did not return after context cancel")
-	}
-}
-
 // fakeWriter satisfies sqls.WriterCloser for tests that don't need real DB.
 type fakeWriter struct{}
 

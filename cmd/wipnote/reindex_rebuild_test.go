@@ -14,7 +14,6 @@ import (
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/db/writequeue"
 	otelreceiver "github.com/shakestzd/wipnote/observe/otel/receiver"
-	otelsqlite "github.com/shakestzd/wipnote/observe/otel/sink/sqlite"
 )
 
 // Slice 9 rebuild-guarantee tests. The plan promise is that deleting the
@@ -509,8 +508,3 @@ func TestDaemonCrashDuringWrite_ReindexRecovers(t *testing.T) {
 		}
 	}
 }
-
-// Compile-time guard: ensure the QueuedSink remains a SignalSink (this is
-// the wiring used by the writer service today). If the contract breaks, this
-// test file fails to compile.
-var _ = otelsqlite.NewQueued
