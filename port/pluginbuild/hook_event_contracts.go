@@ -96,6 +96,10 @@ var hookEventContractSpecs = map[string]hookEventContractSpec{
 		Classification: AdditiveControlling,
 		Note:           "CC reads JSON HookResult; decision:approve/deny controls permission outcome. Safe to register observe-only.",
 	},
+	"PermissionDenied": {
+		Classification: AdditiveControlling,
+		Note:           "CC reads hookSpecificOutput.retry (may retry the denied call); exit code and stderr are ignored. Safe to register observe-only (no retry).",
+	},
 	"PostToolUseFailure": {
 		Classification: AdditiveControlling,
 		Note:           "CC reads JSON HookResult. Safe to register observe-only.",

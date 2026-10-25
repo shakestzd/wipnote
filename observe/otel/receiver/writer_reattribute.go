@@ -11,16 +11,14 @@ import (
 
 // tryReattributeParent checks whether the incoming span is mis-parented (i.e.,
 // its parent_span points to an interaction span instead of the enclosing Agent
-// span). Two strategies are applied in priority order:
+// span): when the span's timestamp falls within exactly one sibling
+// subagent_invocation span's [ts, ts+duration] window and the current parent
+// is an interaction canonical, it is re-parented to that span.
 //
-//	A. wipnote.agent_id resource attr (post-feat-e1efb972): look up the
-//	   agent_span_id in pending_subagent_starts for this agent_id; if found
-//	   and differs from the incoming parent_span, override.
-//
-//	B. Overlap window (pre-feat-e1efb972 fallback): when no agent_id is
-//	   available, check if the incoming span's timestamp falls within
-//	   exactly one sibling subagent_invocation span's [ts, ts+duration]
-//	   window and the current parent is an interaction canonical.
+// A span carrying the wipnote.agent_id resource attribute is left as is. Its
+// mapping (Strategy A) read agent_span_id from pending_subagent_starts, which
+// no hook has written since feat-174dc958, so it always fell through to no
+// change; the reader was removed in feat-ddeaa0d1 and the outcome is kept.
 //
 // Returns (newParentSpanID, reason) when re-attribution applies, or ("", "")
 // when no fix is warranted.
@@ -30,10 +28,8 @@ func tryReattributeParent(
 	s *otel.UnifiedSignal,
 	resourceAttrs map[string]any,
 ) (newParent, reason string) {
-	// Strategy A: authoritative agent_id mapping.
-	agentID, _ := resourceAttrs["wipnote.agent_id"].(string)
-	if agentID != "" {
-		return reattributeByAgentID(ctx, conn, s, agentID)
+	if agentID, _ := resourceAttrs["wipnote.agent_id"].(string); agentID != "" {
+		return "", ""
 	}
 
 	// Strategy B: overlap window fallback for pre-feat-e1efb972 sessions.
@@ -72,21 +68,6 @@ func tryReattributeParent(
 		log.Printf("reattribute: span=%s ambiguous overlap (%d agent windows), skipping", s.SpanID, len(matches))
 	}
 
-	return "", ""
-}
-
-// reattributeByAgentID is re-attribution Strategy A: the authoritative
-// agent_id → agent_span_id mapping.
-func reattributeByAgentID(ctx context.Context, conn dbExecer, s *otel.UnifiedSignal, agentID string) (newParent, reason string) {
-	var agentSpanID sql.NullString
-	if err := conn.QueryRowContext(ctx,
-		`SELECT agent_span_id FROM pending_subagent_starts WHERE agent_id = ?`, agentID,
-	).Scan(&agentSpanID); err == nil && agentSpanID.Valid && agentSpanID.String != "" {
-		if agentSpanID.String != s.ParentSpan {
-			return agentSpanID.String, "strategy_a_agent_id"
-		}
-	}
-	// agent_id present but no agent_span_id yet (placeholder not created yet) — skip.
 	return "", ""
 }
 

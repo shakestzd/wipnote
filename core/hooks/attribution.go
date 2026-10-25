@@ -152,8 +152,7 @@ func claimTraceparent() *agentTraceRecord {
 // agent identity, and Agent Trace contributor classification.
 //
 // OTEL_RESOURCE_ATTRIBUTES is merged with any existing value so the subagent's
-// OTel SDK emits wipnote.agent_id on every span — the OTLP receiver uses this
-// to look up pending_subagent_starts and synthesize a placeholder row.
+// OTel SDK emits wipnote.agent_id on every span as a resource attribute.
 //
 // When CLAUDE_ENV_FILE is unset (worktree subagents), falls back to a
 // session-scoped temp-file hint so the subagent's hook processes can still

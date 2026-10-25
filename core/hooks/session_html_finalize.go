@@ -27,7 +27,8 @@ func countActivityEntries(content string) int {
 	return strings.Count(section, "<li ")
 }
 
-// articleAttrRe matches data attributes on the <article> tag for replacement.
+// articleStatusRe matches a data-status attribute; the article tag's is the
+// first in the file.
 var articleStatusRe = regexp.MustCompile(`data-status="[^"]*"`)
 
 var articleEventCountRe = regexp.MustCompile(`data-event-count="[^"]*"`)
@@ -64,8 +65,10 @@ func FinalizeSessionHTML(projectDir, sessionID, endedAt, status string, eventCou
 
 	content := string(data)
 
-	// Update data-status.
-	content = articleStatusRe.ReplaceAllString(content,
+	// Update data-status on the article tag only: it is the first one in the
+	// file, and every later one belongs to an activity <li> (aborted, failed)
+	// that a finalize must not rewrite (feat-ddeaa0d1).
+	content = replaceFirstMatch(articleStatusRe, content,
 		fmt.Sprintf(`data-status="%s"`, html.EscapeString(status)))
 
 	// Add data-ended-at after data-status on the article tag.
@@ -107,4 +110,13 @@ func FinalizeSessionHTML(projectDir, sessionID, endedAt, status string, eventCou
 	if _, err := f.Write([]byte(content)); err != nil {
 		debugLog(projectDir, "[session-html] finalize write %s: %v", htmlPath, err)
 	}
+}
+
+// replaceFirstMatch replaces only the first match of re in s.
+func replaceFirstMatch(re *regexp.Regexp, s, repl string) string {
+	loc := re.FindStringIndex(s)
+	if loc == nil {
+		return s
+	}
+	return s[:loc[0]] + repl + s[loc[1]:]
 }
