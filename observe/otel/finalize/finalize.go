@@ -28,7 +28,6 @@ import (
 
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/observe/otel/indexer"
-	"github.com/shakestzd/wipnote/observe/otel/materialize"
 	"github.com/shakestzd/wipnote/observe/otel/receiver"
 	sqls "github.com/shakestzd/wipnote/observe/otel/sink/sqlite"
 )
@@ -61,7 +60,7 @@ func Session(ctx context.Context, projectDir, sessionID string) (indexer.ReplayR
 	if err != nil || !res.Complete {
 		return res, err
 	}
-	matErr := materialize.Materialize(database, projectDir, sessionID)
+	matErr := materializeShard(database, projectDir, sessionID)
 	marker := filepath.Join(filepath.Dir(ndjson), ".index-offset")
 	if err := indexer.PublishProgress(marker, res.Offset); err != nil {
 		return res, errors.Join(matErr, err)
