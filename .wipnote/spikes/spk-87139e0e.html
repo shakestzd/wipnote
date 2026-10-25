@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="high"
              data-created="2026-10-25T08:27:33.984897"
-             data-updated="2026-10-25T17:33:34.182542" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="888f588" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+             data-updated="2026-10-25T17:39:13.410301" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="888f588" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
 
         <header>
             <h1>Interactive delegation parity: can a spawned interactive session load what a headless run loads?</h1>
@@ -46,6 +46,7 @@
                 <li data-completed="true" data-step-id="step-spk-87139e0e-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Check result exit status and cost capture from interactive runs</li>
                 <li data-completed="true" data-step-id="step-spk-87139e0e-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Write parity table and go or no-go</li>
                 <li data-completed="true" data-step-id="step-spk-87139e0e-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Findings note (spk-87139e0e): load parity YES in both harnesses. Claude Code probe: plugin-dir, append-system-prompt, allowed/disallowed tools, model, effort, mcp-config, permission-mode, settings, cwd/add-dir, env all honored the same interactive and -p; print-only flags (output-format, json-schema, max-turns, max-budget-usd) silently ignored interactively. Codex probe: model, effort, developer_instructions, mcp_servers (required), sandbox, approval, -C/--add-dir, hooks, env same in TUI and exec; plugins not probed. Result/exit/cost: Claude gets result from Stop last_assistant_message, cost from statusLine cost.total_cost_usd and transcript; exit code is 0 on /exit or 143 on SIGTERM and says nothing about the task. Codex TUI exit 0 on a failed turn (exec exit 1); TUI result/token capture not run here. Verdict: Claude Code conditional GO (wrapper must pre-seed trust, use --session-id, collect Stop/StopFailure/statusLine, synthesize exit, enforce caps, detect silent startup failures). Codex HOLD until the owner&#39;s Mac probes pass. Doc: docs/design/delegate-interactive-parity.md on branch delegate/spike-parity (088c1f377).</li>
+                <li data-completed="true" data-step-id="step-spk-87139e0e-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Owner 2026-10-25: Claude interactive inside herdr (new slice 22), claude -p outside herdr; Codex keeps exec until the slice 2 Mac probes pass</li>
             </ol>
         </section>
 
