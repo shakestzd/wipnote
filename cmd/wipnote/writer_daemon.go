@@ -24,8 +24,9 @@ import (
 )
 
 // serveChildCmd is the hidden per-project writer daemon. core/daemon spawns it
-// as `_serve-child --headless` (spawnHeadlessWriter, EnsureDaemon) for hooks,
-// CLI commands and the launchers; it is never invoked by hand. The name and
+// as `_serve-child --headless` (spawnHeadlessWriter, from EnsureDaemon) for
+// the harness launchers only; hooks and CLI commands never start it
+// (bug-5ca53f70). It is never invoked by hand. The name and
 // the --headless flag are kept for those spawn sites and for running writers
 // started by older binaries: the HTTP dashboard this command once also served
 // was removed, so every invocation runs the writer.
@@ -47,8 +48,10 @@ func serveChildCmd() *cobra.Command {
 // feat-075c110d MVP-2, feat-f6759e37 reads).
 //
 // Lifecycle:
-//  1. Acquire the O_EXCL single-owner lease. A racing loser gets
+//  1. Acquire the heartbeat single-owner lease. A racing loser gets
 //     daemon.ErrLeaseHeld and exits 0 (the existing owner serves the socket).
+//     The winner keeps the heartbeat running and stops serving the moment
+//     the lease stops naming it (bug-5ca53f70).
 //  2. Start the telemetry catch-up loop. It reads only events.ndjson, so it
 //     does not need the projection (bug-98f32723).
 //  3. Open the in-memory projection, start the single-writer queue, and
@@ -76,18 +79,19 @@ func runWriterOnly() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	lease.Keep(ctx, cancel)
 
 	// Telemetry catch-up must NOT wait for the startup hydrate: a loop
 	// started after it left every unmarked shard unfinalized for as long as
 	// the hydrate took (bug-98f32723). Catch-up reads only events.ndjson and
 	// uses its own projection, so it is safe to run now.
 	startTelemetryCatchUpLoop(ctx, telemetryCatchUpInterval, projectRoot)
-	return serveWriter(ctx, cancel, wipnoteDir)
+	return serveWriter(ctx, cancel, wipnoteDir, lease)
 }
 
 // serveWriter owns the daemon's single writable projection and serves the
 // socket until ctx ends (signal, idle exit, or a failed hydrate).
-func serveWriter(ctx context.Context, cancel context.CancelFunc, wipnoteDir string) error {
+func serveWriter(ctx context.Context, cancel context.CancelFunc, wipnoteDir string, lease *daemon.Lease) error {
 	writeDB, err := dbpkg.OpenEphemeralProjection()
 	if err != nil {
 		return fmt.Errorf("open ephemeral compatibility db: %w", err)
@@ -112,6 +116,10 @@ func serveWriter(ctx context.Context, cancel context.CancelFunc, wipnoteDir stri
 		return fmt.Errorf("writer queue start: %w", err)
 	}
 	defer q.Stop(drainGrace)
+	// Runs before the Stop above: an idle or ownership exit ends only the
+	// listener's own context, so cancel the daemon's too, which tells an
+	// unfinished hydrate to stop instead of holding Stop's grace period.
+	defer cancel()
 
 	ready, err := submitStartupHydrate(ctx, cancel, q, writeDB, wipnoteDir)
 	if err != nil {
@@ -122,7 +130,7 @@ func serveWriter(ctx context.Context, cancel context.CancelFunc, wipnoteDir stri
 	// Background maintenance (feat-075c110d increment 2) — see
 	// startWriterMaintenance for which loops run and why.
 	startWriterMaintenance(ctx, wipnoteDir)
-	return bindAndServe(ctx, wipnoteDir, q, writer.DB(), ready.Load)
+	return bindAndServe(ctx, wipnoteDir, q, writer.DB(), ready.Load, lease)
 }
 
 // submitStartupHydrate queues the projection build as the FIRST op on q, so
@@ -132,9 +140,9 @@ func serveWriter(ctx context.Context, cancel context.CancelFunc, wipnoteDir stri
 // as it did when the build ran before the socket was bound.
 func submitStartupHydrate(ctx context.Context, cancel context.CancelFunc, q *writequeue.Queue, database *sql.DB, wipnoteDir string) (*atomic.Bool, error) {
 	ready := new(atomic.Bool)
-	build := func(context.Context) error {
+	build := func(opCtx context.Context) error {
 		start := time.Now()
-		if err := hydrateWriterDB(database, wipnoteDir); err != nil {
+		if err := hydrateWriterDB(opCtx, database, wipnoteDir); err != nil {
 			log.Printf("writer: hydrate compatibility db: %v", err)
 			cancel()
 			return err
@@ -152,7 +160,7 @@ func submitStartupHydrate(ctx context.Context, cancel context.CancelFunc, q *wri
 // stopOnSignal cancels ctx on SIGINT/SIGTERM (feat-075c110d lifecycle
 // hardening). Cancellation closes the listener, stops the maintenance loops,
 // and lets the deferred cleanups unlink .wipnote/writer.sock and release
-// .wipnote/writer.pid. It returns the function that stops the trap.
+// .wipnote/writer.lease.pid. It returns the function that stops the trap.
 func stopOnSignal(ctx context.Context, cancel context.CancelFunc) func() {
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
@@ -173,14 +181,14 @@ func stopOnSignal(ctx context.Context, cancel context.CancelFunc) func() {
 // writable handle the OTel sink and the hydrate use. Reads (feat-f6759e37) are
 // answered from CANONICAL state — the .wipnote HTML files — by readsrv, so they
 // share nothing with the write path and work before the hydrate ends.
-func bindAndServe(ctx context.Context, wipnoteDir string, q *writequeue.Queue, writeDB *sql.DB, ready func() bool) error {
+func bindAndServe(ctx context.Context, wipnoteDir string, q *writequeue.Queue, writeDB *sql.DB, ready func() bool, lease *daemon.Lease) error {
 	projectRoot := filepath.Dir(wipnoteDir)
 	ln, err := daemon.NewListener(daemon.ListenerConfig{
 		SocketPath: daemon.SocketPath(projectRoot),
 		Queue:      q,
 		Applier:    apply.NewApplier(writeDB),
 		Reader:     readsrv.Reader(readsrv.NewCache(wipnoteDir)),
-		OwnerPID:   os.Getpid(),
+		Lease:      lease,
 		Ready:      ready,
 	})
 	if err != nil {
@@ -191,8 +199,8 @@ func bindAndServe(ctx context.Context, wipnoteDir string, q *writequeue.Queue, w
 	// Readiness signal: the socket is bound and the queue is running.
 	log.Printf("wipnote: writer-only daemon ready socket=%s pid=%d", ln.Addr(), os.Getpid())
 
-	// The writer is auto-spawned detached by hooks, the CLI and the launchers,
-	// so it idle-exits after writerIdleTimeout rather than lingering.
+	// The writer is spawned detached by a launcher, so it idle-exits after
+	// writerIdleTimeout once no client remains, rather than lingering.
 	return ln.ServeWithIdleTimeout(ctx, writerIdleTimeout())
 }
 
@@ -201,9 +209,10 @@ func bindAndServe(ctx context.Context, wipnoteDir string, q *writequeue.Queue, w
 // retention.StartLoop used before this function drove the ticker itself.
 const retentionSweepInterval = 24 * time.Hour
 
-// hydrateWriterDB builds the daemon's startup projection. It is a variable so a
-// test can make it block and prove the maintenance loops do not wait for it.
-var hydrateWriterDB = hydrateCompatibilityDB
+// hydrateWriterDB builds the daemon's startup projection. It stops between
+// passes once ctx ends (bug-5ca53f70). It is a variable so a test can make it
+// block and prove the maintenance loops do not wait for it.
+var hydrateWriterDB = hydrateCompatibilityDBCtx
 
 // telemetryCatchUpBudget bounds the telemetry catch-up that runs before each
 // retention sweep (daemon and `wipnote prune`). Neither runs under a hook cap,

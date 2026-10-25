@@ -106,7 +106,7 @@ func TestRunWriterOnly_CatchUpDoesNotWaitForHydrate(t *testing.T) {
 	release := make(chan struct{})
 	entered := make(chan struct{})
 	old := hydrateWriterDB
-	hydrateWriterDB = func(*sql.DB, string) error {
+	hydrateWriterDB = func(context.Context, *sql.DB, string) error {
 		close(entered)
 		<-release
 		return nil

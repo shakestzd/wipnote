@@ -21,9 +21,13 @@ func blockHydrate(t *testing.T) (entered <-chan *sql.DB, release chan struct{}) 
 	got := make(chan *sql.DB, 1)
 	release = make(chan struct{})
 	old := hydrateWriterDB
-	hydrateWriterDB = func(db *sql.DB, _ string) error {
+	hydrateWriterDB = func(ctx context.Context, db *sql.DB, _ string) error {
 		got <- db
-		<-release
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 		_, err := db.Exec(`CREATE TABLE hydrate_marker (x INTEGER)`)
 		return err
 	}
@@ -105,4 +109,37 @@ func waitMarkerRows(t *testing.T, db *sql.DB, want int) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatalf("hydrate_marker has %d rows, want %d: the queued write did not apply after the hydrate", n, want)
+}
+
+// A writer with no client exits within its idle timeout even while the
+// startup hydrate runs, and the hydrate sees its context cancelled rather
+// than running on in an exiting process (bug-5ca53f70).
+func TestRunWriterOnly_IdleExitCancelsHydrate(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".wipnote"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WIPNOTE_PROJECT_DIR", root)
+	t.Setenv("WIPNOTE_WRITER_IDLE_TIMEOUT", "300ms")
+	cancelled := make(chan struct{})
+	old := hydrateWriterDB
+	hydrateWriterDB = func(ctx context.Context, _ *sql.DB, _ string) error {
+		<-ctx.Done()
+		close(cancelled)
+		return ctx.Err()
+	}
+	t.Cleanup(func() { hydrateWriterDB = old })
+
+	done := make(chan error, 1)
+	go func() { done <- runWriterOnly() }()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("writer with no client did not exit during its hydrate")
+	}
+	select {
+	case <-cancelled:
+	default:
+		t.Fatal("the hydrate was not cancelled when the writer exited")
+	}
 }

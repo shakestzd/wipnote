@@ -47,7 +47,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"os"
 	"sync/atomic"
 	"time"
 
@@ -298,7 +297,7 @@ func SubmitDerivedOp(handler, sessionID string, q *writequeue.Queue, database *s
 }
 
 // daemonSubmitBudget is the TOTAL wall-clock budget for the daemon-routed
-// derived-write attempt (dial + submit; an auto-spawn is never waited for).
+// derived-write attempt (dial + submit; it never starts a writer).
 //
 // LIVE-SESSION SAFETY (feat-075c110d): hooks shell out to the wipnote binary
 // on every tool call, so this path runs inside the user's RUNNING session. It
@@ -307,15 +306,15 @@ func SubmitDerivedOp(handler, sessionID string, q *writequeue.Queue, database *s
 const daemonSubmitBudget = 2 * time.Second
 
 // SubmitDerivedEvent routes an agent_events derived-index upsert through the
-// per-project writer daemon (auto-spawning it when absent), and falls back to
+// per-project writer daemon (never starting one: bug-5ca53f70), and falls back to
 // the existing direct-open + RetryOnBusy path on ANY daemon failure.
 //
 // Contract (MVP-3, plan-bb91616a slice-4):
 //   - The canonical NDJSON/HTML write is the caller's responsibility and MUST
 //     already have happened — this routes ONLY the derived-index write.
-//   - Daemon path: build a typed DerivedOp → WriterClient.SubmitOrSpawn under
+//   - Daemon path: build a typed DerivedOp → WriterClient.Submit under
 //     a hard daemonSubmitBudget deadline. An applied/duplicate ack ends here.
-//   - Fallback path: on ErrWriterUnavailable (no/forbidden daemon, spawn or
+//   - Fallback path: on ErrWriterUnavailable (no daemon,
 //     readiness failure, budget exhausted) OR an error ack, run the SAME
 //     upsert synchronously via db.RetryOnBusy against `database` — exactly
 //     today's behaviour. A nil `database` records writer_unavailable and
@@ -369,9 +368,8 @@ func routeDerivedEventViaDaemon(projectRoot, sessionID string, seq int64, ev *mo
 	ctx, cancel := context.WithTimeout(context.Background(), daemonSubmitBudget)
 	defer cancel()
 
-	selfExe, _ := os.Executable()
-	client := daemon.NewWriterClient(projectRoot)
-	ack, err := client.SubmitOrSpawn(ctx, projectRoot, selfExe, env)
+	// Submit never starts a writer: only a launcher does (bug-5ca53f70).
+	ack, err := daemon.NewWriterClient(projectRoot).Submit(ctx, env)
 	if err != nil {
 		return false // ErrWriterUnavailable / ctx deadline → fall back
 	}
