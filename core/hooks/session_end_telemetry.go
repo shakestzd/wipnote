@@ -40,6 +40,19 @@ func telemetryFinalizeBudget() time.Duration {
 // for a clean drain, then falls back to SIGKILL.
 // All errors are silently logged — the collector PID file is best-effort.
 func signalCollector(projectDir, sessionID string) {
+	// The launcher keys the collector's directory by its own OTel id
+	// (WIPNOTE_OTEL_SESSION_ID), not the harness session id the hook receives.
+	// Try the launcher id first, then the harness id as the fallback.
+	launcher := os.Getenv("WIPNOTE_OTEL_SESSION_ID")
+	if launcher != "" && launcher != sessionID && filepath.Base(launcher) == launcher && launcher != ".." && launcher != "." {
+		signalCollectorDir(projectDir, launcher)
+	}
+	signalCollectorDir(projectDir, sessionID)
+}
+
+// signalCollectorDir signals the collector whose PID file lives under the
+// shard directory named sessionID.
+func signalCollectorDir(projectDir, sessionID string) {
 	pidPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID, ".collector-pid")
 	data, err := os.ReadFile(pidPath)
 	if err != nil {

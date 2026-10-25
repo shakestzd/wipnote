@@ -10,6 +10,7 @@ package observe
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"time"
@@ -34,12 +35,19 @@ func init() {
 const sessionStartCatchUpBudget = 2 * time.Second
 
 // finalizeSessionTelemetry ingests the session's NDJSON, materializes its
-// rollup and marks it consumed, all within budget.
+// rollup and marks it consumed, all within budget. The hook passes the harness
+// session id, but the launcher keys the telemetry directory by its own OTel id
+// (WIPNOTE_OTEL_SESSION_ID), so every matching shard is finalized.
 func finalizeSessionTelemetry(projectDir, sessionID string, budget time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
-	_, err := finalize.Session(ctx, projectDir, sessionID)
-	return err
+	var errs []error
+	for _, shard := range finalize.ShardsFor(projectDir, sessionID, os.Getenv("WIPNOTE_OTEL_SESSION_ID")) {
+		if _, err := finalize.Session(ctx, projectDir, shard); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // runRetentionSweep performs a disk-retention pass for the project: finalize
