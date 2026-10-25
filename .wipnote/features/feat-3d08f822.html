@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T14:56:33.020926"
-             data-updated="2026-10-25T15:22:23.452649" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
+             data-updated="2026-10-25T15:40:50.976184" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
 
         <header>
             <h1>wipnote delegate import-orch</h1>
@@ -50,6 +50,18 @@
                 </ul>
             </section>
         </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-3d08f822-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ A rerun adds no rows (TestImportOrch_Idempotent)</li>
+                <li data-completed="true" data-step-id="step-feat-3d08f822-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Rows link by worker session id; work_item gives link=tag only when present (TestImportOrch_LinksBySessionID, TestImportOrch_KeepsWorkItemWhenPresent)</li>
+                <li data-completed="true" data-step-id="step-feat-3d08f822-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ ended from the last event else empty; end_reason=imported (TestImportOrch_EndedFromLastEvent, TestImportOrch_NoEventsLeavesEndedEmpty, TestImportOrch_EndReasonImported)</li>
+                <li data-completed="true" data-step-id="step-feat-3d08f822-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Runs under a reused name come from archived mailbox folders (TestImportOrch_ReadsArchivedMailboxes, TestImportOrch_MailRootFlag)</li>
+                <li data-completed="true" data-step-id="step-feat-3d08f822-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Event format v1 and v2 import; another version refused by name (TestImportOrch_EventsV1, TestImportOrch_EventsV2, TestImportOrch_RefusesUnknownVersion)</li>
+                <li data-completed="true" data-step-id="step-feat-3d08f822-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Host paths and derived labels dropped (TestImportOrch_DropsHostPathsAndLabels)</li>
+            </ol>
+        </section>
 
         <section data-content>
             <h3>Description</h3>
