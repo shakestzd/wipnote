@@ -891,12 +891,12 @@ slices:
         - 5
         - 6
       done_when:
-        - spawn returns within 3 s with status starting; it types a boot line, never the brief
+        - spawn returns within 3 s as starting; it types a boot line, never the brief
         - spawn refuses a live name, a seventh worker, or no work item
         - spawn scrubs inherited WIPNOTE_* env; the worker is its own root
         - One readiness predicate serves wait, probe and send (D2)
         - stop records pids first, closes only at a bare shell, never signals, and prints pane_closed and survivors (D5)
-        - After /clear both sessions are listed; the bind hook adds under 2 ms
+        - After /clear both sessions are listed; binding adds under 2 ms
       effort: L
       risk: High
       tests: |
