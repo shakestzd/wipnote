@@ -1425,27 +1425,30 @@ func getSessionAndParent(database *sql.DB, sessionID string) []string {
 	return sessionIDs
 }
 
-// hasRecentDiffReview checks if git diff was run in this session or its
-// parent session. Worktree subagents inherit diff reviews from the outer
-// orchestrator session that spawned them.
-func hasRecentDiffReview(database *sql.DB, sessionID string) bool {
-	if database == nil {
-		return false
-	}
-	for _, sid := range getSessionAndParent(database, sessionID) {
-		var count int
-		database.QueryRow(`
-			SELECT COUNT(*) FROM agent_events
-			WHERE session_id = ? AND tool_name = 'Bash'
-			  AND (input_summary LIKE '%git diff%'
-			    OR input_summary LIKE '%git show%')`,
-			sid,
-		).Scan(&count)
-		if count > 0 {
-			return true
+// hasRecentDiffReview reports whether a diff or show command was run in this
+// session or its family root, per the canonical tool-events log. The hook DB is
+// an empty tables-only projection, so agent_events cannot answer this
+// (bug-a3b17225). No recorded evidence counts as "no review".
+func hasRecentDiffReview(projectDir, sessionID string) bool {
+	return canonicalShellCommandSeen(projectDir, sessionID, "git diff", "git show")
+}
+
+// canonicalShellCommandSeen reports whether any in-scope recorded shell call
+// contains one of the needles.
+func canonicalShellCommandSeen(projectDir, sessionID string, needles ...string) bool {
+	seen, _ := canonicalAnySeen(projectDir, sessionID, func(ev canonicalToolEvent) bool {
+		if !isShellTool(ev.Tool) {
+			return false
 		}
-	}
-	return false
+		cmd := ev.Summary + " " + ev.Input
+		for _, n := range needles {
+			if strings.Contains(cmd, n) {
+				return true
+			}
+		}
+		return false
+	})
+	return seen
 }
 
 // currentBranchIn returns the git branch for the given directory.
@@ -1476,30 +1479,13 @@ func branchForFilePath(filePath, cwdBranch string) string {
 // testPattern matches common test runner commands in Bash input summaries.
 var testPattern = regexp.MustCompile(`\bgo test\b|\bpytest\b|\buv run pytest\b|\buv run ruff\b`)
 
-// hasRecentTestRun checks if a test command was executed in this session
-// or its parent session by scanning recent agent_events for Bash commands
-// matching test patterns. Worktree subagents inherit test runs from the
-// outer orchestrator session that spawned them.
-func hasRecentTestRun(database *sql.DB, sessionID string) bool {
-	if database == nil {
-		return false
-	}
-	for _, sid := range getSessionAndParent(database, sessionID) {
-		var count int
-		database.QueryRow(`
-			SELECT COUNT(*) FROM agent_events
-			WHERE session_id = ? AND tool_name = 'Bash'
-			  AND (input_summary LIKE '%go test%'
-			    OR input_summary LIKE '%go build%'
-			    OR input_summary LIKE '%pytest%'
-			    OR input_summary LIKE '%uv run ruff%')`,
-			sid,
-		).Scan(&count)
-		if count > 0 {
-			return true
-		}
-	}
-	return false
+// hasRecentTestRun reports whether a test/build command was run in this
+// session or its family root, per the canonical tool-events log (the hook DB
+// is an empty projection; see hasRecentDiffReview). No evidence counts as
+// "no test run".
+func hasRecentTestRun(projectDir, sessionID string) bool {
+	return canonicalShellCommandSeen(projectDir, sessionID,
+		"go test", "go build", "pytest", "uv run ruff")
 }
 
 // uiFileExtensions are the file extensions considered UI files for the purpose
