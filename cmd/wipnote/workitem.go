@@ -326,10 +326,14 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		}
 	}
 
+	dirtyNote := ""
 	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
-		if err := checkUncommittedSourceCompleteGate(dir, id, wiAllowDirtyComplete); err != nil {
+		gateNode, _ := col.Get(id)
+		note, err := checkUncommittedSourceCompleteGate(dir, id, gateNode, wiAllowDirtyComplete)
+		if err != nil {
 			return err
 		}
+		dirtyNote = note
 	}
 
 	// Provenance completion gate (feat-7b593272). Type-agnostic: covers
@@ -603,6 +607,9 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		verb = "Blocked"
 	}
 	fmt.Printf("%s: %s  %s\n", verb, node.ID, node.Title)
+	if dirtyNote != "" {
+		fmt.Println(dirtyNote)
+	}
 	if status == "done" && strings.TrimSpace(wiAcceptedAdvisory) != "" {
 		fmt.Printf("  accepted-advisory: %s\n", strings.TrimSpace(wiAcceptedAdvisory))
 	}

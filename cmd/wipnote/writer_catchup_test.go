@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -91,4 +92,49 @@ func TestRunTelemetryCatchUp_NeverOverlaps(t *testing.T) {
 	if !runTelemetryCatchUp(context.Background(), root) {
 		t.Fatal("catch-up skipped when idle")
 	}
+}
+
+// The daemon must start catch-up before its startup hydrate. The hydrate runs
+// one `git log --follow` per work-item file and took over 15 minutes on a large
+// repo, which left unmarked shards unfinalized that long (bug-98f32723).
+func TestRunWriterOnly_CatchUpDoesNotWaitForHydrate(t *testing.T) {
+	root := t.TempDir()
+	marker := seedUnmarkedShard(t, root, "orphan")
+	t.Setenv("WIPNOTE_PROJECT_DIR", root)
+	t.Setenv("WIPNOTE_WRITER_IDLE_TIMEOUT", "200ms")
+
+	release := make(chan struct{})
+	entered := make(chan struct{})
+	old := hydrateWriterDB
+	hydrateWriterDB = func(*sql.DB, string) error {
+		close(entered)
+		<-release
+		return nil
+	}
+	defer func() { hydrateWriterDB = old }()
+
+	done := make(chan error, 1)
+	go func() { done <- runWriterOnly() }()
+	defer func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+		<-done
+	}()
+
+	select {
+	case <-entered:
+	case <-time.After(10 * time.Second):
+		t.Fatal("hydrate never started")
+	}
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(marker); err == nil {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("catch-up waited for the startup hydrate: no .index-offset while hydrate was blocked")
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -23,62 +24,91 @@ import (
 //
 // The promise is made ONLY when it can be kept. If anything prevents it the
 // launcher publishes nothing, and the session runs under the unguaranteed
-// contract — identical to how every session behaved before this feature. That
-// mode is ANNOUNCED, never inferred: the user is told which contract they got.
+// contract — identical to how every session behaved before this feature. A
+// real failure is announced in one line. A daemon that is merely still
+// starting is not announced and not waited for (bug-06d2c91d).
 
-// ensureDaemonBudget bounds the launcher's whole ensure step so a wedged socket
-// cannot delay a launch indefinitely. On expiry the session simply runs
-// unguaranteed.
+// ensureDaemonBudget bounds the background ensure so a wedged socket cannot
+// keep its goroutine alive for long. It is NOT on the launch path.
 const ensureDaemonBudget = 8 * time.Second
 
-// ensureDaemonForSession guarantees the daemon for wipnoteRoot and returns the
-// environment assignments to layer into the child process.
-//
-// A nil/empty return means no guarantee was made; the caller must not fabricate
-// one. Every failure path announces itself on stderr, because a session
-// silently running under a different contract than the user expects is the
-// kind of ambiguity this feature exists to remove.
-func ensureDaemonForSession(wipnoteRoot string) []string {
-	if wipnoteRoot == "" {
-		return nil
-	}
-	if !hooks.IswipnoteProject(wipnoteRoot) {
-		return nil
-	}
+// daemonJoinBudget is the most the launcher waits, just before it starts the
+// harness, for the ensure it began at the top of launchClaude (bug-06d2c91d).
+// The daemon binds its socket before it builds its projection, so it is
+// normally up long before this point, and the wait is zero.
+const daemonJoinBudget = 150 * time.Millisecond
 
-	selfExe, err := os.Executable()
-	if err != nil {
-		announceUnguaranteed(fmt.Sprintf("cannot resolve the wipnote binary to start it (%v)", err))
-		return nil
-	}
+// ensureDaemonFn is daemon.EnsureDaemon; a test can stub it.
+var ensureDaemonFn = daemon.EnsureDaemon
 
-	ctx, cancel := context.WithTimeout(context.Background(), ensureDaemonBudget)
-	defer cancel()
+// errNotAProject marks a launch outside a wipnote project: no daemon, no output.
+var errNotAProject = errors.New("not a wipnote project")
 
-	socket, err := daemon.EnsureDaemon(ctx, wipnoteRoot, selfExe, os.Getpid())
-	if err != nil {
-		switch {
-		case errors.Is(err, daemon.ErrDaemonReadUnsupported):
-			announceUnguaranteed("a daemon from an older wipnote build is already running for this " +
-				"project and does not serve reads; it belongs to another session, so wipnote will " +
-				"not stop it")
-		default:
-			announceUnguaranteed(err.Error())
-		}
-		return nil
-	}
-
-	fmt.Fprintf(os.Stderr,
-		"wipnote: work-item daemon guaranteed for this session (socket %s)\n", socket)
-	return []string{hooks.DaemonSocketEnv + "=" + socket}
+// pendingDaemon is a daemon ensure running in the background. socket and err
+// are written before done closes and read only after it has.
+type pendingDaemon struct {
+	done   chan struct{}
+	socket string
+	err    error
 }
 
-// announceUnguaranteed states, in the user's terminal, that this session runs
-// without the daemon guarantee and why. Hooks in this session read the derived
-// index exactly as they always have.
-func announceUnguaranteed(reason string) {
-	fmt.Fprintf(os.Stderr,
-		"wipnote: running WITHOUT the work-item daemon guarantee — %s\n"+
-			"wipnote: hooks will read the derived index, as they do in any session no launcher started.\n",
-		reason)
+// startDaemonEnsure starts guaranteeing the daemon for wipnoteRoot without
+// waiting for it. The launcher calls it first and collects the result with
+// sessionEnv just before it starts the harness, so the daemon's startup runs
+// alongside the rest of the launch instead of in front of it.
+func startDaemonEnsure(wipnoteRoot string) *pendingDaemon {
+	p := &pendingDaemon{done: make(chan struct{})}
+	if wipnoteRoot == "" || !hooks.IswipnoteProject(wipnoteRoot) {
+		p.err = errNotAProject
+		close(p.done)
+		return p
+	}
+	selfExe, err := os.Executable()
+	if err != nil {
+		p.err = fmt.Errorf("cannot resolve the wipnote binary to start it (%v)", err)
+		close(p.done)
+		return p
+	}
+	go func() {
+		defer close(p.done)
+		ctx, cancel := context.WithTimeout(context.Background(), ensureDaemonBudget)
+		defer cancel()
+		p.socket, p.err = ensureDaemonFn(ctx, wipnoteRoot, selfExe, os.Getpid())
+	}()
+	return p
+}
+
+// sessionEnv returns the environment assignments to layer into the harness,
+// waiting at most budget for the ensure.
+//
+// It publishes the socket only for a daemon that is up and attached. A daemon
+// that is still starting gets no guarantee and NO output: the session runs
+// under the unguaranteed contract, its hooks fall back at once (see
+// SubmitOrSpawn), and the daemon still attaches to this launcher when it binds.
+// A real failure gets one quiet line on w.
+func (p *pendingDaemon) sessionEnv(w io.Writer, budget time.Duration) []string {
+	select {
+	case <-p.done:
+	case <-time.After(budget):
+		return nil
+	}
+	switch {
+	case p.err == nil:
+		fmt.Fprintf(w, "wipnote: work-item daemon guaranteed for this session (socket %s)\n", p.socket)
+		return []string{hooks.DaemonSocketEnv + "=" + p.socket}
+	case errors.Is(p.err, errNotAProject), errors.Is(p.err, daemon.ErrDaemonStarting):
+		return nil
+	case errors.Is(p.err, daemon.ErrDaemonReadUnsupported):
+		announceUnguaranteed(w, "an older wipnote daemon serves this project without reads")
+	default:
+		announceUnguaranteed(w, p.err.Error())
+	}
+	return nil
+}
+
+// announceUnguaranteed reports, in one line, why this session runs without
+// the daemon guarantee. Hooks then read the derived index, as they do in any
+// session no launcher started.
+func announceUnguaranteed(w io.Writer, reason string) {
+	fmt.Fprintf(w, "wipnote: work-item daemon unavailable (%s); hooks use the derived index\n", reason)
 }

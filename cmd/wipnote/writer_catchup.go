@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -26,7 +27,12 @@ func runTelemetryCatchUp(ctx context.Context, projectRoot string) bool {
 	defer catchUpMu.Unlock()
 	runCtx, cancel := context.WithTimeout(ctx, telemetryCatchUpBudget)
 	defer cancel()
-	finalize.CatchUp(runCtx, projectRoot, "")
+	start := time.Now()
+	res := finalize.CatchUp(runCtx, projectRoot, "")
+	if res.Stale > 0 {
+		log.Printf("telemetry catch-up: stale=%d finalized=%d incomplete=%d failed=%d elapsed=%s",
+			res.Stale, res.Finalized, res.Incomplete, res.Failed, time.Since(start).Round(time.Millisecond))
+	}
 	return true
 }
 

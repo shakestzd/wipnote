@@ -298,7 +298,7 @@ func SubmitDerivedOp(handler, sessionID string, q *writequeue.Queue, database *s
 }
 
 // daemonSubmitBudget is the TOTAL wall-clock budget for the daemon-routed
-// derived-write attempt (dial + auto-spawn + readiness-wait + submit).
+// derived-write attempt (dial + submit; an auto-spawn is never waited for).
 //
 // LIVE-SESSION SAFETY (feat-075c110d): hooks shell out to the wipnote binary
 // on every tool call, so this path runs inside the user's RUNNING session. It

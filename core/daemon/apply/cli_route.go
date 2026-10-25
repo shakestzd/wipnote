@@ -31,7 +31,7 @@ import (
 )
 
 // CLISubmitBudget is the TOTAL wall-clock budget for a daemon-routed CLI
-// derived-write attempt (dial + auto-spawn + readiness-wait + submit). It
+// derived-write attempt (dial + submit; an auto-spawn is never waited for). It
 // matches the hook tree's daemonSubmitBudget — the failure boundary is the
 // same: exceed it and the caller falls back to the direct path. Foreground CLI
 // commands must never hang on a wedged or absent daemon.
