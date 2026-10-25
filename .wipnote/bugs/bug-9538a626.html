@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Slow completion: check --gate re-runs the whole test suite (2m19s) and bug complete takes 30s</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-9538a626"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-25T05:31:19.305596"
+             data-updated="2026-10-25T05:31:29.60126" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
+
+        <header>
+            <h1>Slow completion: check --gate re-runs the whole test suite (2m19s) and bug complete takes 30s</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-25T05:31:19.364089">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="../features/feat-b2d1dc2e.html" data-relationship="relates_to" data-since="2026-10-25T05:31:28.589883">Gate-record-required completion (session-local indexable gate record)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="spawned_from">
+                <h3>Spawned From:</h3>
+                <ul>
+                    <li><a href="../bugs/bug-06d2c91d.html" data-relationship="spawned_from" data-since="2026-10-25T05:31:28.769948">Writer daemon startup hydrate takes ~15 min: one git log --follow per work-item file</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-9538a626-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Time each phase of check --gate and bug complete (real output)</li>
+                <li data-completed="false" data-step-id="step-bug-9538a626-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Spec: gate reuse/scoping and completion fix, ambiguities to user</li>
+                <li data-completed="false" data-step-id="step-bug-9538a626-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Two-sided tests written first</li>
+                <li data-completed="false" data-step-id="step-bug-9538a626-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fix, gate, PR green</li>
+                <li data-completed="false" data-step-id="step-bug-9538a626-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Merged</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Closing bug-06d2c91d: &#39;wipnote check --gate --work-item &lt;id&gt;&#39; took 2m19s because it runs go build, go vet and go test -short ./... across the whole repo, not scoped to the item and not reusing a passing gate or CI result for the same commit. Then &#39;wipnote bug complete &lt;id&gt;&#39; alone took 30s (provenance checks, dirty check, artifact commit, arch-card prompts), phases not yet timed. Both slow down every close. Ideas: reuse a passing gate/CI result keyed by commit, scope tests to packages the item touched, time each completion phase and remove the slow one.</p>
+        </section>
+    </article>
+</body>
+</html>

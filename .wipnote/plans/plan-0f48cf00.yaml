@@ -7,7 +7,7 @@ meta:
     created_at: "2026-04-21"
     status: draft
     created_by: claude-opus
-    version: 2
+    version: 5
 design:
     problem: |
         The MVP shipped in feat-52d15f78 puts one iframe in the dashboard that hardcodes `htmlgraph claude --dev` as the shell command. There is no way to open a second session, no way to pick Codex or Gemini as the agent, no way to scope a pane to a feature worktree, and no way to recover live panes after reloading the dashboard tab. The backend endpoint POST /api/terminal/start only accepts {work_item} and closes over the server-start projectDir — meaning all sessions run in the same directory regardless of what the user wants. A user running three parallel yolo agents on different features must leave the dashboard and manage tmux sessions manually, losing the observability lineage that HtmlGraph is designed to provide.
@@ -62,6 +62,7 @@ slices:
         Regression: Existing MVP POST /api/terminal/start {work_item} flow still returns a valid port
       approved: false
       comment: ""
+      approval_status: changes_requested
     - id: slice-2
       num: 2
       title: UUID-keyed sessions + inventory endpoints
@@ -541,3 +542,15 @@ critique:
             in shell builder so HTMLGRAPH_AGENT env injection flows correctly; buildShellCmd attribution
             prefix extends to codex and gemini.
         Added 4 new questions (total now 9): q-worktree-package-boundary, q-spawn-sync-model, q-yolo-mode-shape, q-liveness-signal. Added 3 new constraints on checkServeLock non-duplication, single-project-mode scope, and reaper/frontend liveness split responsibility.
+feedback:
+    entries:
+        - section: slice-1
+          action: approve
+          value: changes_requested
+          created_at: "2026-10-25T01:47:25Z"
+          updated_at: "2026-10-25T03:16:46Z"
+        - section: slice-1
+          action: changes_requested
+          value: "false"
+          created_at: "2026-10-25T03:16:46Z"
+          updated_at: "2026-10-25T03:16:46Z"
