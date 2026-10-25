@@ -35,8 +35,18 @@ slices:
         - Output is at most 16000 characters
       tests: 'Unit: TestBrief_UnderLimit.'
       approved: true
+    - id: slic-2
+      num: 2
+      title: Already shipped
+      feature_id: feat-fix2
+      done_when:
+        - SHIPPED-SENTINEL
+      approved: true
+      execution_status: promoted
 questions: []
 `
+
+const doneFeatureFixture = `<!DOCTYPE html><html><body><article id="feat-fix2" data-type="feature" data-status="done"><h1>Already shipped</h1></article></body></html>`
 
 func TestPlanProjectInstructions_PrintsBrief(t *testing.T) {
 	// t.Setenv restores TestMain's sandbox value after the test; the unset
@@ -52,6 +62,12 @@ func TestPlanProjectInstructions_PrintsBrief(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "plans", "plan-brieffix.yaml"), []byte(projectInstructionsFixture), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(dir, "features"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "features", "feat-fix2.html"), []byte(doneFeatureFixture), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	var buf bytes.Buffer
 	if err := runPlanProjectInstructions(&buf, dir, "plan-brieffix"); err != nil {
 		t.Fatalf("runPlanProjectInstructions: %v", err)
@@ -61,6 +77,9 @@ func TestPlanProjectInstructions_PrintsBrief(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("output misses %q", want)
 		}
+	}
+	if strings.Contains(out, "SHIPPED-SENTINEL") || !strings.Contains(out, "slice 2") {
+		t.Errorf("slice whose linked feature is done should be left out and named")
 	}
 	if utf8.RuneCountInString(out) > 16000 {
 		t.Errorf("output over the limit")

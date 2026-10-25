@@ -220,6 +220,7 @@ func Validate(plan *PlanYAML) []string {
 	if v := plan.Meta.SchemaVersion; v != "" && v != "v3" && v != "v4" {
 		errs = append(errs, fmt.Sprintf("meta.schema_version %q is invalid; accepted values: \"v3\", \"v4\" (or omit for legacy)", v))
 	}
+	errs = append(errs, validateMetaWorkspace(plan.Meta)...)
 	if plan.Design.Problem == "" {
 		errs = append(errs, "design.problem is required")
 	}
