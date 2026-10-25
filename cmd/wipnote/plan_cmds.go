@@ -85,9 +85,9 @@ func planGenerateCmd() *cobra.Command {
 }
 
 // isWorkItemPrefix returns true when id begins with a known work item prefix
-// (trk-, feat-, bug-, spk-, pln-, spc-).
+// (trk-, feat-, bug-, spk-, pln-, spec-).
 func isWorkItemPrefix(id string) bool {
-	for _, p := range []string{"trk-", "feat-", "bug-", "spk-", "pln-", "spc-"} {
+	for _, p := range []string{"trk-", "feat-", "bug-", "spk-", "pln-", "spec-"} {
 		if strings.HasPrefix(id, p) {
 			return true
 		}

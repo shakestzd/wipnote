@@ -26,7 +26,7 @@ func kindFromPrefix(id string) string {
 	if strings.HasPrefix(id, "trk-") {
 		return "track"
 	}
-	if strings.HasPrefix(id, "pln-") {
+	if strings.HasPrefix(id, "plan-") || strings.HasPrefix(id, "pln-") {
 		return "plan"
 	}
 	if strings.HasPrefix(id, "spec-") {
