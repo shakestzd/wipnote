@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -423,7 +424,7 @@ func processRipgrepMatch(msg rgMessage, scores map[string]*relevantResult) error
 	r.Citations = append(r.Citations, citation{
 		File:    filePath,
 		Line:    lineNum,
-		Snippet: truncate(lineText, 80),
+		Snippet: slug.Truncate(lineText, 80),
 	})
 	return nil
 }
@@ -545,9 +546,9 @@ func searchViaGitFileHistory(projectDir, hgDir, filePath string, scores map[stri
 			r := getOrCreate(scores, node)
 			r.Score += weightCommitItem
 			r.Citations = append(r.Citations, citation{
-				SHA:     sha[:min7(sha)],
+				SHA:     sha[:min(7, len(sha))],
 				Date:    date,
-				Subject: truncate(subject, 72),
+				Subject: slug.Truncate(subject, 72),
 			})
 		}
 	}
@@ -590,9 +591,9 @@ func searchViaGitSHA(projectDir, hgDir, sha string, scores map[string]*relevantR
 		r := getOrCreate(scores, node)
 		r.Score += weightCommitItem
 		r.Citations = append(r.Citations, citation{
-			SHA:     fullSHA[:min7(fullSHA)],
+			SHA:     fullSHA[:min(7, len(fullSHA))],
 			Date:    date,
-			Subject: truncate(subject, 72),
+			Subject: slug.Truncate(subject, 72),
 		})
 	}
 
@@ -695,14 +696,6 @@ func isExecError(err error, target **exec.Error) bool {
 	return false
 }
 
-// min7 returns the min of 7 and len(s).
-func min7(s string) int {
-	if len(s) < 7 {
-		return len(s)
-	}
-	return 7
-}
-
 // relevantResponse is the top-level JSON payload. Wrapping (rather than a
 // bare array) lets callers see shown/total/truncated without parsing a
 // separate stderr notice — truncation is never silent (GH#151).
@@ -738,10 +731,10 @@ func printRelevantText(results []relevantResult, shown, total int) {
 	fmt.Println(strings.Repeat("-", 80))
 	for _, r := range results {
 		fmt.Printf("%-22s  %-8s  %-11s  %5.1f  %s\n",
-			r.ID, r.Type, r.Status, r.Score, truncate(r.Title, 36))
+			r.ID, r.Type, r.Status, r.Score, slug.Truncate(r.Title, 36))
 		for _, c := range r.Citations {
 			if c.SHA != "" {
-				fmt.Printf("    [%s] %s  %s\n", c.SHA, c.Date, truncate(c.Subject, 60))
+				fmt.Printf("    [%s] %s  %s\n", c.SHA, c.Date, slug.Truncate(c.Subject, 60))
 			} else if c.File != "" {
 				fmt.Printf("    %s:%d  %s\n", filepath.Base(c.File), c.Line, c.Snippet)
 			}
@@ -764,7 +757,7 @@ func printRelevantCompact(results []relevantResult, shown, total int) {
 	}
 	for _, r := range results {
 		fmt.Printf("%s  %s  %s  %.1f  %s\n",
-			r.ID, r.Type, r.Status, r.Score, truncate(r.Title, 60))
+			r.ID, r.Type, r.Status, r.Score, slug.Truncate(r.Title, 60))
 	}
 	if summary := truncationSummary(shown, total); summary != "" {
 		fmt.Println(summary)

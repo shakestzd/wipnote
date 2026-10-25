@@ -15,6 +15,7 @@ import (
 	"github.com/shakestzd/wipnote/core/guardprofile"
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/internal/commitqueue"
 	"github.com/shakestzd/wipnote/internal/gate"
 	"github.com/spf13/cobra"
@@ -98,7 +99,7 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 					if result.Record.WorkItemID != "" {
 						fmt.Printf(" (work item %s)", result.Record.WorkItemID)
 					}
-					fmt.Printf(" with signature %s\n", truncate(result.Record.Signature, 12))
+					fmt.Printf(" with signature %s\n", slug.Truncate(result.Record.Signature, 12))
 				}
 				if !result.Passed {
 					if result.Skipped {
@@ -358,7 +359,7 @@ func runCheckAcceptedAdvisory(w io.Writer) error {
 	fmt.Fprintf(w, "Found %d item(s) completed via accepted-advisory (zero-commit provenance override):\n", len(items))
 	fmt.Fprintln(w, strings.Repeat("-", 72))
 	for _, it := range items {
-		fmt.Fprintf(w, "  %-7s  %-20s  %s\n", it.itemType, it.id, truncate(it.title, 34))
+		fmt.Fprintf(w, "  %-7s  %-20s  %s\n", it.itemType, it.id, slug.Truncate(it.title, 34))
 		fmt.Fprintf(w, "           reason: %s\n", it.reason)
 	}
 	return nil
@@ -431,7 +432,7 @@ func runCheckDups(strict bool) error {
 	fmt.Println(strings.Repeat("-", 70))
 	for _, d := range dups {
 		fmt.Printf("  %-7s  %-18s  ~ %-18s  %s\n",
-			d.itemType, d.id, d.relatesTo, truncate(d.title, 30))
+			d.itemType, d.id, d.relatesTo, slug.Truncate(d.title, 30))
 	}
 	fmt.Printf("\nResolve by closing the duplicate or removing the relates_to edge\n" +
 		"(e.g. 'wipnote link remove <id> <target> relates_to').\n")

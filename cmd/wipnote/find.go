@@ -10,6 +10,7 @@ import (
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -289,7 +290,7 @@ func printFindResults(nodes []*models.Node) {
 		}
 		fmt.Printf("%s%-20s  %-8s  %-11s  %-8s  %s\n",
 			marker, n.ID, n.Type, n.Status, n.Priority,
-			truncate(n.Title, 36))
+			slug.Truncate(n.Title, 36))
 	}
 
 	fmt.Printf("\n%d item(s)\n", len(nodes))

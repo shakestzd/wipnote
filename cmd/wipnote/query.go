@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/projection"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -69,7 +70,7 @@ func runQuery(dsl string) error {
 			title = r.ID
 		}
 		fmt.Printf("  %-25s  [%-10s]  [%s]  %s\n",
-			r.ID, status, nodeType, truncate(title, 40))
+			r.ID, status, nodeType, slug.Truncate(title, 40))
 	}
 	return nil
 }

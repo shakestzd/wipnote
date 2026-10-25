@@ -9,6 +9,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -97,10 +98,10 @@ func runLinkCommit(typeName, itemID, sha string) error {
 		return err
 	}
 	if !added {
-		fmt.Printf("Already linked: %s → %s (skipped)\n", truncate(fullHash, 12), resolvedID)
+		fmt.Printf("Already linked: %s → %s (skipped)\n", slug.Truncate(fullHash, 12), resolvedID)
 		return nil
 	}
-	fmt.Printf("Linked: %s → %s\n  message: %s\n", truncate(fullHash, 12), resolvedID, msg)
+	fmt.Printf("Linked: %s → %s\n  message: %s\n", slug.Truncate(fullHash, 12), resolvedID, msg)
 	return nil
 }
 
@@ -124,7 +125,7 @@ func writeCommitEdge(col edgeCollection, node *models.Node, itemID, repoRoot, sh
 		Since:        ts,
 	}
 	if _, addErr := col.AddEdge(itemID, edge); addErr != nil {
-		return fullHash, msg, false, fmt.Errorf("link commit %s to %s: %w", truncate(fullHash, 10), itemID, addErr)
+		return fullHash, msg, false, fmt.Errorf("link commit %s to %s: %w", slug.Truncate(fullHash, 10), itemID, addErr)
 	}
 	return fullHash, msg, true, nil
 }

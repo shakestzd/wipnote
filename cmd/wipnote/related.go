@@ -7,6 +7,7 @@ import (
 	"text/tabwriter"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -71,7 +72,7 @@ func runRelated(featureID string) error {
 			files = files[:57] + "..."
 		}
 		fmt.Fprintf(w, "%s\t%d\t%s\t%s\n",
-			r.FeatureID, r.SharedCount, truncate(title, 30), files)
+			r.FeatureID, r.SharedCount, slug.Truncate(title, 30), files)
 	}
 	w.Flush()
 	fmt.Printf("\n%d related feature(s)\n", len(related))

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/shakestzd/wipnote/core/slug"
 )
 
 // recapRangeID mirrors the id-derivation in recap.go: sha256 of the range spec, first 12 chars.
@@ -342,13 +344,13 @@ func TestRunPlanRollupRecap_EdgesPersistedInPlanHTML(t *testing.T) {
 	if !strings.Contains(planHTML, recapID) {
 		t.Errorf("plan HTML does not contain recap lineage edge target %q\n"+
 			"This is the regression: commitPlanChange re-renders from YAML and drops HTML-only edges.\n"+
-			"plan HTML snippet:\n%s", recapID, truncate(planHTML, 2000))
+			"plan HTML snippet:\n%s", recapID, slug.Truncate(planHTML, 2000))
 	}
 
 	// Assert introducing-commit edge: the plan HTML must contain the first commit SHA.
 	if !strings.Contains(planHTML, firstSHA) {
 		t.Errorf("plan HTML does not contain introducing-commit edge target %q\n"+
-			"plan HTML snippet:\n%s", firstSHA, truncate(planHTML, 2000))
+			"plan HTML snippet:\n%s", firstSHA, slug.Truncate(planHTML, 2000))
 	}
 
 	t.Logf("plan HTML contains recap edge (%s) and introducing-commit edge (%s)", recapID, firstSHA[:7])

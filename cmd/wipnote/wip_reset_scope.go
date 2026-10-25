@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 )
 
 // wipResetScope narrows which in-progress items `wip reset` touches.
@@ -104,11 +105,11 @@ func printWipResetDryRun(w io.Writer, targets []wipResetTarget, live map[string]
 	fmt.Fprintf(w, "%-22s  %-8s  %-16s  %s\n", "ID", "TYPE", "SESSION", "TITLE")
 	fmt.Fprintln(w, strings.Repeat("-", 80))
 	for _, t := range targets {
-		sessDisplay := truncate(t.Session, 16)
+		sessDisplay := slug.Truncate(t.Session, 16)
 		if t.Session != "unknown" && !live[t.Session] {
-			sessDisplay = truncate(t.Session, 8) + " [dead?]"
+			sessDisplay = slug.Truncate(t.Session, 8) + " [dead?]"
 		}
-		fmt.Fprintf(w, "%-22s  %-8s  %-16s  %s\n", t.Node.ID, t.Node.Type, sessDisplay, truncate(t.Node.Title, 36))
+		fmt.Fprintf(w, "%-22s  %-8s  %-16s  %s\n", t.Node.ID, t.Node.Type, sessDisplay, slug.Truncate(t.Node.Title, 36))
 	}
 	fmt.Fprintln(w, "\nRe-run without --dry-run (and with --force) to apply.")
 }

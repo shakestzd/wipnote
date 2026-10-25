@@ -13,6 +13,7 @@ import (
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/projection"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -122,9 +123,9 @@ func statuslineFromSession(dir, sessionID string) error {
 	trackLine := resolveTrackContext(dir, item)
 
 	if trackLine != "" {
-		fmt.Printf("%s → %s %s\n", trackLine, iconFor(featureType), truncate(featureTitle, 25))
+		fmt.Printf("%s → %s %s\n", trackLine, iconFor(featureType), slug.Truncate(featureTitle, 25))
 	} else {
-		fmt.Printf("%s %s\n", iconFor(featureType), truncate(featureTitle, 30))
+		fmt.Printf("%s %s\n", iconFor(featureType), slug.Truncate(featureTitle, 30))
 	}
 	return nil
 }
@@ -188,7 +189,7 @@ func resolveTrackContext(dir string, item *models.Node) string {
 	if title == "" {
 		title = trackID
 	} else {
-		title = truncate(title, 25)
+		title = slug.Truncate(title, 25)
 	}
 	return fmt.Sprintf("%s %s [%d/%d]", iconFor("track"), title, done, total)
 }
@@ -348,9 +349,9 @@ func buildCacheLine(wipnoteDir, featureID string) string {
 	trackLine := resolveTrackContext(wipnoteDir, item)
 	if trackLine != "" {
 		return fmt.Sprintf("%s -> %s %s",
-			trackLine, iconFor(featureType), truncate(featureTitle, 25))
+			trackLine, iconFor(featureType), slug.Truncate(featureTitle, 25))
 	}
-	return fmt.Sprintf("%s %s", iconFor(featureType), truncate(featureTitle, 30))
+	return fmt.Sprintf("%s %s", iconFor(featureType), slug.Truncate(featureTitle, 30))
 }
 
 // ReadStatuslineCache reads the project-scoped cached status line from disk.

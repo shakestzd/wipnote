@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 )
 
@@ -37,7 +38,7 @@ func autoLinkMessageDerivedCommits(w io.Writer, col *workitem.Collection, repoRo
 		}
 		if added {
 			linked++
-			fmt.Fprintf(w, "linked commit %s → %s (%s)\n", truncate(fullHash, 12), itemID, msg)
+			fmt.Fprintf(w, "linked commit %s → %s (%s)\n", slug.Truncate(fullHash, 12), itemID, msg)
 		}
 	}
 	return linked

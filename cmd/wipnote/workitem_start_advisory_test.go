@@ -9,6 +9,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 )
 
 // TestStartAdvisory_SilentWhenNothingLinked: a fresh item in a clean repo
@@ -40,7 +41,7 @@ func TestStartAdvisory_LinkedCommitsSignal(t *testing.T) {
 	var out bytes.Buffer
 	emitAlreadyFixedAdvisory(&out, tmpDir, id, nil)
 	got := out.String()
-	for _, want := range []string{"already has 1 linked commit", truncate(sha, 12), "impl (" + id + ")"} {
+	for _, want := range []string{"already has 1 linked commit", slug.Truncate(sha, 12), "impl (" + id + ")"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("advisory should contain %q, got %q", want, got)
 		}

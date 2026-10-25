@@ -8,6 +8,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 )
 
@@ -75,7 +76,7 @@ func TestAutoLinkMessageDerivedCommits_Idempotent(t *testing.T) {
 	if n := autoLinkMessageDerivedCommits(&out, p.Features.Collection, tmpDir, id, linkedCommitsAt(p.Features.Collection, tmpDir, id)); n != 1 {
 		t.Fatalf("first run linked %d, want 1 (only the unlinked commit)\n%s", n, out.String())
 	}
-	if !strings.Contains(out.String(), truncate(second, 12)) {
+	if !strings.Contains(out.String(), slug.Truncate(second, 12)) {
 		t.Errorf("expected the newly linked sha in output, got %q", out.String())
 	}
 	if n := autoLinkMessageDerivedCommits(&out, p.Features.Collection, tmpDir, id, linkedCommitsAt(p.Features.Collection, tmpDir, id)); n != 0 {

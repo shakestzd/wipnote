@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/shakestzd/wipnote/core/paths"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -236,9 +237,9 @@ func renderHistoryTable(id string, entries []historyEntry) error {
 		}
 		fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n",
 			date,
-			truncate(e.Author, 20),
+			slug.Truncate(e.Author, 20),
 			sha,
-			truncate(e.Subject, 50),
+			slug.Truncate(e.Subject, 50),
 		)
 	}
 	return w.Flush()

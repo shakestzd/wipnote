@@ -98,7 +98,7 @@ func runWiList(dirName, statusFilter string) error {
 			marker = "* "
 		}
 		fmt.Printf("%s%-20s  %-11s  %-8s  %s\n",
-			marker, n.ID, n.Status, n.Priority, truncate(n.Title, 44))
+			marker, n.ID, n.Status, n.Priority, slug.Truncate(n.Title, 44))
 	}
 	fmt.Printf("\n%d %s\n", len(filtered), dirName)
 	return nil
@@ -449,7 +449,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 				if len(bysess[sessionID]) >= wipPerSessionSoftLimit {
 					fmt.Fprintf(os.Stderr,
 						"wip advisory: session %s now owns %d in-progress items (soft limit %d) — consider completing before starting more\n",
-						truncate(sessionID, 16), len(bysess[sessionID]), wipPerSessionSoftLimit)
+						slug.Truncate(sessionID, 16), len(bysess[sessionID]), wipPerSessionSoftLimit)
 				}
 			}
 		}

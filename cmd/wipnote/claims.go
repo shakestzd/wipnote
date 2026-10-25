@@ -8,6 +8,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 )
 
@@ -166,7 +167,7 @@ func printClaimEpisodes(cmd *cobra.Command, episodes []dbpkg.ClaimEpisode) {
 			outcome = "-"
 		}
 		fmt.Fprintf(out, "%-20s  %-18s  %-16s  %-20s  %-20s  %s\n",
-			e.WorkItemID, truncate(e.AgentID, 18), truncate(e.SessionID, 16),
+			e.WorkItemID, slug.Truncate(e.AgentID, 18), slug.Truncate(e.SessionID, 16),
 			e.StartedAt.Format(time.RFC3339), end, outcome)
 	}
 }
@@ -235,7 +236,7 @@ open; an open episode blocks its shard from ever becoming eligible.`,
 			}
 			for _, c := range res.Candidates {
 				fmt.Fprintf(out, "  %-14s  %s  (%d episodes, idle since %s)\n",
-					verb, truncate(c.RootSessionID, 20), len(c.Episodes),
+					verb, slug.Truncate(c.RootSessionID, 20), len(c.Episodes),
 					c.LastActivity.Format("2006-01-02"))
 			}
 			fmt.Fprintf(out, "Summary: %s %d session shard(s), %d episode(s) (threshold: idle >= %d days)\n",

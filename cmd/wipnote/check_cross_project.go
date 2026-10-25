@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/paths"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -138,7 +139,7 @@ func printForeignSessions(foreign []crossProjectSession, currentRemote string) {
 		if location == "" {
 			location = s.projectDir
 		}
-		fmt.Printf("  %-38s  %-10s  %s\n", s.sessionID, s.status, truncate(location, 28))
+		fmt.Printf("  %-38s  %-10s  %s\n", s.sessionID, s.status, slug.Truncate(location, 28))
 	}
 	if currentRemote != "" {
 		fmt.Printf("\nCurrent project remote: %s\n", currentRemote)

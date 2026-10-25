@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 )
 
@@ -67,7 +68,7 @@ func checkMergedUpstreamCompleteGate(col *workitem.Collection, ev *completionEvi
 				"Open a pull request for the branch and merge it (e.g. `gh pr create`), or fetch the merged upstream, then rerun:\n  wipnote %s complete %s\n"+
 				"To intentionally complete branch-local work (records an audited rationale on the artifact), rerun with:\n"+
 				"  wipnote %s complete %s --allow-orphan \"<reason>\"",
-			typeName, id, len(commits), truncate(commits[0], 12), upstream,
+			typeName, id, len(commits), slug.Truncate(commits[0], 12), upstream,
 			typeName, id, typeName, id)
 	}
 

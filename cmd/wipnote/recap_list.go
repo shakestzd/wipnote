@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -160,7 +161,7 @@ func printRecapListText(out []recapJSON) {
 		if r.Grounded {
 			grounded = "yes"
 		}
-		fmt.Printf("%-30s  %-10s  %-9s  %s\n", r.ID, r.Kind, grounded, truncate(r.Title, 40))
+		fmt.Printf("%-30s  %-10s  %-9s  %s\n", r.ID, r.Kind, grounded, slug.Truncate(r.Title, 40))
 	}
 	fmt.Printf("\n%d recap(s)\n", len(out))
 }

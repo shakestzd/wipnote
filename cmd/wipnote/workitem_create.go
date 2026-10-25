@@ -15,6 +15,7 @@ import (
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/provenance"
 	"github.com/shakestzd/wipnote/core/research"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -348,7 +349,7 @@ func maybeAttachDedupRelation(p *workitem.Project, typeName string, node *models
 // default: do not silently link when a human is present and declines).
 func confirmDedupAttach(newID string, match *dbpkg.DedupCandidate) bool {
 	fmt.Printf("Possible duplicate: %s looks similar to %s %q (score %.2f).\n",
-		newID, match.ID, truncate(match.Title, 50), match.Score)
+		newID, match.ID, slug.Truncate(match.Title, 50), match.Score)
 	fmt.Printf("Attach relates_to + %s tag? [y/N]: ", needsTriageDupTag)
 	reader := bufio.NewReader(os.Stdin)
 	line, err := reader.ReadString('\n')
