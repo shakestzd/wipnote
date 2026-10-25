@@ -717,7 +717,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Make orch&#39;s delegation a native, Go-built wipnote feature (wipnote delegate: spawn, send, wait, result, stop, questions, tree, run) with a file mailbox, herdr panes for interactive sessions and one-shot runs on ONE path that absorbs mods/codex-herdr-pane. orch (Python, owner&#39;s machine) is the reference. Replaces the mod-vs-orch split in docs/design/orch-integration.md.</p>
   <div class="meta">
     <span class="badge badge-approved">Done</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v45 · 25 slices · Created 2026-10-25</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v46 · 25 slices · Created 2026-10-25</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -5449,6 +5449,20 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
     
 
     
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-23-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Principle (owner 2026-10-25):</strong> delegate plus herdr is a multi-harness Projects harness. wipnote plans are the durable layer shared across users and platforms; a Claude project is one more surface that reads them.
+<strong>Rejected:</strong> a delegate cloud backend through claude --cloud (owner did not pick it, 2026-10-25). Projects have no CLI or API to start threads, so delegate does not spawn project threads.
+<strong>Hooks absent:</strong> correctness in a thread rests on result files and the ledger (decision R), not on hooks.</p>
+</div>
+        <label for="slice-23-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
 
     
 
@@ -5561,6 +5575,16 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
     
 
     
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Source of truth:</strong> the plan YAML. The project gets a printed copy; nothing reads it back (owner 2026-10-25: wipnote plans are the shared durable layer).</p>
+</div>
+        
+      </div>
+    </div>
+    
 
     
 
@@ -5672,6 +5696,17 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
     
 
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Principle (owner 2026-10-25):</strong> delegate plus herdr is a multi-harness Projects harness, so its states use the Overview groups.
+<strong>Mapping owner:</strong> slice 10&#39;s readiness predicate stays the single source of state (D2); this slice only maps states to groups.</p>
+</div>
+        
+      </div>
+    </div>
     
 
     

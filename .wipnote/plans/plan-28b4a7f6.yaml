@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 45
+    version: 46
 design:
     problem: |
         ## Problem
@@ -1811,6 +1811,17 @@ slices:
       tests: 'Unit: TestDoctorProjectThread_AllPresent, TestDoctorProjectThread_NoHooksNamesFix, TestDoctorProjectThread_NoBinary. Integration: TestRun_NoHooksStillReports, TestWait_NoHooksResultFileEnds. Script: shellcheck plus a run in a temp HOME.'
       approved: false
       comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/claude-projects
+          claim: Project cloud threads load CLAUDE.md, .claude/CLAUDE.md and .claude/rules, but not repo skills, agents, commands, .mcp.json, plugins, hooks, permission rules or env from .claude/settings.json; plugins are added in Project settings > Plugins; tools come from the cloud environment setup script.
+          accessed: "2026-10-25"
+        - url: https://code.claude.com/docs/en/claude-code-on-the-web
+          claim: Cloud sessions run in a cloud environment whose setup script installs tools before Claude starts.
+          accessed: "2026-10-25"
+      decisions_notes: |
+        **Principle (owner 2026-10-25):** delegate plus herdr is a multi-harness Projects harness. wipnote plans are the durable layer shared across users and platforms; a Claude project is one more surface that reads them.
+        **Rejected:** a delegate cloud backend through claude --cloud (owner did not pick it, 2026-10-25). Projects have no CLI or API to start threads, so delegate does not spawn project threads.
+        **Hooks absent:** correctness in a thread rests on result files and the ledger (decision R), not on hooks.
     - id: slic-c7659d67
       num: 24
       title: Export a plan as Claude project instructions
@@ -1831,6 +1842,12 @@ slices:
       tests: 'Unit: TestBrief_UnderLimit, TestBrief_TrimNamesCutSections, TestBrief_NoHostPaths, TestBrief_Deterministic, TestBrief_SectionOrder.'
       approved: false
       comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/claude-projects
+          claim: Project instructions are text sent to each new thread and to the coordinator, up to 16,000 characters; a useful brief covers purpose, where work happens, how a thread checks its work, what to do when something is missing, and what needs a go-ahead.
+          accessed: "2026-10-25"
+      decisions_notes: |
+        **Source of truth:** the plan YAML. The project gets a printed copy; nothing reads it back (owner 2026-10-25: wipnote plans are the shared durable layer).
     - id: slic-f9043a7e
       num: 25
       title: Overview state vocabulary for delegate
@@ -1855,6 +1872,13 @@ slices:
       tests: 'Unit: TestGroups_EveryStateMapped, TestGroups_QuestionIsWaitingOnYou, TestGroups_FailedIsWaitingOnYou, TestGroups_PRStates. Mod: runs.test.ts groups rows. Cross: TestGroups_BandListPageAgree.'
       approved: false
       comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/claude-projects
+          claim: The Overview Threads tab groups threads as Ready for review, Waiting on you (needs a reply or approval, or failed), Working, Landing (PR approved or queued), Idle and Resolved.
+          accessed: "2026-10-25"
+      decisions_notes: |
+        **Principle (owner 2026-10-25):** delegate plus herdr is a multi-harness Projects harness, so its states use the Overview groups.
+        **Mapping owner:** slice 10's readiness predicate stays the single source of state (D2); this slice only maps states to groups.
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
