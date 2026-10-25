@@ -1,6 +1,10 @@
 package workitem
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 // TestKindForID_AllPrefixes pins the one prefix table: every prefix
 // GenerateID mints (plus the legacy "pln-") maps to one kind and one
@@ -39,6 +43,41 @@ func TestKindForID_CoversGenerateID(t *testing.T) {
 		id := GenerateID(kind, "title")
 		if got := KindForID(id); got != kind {
 			t.Errorf("KindForID(%q) = %q, want %q", id, got, kind)
+		}
+	}
+}
+
+// TestNodePath_ExactFlatFiles pins the shared exact-id lookup: it finds a
+// flat <subdir>/<id>.html in any collection, prefers the first collection
+// in order, and returns "" for a prefix, a missing id or a directory-backed
+// track.
+func TestNodePath_ExactFlatFiles(t *testing.T) {
+	dir := t.TempDir()
+	write := func(rel string) string {
+		p := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("<html></html>"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	feat := write("features/feat-1234abcd.html")
+	spec := write("specs/spec-1234abcd.html")
+	write("bugs/feat-1234abcd.html") // same id later in the order: features wins
+	write("tracks/trk-1234abcd/index.html")
+
+	cases := map[string]string{
+		"feat-1234abcd": feat,
+		"spec-1234abcd": spec,
+		"feat-1234":     "",
+		"bug-00000000":  "",
+		"trk-1234abcd":  "",
+	}
+	for id, want := range cases {
+		if got := NodePath(dir, id); got != want {
+			t.Errorf("NodePath(%q) = %q, want %q", id, got, want)
 		}
 	}
 }

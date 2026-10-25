@@ -8,6 +8,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/workitem"
 )
 
 // defaultClaimArchiveAgeDays mirrors work-item archiving's threshold shape: a
@@ -124,7 +125,7 @@ func claimsListCmd() *cobra.Command {
 			var episodes []dbpkg.ClaimEpisode
 			switch {
 			case workItemID != "":
-				resolved, rErr := resolveID(dir, workItemID)
+				resolved, rErr := workitem.ResolvePartialID(dir, workItemID)
 				if rErr != nil {
 					resolved = workItemID
 				}

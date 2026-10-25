@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
+	"github.com/shakestzd/wipnote/core/workitem"
 )
 
 // ---- plan template types & helpers -----------------------------------------
@@ -95,7 +96,7 @@ func buildDesignContent(info planNodeInfo, nodePath, wipnoteDir string) string {
 		}
 
 		item := scopeItem{title: title, status: "todo"}
-		if childPath := resolveNodePath(wipnoteDir, edge.TargetID); childPath != "" {
+		if childPath := workitem.NodePath(wipnoteDir, edge.TargetID); childPath != "" {
 			if child, err := htmlparse.ParseFile(childPath); err == nil {
 				item.status = string(child.Status)
 				if child.Content != "" {
@@ -166,7 +167,7 @@ func buildOutlineContent(nodePath, wipnoteDir string) string {
 			title = edge.TargetID
 		}
 		it := item{id: edge.TargetID, title: title}
-		if childPath := resolveNodePath(wipnoteDir, edge.TargetID); childPath != "" {
+		if childPath := workitem.NodePath(wipnoteDir, edge.TargetID); childPath != "" {
 			if child, err := htmlparse.ParseFile(childPath); err == nil {
 				for _, dep := range child.Edges["blocked_by"] {
 					it.deps = append(it.deps, dep.TargetID)

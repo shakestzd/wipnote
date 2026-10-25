@@ -11,6 +11,19 @@ import (
 // subdirs is the ordered list of collection directories to scan.
 var subdirs = []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
 
+// NodePath returns the path of the flat <wipnoteDir>/<subdir>/<id>.html file
+// for an exact id, searching the collection directories in order, or "" when
+// none exists. Directory-backed tracks (tracks/<id>/index.html) are not found.
+func NodePath(wipnoteDir, id string) string {
+	for _, sub := range subdirs {
+		p := filepath.Join(wipnoteDir, sub, id+".html")
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
 // ResolvePartialID resolves a partial or full work item ID to a canonical ID.
 //
 // Resolution order:
@@ -23,12 +36,9 @@ var subdirs = []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
 // The returned string is always the full canonical ID (e.g. "feat-43aea33f"),
 // never a file path.
 func ResolvePartialID(wipnoteDir, id string) (string, error) {
-	// 1. Exact match: check each subdir for <id>.html.
-	for _, sub := range subdirs {
-		p := filepath.Join(wipnoteDir, sub, id+".html")
-		if _, err := os.Stat(p); err == nil {
-			return id, nil
-		}
+	// 1. Exact match: <wipnoteDir>/<subdir>/<id>.html exists.
+	if NodePath(wipnoteDir, id) != "" {
+		return id, nil
 	}
 
 	// 2. Prefix match across all collection directories.

@@ -254,7 +254,7 @@ func priorityRank(p models.Priority) int {
 
 // runFindByID resolves a work item by its canonical ID and prints it.
 func runFindByID(dir, id string) error {
-	path := resolveNodePath(dir, id)
+	path := workitem.NodePath(dir, id)
 	if path == "" {
 		// Fall back to the archive ledgers before declaring the item missing —
 		// archived items have no individual file but remain queryable by ID.

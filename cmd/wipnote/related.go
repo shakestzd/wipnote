@@ -132,7 +132,7 @@ func runSetDescription(kind, id, text, acceptance, testStrategy, expectedBehavio
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}

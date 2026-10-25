@@ -41,7 +41,7 @@ func executeReset(typeName, id string) (string, error) {
 		return "", err
 	}
 
-	id, err = resolveID(wipnoteDir, id)
+	id, err = workitem.ResolvePartialID(wipnoteDir, id)
 	if err != nil {
 		return "", err
 	}

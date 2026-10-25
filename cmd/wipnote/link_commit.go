@@ -60,13 +60,13 @@ func runLinkCommit(typeName, itemID, sha string) error {
 	}
 
 	// Resolve partial IDs.
-	resolvedID, err := resolveID(wipnoteDir, itemID)
+	resolvedID, err := workitem.ResolvePartialID(wipnoteDir, itemID)
 	if err != nil {
 		return err
 	}
 
 	// Verify the work item exists on disk.
-	nodePath := resolveNodePath(wipnoteDir, resolvedID)
+	nodePath := workitem.NodePath(wipnoteDir, resolvedID)
 	if nodePath == "" {
 		kind := workitem.KindForID(resolvedID)
 		return fmt.Errorf("%s %s not found", kind, resolvedID)

@@ -36,7 +36,7 @@ func openTestProject(t *testing.T, hgDir string) *workitem.Project {
 
 func parseItem(t *testing.T, hgDir, id string) *models.Node {
 	t.Helper()
-	n, err := htmlparse.ParseFile(resolveNodePath(hgDir, id))
+	n, err := htmlparse.ParseFile(workitem.NodePath(hgDir, id))
 	if err != nil {
 		t.Fatal(err)
 	}

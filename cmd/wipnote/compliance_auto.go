@@ -517,7 +517,7 @@ func buildDiffBlob(ctx context.Context, database *sql.DB, featureID, gitRoot str
 	// message-linkage commits alone, which is the common case anyway.
 	var node *models.Node
 	if wipnoteDir, err := findWipnoteDir(); err == nil {
-		if path := resolveNodePath(wipnoteDir, featureID); path != "" {
+		if path := workitem.NodePath(wipnoteDir, featureID); path != "" {
 			node, _ = htmlparse.ParseFile(path)
 		}
 	}

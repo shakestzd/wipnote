@@ -109,7 +109,7 @@ func openItem(id string) (string, *workitem.Project, *workitem.Collection, strin
 	if err != nil {
 		return "", nil, nil, "", err
 	}
-	if id, err = resolveID(dir, id); err != nil {
+	if id, err = workitem.ResolvePartialID(dir, id); err != nil {
 		return "", nil, nil, "", err
 	}
 	typeName := workitem.KindForID(id)
@@ -441,7 +441,7 @@ func attachSpikeResearch(w io.Writer, p *workitem.Project, spikeID string) {
 
 // printLineageResearch prints the research record of a lineage root work item.
 func printLineageResearch(w io.Writer, wipnoteDir, id string) {
-	path := resolveNodePath(wipnoteDir, id)
+	path := workitem.NodePath(wipnoteDir, id)
 	if path == "" {
 		return
 	}

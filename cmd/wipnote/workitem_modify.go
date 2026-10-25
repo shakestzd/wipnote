@@ -46,7 +46,7 @@ func runWiUpdate(typeName, id string, o *wiUpdateOpts) error {
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func runWiMove(typeName, id, targetTrackID string) error {
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}

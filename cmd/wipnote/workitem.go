@@ -290,7 +290,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -691,11 +691,11 @@ func runWiDelete(id string) error {
 	if err != nil {
 		return err
 	}
-	resolved, err := resolveID(dir, id)
+	resolved, err := workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
-	path := resolveNodePath(dir, resolved)
+	path := workitem.NodePath(dir, resolved)
 	if path == "" {
 		kind := workitem.KindForID(resolved)
 		return workitem.ErrNotFoundOnDisk(kind, resolved)
@@ -730,7 +730,7 @@ func runWiAddStep(typeName, id, description string, allowHostPaths bool) error {
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -768,7 +768,7 @@ func runWiAddTaskStep(typeName, id, taskID, description string) error {
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -805,7 +805,7 @@ func runWiCompleteTaskStep(typeName, id, taskID string) error {
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -848,7 +848,7 @@ func runWiCompleteStep(typeName, id string, stepNum int) error {
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -884,23 +884,6 @@ func agentForClaim() string {
 	return "claude-code"
 }
 
-// resolveID resolves a partial or full work item ID to its canonical form.
-func resolveID(wipnoteDir, id string) (string, error) {
-	return workitem.ResolvePartialID(wipnoteDir, id)
-}
-
-// resolveNodePath searches all subdirectories for a file matching id.
-func resolveNodePath(wipnoteDir, id string) string {
-	dirs := []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
-	for _, sub := range dirs {
-		p := filepath.Join(wipnoteDir, sub, id+".html")
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return ""
-}
-
 // resolveNodeByUnionID resolves a partial or full ID against both live files and
 // archived ledger entries. Exact matches (live or archived) win outright and are
 // never ambiguous, even if they are also a prefix of other IDs. Prefix matches
@@ -909,7 +892,7 @@ func resolveNodePath(wipnoteDir, id string) string {
 // ambiguity rather than silently picking the live one.
 func resolveNodeByUnionID(wipnoteDir, id string) (*models.Node, error) {
 	// 1. Check for exact match in live files.
-	path := resolveNodePath(wipnoteDir, id)
+	path := workitem.NodePath(wipnoteDir, id)
 	if path != "" {
 		parsed, parseErr := htmlparse.ParseFile(path)
 		if parseErr != nil {
@@ -951,7 +934,7 @@ func resolveNodeByUnionID(wipnoteDir, id string) (*models.Node, error) {
 	case 1:
 		matched := allMatches[0]
 		// Try live file first, then archive.
-		path := resolveNodePath(wipnoteDir, matched)
+		path := workitem.NodePath(wipnoteDir, matched)
 		if path != "" {
 			parsed, parseErr := htmlparse.ParseFile(path)
 			if parseErr != nil {
