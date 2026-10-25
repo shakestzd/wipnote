@@ -2,16 +2,12 @@ package gateledger
 
 import (
 	"bytes"
-	"fmt"
-	"html"
-	"io"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/shakestzd/wipnote/core/htmlledger"
 )
 
 // ledgerHeader and ledgerFooter bracket the row lines. They are byte-stable
@@ -37,11 +33,13 @@ const ledgerFooter = `</tbody>
 // some other element is therefore ignored rather than mis-parsed.
 const rowSelector = `table[data-gate-ledger] tbody tr[data-record-id]`
 
-// tornScanWindow bounds how far back the repair scan looks for a clean line
-// boundary. A torn write can only have lost part of ONE row plus the footer, so
-// a window far larger than either is enough; a file with no newline inside the
-// window is corrupt in a way this package will not guess at.
-const tornScanWindow = 64 * 1024
+// ledgerFormat is this ledger's document shape for the shared HTML codec.
+var ledgerFormat = htmlledger.Format{
+	Name:        "gateledger",
+	Header:      ledgerHeader,
+	Footer:      ledgerFooter,
+	RowSelector: rowSelector,
+}
 
 // marshalRow renders one gate run as exactly ONE line terminated by '\n'.
 //
@@ -56,66 +54,40 @@ const tornScanWindow = 64 * 1024
 func marshalRow(r Record) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("<tr")
-	writeAttr(&buf, "id", r.ID)
-	writeAttr(&buf, "data-record-id", r.ID)
-	writeAttr(&buf, "data-work-item", r.WorkItemID)
-	writeAttr(&buf, "data-session", r.SessionID)
-	writeAttr(&buf, "data-harness", r.Harness)
-	writeAttr(&buf, "data-project-type", r.ProjectType)
-	writeAttr(&buf, "data-gate-command", r.GateCommand)
-	writeAttr(&buf, "data-status", r.Status)
-	writeAttr(&buf, "data-checked-at", FormatTime(r.CheckedAt))
-	writeAttr(&buf, "data-signature", r.Signature)
-	writeAttr(&buf, "data-source", r.Source)
-	writeAttr(&buf, "data-guards-run", r.GuardsRunJSON)
-	writeAttr(&buf, "data-profile-signature", r.ProfileSignature)
-	writeAttr(&buf, "data-allowlist-hits", r.AllowlistHitsJSON)
-	writeAttr(&buf, "data-allowlist-hit-count", strconv.Itoa(r.AllowlistHitCount))
-	writeAttr(&buf, "data-output-summary", r.OutputSummary)
+	htmlledger.WriteAttr(&buf, "id", r.ID)
+	htmlledger.WriteAttr(&buf, "data-record-id", r.ID)
+	htmlledger.WriteAttr(&buf, "data-work-item", r.WorkItemID)
+	htmlledger.WriteAttr(&buf, "data-session", r.SessionID)
+	htmlledger.WriteAttr(&buf, "data-harness", r.Harness)
+	htmlledger.WriteAttr(&buf, "data-project-type", r.ProjectType)
+	htmlledger.WriteAttr(&buf, "data-gate-command", r.GateCommand)
+	htmlledger.WriteAttr(&buf, "data-status", r.Status)
+	htmlledger.WriteAttr(&buf, "data-checked-at", FormatTime(r.CheckedAt))
+	htmlledger.WriteAttr(&buf, "data-signature", r.Signature)
+	htmlledger.WriteAttr(&buf, "data-source", r.Source)
+	htmlledger.WriteAttr(&buf, "data-guards-run", r.GuardsRunJSON)
+	htmlledger.WriteAttr(&buf, "data-profile-signature", r.ProfileSignature)
+	htmlledger.WriteAttr(&buf, "data-allowlist-hits", r.AllowlistHitsJSON)
+	htmlledger.WriteAttr(&buf, "data-allowlist-hit-count", strconv.Itoa(r.AllowlistHitCount))
+	htmlledger.WriteAttr(&buf, "data-output-summary", r.OutputSummary)
 	buf.WriteString(">")
 
-	writeCell(&buf, "record-id", r.ID)
-	writeCell(&buf, "work-item", r.WorkItemID)
-	writeCell(&buf, "session", r.SessionID)
-	writeCell(&buf, "harness", r.Harness)
-	writeCell(&buf, "project-type", r.ProjectType)
-	writeCell(&buf, "gate-command", r.GateCommand)
-	writeCell(&buf, "status", r.Status)
-	writeCell(&buf, "checked-at", FormatTime(r.CheckedAt))
-	writeCell(&buf, "source", r.Source)
-	writeCell(&buf, "guards-run", r.GuardsRunJSON)
-	writeCell(&buf, "profile-signature", r.ProfileSignature)
-	writeCell(&buf, "allowlist-hits", r.AllowlistHitsJSON)
-	writeCell(&buf, "output-summary", r.OutputSummary)
+	htmlledger.WriteCell(&buf, "record-id", r.ID)
+	htmlledger.WriteCell(&buf, "work-item", r.WorkItemID)
+	htmlledger.WriteCell(&buf, "session", r.SessionID)
+	htmlledger.WriteCell(&buf, "harness", r.Harness)
+	htmlledger.WriteCell(&buf, "project-type", r.ProjectType)
+	htmlledger.WriteCell(&buf, "gate-command", r.GateCommand)
+	htmlledger.WriteCell(&buf, "status", r.Status)
+	htmlledger.WriteCell(&buf, "checked-at", FormatTime(r.CheckedAt))
+	htmlledger.WriteCell(&buf, "source", r.Source)
+	htmlledger.WriteCell(&buf, "guards-run", r.GuardsRunJSON)
+	htmlledger.WriteCell(&buf, "profile-signature", r.ProfileSignature)
+	htmlledger.WriteCell(&buf, "allowlist-hits", r.AllowlistHitsJSON)
+	htmlledger.WriteCell(&buf, "output-summary", r.OutputSummary)
 
 	buf.WriteString("</tr>\n")
 	return buf.Bytes()
-}
-
-func writeAttr(buf *bytes.Buffer, name, value string) {
-	buf.WriteByte(' ')
-	buf.WriteString(name)
-	buf.WriteString(`="`)
-	buf.WriteString(html.EscapeString(sanitize(value)))
-	buf.WriteByte('"')
-}
-
-func writeCell(buf *bytes.Buffer, field, value string) {
-	buf.WriteString(`<td data-field="`)
-	buf.WriteString(field)
-	buf.WriteString(`">`)
-	buf.WriteString(html.EscapeString(sanitize(value)))
-	buf.WriteString("</td>")
-}
-
-// sanitize collapses anything that would break the one-row-one-line invariant.
-func sanitize(v string) string {
-	return strings.Map(func(r rune) rune {
-		if r == '\n' || r == '\r' || r == '\t' {
-			return ' '
-		}
-		return r
-	}, v)
 }
 
 // ReadFile parses the ledger into records, ordered by checked-at. A missing file
@@ -125,62 +97,47 @@ func sanitize(v string) string {
 // failing the whole file, so one bad row can never hide every other gate run.
 // This matches the claim and sessions ledgers.
 func ReadFile(path string) ([]Record, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	doc, err := goquery.NewDocumentFromReader(f)
-	if err != nil {
-		return nil, fmt.Errorf("gateledger: parse %s: %w", path, err)
-	}
-
 	var records []Record
-	doc.Find(rowSelector).Each(func(_ int, row *goquery.Selection) {
+	err := ledgerFormat.ReadRows(path, func(row *goquery.Selection) {
 		if r, ok := parseRow(row); ok {
 			records = append(records, r)
 		}
 	})
+	if err != nil {
+		return nil, err
+	}
 	sortRecords(records)
 	return records, nil
 }
 
 func parseRow(row *goquery.Selection) (Record, bool) {
 	r := Record{
-		ID:                strings.TrimSpace(attr(row, "data-record-id")),
-		WorkItemID:        strings.TrimSpace(attr(row, "data-work-item")),
-		SessionID:         strings.TrimSpace(attr(row, "data-session")),
-		Harness:           strings.TrimSpace(attr(row, "data-harness")),
-		ProjectType:       strings.TrimSpace(attr(row, "data-project-type")),
-		GateCommand:       attr(row, "data-gate-command"),
-		Status:            strings.TrimSpace(attr(row, "data-status")),
-		Signature:         strings.TrimSpace(attr(row, "data-signature")),
-		Source:            strings.TrimSpace(attr(row, "data-source")),
-		GuardsRunJSON:     strings.TrimSpace(attr(row, "data-guards-run")),
-		ProfileSignature:  strings.TrimSpace(attr(row, "data-profile-signature")),
-		AllowlistHitsJSON: strings.TrimSpace(attr(row, "data-allowlist-hits")),
-		OutputSummary:     attr(row, "data-output-summary"),
+		ID:                strings.TrimSpace(htmlledger.Attr(row, "data-record-id")),
+		WorkItemID:        strings.TrimSpace(htmlledger.Attr(row, "data-work-item")),
+		SessionID:         strings.TrimSpace(htmlledger.Attr(row, "data-session")),
+		Harness:           strings.TrimSpace(htmlledger.Attr(row, "data-harness")),
+		ProjectType:       strings.TrimSpace(htmlledger.Attr(row, "data-project-type")),
+		GateCommand:       htmlledger.Attr(row, "data-gate-command"),
+		Status:            strings.TrimSpace(htmlledger.Attr(row, "data-status")),
+		Signature:         strings.TrimSpace(htmlledger.Attr(row, "data-signature")),
+		Source:            strings.TrimSpace(htmlledger.Attr(row, "data-source")),
+		GuardsRunJSON:     strings.TrimSpace(htmlledger.Attr(row, "data-guards-run")),
+		ProfileSignature:  strings.TrimSpace(htmlledger.Attr(row, "data-profile-signature")),
+		AllowlistHitsJSON: strings.TrimSpace(htmlledger.Attr(row, "data-allowlist-hits")),
+		OutputSummary:     htmlledger.Attr(row, "data-output-summary"),
 	}
-	checked, err := ParseTime(attr(row, "data-checked-at"))
+	checked, err := ParseTime(htmlledger.Attr(row, "data-checked-at"))
 	if err != nil {
 		return Record{}, false
 	}
 	r.CheckedAt = checked
-	if n, convErr := strconv.Atoi(strings.TrimSpace(attr(row, "data-allowlist-hit-count"))); convErr == nil && n > 0 {
+	if n, convErr := strconv.Atoi(strings.TrimSpace(htmlledger.Attr(row, "data-allowlist-hit-count"))); convErr == nil && n > 0 {
 		r.AllowlistHitCount = n
 	}
 	if r.Validate() != nil {
 		return Record{}, false
 	}
 	return r, true
-}
-
-func attr(sel *goquery.Selection, name string) string {
-	if v, ok := sel.Attr(name); ok {
-		return v
-	}
-	return ""
 }
 
 // sortRecords orders by checked-at, then by id so the order is total and stable
@@ -213,94 +170,5 @@ func sortRecords(recs []Record) {
 // the file ends with it, otherwise the last newline, which is by construction the
 // end of the last complete row.
 func appendRowLocked(path string, r Record) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("gateledger: mkdir %s: %w", filepath.Dir(path), err)
-	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
-	if err != nil {
-		return fmt.Errorf("gateledger: open %s: %w", path, err)
-	}
-	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("gateledger: stat %s: %w", path, err)
-	}
-
-	off, err := appendOffset(f, fi.Size())
-	if err != nil {
-		return fmt.Errorf("gateledger: %s: %w", path, err)
-	}
-
-	var payload []byte
-	if off == 0 {
-		// Empty, or truncated to less than a full header: no complete row can
-		// exist, so rewrite the whole document rather than guess at a boundary.
-		payload = append(payload, ledgerHeader...)
-	}
-	payload = append(payload, marshalRow(r)...)
-	payload = append(payload, ledgerFooter...)
-
-	// Truncate FIRST so a crash between the two leaves a file that ends on a
-	// clean row boundary with no footer — which the next append repairs — rather
-	// than one with stale bytes past the new content.
-	if err := f.Truncate(off); err != nil {
-		return fmt.Errorf("gateledger: truncate %s: %w", path, err)
-	}
-	if _, err := f.Seek(off, io.SeekStart); err != nil {
-		return fmt.Errorf("gateledger: seek %s: %w", path, err)
-	}
-	if _, err := f.Write(payload); err != nil {
-		return fmt.Errorf("gateledger: write %s: %w", path, err)
-	}
-	// fsync before returning is what makes the write-then-read case sound: a gate
-	// run recorded by `wipnote check --gate` must be readable by the completion
-	// that follows in a DIFFERENT process, long before the deferred commit queue
-	// flushes. Only the git commit is deferred; the bytes are not.
-	if err := f.Sync(); err != nil {
-		return fmt.Errorf("gateledger: fsync %s: %w", path, err)
-	}
-	return nil
-}
-
-// appendOffset returns the byte offset at which a new row line may begin.
-//
-//   - size 0, or smaller than the header: 0 (rewrite the document).
-//   - file ends with the exact footer: the footer's start (the clean case).
-//   - otherwise the write was torn: the byte after the last newline, dropping the
-//     incomplete tail. Every earlier row is preserved; only the fragment that was
-//     never fsynced is lost.
-func appendOffset(f *os.File, size int64) (int64, error) {
-	if size < int64(len(ledgerHeader)) {
-		return 0, nil
-	}
-
-	footerLen := int64(len(ledgerFooter))
-	tail := make([]byte, footerLen)
-	if _, err := f.ReadAt(tail, size-footerLen); err != nil {
-		return 0, fmt.Errorf("read trailing bytes: %w", err)
-	}
-	if bytes.Equal(tail, []byte(ledgerFooter)) {
-		return size - footerLen, nil
-	}
-
-	window := int64(tornScanWindow)
-	if window > size {
-		window = size
-	}
-	buf := make([]byte, window)
-	if _, err := f.ReadAt(buf, size-window); err != nil {
-		return 0, fmt.Errorf("read repair window: %w", err)
-	}
-	nl := bytes.LastIndexByte(buf, '\n')
-	if nl < 0 {
-		return 0, fmt.Errorf("torn ledger has no line boundary within %d bytes of the tail", window)
-	}
-	boundary := size - window + int64(nl) + 1
-	// Never rewind into the header: a boundary inside it means the file was torn
-	// during creation and holds no complete row.
-	if boundary < int64(len(ledgerHeader)) {
-		return 0, nil
-	}
-	return boundary, nil
+	return ledgerFormat.AppendRow(path, marshalRow(r))
 }
