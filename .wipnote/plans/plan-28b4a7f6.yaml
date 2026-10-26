@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 55
+    version: 56
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -1932,6 +1932,36 @@ slices:
         - id: q-codex-workers
           text: After the Phase B Codex probes, how do Codex delegate runs work?
           answer: Inside herdr, Codex runs become interactive workers like Claude; outside herdr, codex exec stays (owner 2026-10-26).
+    - id: slic-5482c80d
+      num: 27
+      title: Lean default profile for delegated workers
+      what: 'Delegated workers (Claude and Codex, interactive and one-shot) start with a lean default profile: a small built-in tool set, the wipnote plugin only, and only the MCP servers the task names. The task widens it by naming more tools, plugins or MCP servers. Add internal/delegate/profile: a Profile (tools, plugins, mcp servers, skills) that renders to Claude Code 2.1.310 flags and codex-cli 0.164.0 config, and a doctor check that shows what a worker will load.'
+      why: 'Owner requirement 2026-10-26: a worker should not spend its context on tools it will not use. In Phase B (runs 1-8) the workers loaded the full plugin set.'
+      files:
+        - internal/delegate/profile/profile.go
+        - internal/delegate/profile/claude.go
+        - internal/delegate/profile/codex.go
+        - internal/delegate/profile/profile_test.go
+        - internal/delegate/session/spawn.go
+        - internal/delegate/oneshot/recipes.go
+      deps:
+        - 8
+        - 10
+        - 22
+        - 26
+      done_when:
+        - A worker with no profile options gets the lean default on both harnesses in both modes
+        - The task widens it with --tools/--plugin/--mcp (named items only) and the widened set is recorded in the run folder
+        - 'Claude: built-in tools from --tools; MCP only from --strict-mcp-config plus --mcp-config; installed plugins off via --settings enabledPlugins false except the wipnote plugin from --plugin-dir; claude.ai connectors off'
+        - 'Codex: a lean profile file layered with --profile (interactive) or -c overrides (exec): web_search disabled; features apps/plugins/multi_agent/image_generation/browser_use/view_image off; each configured MCP server disabled unless named'
+        - wipnote's own hooks still fire under the lean profile (SessionStart row with the real harness)
+        - delegate doctor prints the effective profile and names anything it could not turn off (managed force-enabled plugins; Codex project config servers)
+        - OAuth users are never put on --bare
+      effort: M
+      risk: Med
+      tests: 'Unit: TestProfile_DefaultIsLean, TestProfile_WidenNamedOnly, TestClaudeFlags_StrictMCP, TestClaudeFlags_DisablesInstalledPlugins, TestClaudeFlags_KeepsWipnotePlugin, TestClaudeFlags_NoBareForOAuth, TestCodexConfig_ExecOverrides, TestCodexConfig_InteractiveProfileFile, TestCodexConfig_DisablesUnnamedMCP. Integration (fake harness stubs record argv/env): TestSpawn_LeanByDefault, TestRun_WidenedProfileRecorded, TestDoctor_ReportsUndisableable.'
+      approved: false
+      comment: ""
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
