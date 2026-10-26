@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -172,7 +173,7 @@ func TestLiveGeneratedPortSkillAndCommandParity(t *testing.T) {
 	if err := (antigravityAdapter{}).Emit(m, repoRoot, antigravityOut); err != nil {
 		t.Fatalf("emit antigravity: %v", err)
 	}
-	assertSkillFilesPresent(t, filepath.Join(antigravityOut, "skills"), skills)
+	assertSkillFilesPresent(t, filepath.Join(antigravityOut, "skills"), withoutSkills(skills, antigravityExcludedSkills))
 	assertCommandFilesPresent(t, filepath.Join(antigravityOut, "commands", antigravityTarget.CommandNamespace), commands, ".toml")
 }
 
@@ -450,6 +451,17 @@ func liveSkillNames(t *testing.T, dir string) []string {
 		}
 	}
 	return names
+}
+
+// withoutSkills returns names minus the excluded ones.
+func withoutSkills(names, excluded []string) []string {
+	var out []string
+	for _, n := range names {
+		if !slices.Contains(excluded, n) {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 func assertSkillFilesPresent(t *testing.T, root string, names []string) {

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `delegate` skill (preview) for `wipnote delegate run`: one codex exec, codex review, claude -p or ccx task call, with its result on the run page and a row in `.wipnote/delegations-ledger.html`. It ships to Claude Code and Codex, not to Antigravity. Interactive delegate commands (spawn, send, wait, stop and others) come in Release 2. Until Release 2 there are two one-shot paths: `wipnote delegate run` and the codex-herdr-pane mod, which stays installed (feat-cea63bd1)
 - `wipnote upgrade` / `wipnote update` — self-update CLI from GitHub releases with atomic binary replacement and self-test (feat-d16a24ac)
 
 ### Documented

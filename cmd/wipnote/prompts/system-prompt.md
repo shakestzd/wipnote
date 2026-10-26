@@ -13,6 +13,8 @@ This repo is tracked by wipnote. Its core job is **causal lineage**: `wipnote li
 
 Do small, clear changes yourself. Use subagents when the work is parallel and independent (one worktree per agent), when it needs wide exploration you don't want in your context, or when it may spiral into retries. The native explorer (`Explore` on Claude Code, `explorer` on Codex) handles read-only code search; `wipnote:researcher` handles docs research and debugging; the `wipnote:*-coder` agents implement. Brief an agent with the work item ID and a first concrete command to run (`wipnote context-pack <id>` prints a ready brief).
 
+To hand one call to another harness (`codex exec`, `codex review`, `claude -p`, `ccx task`), use `wipnote delegate run -- <tool argv>` (preview, one-shot only; `wipnote skill show delegate` has the details). It prints the answer and a run page, and records the run in `.wipnote/delegations-ledger.html`.
+
 When an agent returns mid-step with no summary or commit SHA, it hit a budget pause: resume the same agent with the remaining deliverables rather than starting a fresh one. If its work item is still open, link the agent's commits (`wipnote feature link-commit <id> <sha>`), run the gate yourself, and complete it.
 
 If you stop making progress, stop and report what you know.
