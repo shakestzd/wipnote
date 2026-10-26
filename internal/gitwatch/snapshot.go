@@ -26,6 +26,8 @@ type Snapshot struct {
 	WorkItem  string    `json:"work_item"`
 	Checks    []Check   `json:"checks"`
 	Counts    Counts    `json:"counts"`
+	Review    *Review   `json:"review,omitempty"`
+	Notes     []string  `json:"notes,omitempty"`
 	FetchedAt time.Time `json:"fetched_at"`
 }
 
@@ -49,6 +51,9 @@ func BuildSnapshot(ctx context.Context, r Runner, arg string, now func() time.Ti
 	SortChecks(checks)
 	s.PR, s.Checks, s.Counts = pr, checks, countChecks(checks)
 	s.WorkItem = WorkItemID(pr.Branch, pr.Title)
+	if err := attachReview(ctx, r, s); err != nil {
+		return nil, err
+	}
 	return s, nil
 }
 

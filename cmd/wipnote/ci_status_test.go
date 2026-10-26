@@ -82,3 +82,21 @@ func TestCIStatus_Registered(t *testing.T) {
 		t.Error("ci status needs --json")
 	}
 }
+
+func TestCIStatus_TextReviewLine(t *testing.T) {
+	s := &gitwatch.Snapshot{Available: true, PR: &gitwatch.PR{Number: 7, Title: "Add thing"},
+		Review: &gitwatch.Review{Decision: "CHANGES_REQUESTED", Requested: []string{"carol"},
+			ThreadsOpen: 2, Mergeable: gitwatch.MergeableComputing, MergeState: "UNKNOWN"}}
+	var out bytes.Buffer
+	writeCIStatusText(&out, s)
+	want := "review: CHANGES_REQUESTED · 2 open threads · merge computing"
+	if !strings.Contains(out.String(), want) || !strings.Contains(out.String(), "carol") {
+		t.Errorf("want %q and the requested reviewer in:\n%s", want, out.String())
+	}
+	s.Review, s.Notes = nil, []string{"review not read: HTTP 403"}
+	out.Reset()
+	writeCIStatusText(&out, s)
+	if strings.Contains(out.String(), "review:") || !strings.Contains(out.String(), "HTTP 403") {
+		t.Errorf("no review line, but the note, expected:\n%s", out.String())
+	}
+}

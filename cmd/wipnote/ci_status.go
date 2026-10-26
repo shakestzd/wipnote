@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -77,4 +78,25 @@ func writeCIStatusText(w io.Writer, s *gitwatch.Snapshot) {
 		}
 		fmt.Fprintf(w, "  %-8s %s  %s\n", ch.Bucket, name, ch.Link)
 	}
+	writeReviewLine(w, s.Review)
+	for _, n := range s.Notes {
+		fmt.Fprintf(w, "note: %s\n", n)
+	}
+}
+
+// writeReviewLine prints "review: <decision> · <n> open threads · merge
+// <state>", where a mergeability still being computed shows as computing.
+func writeReviewLine(w io.Writer, rv *gitwatch.Review) {
+	if rv == nil {
+		return
+	}
+	merge := rv.MergeState
+	if rv.Mergeable == gitwatch.MergeableComputing {
+		merge = gitwatch.MergeableComputing
+	}
+	line := fmt.Sprintf("review: %s · %d open threads · merge %s", rv.Decision, rv.ThreadsOpen, merge)
+	if len(rv.Requested) > 0 {
+		line += " · requested " + strings.Join(rv.Requested, ", ")
+	}
+	fmt.Fprintln(w, line)
 }
