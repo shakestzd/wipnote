@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote ci watch: bounded poll loop</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-dc30c28b"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-26T00:11:40.69134"
+             data-updated="2026-10-26T00:11:40.722404" data-agent-assigned="claude-code" data-track-id="trk-2505b527">
+
+        <header>
+            <h1>wipnote ci watch: bounded poll loop</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../features/feat-470715de.html" data-relationship="blocked_by">feat-470715de</a></li>
+                    <li><a href="../features/feat-5fcf6e4a.html" data-relationship="blocked_by">feat-5fcf6e4a</a></li>
+                    <li><a href="../features/feat-202108c6.html" data-relationship="blocked_by">feat-202108c6</a></li>
+                    <li><a href="../features/feat-1643e796.html" data-relationship="blocked_by">feat-1643e796</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2505b527.html" data-relationship="part_of" data-since="2026-10-26T00:11:40.693003">trk-2505b527</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-999ea9c7.html" data-relationship="planned_in" data-since="2026-10-26T00:11:40.692037">plan-999ea9c7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>&#39;wipnote ci watch&#39;: a foreground loop, no daemon. Checks poll every 15s while pending; review, base and release every 60s; back off when nothing runs; stop when settled or at --timeout. --json-lines emits a snapshot on change. Exit codes mark passed, failed, timeout and not-available.</p>
+        </section>
+    </article>
+</body>
+</html>
