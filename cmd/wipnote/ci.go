@@ -14,6 +14,7 @@ func ciCmd() *cobra.Command {
 		Short: "CI/CD workflow management",
 	}
 	cmd.AddCommand(ciInitCmd())
+	cmd.AddCommand(ciStatusCmd())
 	return cmd
 }
 

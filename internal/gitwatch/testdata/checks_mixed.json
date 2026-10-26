@@ -1,0 +1,9 @@
+[
+  {"name":"build","state":"SUCCESS","bucket":"pass","startedAt":"2026-10-20T10:00:00Z","completedAt":"2026-10-20T10:05:00Z","link":"https://example.test/run/1","workflow":"CI","event":"pull_request"},
+  {"name":"build","state":"FAILURE","bucket":"fail","startedAt":"2026-10-20T09:00:00Z","completedAt":"2026-10-20T09:04:00Z","link":"https://example.test/run/0","workflow":"CI","event":"pull_request"},
+  {"name":"test","state":"FAILURE","bucket":"fail","startedAt":"2026-10-20T10:00:00Z","completedAt":"2026-10-20T10:09:00Z","link":"https://example.test/run/2","workflow":"CI","event":"pull_request"},
+  {"name":"lint","state":"IN_PROGRESS","bucket":"pending","startedAt":"2026-10-20T10:01:00Z","completedAt":"0001-01-01T00:00:00Z","link":"https://example.test/run/3","workflow":"CI","event":"pull_request"},
+  {"name":"setup","state":"STARTUP_FAILURE","bucket":"pending","startedAt":"2026-10-20T10:00:00Z","completedAt":"0001-01-01T00:00:00Z","link":"https://example.test/run/4","workflow":"Release","event":"pull_request"},
+  {"name":"docs","state":"SKIPPED","bucket":"skipping","startedAt":"2026-10-20T10:00:00Z","completedAt":"2026-10-20T10:00:01Z","link":"https://example.test/run/5","workflow":"CI","event":"pull_request"},
+  {"name":"deploy","state":"CANCELLED","bucket":"cancel","startedAt":"2026-10-20T10:00:00Z","completedAt":"2026-10-20T10:02:00Z","link":"https://example.test/run/6","workflow":"CD","event":"pull_request"}
+]

@@ -1,0 +1,5 @@
+[
+  {"name":"a","state":"SUCCESS","bucket":"","startedAt":"2026-10-20T10:00:00Z","completedAt":"2026-10-20T10:05:00Z","link":"","workflow":"CI","event":"push"},
+  {"name":"b","state":"STARTUP_FAILURE","bucket":"","startedAt":"2026-10-20T10:00:00Z","completedAt":"0001-01-01T00:00:00Z","link":"","workflow":"CI","event":"push"},
+  {"name":"c","state":"QUEUED","bucket":"","startedAt":"0001-01-01T00:00:00Z","completedAt":"0001-01-01T00:00:00Z","link":"","workflow":"CI","event":"push"}
+]
