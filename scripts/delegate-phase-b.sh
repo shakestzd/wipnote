@@ -44,7 +44,7 @@ title_of() {
     H8) echo "herdr pane close <pane> closes the pane" ;;
     H9) echo "go test TestHerdr_LiveTabRoundTrip passes against real herdr" ;;
     B1) echo "--settings hooks (after --) add to the wipnote plugin hooks" ;;
-    B2) echo "orch-spawned claude worker: events.ndjson sid equals its wipnote session id" ;;
+    B2) echo "orch workers (read-only): events.ndjson sids are wipnote session ids" ;;
     B3a) echo "herdr claude integration hooks and wipnote plugin hooks both report" ;;
     B3b) echo "herdr codex integration hooks and wipnote plugin hooks both report" ;;
     B4) echo "wipnote codex, interactive: SessionStart fires and carries session_id" ;;
@@ -69,7 +69,7 @@ needs_of() {
     H5) echo "herdr claude" ;;
     H*) echo herdr ;;
     B1) echo "model claude wipnote" ;;
-    B2) echo "herdr model orch claude wipnote" ;;
+    B2) echo "perl git" ;;
     B3a) echo "herdr model claude wipnote" ;;
     B3b|B4) echo "herdr model codex wipnote" ;;
     B5|C1) echo "model codex" ;;
@@ -228,7 +228,7 @@ main() {
   SCRATCH=$(cd "$(mktemp -d "${TMPDIR:-/tmp}/phase-b.XXXXXX")" && pwd -P) || { echo "mktemp failed" >&2; exit 2; }
   RAW_LOG="$SCRATCH/raw.log"
   : >"$RAW_LOG"
-  CLEAN_HOOKS="herdr_cleanup orch_cleanup"
+  CLEAN_HOOKS="herdr_cleanup"
   CLEAN_DIRS="$SCRATCH"
   trap 'on_exit_cleanup' EXIT
   trap 'exit 130' INT TERM

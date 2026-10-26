@@ -103,55 +103,79 @@ check_B7L() {
   b7_suite B7L host host "$SCRATCH/b7l"
 }
 
-# --- B2: orch-spawned worker sid equals its wipnote session id ---------------
-ORCH_NAMES=""
+# --- B2: orch workers' sids are their wipnote session ids (read-only) --------
+# Reads orch's registry and each live session's mailbox events.ndjson, and
+# looks every sid up in the sessions ledger of the project the worker ran in.
+# It spawns, sends and stops nothing (owner 2026-10-26, B2 option 1), so orch's
+# session cap does not matter. Archived mailboxes are not read: the registry
+# no longer holds their working directory.
 
-orch_cleanup() {
-  local n
-  for n in $ORCH_NAMES; do with_timeout 60 orch stop "$n" >/dev/null 2>&1; done
+# b2_project CWD: the checkout whose .wipnote/ holds CWD's sessions, or nothing.
+# A worktree's sessions land in the main checkout, so that is tried first.
+b2_project() {
+  local common top
+  common=$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  [ -n "$common" ] && [ -d "$(dirname "$common")/.wipnote" ] && { dirname "$common"; return 0; }
+  top=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)
+  [ -n "$top" ] && [ -d "$top/.wipnote" ] && echo "$top"
 }
 
-# b2_settled PANE: the orch worker shows Claude's input prompt and no dialog.
-b2_settled() {
-  screen "$1" | strip_ansi | grep -q '❯' &&
-    ! screen "$1" | strip_ansi | grep -qiE 'trust|do you want|permission'
+# b2_sessions REG: one "name<TAB>kind<TAB>cwd<TAB>mailbox" line per session.
+b2_sessions() {
+  perl -MJSON::PP -e '
+    my $d = eval { local $/; decode_json(<STDIN>) } or exit 1;
+    my $s = $d->{sessions} || {};
+    for my $n (sort keys %$s) {
+      my $r = $s->{$n};
+      print join("\t", $n, map { $r->{$_} // "" } qw(kind cwd mailbox)), "\n";
+    }' <"$1"
+}
+
+# b2_sids MAILBOX: the distinct sids in MAILBOX's events.ndjson.
+b2_sids() {
+  perl -MJSON::PP -ne 'my $e = eval { decode_json($_) } or next; print "$e->{sid}\n" if $e->{sid}' \
+    "$1/events.ndjson" 2>/dev/null | sort -u
+}
+
+# b2_one NAME KIND CWD MAILBOX: check one session; adds to B2_OBS, B2_SIDS,
+# B2_HITS and B2_PROJ.
+b2_one() {
+  local sids proj s hits="" miss=""
+  case "$2" in claude|codex|claude_p|codex_exec) ;; *) return 0 ;; esac
+  sids=$(b2_sids "$4")
+  [ -z "$sids" ] && return 0
+  proj=$(b2_project "$3")
+  [ -z "$proj" ] && { B2_OBS="$B2_OBS $1: no wipnote project;"; return 0; }
+  B2_PROJ=$((B2_PROJ + 1))
+  for s in $sids; do
+    B2_SIDS=$((B2_SIDS + 1))
+    if ledger_sids "$proj" "" | grep -qx "$s"; then
+      B2_HITS=$((B2_HITS + 1)); hits="$hits $s=$(ledger_harness "$proj" "$s")"
+    else miss="$miss $s"; fi
+  done
+  B2_OBS="$B2_OBS $1($2):${hits:- none}${miss:+; not in ledger:$miss};"
 }
 
 check_B2() {
-  local why d name reg mailbox sids hit s b2_pane
-  why=$(why_not herdr model orch wipnote git)
+  local why reg cmd name kind cwd mbox tab
+  why=$(why_not perl git)
   [ -n "$why" ] && { skip B2 "$why"; return 0; }
-  d="$SCRATCH/b2"
-  name="phaseb-b2-$RUN_TAG"
-  new_project "$d" || { fail B2 "new_project" "scratch project failed"; return 0; }
-  capd "$d" 120 orch spawn "$name" --kind claude
-  [ "$CAP_RC" != 0 ] && { fail B2 "$CAP_CMD" "exit $CAP_RC: $CAP_OUT"; return 0; }
-  ORCH_NAMES="$ORCH_NAMES $name"
-  b2_pane=$(printf '%s' "$CAP_OUT" | jget p)
-  # orch's worker pane shows the same first-run folder-trust dialog as ours
-  # (Phase B run 1: send answered "blocked"); accept it before sending.
-  [ -n "$b2_pane" ] && poll_pane "$b2_pane" 30 b2_settled "$b2_pane"
-  if [ -n "$b2_pane" ] && trust_up "$b2_pane"; then
-    dump_screen B2 "$b2_pane"
-    fail B2 "orch spawn $name --kind claude" "worker pane $b2_pane still shows the folder-trust dialog; not sending (screen in the raw log)"
-    return 0
-  fi
-  capd "$d" 300 orch send "$name" "$OK_PROMPT" --wait --timeout 240000
-  local send_cmd="$CAP_CMD" send_rc="$CAP_RC"
-  [ "$send_rc" != 0 ] && [ -n "$b2_pane" ] && dump_screen B2 "$b2_pane"
   reg="${ORCH_REGISTRY:-$HOME/.cache/orch/registry.json}"
-  mailbox=$(jget "sessions.$name.mailbox" <"$reg")
-  sids=$(perl -MJSON::PP -ne 'my $e = eval { decode_json($_) } or next; print "$e->{sid}\n" if $e->{sid}' \
-    "$mailbox/events.ndjson" 2>/dev/null | sort -u)
-  hit=""
-  for s in $sids; do ledger_sids "$d" "" | grep -qx "$s" && hit="$hit $s=$(ledger_harness "$d" "$s")"; done
-  local obs
-  obs="send exit $send_rc; events.ndjson sids: $(echo "$sids" | tr '\n' ' '); in wipnote ledger (id=harness):${hit:- none}"
-  if [ -n "$hit" ]; then pass B2 "$send_cmd" "$obs"; else
-    dump_rows B2 "$d"
-    [ -n "$b2_pane" ] && cap 15 herdr pane get "$b2_pane" && log "B2 worker pane: $CAP_OUT"
-    fail B2 "$send_cmd" "$obs"
-  fi
+  [ -r "$reg" ] || { skip B2 "no orch registry at $reg"; return 0; }
+  cmd="read $reg and each session's events.ndjson (read-only)"
+  B2_OBS="" B2_SIDS=0 B2_HITS=0 B2_PROJ=0
+  tab=$(printf '\t')
+  while IFS="$tab" read -r name kind cwd mbox; do
+    [ -n "$name" ] && b2_one "$name" "$kind" "$cwd" "$mbox"
+  done <<EOS
+$(b2_sessions "$reg")
+EOS
+  log "B2 per session:$B2_OBS"
+  [ "$B2_PROJ" = 0 ] && { skip B2 "no orch session with events in a wipnote project:$B2_OBS"; return 0; }
+  # One sid found in the ledger proves the property; misses are listed (a
+  # worker that ran before its project had wipnote, or bug-5333ea49's era).
+  if [ "$B2_HITS" -gt 0 ]; then pass B2 "$cmd" "$B2_HITS of $B2_SIDS sids in a wipnote ledger (id=harness):$B2_OBS"
+  else fail B2 "$cmd" "none of $B2_SIDS sids in a wipnote ledger:$B2_OBS"; fi
 }
 
 # --- C1: Codex exec parity probe (docs/design/delegate-interactive-parity.md) -
