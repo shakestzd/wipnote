@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -45,10 +46,18 @@ type rawCheck struct {
 	Event       string    `json:"event"`
 }
 
+// noChecksReported is how gh pr checks says a PR has no CI yet (exit 1,
+// empty stdout); that is zero checks, not a failed read.
+const noChecksReported = "no checks reported"
+
 // FetchChecks reads the checks of PR number n, latest run per check.
 func FetchChecks(ctx context.Context, r Runner, n int) ([]Check, error) {
 	var raw []rawCheck
-	if err := ghJSON(ctx, r, &raw, "pr", "checks", strconv.Itoa(n), "--json", checkFields); err != nil {
+	err := ghJSON(ctx, r, &raw, "pr", "checks", strconv.Itoa(n), "--json", checkFields)
+	if err != nil && strings.Contains(err.Error(), noChecksReported) {
+		return []Check{}, nil
+	}
+	if err != nil {
 		return nil, fmt.Errorf("checks for PR #%d: %w", n, err)
 	}
 	unique := eliminateDuplicates(raw)

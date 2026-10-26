@@ -176,3 +176,20 @@ func TestFetchChecks_NotAvailable(t *testing.T) {
 		}
 	}
 }
+
+// A PR with no CI yet (new, or a repo without workflows) makes gh exit 1 with
+// "no checks reported on the '<branch>' branch" and empty stdout. That is zero
+// checks, not a failed read; any other exit-1 message is still an error.
+func TestFetchChecks_NoChecksReportedIsEmpty(t *testing.T) {
+	f := &FakeRunner{Results: map[string]FakeResult{
+		checksArgv: {Stderr: "no checks reported on the 'feat-x' branch\n", Exit: 1},
+	}}
+	checks, err := FetchChecks(context.Background(), f, 42)
+	if err != nil || checks == nil || len(checks) != 0 {
+		t.Fatalf("want an empty, non-nil list and no error, got %v, %v", checks, err)
+	}
+	f.Results[checksArgv] = FakeResult{Stderr: "HTTP 502: Bad Gateway\n", Exit: 1}
+	if _, err := FetchChecks(context.Background(), f, 42); err == nil {
+		t.Fatal("other gh failures must still be errors")
+	}
+}
