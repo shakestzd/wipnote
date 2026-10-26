@@ -65,6 +65,19 @@ screen() {
   fi
 }
 
+# dump_rows ID DIR: every sessions-ledger row in DIR (any harness) and the
+# variables the pane inherited, so a missing row can be told from a mis-tagged
+# one (Phase B run 4).
+dump_rows() {
+  log "--- $1: all sessions-ledger rows in its project ---"
+  grep -o '<tr id[^>]*>' "$2/.wipnote/sessions-ledger.html" 2>/dev/null >>"$RAW_LOG" || log "(no ledger file)"
+  if [ -f "$SCRATCH/run-$1.env" ]; then
+    log "--- $1: inherited WIPNOTE_/CLAUDE_/CODEX_ variables (before unset) ---"
+    cat "$SCRATCH/run-$1.env" >>"$RAW_LOG"
+  fi
+  log "--- end $1 rows ---"
+}
+
 # dump_screen ID PANE: copy the pane's full recent text into the raw log, so a
 # FAIL can be diagnosed later; the results table only holds a cut line.
 dump_screen() {
@@ -144,7 +157,11 @@ pane_launch() {
   local script="$SCRATCH/run-$1.sh"
   L_EXIT="$SCRATCH/run-$1.exit"
   rm -f "$L_EXIT"
-  printf '%s\n' '#!/usr/bin/env bash' "$UNSET_LINE" "cd $(quote_cmd "$2") || exit 1" "$3" \
+  # Record the pane's inherited wipnote and Claude variables before the unset:
+  # a herdr pane gets the herdr server's environment, not this script's.
+  printf '%s\n' '#!/usr/bin/env bash' \
+    "env | grep -E '^(WIPNOTE|CLAUDE|CODEX)_' | sort > $(quote_cmd "$SCRATCH/run-$1.env")" \
+    "$UNSET_LINE" "cd $(quote_cmd "$2") || exit 1" "$3" \
     "echo \"exit=\$?\" > $(quote_cmd "$L_EXIT")" >"$script"
   log "launch script $script:"
   log "$(cat "$script")"

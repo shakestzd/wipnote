@@ -147,7 +147,11 @@ check_B2() {
   for s in $sids; do ledger_sids "$d" claude | grep -qx "$s" && hit="$hit $s"; done
   local obs
   obs="send exit $send_rc; events.ndjson sids: $(echo "$sids" | tr '\n' ' '); in wipnote ledger:${hit:- none}"
-  if [ -n "$hit" ]; then pass B2 "$send_cmd" "$obs"; else fail B2 "$send_cmd" "$obs"; fi
+  if [ -n "$hit" ]; then pass B2 "$send_cmd" "$obs"; else
+    dump_rows B2 "$d"
+    [ -n "$b2_pane" ] && cap 15 herdr pane get "$b2_pane" && log "B2 worker pane: $CAP_OUT"
+    fail B2 "$send_cmd" "$obs"
+  fi
 }
 
 # --- C1: Codex exec parity probe (docs/design/delegate-interactive-parity.md) -

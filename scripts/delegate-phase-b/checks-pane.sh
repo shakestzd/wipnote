@@ -71,6 +71,7 @@ b3_one() {
     *"agent=$2 status="[a-z]*) [ -n "$TT_NEW" ] && { pass "$1" "$TT_CMD" "$obs"; return 0; } ;;
   esac
   dump_screen "$1" "$L_PANE"
+  dump_rows "$1" "$d"
   fail "$1" "$TT_CMD" "$obs; screen: $(oneline "$(screen "$L_PANE")" 160)"
 }
 

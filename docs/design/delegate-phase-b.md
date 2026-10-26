@@ -241,6 +241,33 @@ the harnesses. The herdr workspace fix from run 2 held.
 "No, exit". `delegate spawn` must navigate to the accepting row by its label and verify
 it before enter; a bare enter or a digit declines trust and the worker exits.
 
+### Run 4 (2026-10-26, `--only B2,B3a,B3b`, commit 0f137ac87)
+
+The trust-dialog fix held in all three panes ("selected Yes, dialog cleared"). B3b
+**passed** (herdr's Codex hooks and wipnote's both report). B3a and B2 failed: the Claude
+session ran normally (B3a: 2m 32s, ended with its resume line; B2: `orch send` exit 0,
+events.ndjson sid present), but the script found **no `claude` row** in the project's
+sessions ledger. The run-3 reading "Claude exited after the banner" is withdrawn for run 4.
+
+This is a wipnote finding, filed as **bug-5333ea49**:
+
+- Calling the SessionStart hook directly (current main) with `CLAUDE_CODE_ENTRYPOINT`
+  set: without `WIPNOTE_PARENT_SESSION` it writes a `claude` row; with
+  `WIPNOTE_PARENT_SESSION` set and `WIPNOTE_NESTING_DEPTH` unset it writes **no row**,
+  because `isSubagent()` treats the session as a subagent.
+- An interactive `wipnote claude` run in tmux with that variable set later gained a row
+  tagged **`human`**, not `claude`; the script filters by harness, so it saw nothing.
+  The same run without the variable gave a `claude` row.
+- Suspected trigger on the Mac: a herdr pane gets the herdr server's environment, which
+  may carry `WIPNOTE_PARENT_SESSION` from the session that started herdr. B1 (run from
+  the caller's shell) and the Codex panes do not hit this. Not yet confirmed: the script
+  now writes each pane's inherited `WIPNOTE_`/`CLAUDE_`/`CODEX_` variables, and every
+  ledger row of any harness, into the raw log on a FAIL.
+
+**Finding for slice 10:** delegate workers run in herdr panes. Unless `spawn` sets the
+worker's session lineage explicitly, an inherited parent variable hides the worker's
+session from the ledger. The fix direction is an owner decision (bug-5333ea49).
+
 Side observation: B1's output shows another plugin's security hook running first
 and passing events past wipnote-orchestra's classic hooks ("its classic.Stop hook
 was skipped"). The wipnote plugin's own hooks still ran. Not a Phase B failure.
