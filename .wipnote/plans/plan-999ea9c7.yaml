@@ -7,12 +7,37 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 2
+    version: 3
 design:
     problem: ""
     goals: []
     constraints: []
     approved: false
     comment: ""
-slices: []
+slices:
+    - id: slic-6a75ace9
+      num: 1
+      title: 'gitwatch core: runner, PR checks snapshot, work-item link'
+      what: 'New internal/gitwatch package. A Runner interface over os/exec (fakeable in tests) that runs gh/git with a timeout and reads stdout JSON whatever the exit code (gh exits 8 pending, 1 failed). Checks: gh pr checks <n> --json name,state,bucket,startedAt,completedAt,link,workflow,isRequired... Port cli/cli aggregateChecks + eliminateDuplicates (MIT, notice in THIRD-PARTY-NOTICES.md) and add STARTUP_FAILURE to fail. PR lookup as ci-live: number, branch, current branch, newest own open PR. Work-item id from branch name then PR title via one shared regex (reuse bareWorkItemRe shape). ''wipnote ci status [pr|branch] --json'' and a short text form under the existing ci command group.'
+      why: One read layer every harness can call; the mod and gate only render it.
+      files:
+        - internal/gitwatch/runner.go
+        - internal/gitwatch/checks.go
+        - internal/gitwatch/pr.go
+        - internal/gitwatch/workitem.go
+        - cmd/wipnote/ci_status.go
+        - THIRD-PARTY-NOTICES.md
+      deps: []
+      done_when:
+        - ci status --json prints checks with buckets and counts
+        - pending and failed gh exits still parse
+        - duplicate re-runs collapse to latest
+        - STARTUP_FAILURE counts as failed
+        - work item id found from branch or title
+        - no gh or not signed in reports a clear not-available state and exit 0
+      effort: M
+      risk: Low
+      tests: 'Unit with fake Runner and recorded gh JSON fixtures: bucket mapping table incl STARTUP_FAILURE (red first), dedupe keeps latest, exit 8/1 with valid stdout parses, invalid stdout errors with first stderr line, id extraction positive and negative cases'
+      approved: false
+      comment: ""
 questions: []
