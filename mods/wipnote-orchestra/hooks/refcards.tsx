@@ -139,7 +139,7 @@ export function refreshAfterTurn($: EngineInterface): void {
 
 /**
  * The wipnote-ref hooks: fetch on reply, the model rule, and the card drawing.
- * register.tsx owns session.start, classic.SessionStart and turn.complete (an
+ * register.tsx owns session.start, session.end and turn.complete (an
  * event takes one unmatched hook per mod) and calls hydrate and refreshAfterTurn.
  */
 export function registerRefs(on: On): void {

@@ -1,4 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
+import type { Engine } from 'claude-code/testing'
 
 const BAND = {
   plugin: 'wipnote-orchestra',
@@ -73,20 +74,53 @@ test('with no room left under the bar, no agent row and no "more" line is drawn'
   }
 })
 
-test('a session launched in a mode shifts the band past its pill before any prompt', async ($, on) => {
+/** Cells the band row is shifted left past the engine's mode pill, under `hint`. */
+async function bandIndent($: Engine, hint: string): Promise<number | undefined> {
+  const ui = await $.ui.mount({ ...BAND, props: { ...BAND.props, hint }, surface: 'terminal' })
+  const band = await ui.find({ type: 'Box', key: 'band' })
+  await ui.unmount()
+  const margin = band?.props.marginLeft
+  return typeof margin === 'number' ? 0 - margin + 0 : undefined
+}
+
+const ok = () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }) as never
+const spawned = () => ({ model: 'claude-haiku-4-5-20251001', agentId: 'a1' }) as never
+const spawn = (permissionMode: string, parentAgentId?: string) =>
+  ({ subagentType: 'Explore', description: 'Look', prompt: 'look', permissionMode, parentAgentId }) as never
+
+test('a main-loop spawn in auto mode shifts the band past its pill; a classic event does not', async ($, on) => {
+  mock.clock(on, { now: 1000 })
   on('classic.SessionStart', () => ({}) as never)
-  on('tool.call', () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }) as never)
+  on('agent.spawn', spawned)
+  on('tool.call', ok)
   await $.tool.call({ tool: 'Bash', command: 'wipnote bug start bug-0000aaaa', description: 'start' } as never)
-  const hint = { ...BAND, props: { ...BAND.props, hint: '1 shell · ← 6 agents · ↓ to manage' } }
-  const before = await $.ui.mount({ ...hint, surface: 'terminal' })
-  const unshifted = JSON.stringify(await before.find({ key: 'band' }))
-  await before.unmount()
+  const hint = '1 shell · ← 6 agents · ↓ to manage'
+  // The mod reads no classic.* event: a managed plugin may continue them past it.
   await $.classic.SessionStart({ source: 'startup', permission_mode: 'auto' } as never)
-  const after = await $.ui.mount({ ...hint, surface: 'terminal' })
-  const shifted = JSON.stringify(await after.find({ key: 'band' }))
-  await after.unmount()
-  expect(unshifted).not.toContain('-18')
-  expect(shifted).toContain('-18') // the pill and its " · ": "⏵⏵ auto mode on" is 15 cells, plus 3
+  expect(await bandIndent($, hint)).toBe(0)
+  await $.agent.spawn(spawn('auto'))
+  expect(await bandIndent($, hint)).toBe(18) // the pill and its " · ": "⏵⏵ auto mode on" is 15 cells, plus 3
+})
+
+test('the indent follows the spawned mode; a subagent spawn leaves it alone', async ($, on) => {
+  mock.clock(on, { now: 1000 })
+  on('agent.spawn', spawned)
+  on('tool.call', ok)
+  await $.tool.call({ tool: 'Bash', command: 'wipnote bug start bug-0000aaaa', description: 'start' } as never)
+  const hint = '(shift+tab to cycle) · ? for shortcuts'
+  await $.agent.spawn(spawn('acceptEdits'))
+  expect(await bandIndent($, hint)).toBe(21) // "⏵⏵ accept edits on" is 18 cells, plus 3
+  await $.agent.spawn(spawn('plan', 'a1'))
+  expect(await bandIndent($, hint)).toBe(21) // a subagent's mode is its own
+  await $.agent.spawn(spawn('plan'))
+  expect(await bandIndent($, hint)).toBe(17) // "⏸ plan mode on" is 14 cells, plus 3
+})
+
+test('with no mode learned, a (shift+tab …) hint takes the auto pill and any other hint none', async ($, on) => {
+  on('tool.call', ok)
+  await $.tool.call({ tool: 'Bash', command: 'wipnote bug start bug-0000aaaa', description: 'start' } as never)
+  expect(await bandIndent($, '(shift+tab to cycle) · ? for shortcuts')).toBe(18)
+  expect(await bandIndent($, '1 shell · ← 6 agents')).toBe(0)
 })
 
 test('the band sits below the prompt, keeps the hint, and /orchestra above moves it', async ($, on) => {
