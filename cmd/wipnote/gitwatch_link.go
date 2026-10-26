@@ -30,11 +30,12 @@ func writeGatePRWarning(w io.Writer, r gitwatch.Runner, workItemID string) {
 
 // printLinkedPRLine prints "  PR #N <state> · CI <counts>" under a work
 // item's show header when a linked PR is found; any failure prints nothing.
+// The lookup is capped at gitwatch.ShowTimeout.
 func printLinkedPRLine(w io.Writer, r gitwatch.Runner, id string) {
 	if !gitwatch.WorkItemPattern.MatchString(id) {
 		return
 	}
-	if line := gitwatch.ShowLine(context.Background(), r, id, gitwatch.LinkTimeout); line != "" {
+	if line := gitwatch.ShowLine(context.Background(), r, id, gitwatch.ShowTimeout); line != "" {
 		fmt.Fprintf(w, "  %s\n", line)
 	}
 }

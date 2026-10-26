@@ -14,8 +14,12 @@ import (
 // for too, so the gate's review read needs no extra gh pr view.
 const linkFields = "number,title,headRefName,state,updatedAt,url"
 
-// LinkTimeout caps a whole work-item PR lookup (gate warning, show line).
+// LinkTimeout caps the gate's whole work-item PR lookup.
 const LinkTimeout = 10 * time.Second
+
+// ShowTimeout caps the show line's lookup; show is read often, so it is
+// shorter than the gate's.
+const ShowTimeout = 5 * time.Second
 
 // LinkedPR is a pull request found for a work item.
 type LinkedPR struct {
@@ -91,15 +95,18 @@ func BuildSnapshotForWorkItem(ctx context.Context, r Runner, id string, now func
 }
 
 // prHealth is the fast state the gate and feature show read: the linked PR,
-// its checks and (for the gate) its review.
+// its checks and (for the gate) its review. reviewFailed is set when the
+// review was asked for and could not be read.
 type prHealth struct {
-	pr     *LinkedPR
-	checks []Check
-	review *Review
+	pr           *LinkedPR
+	checks       []Check
+	review       *Review
+	reviewFailed bool
 }
 
 // readPRHealth finds id's PR and reads its checks and, when withReview, its
-// mergeability and review threads. Any failure is an error.
+// mergeability and review threads. A failed lookup or checks read is an
+// error; a failed review read only sets reviewFailed.
 func readPRHealth(ctx context.Context, r Runner, id string, withReview bool) (*prHealth, error) {
 	pr, err := FindPRForWorkItem(ctx, r, id)
 	if err != nil {
@@ -112,10 +119,7 @@ func readPRHealth(ctx context.Context, r Runner, id string, withReview bool) (*p
 	h := &prHealth{pr: pr, checks: checks}
 	if withReview {
 		rv, _, err := FetchReview(ctx, r, &PR{Number: pr.Number, URL: pr.URL})
-		if err != nil {
-			return nil, err
-		}
-		h.review = rv
+		h.review, h.reviewFailed = rv, err != nil
 	}
 	return h, nil
 }
@@ -134,38 +138,50 @@ func (h *prHealth) warnReasons() []string {
 	}
 	var reasons []string
 	if failed > 0 {
-		reasons = append(reasons, fmt.Sprintf("%d failed checks", failed))
+		reasons = append(reasons, plural(failed, "failed check"))
 	}
 	if cancelled > 0 {
-		reasons = append(reasons, fmt.Sprintf("%d cancelled checks", cancelled))
+		reasons = append(reasons, plural(cancelled, "cancelled check"))
 	}
 	if rv := h.review; rv != nil {
 		if rv.Mergeable == "CONFLICTING" || rv.MergeState == "DIRTY" {
 			reasons = append(reasons, "merge conflict")
 		}
 		if rv.ThreadsOpen > 0 {
-			reasons = append(reasons, fmt.Sprintf("%d unresolved review threads", rv.ThreadsOpen))
+			reasons = append(reasons, plural(rv.ThreadsOpen, "unresolved review thread"))
 		}
 	}
 	return reasons
 }
 
+// plural is "1 <noun>" or "<n> <noun>s".
+func plural(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
+}
+
 // GateWarning returns the one WARN line for id's linked PR, or "" when it
-// is healthy, none is linked, or any gh read fails. The whole lookup is
-// bounded by timeout.
+// is healthy, not OPEN, none is linked, or the lookup or checks read fails.
+// A failed review read still warns from the checks, marked "(review not
+// read)". The whole lookup is bounded by timeout.
 func GateWarning(ctx context.Context, r Runner, id string, timeout time.Duration) string {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	h, err := readPRHealth(ctx, r, id, true)
-	if err != nil {
+	if err != nil || h.pr.State != "OPEN" {
 		return ""
 	}
 	reasons := h.warnReasons()
 	if len(reasons) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("WARN: linked PR #%d (%s) needs attention: %s — %s",
-		h.pr.Number, h.pr.State, strings.Join(reasons, ", "), h.pr.URL)
+	why := strings.Join(reasons, ", ")
+	if h.reviewFailed {
+		why += " (review not read)"
+	}
+	return fmt.Sprintf("WARN: linked PR #%d (%s) needs attention: %s — %s", h.pr.Number, h.pr.State, why, h.pr.URL)
 }
 
 // ShowLine returns "PR #N <state> · CI <counts>" for id's linked PR, or ""

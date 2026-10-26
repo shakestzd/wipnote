@@ -105,7 +105,7 @@ func TestFindPRForWorkItem_NotAvailable(t *testing.T) {
 
 func TestGateWarning_RedPR(t *testing.T) {
 	got := GateWarning(context.Background(), linkFake(checksRed, viewClean, gqlNoThreads), linkID, time.Second)
-	for _, want := range []string{"WARN", "#12", "1 failed", "1 cancelled", "https://github.com/acme/widgets/pull/12"} {
+	for _, want := range []string{"WARN", "#12", "1 failed check,", "1 cancelled check —", "https://github.com/acme/widgets/pull/12"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("red PR warning missing %q: %q", want, got)
 		}
@@ -140,7 +140,7 @@ func TestGateWarning_OpenThreads(t *testing.T) {
 
 func TestGateWarning_AllReasons(t *testing.T) {
 	got := GateWarning(context.Background(), linkFake(checksRed, viewConflict, gqlThreads), linkID, time.Second)
-	for _, want := range []string{"1 failed", "merge conflict", "2 unresolved"} {
+	for _, want := range []string{"1 failed check,", "merge conflict", "2 unresolved review threads"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q: %q", want, got)
 		}
@@ -156,11 +156,66 @@ func TestGateWarning_NoGhOrNoPRNoLine(t *testing.T) {
 	if got := GateWarning(context.Background(), noPR, linkID, time.Second); got != "" {
 		t.Errorf("no PR: want no line, got %q", got)
 	}
-	// A failed review read is a gh failure too: no line, even with red CI.
+	// A failed checks read is a gh failure: no line.
 	f := linkFake(checksRed, viewClean, gqlNoThreads)
-	delete(f.Results, linkGQL)
+	delete(f.Results, linkChecks)
 	if got := GateWarning(context.Background(), f, linkID, time.Second); got != "" {
-		t.Errorf("gh failure: want no line, got %q", got)
+		t.Errorf("checks not read: want no line, got %q", got)
+	}
+}
+
+// Only an OPEN PR warns; the same red PR merged or closed gives no line.
+func TestGateWarning_OnlyOpenPRs(t *testing.T) {
+	for _, state := range []string{"MERGED", "CLOSED"} {
+		f := linkFake(checksRed, viewConflict, gqlThreads)
+		f.Results[titleArgv] = FakeResult{Stdout: "[" + strings.Replace(prRow12, `"OPEN"`, `"`+state+`"`, 1) + "]"}
+		if got := GateWarning(context.Background(), f, linkID, time.Second); got != "" {
+			t.Errorf("%s PR: want no line, got %q", state, got)
+		}
+	}
+	if got := GateWarning(context.Background(), linkFake(checksRed, viewConflict, gqlThreads), linkID, time.Second); got == "" {
+		t.Error("the same PR OPEN must warn")
+	}
+}
+
+// A failed review read still warns from red checks alone, marked as such;
+// with green checks it gives no line.
+func TestGateWarning_ReviewNotRead(t *testing.T) {
+	f := linkFake(checksRed, viewConflict, gqlThreads)
+	delete(f.Results, linkGQL)
+	got := GateWarning(context.Background(), f, linkID, time.Second)
+	for _, want := range []string{"1 failed check,", "1 cancelled check", "(review not read)", "pull/12"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("review not read: missing %q in %q", want, got)
+		}
+	}
+	if strings.Contains(got, "conflict") || strings.Contains(got, "thread") {
+		t.Errorf("review reasons are unknown here: %q", got)
+	}
+	g := linkFake(checksGreen, viewConflict, gqlThreads)
+	delete(g.Results, linkView)
+	if got := GateWarning(context.Background(), g, linkID, time.Second); got != "" {
+		t.Errorf("green checks, review not read: want no line, got %q", got)
+	}
+}
+
+func TestPlural(t *testing.T) {
+	cases := map[int]string{1: "1 failed check", 2: "2 failed checks", 0: "0 failed checks"}
+	for n, want := range cases {
+		if got := plural(n, "failed check"); got != want {
+			t.Errorf("plural(%d) = %q, want %q", n, got, want)
+		}
+	}
+	gqlOne := `{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"isResolved":false}]}}}}}`
+	got := GateWarning(context.Background(), linkFake(checksGreen, viewClean, gqlOne), linkID, time.Second)
+	if !strings.Contains(got, "1 unresolved review thread —") {
+		t.Errorf("one thread: %q", got)
+	}
+}
+
+func TestLinkTimeouts(t *testing.T) {
+	if LinkTimeout != 10*time.Second || ShowTimeout != 5*time.Second {
+		t.Errorf("gate cap %s (want 10s), show cap %s (want 5s)", LinkTimeout, ShowTimeout)
 	}
 }
 
