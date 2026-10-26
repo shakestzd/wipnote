@@ -252,7 +252,6 @@ var internalPlumbingAllowlist = map[string]bool{
 	"install-hooks": true,
 	"report":        true,
 	"budget":        true,
-	"ci":            true,
 	"help":          true,
 	"claim":         true,
 	"purge-spikes":  true,

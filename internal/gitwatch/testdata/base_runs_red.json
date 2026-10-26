@@ -1,0 +1,7 @@
+[
+ {"headSha":"b3","status":"completed","conclusion":"success","workflowName":"Lint","url":"https://example.test/runs/23","createdAt":"2026-10-25T11:00:00Z"},
+ {"headSha":"b3","status":"completed","conclusion":"startup_failure","workflowName":"CI","url":"https://example.test/runs/22","createdAt":"2026-10-25T11:00:00Z"},
+ {"headSha":"b2","status":"completed","conclusion":"success","workflowName":"CI","url":"https://example.test/runs/21","createdAt":"2026-10-24T11:00:00Z"},
+ {"headSha":"b3","status":"completed","conclusion":"timed_out","workflowName":"E2E","url":"https://example.test/runs/24","createdAt":"2026-10-25T11:02:00Z"},
+ {"headSha":"b4","status":"in_progress","conclusion":"","workflowName":"Lint","url":"https://example.test/runs/25","createdAt":"2026-10-25T12:00:00Z"}
+]

@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/internal/blame"
+	"github.com/shakestzd/wipnote/internal/gitwatch"
 	"github.com/shakestzd/wipnote/plan/planyaml"
 	"github.com/spf13/cobra"
 )
@@ -154,19 +153,7 @@ func openQuestionsForTrack(wipnoteDir string, proj *workitem.Project, trackID st
 
 // gitAheadBehind returns how many commits HEAD is ahead/behind origin/main.
 func gitAheadBehind(repoRoot string) (ahead, behind int, err error) {
-	cmd := exec.Command("git", "-C", repoRoot, "rev-list", "--left-right", "--count", "origin/main...HEAD")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if runErr := cmd.Run(); runErr != nil {
-		return 0, 0, runErr
-	}
-	parts := strings.Fields(strings.TrimSpace(out.String()))
-	if len(parts) != 2 {
-		return 0, 0, fmt.Errorf("unexpected rev-list output: %q", out.String())
-	}
-	behind, _ = strconv.Atoi(parts[0])
-	ahead, _ = strconv.Atoi(parts[1])
-	return ahead, behind, nil
+	return gitwatch.AheadBehind(context.Background(), gitwatch.ExecRunner{}, repoRoot, "origin/main")
 }
 
 // renderContextPack assembles the full briefing as a GFM string.

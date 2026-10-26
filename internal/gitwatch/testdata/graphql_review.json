@@ -1,0 +1,16 @@
+{"data":{"repository":{"pullRequest":{
+  "reviewThreads":{"nodes":[
+    {"isResolved":true,"isOutdated":true},
+    {"isResolved":true,"isOutdated":false},
+    {"isResolved":false,"isOutdated":false},
+    {"isResolved":false,"isOutdated":true},
+    {"isResolved":false,"isOutdated":true}
+  ]},
+  "commits":{"nodes":[{"commit":{"statusCheckRollup":{"contexts":{"nodes":[
+    {"__typename":"CheckRun","name":"build","isRequired":true,"checkSuite":{"workflowRun":{"workflow":{"name":"CI"}}}},
+    {"__typename":"CheckRun","name":"test","isRequired":false,"checkSuite":{"workflowRun":{"workflow":{"name":"CI"}}}},
+    {"__typename":"CheckRun","name":"build","isRequired":false,"checkSuite":{"workflowRun":{"workflow":{"name":"Release"}}}},
+    {"__typename":"CheckRun","name":"app-check","isRequired":true,"checkSuite":{"workflowRun":null}},
+    {"__typename":"StatusContext","context":"ci/legacy","isRequired":true}
+  ]}}}}]}
+}}}}

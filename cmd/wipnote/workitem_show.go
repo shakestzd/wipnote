@@ -54,6 +54,7 @@ func printNodeDetailJSON(node *models.Node) error {
 
 func printNodeDetail(n *models.Node) {
 	printNodeHeader(n)
+	printLinkedPRLine(os.Stdout, linkRunner, n.ID)
 	printNodeSteps(n)
 
 	if len(n.Edges) > 0 {

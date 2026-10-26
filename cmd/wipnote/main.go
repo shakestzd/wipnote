@@ -153,6 +153,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "quality", Command: launcherCmd()},
 			{GroupID: "quality", Command: guardCmd()},
 			{GroupID: "quality", Command: researchCmd()},
+			{GroupID: "quality", Command: ciCmd()},
 		},
 		Data: []cliinternal.GroupedCommand{
 			{GroupID: "data", Command: batchCmd()},
@@ -207,7 +208,6 @@ func buildRoot() *cobra.Command {
 			installHooksCmd(),
 			reportCmd(),
 			budgetCmd(),
-			ciCmd(),
 			helpCmd(),
 			claimCmd(),
 			purgeSpikesCmd(),
