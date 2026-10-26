@@ -58,6 +58,7 @@ func writeCIStatusText(w io.Writer, s *gitwatch.Snapshot) {
 	}
 	if s.PR == nil {
 		fmt.Fprintf(w, "CI status: %s\n", s.Reason)
+		writeBaseRelease(w, s)
 		return
 	}
 	fmt.Fprintf(w, "PR #%d %s (%s -> %s, %s)\n", s.PR.Number, s.PR.Title, s.PR.Branch, s.PR.Base, s.PR.State)
@@ -77,4 +78,5 @@ func writeCIStatusText(w io.Writer, s *gitwatch.Snapshot) {
 		}
 		fmt.Fprintf(w, "  %-8s %s  %s\n", ch.Bucket, name, ch.Link)
 	}
+	writeBaseRelease(w, s)
 }

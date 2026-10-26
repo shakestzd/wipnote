@@ -26,6 +26,9 @@ type Snapshot struct {
 	WorkItem  string    `json:"work_item"`
 	Checks    []Check   `json:"checks"`
 	Counts    Counts    `json:"counts"`
+	Base      *Base     `json:"base,omitempty"`
+	Release   *Release  `json:"release,omitempty"`
+	Notes     []string  `json:"notes,omitempty"`
 	FetchedAt time.Time `json:"fetched_at"`
 }
 
@@ -39,7 +42,7 @@ func BuildSnapshot(ctx context.Context, r Runner, arg string, now func() time.Ti
 	switch {
 	case errors.Is(err, ErrNoPR):
 		s.Reason = err.Error()
-		return s, nil
+		return addBaseAndRelease(ctx, r, s)
 	case err != nil && ctx.Err() != nil:
 		return nil, err
 	case err != nil:
@@ -49,7 +52,7 @@ func BuildSnapshot(ctx context.Context, r Runner, arg string, now func() time.Ti
 	SortChecks(checks)
 	s.PR, s.Checks, s.Counts = pr, checks, countChecks(checks)
 	s.WorkItem = WorkItemID(pr.Branch, pr.Title)
-	return s, nil
+	return addBaseAndRelease(ctx, r, s)
 }
 
 func fetchAll(ctx context.Context, r Runner, arg string) (*PR, []Check, error) {

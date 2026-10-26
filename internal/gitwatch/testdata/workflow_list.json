@@ -1,0 +1,6 @@
+[
+ {"name":"CI","path":".github/workflows/ci.yml"},
+ {"name":"Prerelease notes","path":".github/workflows/notes.yml"},
+ {"name":"Publish","path":".github/workflows/release.yml"},
+ {"name":"Nightly","path":".github/workflows/nightly-release.yml"}
+]
