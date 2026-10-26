@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Inherited WIPNOTE_PARENT_SESSION makes a top-level wipnote claude session a subagent: no ledger row at start, row tagged human at end</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-5333ea49"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-10-26T05:17:37.822844"
+             data-updated="2026-10-26T05:17:37.828151" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+
+        <header>
+            <h1>Inherited WIPNOTE_PARENT_SESSION makes a top-level wipnote claude session a subagent: no ledger row at start, row tagged human at end</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-26T05:17:37.828009">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Reproduced 2026-10-26 on main (hook called directly): SessionStart with CLAUDE_CODE_ENTRYPOINT set and WIPNOTE_PARENT_SESSION set (WIPNOTE_NESTING_DEPTH unset) writes no sessions-ledger row, because isSubagent() in core/hooks/session_start_env.go treats any parent var with depth != 0 as a subagent. Without the var the row is written with harness claude. In an interactive wipnote claude run the session later gets a row with harness human (a later writer fills the missing row from a fallback identity), so harness-filtered readers miss it. Seen in Phase B (feat-0c976595) runs 1-4: B3a and B2 never found a claude row for Claude workers started inside herdr panes, while B1 (claude -p from the caller&#39;s shell) and Codex panes did. Suspected trigger: herdr panes inherit the herdr server environment, which may carry WIPNOTE_PARENT_SESSION from the session that started herdr; to be confirmed by Phase B run 5 (the script now logs inherited variables). Affects delegate: every spawned worker runs in a herdr pane.</p>
+        </section>
+    </article>
+</body>
+</html>
