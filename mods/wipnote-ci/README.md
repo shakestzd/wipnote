@@ -33,7 +33,7 @@ live, every 15 s · read 23:05:00
 - **Shows** the title and PR line with the linked work item, the counts, the checks (failed first, each failure with its link), review (decision, open threads, merge state or `computing`, requested reviewers), branch health (ahead/behind, dirty, unpushed, stale worktrees), the base branch's CI with its failing workflows, the latest release, and the CLI's notes.
 - **`available: false`** (gh missing, signed out, a failed read) shows the reason dimmed and keeps polling every 60 s. Output it cannot read keeps the last snapshot and adds a `last read failed` line.
 - **Status line:** `CI #85: 3/5 passed · 1 failed · 1 running`. **Toast** when it settles: `CI #85: 2 failed`, `PR #85 merged`, `CI #85: no checks reported` or `CI #85: all 5 checks finished`.
-- **`/ci stop`** cancels both timers (the poll and the one-second tick) and clears the status line; the pane keeps the last read, marked stopped.
+- **`/ci stop`** cancels both timers (the poll and the one-second tick) and clears the status line; the pane keeps the last read, marked stopped. Closing the pane does not stop the polling; only `/ci stop` or the end of the session does.
 
 ## Files
 

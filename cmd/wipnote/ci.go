@@ -11,7 +11,7 @@ import (
 func ciCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ci",
-		Short: "CI/CD workflow management",
+		Short: "Pull request CI, review and branch health; CI workflow scaffold",
 	}
 	cmd.AddCommand(ciInitCmd())
 	cmd.AddCommand(ciStatusCmd())
