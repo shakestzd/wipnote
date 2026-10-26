@@ -172,19 +172,40 @@ Codex):
 
 ## Results (owner's Mac run)
 
-Paste the table from `phase-b-results.md` here, then record what changes per slice.
+### Run 1 (2026-10-26, `--no-interactive`, no devcontainer)
 
-- Date:
-- Versions (wipnote, claude, codex, herdr):
-- Flags:
+- Versions: wipnote 0.82.1, Claude Code 2.1.310, codex-cli 0.164.0, herdr 0.9.5, macOS (Darwin 27).
+- Totals: 18 pass, 2 fail, 6 not run.
+- The first results file leaked two macOS temp-folder paths in cut lines. The
+  script now redacts any `/var/folders/...` path as `<tmp>`; the table below is
+  scrubbed.
 
-| Check | Result | Command | Observed |
-|---|---|---|---|
+| Check | Result | What it showed |
+|---|---|---|
+| H1–H8 | PASS | Every form slice 6 sends works on herdr 0.9.5: tab close takes its root pane; positional `pane split`; `pane layout` reply has `result.layout.panes[].pane_id` and `.rect`; `pane read --source recent-unwrapped --lines N`; `agent rename`; `pane rename`; a gone pane gives exit 1 with `pane_not_found`; `pane close`. |
+| H9 | PASS | `TestHerdr_LiveTabRoundTrip` against real herdr. |
+| B1 | PASS | `wipnote claude -- --settings F -p ...`: the marker hook fired and the wipnote session row was written. `--settings` hooks add to the plugin hooks on macOS too. |
+| B2 | FAIL | `orch spawn` worked; `orch send --wait` answered `blocked`: the worker sat at the first-run folder-trust dialog in orch's own pane, which the script did not answer. Script gap, not an orch or wipnote defect. Fixed: the script now accepts that dialog in orch's pane before sending, and dumps the pane on failure. |
+| B3a | FAIL | Claude under `wipnote claude` with herdr's Claude hooks installed: no wipnote session row, and herdr's `agent get` showed no agent. The cut screen line ends in Claude's `❯` prompt, so Claude started. Cause not yet known (likely a second first-run dialog). The script now dumps the full screen into the raw log on a FAIL. |
+| B3b | PASS | herdr's Codex hooks and wipnote's plugin hooks both report (`agent=codex status=done`, a wipnote session row). |
+| B4 | PASS | Interactive `wipnote codex` fires SessionStart with a session id. |
+| B5 | PASS | `codex exec` under `wipnote codex` runs SessionStart, UserPromptSubmit and Stop, and writes a session row (closes bug-3e4c6e02's question). |
+| B7L, B8L | PASS | Local controls: flock busy both ways, O_APPEND 40000/40000, rename torn=0; the claim gate refuses a second session. |
+| C1 | PASS | `codex exec --json`: final text, `turn.completed` usage, exit 0, Stop hook `last_assistant_message`. |
+| C2 | PASS | Codex TUI: Stop final text, non-zero `token_count`, `task_complete`, exit 0. |
+| C3 | PASS | The wipnote plugin loads in both Codex modes (B4 and B5). |
+| B9, D8a, D8b | NOT RUN | Need the owner's y/n (`--only B9,D8`). |
+| B6, B7, B8 | NOT RUN | The devcontainer was not running. |
+
+Side observation: B1's output shows another plugin's security hook running first
+and passing events past wipnote-orchestra's classic hooks ("its classic.Stop hook
+was skipped"). The wipnote plugin's own hooks still ran. Not a Phase B failure.
 
 Follow-ups by slice:
 
-- Slice 5, 10, 12:
-- Slice 6 (herdr adapter forms):
-- Slice 8 and the Codex HOLD:
-- Slice 17 (B9):
-- Slice 21 (container workers):
+- **Slice 6 (herdr adapter forms):** all confirmed. No change needed.
+- **Slices 5, 10, 12:** B1, B4, B5 hold. B3a (Claude beside herdr's Claude hooks) is still open.
+- **Slice 8 and the Codex hold:** C1–C3 pass, so the condition slice 22 set for Codex interactive workers is met; the owner decides whether Codex workers move to interactive.
+- **Slice 17 (B9)** and **D8:** wait for the interactive run.
+- **Slice 21 (container workers):** B6–B8 wait for a run with the devcontainer up.
+- **New for slice 10:** a spawned worker's pane can stop at the folder-trust dialog (B2). `delegate spawn` must detect it and either accept it for a folder it created or report the worker as blocked.

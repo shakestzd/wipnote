@@ -59,6 +59,14 @@ screen() {
   fi
 }
 
+# dump_screen ID PANE: copy the pane's full recent text into the raw log, so a
+# FAIL can be diagnosed later; the results table only holds a cut line.
+dump_screen() {
+  log "--- $1: screen of $2 ---"
+  screen "$2" | strip_ansi >>"$RAW_LOG"
+  log "--- end $1 screen ---"
+}
+
 # maybe_trust PANE: accept a first-run folder-trust dialog once. The folder is
 # a scratch dir this script made, so trusting it is safe.
 maybe_trust() {

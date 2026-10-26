@@ -70,6 +70,7 @@ b3_one() {
   case "$herdr_view" in
     *"agent=$2 status="[a-z]*) [ -n "$TT_NEW" ] && { pass "$1" "$TT_CMD" "$obs"; return 0; } ;;
   esac
+  dump_screen "$1" "$L_PANE"
   fail "$1" "$TT_CMD" "$obs; screen: $(oneline "$(screen "$L_PANE")" 160)"
 }
 

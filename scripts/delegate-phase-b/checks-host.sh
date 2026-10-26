@@ -111,8 +111,14 @@ orch_cleanup() {
   for n in $ORCH_NAMES; do with_timeout 60 orch stop "$n" >/dev/null 2>&1; done
 }
 
+# b2_settled PANE: the orch worker shows Claude's input prompt and no dialog.
+b2_settled() {
+  screen "$1" | strip_ansi | grep -q '❯' &&
+    ! screen "$1" | strip_ansi | grep -qiE 'trust|do you want|permission'
+}
+
 check_B2() {
-  local why d name reg mailbox sids hit s
+  local why d name reg mailbox sids hit s b2_pane
   why=$(why_not herdr model orch wipnote git)
   [ -n "$why" ] && { skip B2 "$why"; return 0; }
   d="$SCRATCH/b2"
@@ -121,8 +127,13 @@ check_B2() {
   capd "$d" 120 orch spawn "$name" --kind claude
   [ "$CAP_RC" != 0 ] && { fail B2 "$CAP_CMD" "exit $CAP_RC: $CAP_OUT"; return 0; }
   ORCH_NAMES="$ORCH_NAMES $name"
+  b2_pane=$(printf '%s' "$CAP_OUT" | jget p)
+  # orch's worker pane shows the same first-run folder-trust dialog as ours
+  # (Phase B run 1: send answered "blocked"); accept it before sending.
+  [ -n "$b2_pane" ] && poll_pane "$b2_pane" 30 b2_settled "$b2_pane"
   capd "$d" 300 orch send "$name" "$OK_PROMPT" --wait --timeout 240000
   local send_cmd="$CAP_CMD" send_rc="$CAP_RC"
+  [ "$send_rc" != 0 ] && [ -n "$b2_pane" ] && dump_screen B2 "$b2_pane"
   reg="${ORCH_REGISTRY:-$HOME/.cache/orch/registry.json}"
   mailbox=$(jget "sessions.$name.mailbox" <"$reg")
   sids=$(perl -MJSON::PP -ne 'my $e = eval { decode_json($_) } or next; print "$e->{sid}\n" if $e->{sid}' \
