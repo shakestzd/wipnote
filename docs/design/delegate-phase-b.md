@@ -186,7 +186,7 @@ Codex):
 | H9 | PASS | `TestHerdr_LiveTabRoundTrip` against real herdr. |
 | B1 | PASS | `wipnote claude -- --settings F -p ...`: the marker hook fired and the wipnote session row was written. `--settings` hooks add to the plugin hooks on macOS too. |
 | B2 | FAIL | `orch spawn` worked; `orch send --wait` answered `blocked`: the worker sat at the first-run folder-trust dialog in orch's own pane, which the script did not answer. Script gap, not an orch or wipnote defect. Fixed: the script now accepts that dialog in orch's pane before sending, and dumps the pane on failure. |
-| B3a | FAIL | Claude under `wipnote claude` with herdr's Claude hooks installed: no wipnote session row, and herdr's `agent get` showed no agent. The cut screen line ends in Claude's `❯` prompt, so Claude started. Cause not yet known (likely a second first-run dialog). The script now dumps the full screen into the raw log on a FAIL. |
+| B3a | FAIL | Claude under `wipnote claude` with herdr's Claude hooks installed: no wipnote session row, and herdr's `agent get` showed no agent. The cut screen line ends in Claude's `❯` prompt, so Claude started. See run 2: most likely the bare enter chose "No, exit". The script now dumps the full screen into the raw log on a FAIL. |
 | B3b | PASS | herdr's Codex hooks and wipnote's plugin hooks both report (`agent=codex status=done`, a wipnote session row). |
 | B4 | PASS | Interactive `wipnote codex` fires SessionStart with a session id. |
 | B5 | PASS | `codex exec` under `wipnote codex` runs SessionStart, UserPromptSubmit and Stop, and writes a session row (closes bug-3e4c6e02's question). |
@@ -196,6 +196,26 @@ Codex):
 | C3 | PASS | The wipnote plugin loads in both Codex modes (B4 and B5). |
 | B9, D8a, D8b | NOT RUN | Need the owner's y/n (`--only B9,D8`). |
 | B6, B7, B8 | NOT RUN | The devcontainer was not running. |
+
+### Run 2 (2026-10-26, `--only B2,B3a`, commit ea0a48f4f)
+
+No check passed; both failures were script bugs, not delegate or harness facts.
+
+- **B3a, B3b:** `herdr tab create --workspace ''` gave `workspace_not_found`. Only the
+  H checks set the workspace. Fixed: `tab_open` now resolves it for every pane check.
+- **B2:** after the script's enter, the trust dialog in orch's pane was still up with
+  the cursor on "No, exit"; `orch send --wait` then gave `occupant_unknown`.
+- **Run 1's B3a, re-read:** the same bare enter most likely chose "No, exit", Claude
+  quit, and the `❯` in the cut screen line was the shell prompt, not Claude's.
+- Fixed: the script now moves the cursor to the "Yes" row (up keys, then the digit 1),
+  presses enter only when "Yes" is highlighted, and checks the dialog cleared. When it
+  cannot, it leaves the dialog, dumps the screen and fails the check. B2 never sends
+  while the dialog is up. A stub-herdr test covers cursor-on-Yes, cursor-on-No and a
+  cursor that will not move (no enter is sent).
+- Run 2 left two orch worker panes at the trust dialog on the owner's machine.
+
+**Finding for slice 10:** a bare enter on a trust dialog is unsafe; the default row
+is not always "Yes". `delegate spawn` must select the option explicitly and verify.
 
 Side observation: B1's output shows another plugin's security hook running first
 and passing events past wipnote-orchestra's classic hooks ("its classic.Stop hook
