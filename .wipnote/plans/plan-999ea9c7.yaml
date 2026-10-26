@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 9
+    version: 10
 design:
     problem: ""
     goals: []
@@ -169,6 +169,25 @@ slices:
       effort: S
       risk: Med
       tests: Gate test with fake runner for red, green, conflict, no gh; two-sided
+      approved: false
+      comment: ""
+    - id: slic-b2b7cf7a
+      num: 8
+      title: Cross-harness command, skill and docs
+      what: plugin/commands/ci.md (and skill text) so Claude, Codex and Antigravity can run wipnote ci status/watch; regenerate ports; docs/design/git-watch.md with sources and port notices; help --compact entry.
+      why: Every harness gets the same view, not only Claude Code.
+      files:
+        - plugin/commands/ci.md
+        - docs/design/git-watch.md
+        - packages/plugin-core/manifest.json
+      deps:
+        - 5
+      done_when:
+        - build-ports and check-ports clean
+        - command appears in all three trees
+      effort: S
+      risk: Low
+      tests: check-ports; canonical command audit test
       approved: false
       comment: ""
 questions: []
