@@ -190,6 +190,14 @@ ledger_sids() {
     "$2" "$f"
 }
 
+# ledger_harness DIR SID: the data-harness of SID's row in DIR's ledger.
+ledger_harness() {
+  local f="$1/.wipnote/sessions-ledger.html"
+  [ -f "$f" ] || return 0
+  perl -ne 'BEGIN { $s = shift @ARGV }
+    print "$1\n" if /data-session-id="\Q$s\E" data-harness="([^"]*)"/' "$2" "$f" | head -1
+}
+
 # new_sids BEFORE AFTER: ids in AFTER (newline list) that are not in BEFORE.
 new_sids() {
   local s

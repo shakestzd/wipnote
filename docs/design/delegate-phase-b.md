@@ -268,6 +268,30 @@ This is a wipnote finding, filed as **bug-5333ea49**:
 worker's session lineage explicitly, an inherited parent variable hides the worker's
 session from the ledger. The fix direction is an owner decision (bug-5333ea49).
 
+### Run 5 (2026-10-26, `--only B3a,B2`, commit 1fa53835b)
+
+- B3b passed again. B3a and B2 reported "none", but the ledger held a row with exactly
+  the expected session id in each (B3a: the id in Claude's resume line; B2: the id in
+  orch's events.ndjson and in herdr's `agent_session`), both tagged
+  **`data-harness="human"`**. The script filtered by harness `claude`, so it missed them.
+- The pane inherited **no** `WIPNOTE_`/`CLAUDE_`/`CODEX_` variables, so run 4's suspected
+  trigger (an inherited `WIPNOTE_PARENT_SESSION`) is **withdrawn** for the Mac. That path is
+  real and is still fixed under bug-5333ea49, but it is not what happened here.
+- Likely writer (to be confirmed in bug-5333ea49): `agent.EnsureSessionWithTimeout` runs
+  before every non-hook wipnote command, takes the session id from `.active-session`
+  (written by the SessionStart hook) and tags the row with `agent.Detect().ID`, which is
+  `"human"` when `CLAUDECODE` is unset. A wipnote command that runs in the session before
+  the hook's own ledger write (a mod poll, a status line) wins, and the hook's `claude`
+  row becomes a no-op. In this container the mods' hook modules do not load, which is why
+  interactive runs here were tagged `claude`.
+- Script change: rows are matched on the session id, any harness; the observed harness is
+  reported beside each id (`id=harness`). A `human` tag is a wipnote finding, not a Phase B
+  failure.
+
+**Plan finding:** an interactive Claude session started by `wipnote claude` must be
+recorded as `claude`, never `human` (owner, 2026-10-26: no ledger row carries `human`).
+This is fixed in bug-5333ea49; delegate workers depend on it.
+
 Side observation: B1's output shows another plugin's security hook running first
 and passing events past wipnote-orchestra's classic hooks ("its classic.Stop hook
 was skipped"). The wipnote plugin's own hooks still ran. Not a Phase B failure.

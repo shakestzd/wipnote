@@ -34,11 +34,16 @@ herdr_hooks() {
 # ids). Returns 1 only when the tab could not be started.
 tui_turn() {
   local before
-  before=$(ledger_sids "$3" "$2")
+  # Match on session id, any harness: run 5 found the right ids tagged
+  # "human" (bug-5333ea49); the harness is reported, not filtered on.
+  before=$(ledger_sids "$3" "")
   TT_CMD="wipnote $2 --in-place -- $4 (in tab phase-b-$1)"
   pane_launch "$1" "$3" "wipnote $2 --in-place -- $4" || return 1
-  poll_pane "$L_PANE" 150 has_new_sid "$3" "$2" "$before"
-  TT_NEW=$(new_sids "$before" "$(ledger_sids "$3" "$2")" | tr '\n' ' ')
+  poll_pane "$L_PANE" 150 has_new_sid "$3" "" "$before"
+  TT_NEW=$(new_sids "$before" "$(ledger_sids "$3" "")" | tr '\n' ' ')
+  TT_HARNESS=""
+  local s
+  for s in $TT_NEW; do TT_HARNESS="$TT_HARNESS $s=$(ledger_harness "$3" "$s")"; done
   return 0
 }
 
@@ -66,7 +71,7 @@ b3_one() {
   herdr_view=$(agent_line "$L_PANE")
   pane_exit "$L_PANE"
   local obs
-  obs="herdr hooks in: $3; herdr agent get: $herdr_view; wipnote session rows: ${TT_NEW:-none}"
+  obs="herdr hooks in: $3; herdr agent get: $herdr_view; wipnote session rows (id=harness):${TT_HARNESS:- none}"
   case "$herdr_view" in
     *"agent=$2 status="[a-z]*) [ -n "$TT_NEW" ] && { pass "$1" "$TT_CMD" "$obs"; return 0; } ;;
   esac

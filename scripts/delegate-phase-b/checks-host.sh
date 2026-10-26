@@ -144,9 +144,9 @@ check_B2() {
   sids=$(perl -MJSON::PP -ne 'my $e = eval { decode_json($_) } or next; print "$e->{sid}\n" if $e->{sid}' \
     "$mailbox/events.ndjson" 2>/dev/null | sort -u)
   hit=""
-  for s in $sids; do ledger_sids "$d" claude | grep -qx "$s" && hit="$hit $s"; done
+  for s in $sids; do ledger_sids "$d" "" | grep -qx "$s" && hit="$hit $s=$(ledger_harness "$d" "$s")"; done
   local obs
-  obs="send exit $send_rc; events.ndjson sids: $(echo "$sids" | tr '\n' ' '); in wipnote ledger:${hit:- none}"
+  obs="send exit $send_rc; events.ndjson sids: $(echo "$sids" | tr '\n' ' '); in wipnote ledger (id=harness):${hit:- none}"
   if [ -n "$hit" ]; then pass B2 "$send_cmd" "$obs"; else
     dump_rows B2 "$d"
     [ -n "$b2_pane" ] && cap 15 herdr pane get "$b2_pane" && log "B2 worker pane: $CAP_OUT"
