@@ -325,6 +325,33 @@ and report "at cap" as its own outcome, not as a worker failure.
   still tagged `human` is a real finding. `wipnote session ledger repair --apply` retags the old rows
   from the session records.
 
+### Run 9 (2026-10-26, `--only B6,B7L,B7,B8L,B8`, script a92ff38bd, wipnote dd659cfc1, devcontainer up from the worktree)
+
+| Check | Result | Observed |
+|---|---|---|
+| B7L (control, local disk) | PASS | flock exclusive both ways; O_APPEND 40000 of 40000 lines; rename: 92705 reads, 0 torn, 0 missing |
+| B8L (control, one side) | PASS | the second session's `feature start` is refused and names the holder |
+| B8 (claim gate across the mount) | PASS | refused both ways (host holds, container starts; container holds, host starts); claim files `sess-<id>.html` seen from both sides |
+| B7 (across the bind mount) | **FAIL** | **flock is not exclusive:** host holds, container gets it; container holds, host gets it. **O_APPEND:** 29599 of 40000 lines arrived, all 29599 intact (0 torn). **rename:** atomic (108721 reads, 0 torn, 0 missing; 1315 renames) |
+| B6 (container worker writes the host ledger) | FAIL (environment) | `Not logged in · Please run /login`: Claude Code in the container has no login, so no session started and no row was expected. Also `SessionEnd hook [wipnote hook session-end] failed: EACCES: permission denied, mkdir '<container home>/.claude/plugins'`: the container user cannot write `~/.claude` |
+
+**B7 is a real finding, not a script bug.** On this Mac's Docker bind mount an advisory lock taken on one
+side is invisible to the other, and appends from both sides lost about a quarter of the lines. The run
+does not show whose lines were lost: the probe now counts lines per writer, so the next run will. What
+holds across the mount: per-session files (B8's claim gate works because each session writes its own
+`sess-<id>.html`) and rename.
+
+**Consequence for slices 4, 5, 10 and 21:** no file may be written from both sides of the mount under
+`filelock` alone. That covers the sessions ledger, the gate ledger and any run-store file that two writers
+append to. A container worker must write only files it alone owns (its own `events-<writer>.ndjson`,
+result file and claim file), with rename for replacement. Something on the host must fold them into the
+shared files. orch's inventory already chose "no lock, one writer per folder" for the mailbox; B7 shows
+the same rule is required for every shared `.wipnote/` file a container worker touches.
+
+**B6 needs two container fixes before it can test anything (slice 21):**
+- The worker needs Claude credentials inside the container, for example a token passed in by the launcher, or credentials mounted read-only.
+- The container user needs a writable `~/.claude` (a volume or a tmpfs home).
+
 ### Summary of runs 1 to 8
 
 | Run | Script | wipnote | Result | Cause of failures |
@@ -346,11 +373,7 @@ and report "at cap" as its own outcome, not as a worker failure.
 - **B9, D8a, D8b** need the owner at the keyboard (y/n answers):
   `scripts/delegate-phase-b.sh --only B9,D8a,D8b --out phase-b-results-interactive.md`. D8b (Codex's
   grey next-prompt suggestion) matters for interactive Codex workers (slice 26).
-- **B6, B7, B8 (container):** `devcontainer exec` answers "Dev container not found" from the worktree.
-  The devcontainer CLI finds a container by a label that holds the workspace folder path, and the
-  worktree is a new path, so the container has to be brought up from the worktree with
-  `scripts/devcontainer.sh up`. The owner has not approved that yet, because it changes the container
-  setup.
+- **B6, B7, B8 (container):** ran in run 9 (above).
 
 ### Script findings (not delegate defects)
 
@@ -392,5 +415,8 @@ Follow-ups by slice:
   and MCP servers the task needs; the task can widen it. In Phase B the workers loaded the full plugin
   set.
 - **Slice 17 (B9)** and **D8:** wait for the interactive run.
-- **Slice 21 (container workers):** B6 to B8 wait for the devcontainer to be brought up from the
-  worktree.
+- **Slice 21 (container workers):** B8 holds across the mount. B7 fails: container workers must not write
+  shared `.wipnote/` files under `filelock`; they write files they alone own, and the host folds them in.
+  B6 waits for Claude credentials and a writable `~/.claude` inside the container.
+- **Slices 4, 5 and 10:** the one-writer-per-file rule from B7 applies to every ledger and run-store file a
+  container worker can reach.

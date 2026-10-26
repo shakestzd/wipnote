@@ -77,12 +77,15 @@ sub append {
 sub count {
     my ($f, $expected) = @_;
     open(my $fh, '<', $f) or die "open $f: $!\n";
-    my ($lines, $good) = (0, 0);
+    my ($lines, $good, %by) = (0, 0);
     while (my $l = <$fh>) {
         $lines++;
-        $good++ if length($l) == 64 && $l =~ /^\S+ \d+ \d+ x+\n\z/;
+        next unless length($l) == 64 && $l =~ /^(\S+) \d+ \d+ x+\n\z/;
+        $good++;
+        $by{$1}++;
     }
-    printf "lines=%d good=%d bad=%d expected=%d\n", $lines, $good, $lines - $good, $expected;
+    my $per = join ' ', map { "$_=$by{$_}" } sort keys %by;
+    printf "lines=%d good=%d bad=%d expected=%d (by writer: %s)\n", $lines, $good, $lines - $good, $expected, $per || 'none';
 }
 
 sub renamer {
