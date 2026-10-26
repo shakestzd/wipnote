@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Hooks stop using the file-backed SQLite db: drop writes, move cross-hook reads to canonical files</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-174dc958"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-25T14:53:57.580962"
+             data-updated="2026-10-25T18:37:40.306899" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-cli-version="888f588" data-change_kind="capability" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+
+        <header>
+            <h1>Hooks stop using the file-backed SQLite db: drop writes, move cross-hook reads to canonical files</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-25T16:14:55.582419">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-25T14:53:57.58437">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-174dc958-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Inventory every hook write and read of the file db with file:line</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Drop the writes</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Move or delete each cross-hook read with a two-sided test</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Prove no hook opens the file db</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Time hooks before and after</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Gate all 5 modules</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Inventory (step 1, base 4d0976ee9). OPENS: cmd/wipnote/hook.go:235 hookSubcmd (18 cold hooks &#43; subagent-start/stop &#43; stop), hook.go:332 via hook_run.go:26-30 (session-start/end/resume, exit-plan-mode), hook.go:185 worktree-create, hook_run.go:57 track-event, core/hooks/dbgate.go:255/:343/:360 daemon-miss fallback (also used by the nil-db hot hooks). WRITES: agent_events missing_events.go:67,:439, missing_events_tasks.go:79,:141, stop_failure.go:102, track_event.go:38, guard_override.go:81, session_sweep.go:82, subagent_start.go:148, routed&#43;fallback missing_events.go:109, pretooluse_record.go:33, user_prompt.go:86, subagent_start.go:66, session_start_routes.go:149, posttooluse_record.go:182; sessions session_start_routes.go:61,:212, session_start.go:262,:349-350, subagent_start.go:192,:210, user_prompt.go:129,:144, session_end.go:123, session_end_window.go:28,:35, session_end_catchup.go:126,:143, session_end_handoff.go:89, session_reaper.go:194; claims pretooluse_record.go:105,:108, session_end_window.go:41, session_reaper.go:210; lineage subagent_start.go:233,:258, session_start_routes.go:127, session_end_catchup.go:133; pending_subagent_starts subagent_start.go:101; backfill offset transcript_backfill_offset.go:84; otel_signals transcript_user_prompt.go:197, transcript_assistant.go:262,:413; features task_tracking.go:136. READS (item list): orphan sweep session_sweep.go:47; stale reap session_reaper.go:148,:163,:252; parent lineage session_start_routes.go:30 &#43; session_start.go:228; parent prompt subagent_start.go:43; delegation row subagent_start.go:136,:142; family attribution session_start_routes.go:184-233. READS (not in item list): active feature session_start_env.go:172 via tooluse_shared.go:28 (all cold hooks, StopFailure HTML li); SessionResume session_end.go:147; handoff session_end_handoff.go:122,:162 &#43; session_end_catchup.go:123; spike cleanup session_end.go:76,:110; Stop backfill transcript_backfill_offset.go:49, transcript_user_prompt.go:141, transcript_assistant.go:257,:400; worktree-remove autocomplete daemonread.go:214,:280 (no launcher); RouteInsertEvent parent lookup dbgate.go:462. Nil-db hot hooks (pretooluse, user-prompt, posttooluse, posttooluse-record) never read the file. STOPPED: replacements ambiguous, questions in report.</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ Phase 1: validate daemon claim and every hook write/read; report proposed drops</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-8" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete the session-start stale-session reaper (two-sided test, red first)</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-9" data-agent="claude-code" data-created-by-agent="claude-code">✅ Remove the daemon-miss fallback writes (two-sided test, red first)</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-10" data-agent="claude-code" data-created-by-agent="claude-code">✅ Orphan-tool sweep from tool-log start/completion pairing (two-sided test, red first)</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-11" data-agent="claude-code" data-created-by-agent="claude-code">✅ Phase 1 done (commits 0dd70535c, 41eec3201, a4671d48a on bloat/hooks-nodb). Proposed drops await owner: file-db writes in cold hooks, Stop backfill/assistant-text, session-end handoff/projection writes, session-resume db update, subagent-stop delegation update, task-step mirroring (dead: active feature always empty), RouteInsertEvent parent lookup. Open question: posttooluse-failure should write a failed completion line.</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-12" data-agent="claude-code" data-created-by-agent="claude-code">✅ Owner 2026-10-25 phase 2: drop every unused write and read (file db, daemon-routed hook writes, daemon write socket); remove 9 no-op cold hooks; rewire task-created/completed to the claim ledger; posttooluse-failure writes a failed line; open-session orphans need a dead owner pid; no reaper replacement</li>
+                <li data-completed="true" data-step-id="step-feat-174dc958-13" data-agent="claude-code" data-created-by-agent="claude-code">✅ Phase 2 done: 9 no-op hooks removed, task steps from claim ledger (quality gate held off), no hook opens any db, daemon serves reads only, sweep: failed line &#43; owner-process rule &#43; sweeper lock. Proposed next: dead core/db repo code (db.Open now unreachable from prod).</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Follow-up to plan-7bc7114c slice 6 (feat-af8d1689). Owner decision 2026-10-25: hooks write agent_events, sessions, claims, lineage, pending_subagent_starts, backfill offsets and the Stop prompt backfill to the per-user file-backed SQLite db; nothing replays them and only later hooks read them. Drop those writes. Move each remaining cross-hook read to a canonical file (tool-events.ndjson, session HTML, claim ledger) or delete it when it never fires today (family work-item attribution). Reads to handle: session-start orphan-event sweep (needs tool_use_id pairing in the tool log), stale-session reaping, parent lineage, subagent-start parent-prompt lookup, subagent-stop delegation-row update, the daemon-unreachable fallback writes. Done when no hook opens the file db, each moved read has a two-sided test written red first, and hooks stay inside their time budgets. Runs after slice 9 (feat-ffde27db) merges.</p>
+        </section>
+    </article>
+</body>
+</html>

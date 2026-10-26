@@ -1,0 +1,497 @@
+meta:
+    id: plan-999ea9c7
+    track_id: trk-2505b527
+    title: 'Git workflow monitoring: native CI, review, branch, base and release watch'
+    description: Make what the ci-live mod does native to wipnote, plus review state, branch health, base-branch CI and releases. A read-only Go layer (internal/gitwatch) shells out to gh and git (gh keeps auth; wipnote holds no token), a 'wipnote ci status --json' and 'wipnote ci watch' CLI usable from every harness, a thin Claude Code pane mod (mods/wipnote-ci), and links from PR state to work items. Ports MIT code from cli/cli, git-town, lazygit and gh-poi with notices; writes the rest fresh.
+    created_at: "2026-10-26"
+    status: finalized
+    priority: medium
+    schema_version: v4
+    version: 20
+design:
+    problem: |-
+        ## Problem
+
+        The owner's ci-live mod follows one PR's checks live in a Claude Code pane, but it lives outside wipnote, works only in Claude Code, and watches checks only. Review threads, conflicts, a red base branch, stale worktrees and unreleased work go unnoticed until a human looks. wipnote work items do not show the state of the PR that carries them.
+
+        ## Approach
+
+        A read-only Go layer, internal/gitwatch, shells out to gh and git (gh keeps the login; wipnote holds no token). 'wipnote ci status --json' and 'wipnote ci watch' expose it to every harness. A thin pane mod renders it. Research found no importable module (all need Go 1.26+), so small MIT functions are copied with notices and the rest is new.
+
+        ## Non-goals
+
+        - Writing to GitHub: no comments, re-runs, merges or approvals.
+        - Deleting worktrees or branches (reports only).
+        - A daemon, or any gh call from a hook.
+        - GitHub Enterprise hosts in v1.
+
+        ## Owner decisions 2026-10-26
+
+        - Go CLI plus a thin mod; plain os/exec to gh (no new dependency, no Go bump).
+        - Monitor PR checks, review state, branch health, base CI and releases.
+        - Stale worktree: branch merged (incl squash), upstream gone, idle N days, or PR closed.
+        - All checks shown, required ones marked; base is the PR's baseRefName.
+        - Checks every 15s, review, base and release every 60s; back off when idle; stop when settled.
+        - Link PR state to work items by the id in the branch or PR title.
+    goals:
+        - '''wipnote ci status --json'' reports checks, review state, branch health, base CI, release state and the linked work item for a PR or the current branch.'
+        - '''wipnote ci watch'' follows that state live with bounded polling and settles on its own.'
+        - A Claude Code pane (/ci) renders it, with all logic in Go so Codex and Antigravity get the same view.
+        - The work-item gate warns when the item's PR is red, conflicted or has open threads.
+    constraints:
+        - Read-only toward GitHub and git; never deletes or writes remote state.
+        - No daemon; no hook calls gh; every gh call has a timeout.
+        - 'No token handling in wipnote: auth stays in gh.'
+        - Copied code keeps its MIT notice in THIRD-PARTY-NOTICES.md.
+        - Tests use fake runners and temp repos, never the real project's .wipnote/.
+        - Functions under 50 lines, files under 500.
+    approved: false
+    comment: ""
+    research:
+        - url: https://github.com/cli/cli/blob/trunk/pkg/cmd/pr/checks/aggregate.go
+          claim: MIT. aggregateChecks maps check state to pass/fail/pending/skipping/cancel; eliminateDuplicates keeps the latest run per name, workflow and event. STARTUP_FAILURE is not in the fail case.
+          accessed: "2026-10-25"
+        - url: https://github.com/dlvhdr/gh-dash/blob/main/internal/data/prapi.go
+          claim: MIT. GraphQL shapes for reviewThreads (isResolved, isOutdated), reviewDecision, mergeStateStatus and review requests.
+          accessed: "2026-10-25"
+        - url: https://github.com/git-town/git-town/blob/main/internal/git/commands.go
+          claim: MIT. One NUL-separated for-each-ref call with worktreepath, upstream and track; determineSyncStatus derives ahead, behind, local-only, deleted-at-remote, other-worktree.
+          accessed: "2026-10-25"
+        - url: https://github.com/seachicken/gh-poi/blob/main/conn/command.go
+          claim: MIT. parseWorktrees reads git worktree list --porcelain; isFullyMerged also detects squash merges; it shells out to gh like wipnote will.
+          accessed: "2026-10-25"
+        - url: https://docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-the-graphql-api
+          claim: GraphQL is limited by points per hour per user; gh calls count against the user's quota.
+          accessed: "2026-10-25"
+slices:
+    - id: slic-6a75ace9
+      feature_id: feat-470715de
+      num: 1
+      title: 'gitwatch core: runner, PR checks snapshot, work-item link'
+      what: New internal/gitwatch with a fakeable Runner over os/exec that reads gh stdout JSON whatever the exit code. Ports cli/cli aggregateChecks and eliminateDuplicates, adding STARTUP_FAILURE as failed. Finds the PR like ci-live and the work-item id from branch or title. Adds 'wipnote ci status [pr|branch] --json'.
+      why: One read layer every harness can call; the mod and gate only render it.
+      files:
+        - internal/gitwatch/runner.go
+        - internal/gitwatch/checks.go
+        - internal/gitwatch/pr.go
+        - internal/gitwatch/workitem.go
+        - cmd/wipnote/ci_status.go
+        - THIRD-PARTY-NOTICES.md
+      deps: []
+      done_when:
+        - ci status --json prints checks with buckets and counts
+        - pending and failed gh exits still parse
+        - duplicate re-runs collapse to latest
+        - STARTUP_FAILURE counts as failed
+        - work item id found from branch or title
+        - no gh or not signed in reports a clear not-available state and exit 0
+      effort: M
+      risk: Low
+      tests: 'Unit with fake Runner and recorded gh JSON fixtures: bucket mapping table incl STARTUP_FAILURE (red first), dedupe keeps latest, exit 8/1 with valid stdout parses, invalid stdout errors with first stderr line, id extraction positive and negative cases'
+      approved: true
+      comment: ""
+      research:
+        - url: https://github.com/cli/cli/blob/trunk/pkg/cmd/pr/checks/aggregate.go
+          claim: MIT. aggregateChecks maps check state to pass/fail/pending/skipping/cancel; eliminateDuplicates keeps the latest run per name, workflow and event. STARTUP_FAILURE is not in the fail case.
+          accessed: "2026-10-25"
+        - url: https://github.com/cli/cli/blob/trunk/pkg/cmd/pr/checks/checks.go
+          claim: gh pr checks exits 8 when checks are pending and 1 when one failed; --watch cannot be combined with --json; the watch loop defaults to 10s.
+          accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |-
+        **Port:** cli/cli pkg/cmd/pr/checks/aggregate.go (about 85 lines, MIT; notice added). The package imports cli/cli internals and needs Go 1.27, so it is copied, not imported.
+        **Fix on copy:** STARTUP_FAILURE goes to fail (gh sends it to pending).
+        **Exit codes:** gh exits 8 for pending and 1 for failed; stdout JSON is still valid, so it is parsed regardless.
+        **PR lookup:** number; branch via gh pr list --head; else current branch; else newest own open PR (as ci-live).
+        **Work item:** one shared regex for feat/bug/spk ids, branch name first, then PR title.
+        **No gh:** status reports not-available and exits 0, so scripts and the gate never fail on a missing gh.
+      blocks:
+        - type: data-model
+          title: Check row
+          fields:
+            name: Check
+          rows:
+            - name: name
+              type: string
+            - name: workflow
+              type: string
+            - name: bucket
+              type: pass|fail|pending|skipping|cancel
+            - name: required
+              type: bool
+            - name: started_at
+              type: time?
+            - name: completed_at
+              type: time?
+            - name: link
+              type: url
+    - id: slic-d786b3ca
+      feature_id: feat-5fcf6e4a
+      num: 2
+      title: 'Review state: decision, threads, requested reviewers, mergeability'
+      what: 'Add review state to gitwatch: gh pr view for decision, requested reviewers, mergeable and merge state, plus one gh api graphql call for review threads. An UNKNOWN mergeable is reported as computing, never as a conflict.'
+      why: 'CI green is not mergeable: threads, conflicts and missing approval block too.'
+      files:
+        - internal/gitwatch/review.go
+        - internal/gitwatch/review_test.go
+      deps:
+        - 1
+      done_when:
+        - status shows decision
+        - unresolved and outdated thread counts
+        - requested reviewers
+        - merge state
+        - UNKNOWN mergeable shows computing
+      effort: S
+      risk: Low
+      tests: Fixtures for APPROVED, CHANGES_REQUESTED, conflicts (DIRTY), BEHIND, UNKNOWN; thread counting excludes resolved
+      approved: true
+      comment: ""
+      research:
+        - url: https://cli.github.com/manual/gh_pr_view
+          claim: gh pr view --json offers reviewDecision, reviewRequests, latestReviews, mergeable, mergeStateStatus, baseRefName; it has no reviewThreads field.
+          accessed: "2026-10-25"
+        - url: https://github.com/dlvhdr/gh-dash/blob/main/internal/data/prapi.go
+          claim: MIT. GraphQL shapes for reviewThreads (isResolved, isOutdated), reviewDecision, mergeStateStatus and review requests.
+          accessed: "2026-10-25"
+        - url: https://docs.github.com/en/graphql/reference/enums#mergeablestate
+          claim: mergeable is UNKNOWN while GitHub computes it in the background.
+          accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |-
+        **Why GraphQL:** gh pr view --json has no reviewThreads field, so unresolved threads need one gh api graphql query (shape from gh-dash prapi.go, written fresh).
+        **Fields:** reviewDecision, reviewRequests, latestReviews, mergeable, mergeStateStatus, state, title, headRefName, baseRefName, baseRefOid, url.
+        **UNKNOWN:** GitHub computes mergeability in the background; it is shown as computing and re-read on the next tick.
+        **Threads:** count unresolved and outdated separately; resolved ones are ignored.
+      blocks:
+        - type: data-model
+          title: Review state
+          fields:
+            name: Review
+          rows:
+            - name: decision
+              type: APPROVED|CHANGES_REQUESTED|REVIEW_REQUIRED|none
+            - name: requested
+              type: '[]string'
+            - name: threads_open
+              type: int
+            - name: threads_outdated
+              type: int
+            - name: mergeable
+              type: MERGEABLE|CONFLICTING|computing
+            - name: merge_state
+              type: CLEAN|BEHIND|DIRTY|BLOCKED|UNSTABLE
+    - id: slic-39943c21
+      feature_id: feat-202108c6
+      num: 3
+      title: 'Branch health: ahead/behind, dirty, unpushed, stale worktrees'
+      what: 'Local branch health: ahead/behind base, dirty and unpushed counts, and worktrees marked stale when merged (incl squash), upstream gone, idle N days, or PR closed. Ports git-town, lazygit and gh-poi parsing. Reports only. context_pack reuses it.'
+      why: Most lost work in this repo is a stale worktree or an unpushed branch.
+      files:
+        - internal/gitwatch/branch.go
+        - internal/gitwatch/worktrees.go
+        - cmd/wipnote/context_pack.go
+        - THIRD-PARTY-NOTICES.md
+      deps:
+        - 1
+      done_when:
+        - status shows ahead/behind base
+        - dirty and unpushed counts
+        - worktree list marks each stale reason
+        - idle days read from config
+        - nothing is deleted
+      effort: M
+      risk: Med
+      tests: 'Temp git repos (no real project): ahead/behind, dirty, unpushed, merged, squash-merged, upstream gone, idle via faked commit dates; old-git fallback path'
+      approved: true
+      comment: ""
+      research:
+        - url: https://github.com/git-town/git-town/blob/main/internal/git/commands.go
+          claim: MIT. One NUL-separated for-each-ref call with worktreepath, upstream and track; determineSyncStatus derives ahead, behind, local-only, deleted-at-remote, other-worktree.
+          accessed: "2026-10-25"
+        - url: https://github.com/jesseduffield/lazygit/blob/master/pkg/commands/git_commands/ahead_behind.go
+          claim: MIT. Parses for-each-ref %(ahead-behind:<base>), which needs git 2.41 or newer.
+          accessed: "2026-10-25"
+        - url: https://github.com/seachicken/gh-poi/blob/main/conn/command.go
+          claim: MIT. parseWorktrees reads git worktree list --porcelain; isFullyMerged also detects squash merges; it shells out to gh like wipnote will.
+          accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |-
+        **Port:** git-town for-each-ref format and determineSyncStatus; lazygit ahead-behind parser; gh-poi parseWorktrees and isFullyMerged (all MIT, notices added).
+        **Old git:** %(ahead-behind) needs git 2.41; fall back to git rev-list --left-right --count base...HEAD.
+        **Dirty/unpushed:** git status --porcelain=v2 --branch.
+        **Stale (owner):** any of merged into base (squash detected), upstream deleted, no commits for N days (setting gitwatch.stale_days via layered config, default 7), PR closed unmerged.
+        **Never deletes:** cleanup stays a human action.
+        **Reuse:** context_pack.gitAheadBehind moves onto this code.
+      blocks:
+        - type: tabs
+          title: Stale reasons
+          rows:
+            - body: Branch merged into base, including a squash merge (gh-poi isFullyMerged).
+              label: merged
+            - body: The remote branch was deleted.
+              label: upstream gone
+            - body: No commits for gitwatch.stale_days days (default 7).
+              label: idle
+            - body: Its PR was closed without merge.
+              label: pr closed
+    - id: slic-d7d68ace
+      feature_id: feat-1643e796
+      num: 4
+      title: Base branch CI and releases
+      what: Base branch CI and releases. Base is the PR's baseRefName, else the plan's base_branch, else main. Reads recent base runs and flags base red too. Reports the latest release tag, commits since it, and the release workflow's last run.
+      why: Tell a PR's own failure from a broken base; see unreleased work at a glance.
+      files:
+        - internal/gitwatch/base.go
+        - internal/gitwatch/release.go
+      deps:
+        - 1
+      done_when:
+        - status shows base CI state and base-red-too flag
+        - latest release tag and commits since
+        - release workflow last run
+        - no releases reported as none not error
+      effort: S
+      risk: Low
+      tests: 'Fixtures: base green, base red, no runs; release present, absent; commit count from temp repo'
+      approved: true
+      comment: ""
+      research:
+        - url: https://cli.github.com/manual/gh_run_list
+          claim: gh run list --branch and --workflow with --json headSha,status,conclusion,workflowName,url,createdAt.
+          accessed: "2026-10-25"
+        - url: https://cli.github.com/manual/gh_release_view
+          claim: gh release view --json tagName,publishedAt returns the latest release.
+          accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |-
+        **Base red too:** the latest run on the base for each workflow failed, or the run at the PR's baseRefOid failed. Lets a reader tell a PR's own failure from a broken base.
+        **Release workflow:** setting gitwatch.release_workflow; default is the workflow whose file name contains release.
+        **Commits since:** git rev-list --count <tag>..origin/<base>.
+        **No releases:** reported as none, not an error.
+        **Written fresh:** nothing in the candidates fits.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - internal/gitwatch/base.go
+            - internal/gitwatch/release.go
+            - internal/gitwatch/base_test.go
+            - internal/gitwatch/release_test.go
+    - id: slic-c42f5f06
+      feature_id: feat-dc30c28b
+      num: 5
+      title: 'wipnote ci watch: bounded poll loop'
+      what: '''wipnote ci watch'': a foreground loop, no daemon. Checks poll every 15s while pending; review, base and release every 60s; back off when nothing runs; stop when settled or at --timeout. --json-lines emits a snapshot on change. Exit codes mark passed, failed, timeout and not-available.'
+      why: One watcher for the pane, Codex/Antigravity shells and scripts; orch-style durable settle.
+      files:
+        - internal/gitwatch/watch.go
+        - cmd/wipnote/ci_watch.go
+      deps:
+        - 1
+        - 2
+        - 3
+        - 4
+      done_when:
+        - watch stops on settle and on timeout with documented exit codes
+        - review state polled at the slower rate
+        - never runs from a hook
+      effort: S
+      risk: Low
+      tests: 'Fake clock and runner: cadence per field, backoff, settle on merged, timeout exit 2, json-lines only on change'
+      approved: true
+      comment: ""
+      research:
+        - url: https://github.com/cli/cli/blob/trunk/pkg/cmd/pr/checks/checks.go
+          claim: gh pr checks exits 8 when checks are pending and 1 when one failed; --watch cannot be combined with --json; the watch loop defaults to 10s.
+          accessed: "2026-10-25"
+        - url: https://docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-the-graphql-api
+          claim: GraphQL is limited by points per hour per user; gh calls count against the user's quota.
+          accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |-
+        **Why own loop:** gh pr checks --watch cannot emit JSON.
+        **Cadence (owner):** checks 15s while any are pending; review, base and release 60s; everything 60s when idle.
+        **Settle:** no pending checks, or PR merged or closed; or --timeout (default 60m).
+        **Exit codes:** 0 all passed, 1 any failed, 2 timeout, 3 not available.
+        **Rate limit:** about 240 check reads and 60 GraphQL reads per hour while running; idle back-off cuts that.
+        **Never from a hook** (user rule: daemons and background work never block Claude).
+      blocks:
+        - type: diagram
+          title: Watch loop
+          entries:
+            - read all
+            - checks pending? poll 15s
+            - else poll 60s
+            - emit on change
+            - 'settled or timeout: exit'
+    - id: slic-e9bbd921
+      feature_id: feat-8354cf43
+      num: 6
+      title: mods/wipnote-ci pane over the CLI
+      what: 'mods/wipnote-ci: a thin pane modeled on ci-live with /ci, /ci 85, /ci <branch> and /ci stop. It runs wipnote ci status --json on the slice 5 cadence and renders checks, review, branch, base, release and the work item. It makes no gh calls itself.'
+      why: Keep the live pane the owner liked, with logic in Go shared by every harness.
+      files:
+        - mods/wipnote-ci/hooks/register.tsx
+        - mods/wipnote-ci/hooks/format.ts
+        - mods/wipnote-ci/types/index.d.ts
+        - mods/wipnote-ci/.claude-plugin/plugin.json
+        - mods/wipnote-ci/README.md
+        - mods/wipnote-ci/tests/pane.test.tsx
+      deps:
+        - 5
+      done_when:
+        - /ci opens the pane and follows the PR
+        - /ci stop ends polling
+        - pane shows all five sections and the work item
+        - mod tests pass
+      effort: M
+      risk: Low
+      tests: Port ci-live register.test; render tests from JSON fixtures; stop clears timers
+      approved: true
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/plugins
+          claim: Plugins (and the mods folder passed by --plugin-dir) load hooks, commands and modules from their own tree.
+          accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |-
+        **Source:** the owner's ci-live 0.1.0 (format.ts sort, icons, elapsed time, toast, status line) is the design reference; its gh calls move to Go.
+        **Load:** the launcher already passes the mods folder, so a new child dir loads with no launcher change.
+        **Stop:** /ci stop cancels both timers and clears the status line.
+        **Fail first:** failed checks sort first and show their link, as in ci-live.
+      blocks:
+        - type: wireframe
+          title: CI pane
+          fields:
+            html: '<div style="font-family:var(--font-mono);padding:8px;border:1px solid var(--border)"><b>PR 267 plan meta fields</b><div style="color:var(--muted)">claude/serene-lamport · open · merge clean · feat-12602e10</div><div>12 passed · 0 failed · 1 running</div><div>● go-test 2:14</div><div>✓ lint 0:41</div><div style="color:var(--muted)">review: approved · 0 open threads</div><div style="color:var(--muted)">branch: 0 behind main · clean</div><div style="color:var(--muted)">base main: green · release v0.82.1, 14 since</div></div>'
+    - id: slic-6aaa0733
+      feature_id: feat-f3b00ab5
+      num: 7
+      title: Work-item links and gate warning
+      what: The work-item gate finds the PR that names the item id and adds a WARN line when its CI is red, it has a conflict or open threads. It skips silently without gh. 'wipnote ci status --work-item <id>' resolves the PR. feature show prints the linked PR state.
+      why: Plans and work items are the durable layer; PR state should show where the work is tracked.
+      files:
+        - cmd/wipnote/check.go
+        - internal/gitwatch/link.go
+      deps:
+        - 1
+        - 2
+      done_when:
+        - gate warns on red
+        - conflicted or threaded PR and stays exit 0
+        - no gh means no line and no delay beyond the runner timeout
+        - ci status --work-item resolves the PR
+      effort: S
+      risk: Med
+      tests: Gate test with fake runner for red, green, conflict, no gh; two-sided
+      approved: true
+      comment: ""
+      research:
+        - url: https://cli.github.com/manual/gh_pr_view
+          claim: gh pr view --json offers reviewDecision, reviewRequests, latestReviews, mergeable, mergeStateStatus, baseRefName; it has no reviewThreads field.
+          accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |-
+        **Warn, not fail:** CI state is remote and can lag; the gate stays exit 0 so offline work is never blocked. Open question for the owner if a fail mode is wanted later.
+        **Lookup:** gh pr list --search '<id> in:title' plus branch names containing the id; newest wins.
+        **Timeout:** the runner timeout bounds any delay; no gh means no line.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/check.go
+            - internal/gitwatch/link.go
+            - internal/gitwatch/link_test.go
+    - id: slic-b2b7cf7a
+      feature_id: feat-5a274de6
+      num: 8
+      title: Cross-harness command, skill and docs
+      what: plugin/commands/ci.md and skill text so Claude, Codex and Antigravity can run wipnote ci status and watch. Regenerate ports. Add docs/design/git-watch.md with sources and port notices, and a help --compact entry.
+      why: Every harness gets the same view, not only Claude Code.
+      files:
+        - plugin/commands/ci.md
+        - docs/design/git-watch.md
+        - packages/plugin-core/manifest.json
+      deps:
+        - 5
+      done_when:
+        - build-ports and check-ports clean
+        - command appears in all three trees
+      effort: S
+      risk: Low
+      tests: check-ports; canonical command audit test
+      approved: true
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/plugins
+          claim: Plugins (and the mods folder passed by --plugin-dir) load hooks, commands and modules from their own tree.
+          accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |-
+        **Same view everywhere:** Codex and Antigravity have no pane, so the command runs ci status or ci watch in the shell.
+        **Generated trees:** changed only through wipnote plugin build-ports; check-ports must be clean.
+        **Docs:** git-watch.md lists each ported function, its source file and license.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - plugin/commands/ci.md
+            - docs/design/git-watch.md
+            - packages/plugin-core/manifest.json
+questions: []
+feedback:
+    entries:
+        - section: slice-1
+          action: approve
+          value: "true"
+          created_at: "2026-10-26T00:11:34Z"
+          updated_at: "2026-10-26T00:11:34Z"
+        - section: slice-2
+          action: approve
+          value: "true"
+          created_at: "2026-10-26T00:11:35Z"
+          updated_at: "2026-10-26T00:11:35Z"
+        - section: slice-3
+          action: approve
+          value: "true"
+          created_at: "2026-10-26T00:11:35Z"
+          updated_at: "2026-10-26T00:11:35Z"
+        - section: slice-4
+          action: approve
+          value: "true"
+          created_at: "2026-10-26T00:11:35Z"
+          updated_at: "2026-10-26T00:11:35Z"
+        - section: slice-5
+          action: approve
+          value: "true"
+          created_at: "2026-10-26T00:11:35Z"
+          updated_at: "2026-10-26T00:11:35Z"
+        - section: slice-6
+          action: approve
+          value: "true"
+          created_at: "2026-10-26T00:11:35Z"
+          updated_at: "2026-10-26T00:11:35Z"
+        - section: slice-7
+          action: approve
+          value: "true"
+          created_at: "2026-10-26T00:11:35Z"
+          updated_at: "2026-10-26T00:11:35Z"
+        - section: slice-8
+          action: approve
+          value: "true"
+          created_at: "2026-10-26T00:11:36Z"
+          updated_at: "2026-10-26T00:11:36Z"
+        - section: meta
+          action: finalize
+          value: "true"
+          created_at: "2026-10-26T00:11:40Z"
+          updated_at: "2026-10-26T00:11:40Z"

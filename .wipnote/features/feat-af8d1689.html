@@ -10,15 +10,15 @@
 <body>
     <article id="feat-af8d1689"
              data-type="feature"
-             data-status="todo"
+             data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T07:29:50.749192"
-             data-updated="2026-10-25T07:29:51.2357" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+             data-updated="2026-10-25T14:44:23.417206" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
 
         <header>
             <h1>Cut per-hook cost</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-in-progress">In Progress</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -28,6 +28,12 @@
                 <h3>Blocked By:</h3>
                 <ul>
                     <li><a href="../features/feat-26de6e94.html" data-relationship="blocked_by">feat-26de6e94</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-25T13:29:50.355141">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
                 </ul>
             </section>
             <section data-edge-type="part_of">
@@ -42,7 +48,31 @@
                     <li><a href="../plans/plan-7bc7114c.html" data-relationship="planned_in" data-since="2026-10-25T07:29:50.760628">plan-7bc7114c</a></li>
                 </ul>
             </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="../features/feat-fc3cc9e0.html" data-relationship="relates_to" data-since="2026-10-25T13:29:48.28602">Eliminate project-level SQLite storage and cache</a></li>
+                    <li><a href="../bugs/bug-369da005.html" data-relationship="relates_to" data-since="2026-10-25T13:29:48.31102">Deploying the SQLite cutover will block all writes in every session</a></li>
+                </ul>
+            </section>
         </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-af8d1689-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Record BEFORE per-hook timings (3 runs, median) and process init cost</li>
+                <li data-completed="true" data-step-id="step-feat-af8d1689-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Build plantmpl, blocks and recaptmpl templates lazily instead of at package init</li>
+                <li data-completed="true" data-step-id="step-feat-af8d1689-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Write debug.log only when WIPNOTE_DEBUG=1</li>
+                <li data-completed="true" data-step-id="step-feat-af8d1689-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Read-only hot hooks (pretooluse, user-prompt, posttooluse, posttooluse-record) stop opening the empty in-memory projection; nil DB keeps empty-projection results</li>
+                <li data-completed="true" data-step-id="step-feat-af8d1689-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Remove unused database parameter from checkYoloUIValidationGuard</li>
+                <li data-completed="true" data-step-id="step-feat-af8d1689-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Record AFTER timings and before/after table</li>
+                <li data-completed="true" data-step-id="step-feat-af8d1689-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Gate all five modules and push bloat/slice6</li>
+                <li data-completed="true" data-step-id="step-feat-af8d1689-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ Before/after (temp copy of .wipnote, temp HOME, no daemon so writes take the bounded fallback; wall ms, median). 3-run: session-start 78-&gt;59, user-prompt 52-&gt;36, pretooluse Bash 41-&gt;28, pretooluse Edit 33-&gt;24, posttooluse 32-&gt;30, posttooluse-record 39-&gt;31, stop 46-&gt;39, session-end 32-&gt;30, process (hook --help) 18-&gt;17. Interleaved 11-run: session-start 57.4-&gt;52.3, user-prompt 41.3-&gt;34.5, pretooluse Bash 38.0-&gt;30.6, pretooluse Edit 36.7-&gt;26.8, posttooluse 33.5-&gt;24.3, posttooluse-record 36.5-&gt;29.6, stop 40.0-&gt;37.4, session-end 31.0-&gt;30.4. Package init (inittrace, median of 9): 10.8 ms/32.5k allocs -&gt; 8.8 ms/25.0k. In-process PreToolUse handler (300x): Bash 8.5-&gt;5.2 ms with daemon, 17.7-&gt;14.4 without; Edit 6.8-&gt;1.9 with daemon, 6.5-&gt;2.2 without. Hook stdout identical before/after for all 8 fixtures.</li>
+                <li data-completed="false" data-step-id="step-feat-af8d1689-8" data-agent="claude-code" data-created-by-agent="claude-code">⏳ OPEN (needs owner decision, not done): stop opening the file-backed wipnote.db in hookSubcmd/hookSubcmdWithProject/track-event/worktree-create and the daemon-miss fallback (RouteHookWrite/routeViaOwnBoundedHandle). Hooks are the only reader of that file, but later hooks do read what earlier ones wrote, e.g. Stop counts agent_events into the session HTML event badge, so removing it changes output</li>
+                <li data-completed="true" data-step-id="step-feat-af8d1689-9" data-agent="claude-code" data-created-by-agent="claude-code">✅ Part 2 timings (same harness, interleaved 11 runs, wall ms median, base c12725e3d -&gt; 9e3095f0e, clean session log): session-start 63.1-&gt;64.6, user-prompt 47.7-&gt;38.0, pretooluse Bash 43.9-&gt;34.6, pretooluse Edit 39.0-&gt;27.5, posttooluse 38.1-&gt;29.0, posttooluse-record 40.6-&gt;33.0, stop 47.0-&gt;43.3, session-end 36.9-&gt;34.0. The machine was busier than during the part 1 run, so compare within a row, not across tables. Part 2 adds canonical-log reads (Stop count, web-research and orchestrator guards, ACTIVE line) without a measurable cost.</li>
+                <li data-completed="false" data-step-id="step-feat-af8d1689-10" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Part 2 STOPPED: removing the file-backed hook db. The fallback/direct writes (agent_events, sessions, claims, lineage, pending_subagent_starts, backfill offsets, otel_signals) have no canonical path the daemon catches up from: daemon hydrate reads work item HTML, the claim and work item ledgers and session families; telemetry catch-up reads only events.ndjson. Needs owner choice: drop the writes (no reader once hook reads move to canonical) or build a spool the daemon replays.</li>
+            </ol>
+        </section>
 
         <section data-content>
             <h3>Description</h3>

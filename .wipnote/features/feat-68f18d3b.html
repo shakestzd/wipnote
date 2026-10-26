@@ -10,15 +10,15 @@
 <body>
     <article id="feat-68f18d3b"
              data-type="feature"
-             data-status="todo"
+             data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T07:29:51.050081"
-             data-updated="2026-10-25T07:29:51.276936" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+             data-updated="2026-10-25T14:33:18.47688" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
 
         <header>
             <h1>Merge duplicated helpers</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-in-progress">In Progress</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -30,6 +30,12 @@
                     <li><a href="../features/feat-a559c3e6.html" data-relationship="blocked_by">feat-a559c3e6</a></li>
                     <li><a href="../features/feat-26de6e94.html" data-relationship="blocked_by">feat-26de6e94</a></li>
                     <li><a href="../features/feat-ea969973.html" data-relationship="blocked_by">feat-ea969973</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-25T14:07:42.968621">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
                 </ul>
             </section>
             <section data-edge-type="part_of">
@@ -45,6 +51,24 @@
                 </ul>
             </section>
         </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ ID-prefix family: merge identical kindFromPrefix copies into core/workitem KindForID; pin drifted copies</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ git helpers: top-level and HEAD into core/paths; runners stopped (drifted)</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ printJSON: 32 indented-JSON copies into cmd/wipnote/json_output.go</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ atomic write: 3 fsync&#43;rename copies into core/filelock WriteFileAtomic; CreateTemp variants stopped</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ env-slice editing: drop 6 pass-through wrappers, setOrReplaceEnv into launcher.SetEnv; gate.UpsertEnv stopped</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ HTML ledger codec: claim/gate/session codecs into core/htmlledger</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ ID resolution: resolveID/resolveNodePath into workitem.ResolvePartialID/NodePath</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ glob matcher: copies disagree (bare **); drift test pinned, stopped for owner decision</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-8" data-agent="claude-code" data-created-by-agent="claude-code">✅ config loader: 10 config.json readers onto paths.ReadProjectConfig</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-9" data-agent="claude-code" data-created-by-agent="claude-code">✅ plugin asset walker: 3 copies onto pluginbuild walkAssetTree</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-10" data-agent="claude-code" data-created-by-agent="claude-code">✅ small string helpers: truncate into slug.Truncate, min7 into builtin min; firstNonEmpty variants stopped</li>
+                <li data-completed="true" data-step-id="step-feat-68f18d3b-11" data-agent="claude-code" data-created-by-agent="claude-code">✅ otel adapter: Gemini/Antigravity onto shared genAIAdapter</li>
+            </ol>
+        </section>
 
         <section data-content>
             <h3>Description</h3>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Hooks cleanup after the file-db removal: delete the task quality gate, dead core/db code and nil db parameters</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-726637b8"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-25T19:50:04.548534"
+             data-updated="2026-10-25T20:29:53.938807" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-cli-version="888f588" data-change_kind="chore" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Not implemented: no hook fires on manual denial. Proposed: both PermissionDenied handler and Stop-time transcript pairing; owner to decide.&#34;,&#34;exists&#34;:&#34;core/db/dbtest already hosts test-only fixtures moved out of core/db (InsertLineageTrace, GetEvent, InsertClaim)&#34;,&#34;findings&#34;:&#34;Claude Code hooks reference (read 2026-10-25): PostToolUseFailure &#39;doesn&#39;t fire for tool calls rejected before execution ... Permission denials fire PreToolUse but not this event&#39;. PermissionDenied &#39;only fires in auto mode: it doesn&#39;t run when you manually deny a permission dialog, when a PreToolUse hook blocks a call, or when a deny rule matches&#39;; its payload carries tool_use_id and reason. PostToolUse runs only after success. So a manually denied call fires PreToolUse (start line written) and PermissionRequest, and no completion hook; wipnote registers no PermissionDenied hook. Denied calls cannot get a failed line through posttooluse-failure.&#34;,&#34;options&#34;:[&#34;Register PermissionDenied (claude target) -\u003e write a failed completion line keyed on tool_use_id; covers auto-mode denials only&#34;,&#34;At Stop/SessionEnd, pair unfinished starts with the transcript&#39;s tool_result for the same tool_use_id (is_error / user-rejected text) and write failed lines; covers manual denials&#34;,&#34;Make the sweep skip starts whose tool_use_id has a matching PermissionRequest marker and no completion; weaker, guesses outcome&#34;],&#34;question&#34;:&#34;Which core/db functions does nothing in production call?&#34;,&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-10-25&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/hooks&#34;}]}}">
+
+        <header>
+            <h1>Hooks cleanup after the file-db removal: delete the task quality gate, dead core/db code and nil db parameters</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-25T19:50:20.174681">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-25T19:50:04.552018">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-726637b8-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete the task quality gate and its config key</li>
+                <li data-completed="true" data-step-id="step-feat-726637b8-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Run deadcode and list unreachable core/db code</li>
+                <li data-completed="true" data-step-id="step-feat-726637b8-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete unreachable core/db code and its tests</li>
+                <li data-completed="true" data-step-id="step-feat-726637b8-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Drop the nil db parameter from hook handlers</li>
+                <li data-completed="false" data-step-id="step-feat-726637b8-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Denied tool call writes a failed line (two-sided test)</li>
+                <li data-completed="true" data-step-id="step-feat-726637b8-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Gate all 5 modules</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Follow-up to feat-174dc958 (owner 2026-10-25). 1) Delete the TaskCompleted quality gate and its config key block_task_completion_on_quality_failure: hooks must never block, and wipnote check --gate covers quality on demand. 2) Delete core/db code nothing in production calls (db.Open, InsertEvent, lineage, handoff and claim repo functions, read-only opens), using the deadcode tool, with their tests. 3) Drop the always-nil *sql.DB parameter from hook handlers and the guard branches that read it. 4) Make sure a tool call the user denies writes a failed completion line through posttooluse-failure, so the orphan sweep never marks it aborted; two-sided test.</p>
+        </section>
+    </article>
+</body>
+</html>

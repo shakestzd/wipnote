@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>check host-paths scans only .wipnote/ and .claude/, never docs/ or code</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-7a35994d"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-25T15:05:42.782709"
+             data-updated="2026-10-25T15:05:42.78559" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-cli-version="888f588" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+
+        <header>
+            <h1>check host-paths scans only .wipnote/ and .claude/, never docs/ or code</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-25T15:05:42.785504">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Found during plan-28b4a7f6 slice 1 (feat-0031fd91): wipnote check host-paths reported OK with 0 files scanned for new files under docs/reference/orch and docs/design. fullScopeFiles in cmd/wipnote/check_host_paths.go limits the scan to .wipnote/ and .claude/, so host paths in docs/, code or plugin/ are never caught. The slice relied on a manual grep plus core/paths HostPathPattern instead. Expected: the check covers every tracked text file (or at least docs/, plugin/, cmd/, core/, internal/), with the existing allowlist. Test: a temp repo with a host path in docs/x.md fails the check; without it, passes.</p>
+        </section>
+    </article>
+</body>
+</html>

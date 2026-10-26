@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>gitwatch core: runner, PR checks snapshot, work-item link</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-470715de"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-10-26T00:11:40.674822"
+             data-updated="2026-10-26T02:45:55.553059" data-agent-assigned="claude-code" data-track-id="trk-2505b527" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>gitwatch core: runner, PR checks snapshot, work-item link</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="560a8e91f594e7348163c5911335de3bb3b21e9a.html" data-relationship="committed_in" data-since="2026-10-26T01:15:06">fix(gitwatch): no checks reported is zero checks, not unavailable (feat-470715de)</a></li>
+                    <li><a href="20d60e38b874db0987154e8a11aa133d2e6a79a0.html" data-relationship="committed_in" data-since="2026-10-26T00:34:20">feat(gitwatch): report any failed gh read as not-available (feat-470715de)</a></li>
+                    <li><a href="01bb8a3a9719007c3a296b420dd63b494007735d.html" data-relationship="committed_in" data-since="2026-10-26T00:21:12">feat(gitwatch): runner, PR checks snapshot, work-item link (feat-470715de)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-26T00:11:49.019718">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2505b527.html" data-relationship="part_of" data-since="2026-10-26T00:11:40.677063">trk-2505b527</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-999ea9c7.html" data-relationship="planned_in" data-since="2026-10-26T00:11:40.676181">plan-999ea9c7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>New internal/gitwatch with a fakeable Runner over os/exec that reads gh stdout JSON whatever the exit code. Ports cli/cli aggregateChecks and eliminateDuplicates, adding STARTUP_FAILURE as failed. Finds the PR like ci-live and the work-item id from branch or title. Adds &#39;wipnote ci status [pr|branch] --json&#39;.</p>
+        </section>
+    </article>
+</body>
+</html>

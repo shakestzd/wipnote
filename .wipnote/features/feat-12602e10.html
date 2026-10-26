@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Export a plan as Claude project instructions</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-12602e10"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-25T19:43:06.757196"
+             data-updated="2026-10-25T20:36:19.996864" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
+
+        <header>
+            <h1>Export a plan as Claude project instructions</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-25T19:47:54.481185">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-25T19:43:06.758809">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-28b4a7f6.html" data-relationship="planned_in" data-since="2026-10-25T19:43:06.762016">plan-28b4a7f6</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-12602e10-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Write red tests for plan/projectbrief (limit, trim, host paths, determinism, section order)</li>
+                <li data-completed="true" data-step-id="step-feat-12602e10-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Implement plan/projectbrief brief builder with trimming and host-path redaction</li>
+                <li data-completed="true" data-step-id="step-feat-12602e10-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add wipnote plan project-instructions command and cmd test</li>
+                <li data-completed="true" data-step-id="step-feat-12602e10-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Run gates and a sample export on plan-28b4a7f6</li>
+                <li data-completed="true" data-step-id="step-feat-12602e10-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Owner 2026-10-25: add optional meta.repositories, meta.base_branch, meta.pr_naming, meta.gates; export lists open slices only</li>
+                <li data-completed="true" data-step-id="step-feat-12602e10-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Owner follow-ups: plan meta workspace fields, open-slice brief, hostpath.Redact for bare home roots</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add wipnote plan project-instructions &lt;plan&gt;. It prints a brief for Project settings &gt; Memory &gt; Project instructions from the plan: goal and repositories and branch rules and how to check work and what needs a go-ahead. wipnote plans stay canonical; the project gets a copy.</p>
+        </section>
+    </article>
+</body>
+</html>

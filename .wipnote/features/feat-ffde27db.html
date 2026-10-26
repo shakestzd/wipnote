@@ -10,15 +10,15 @@
 <body>
     <article id="feat-ffde27db"
              data-type="feature"
-             data-status="todo"
+             data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T07:29:51.113127"
-             data-updated="2026-10-25T07:29:51.279902" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+             data-updated="2026-10-25T16:02:52.180951" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
 
         <header>
             <h1>Split oversized files and functions</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-in-progress">In Progress</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -28,6 +28,12 @@
                 <h3>Blocked By:</h3>
                 <ul>
                     <li><a href="../features/feat-68f18d3b.html" data-relationship="blocked_by">feat-68f18d3b</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-25T14:54:58.479566">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
                 </ul>
             </section>
             <section data-edge-type="part_of">
@@ -43,6 +49,28 @@
                 </ul>
             </section>
         </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ workitem family: split workitem.go into 7 files; extract wiSetStatusWithAgent, runWiCreate, resolveNodeByUnionID, printNodeDetail, checkDependencyResearchCompleteGate</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ pretooluse family: PreToolUse as ordered guard pipeline &#43; TestPreToolUse_GuardOrder; pretooluse.go split into 8 files</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ session_start family: SessionStart split into 8 phases; session_start.go split into 4 files</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ yolo_guard family: yolo_guard.go split into 6 files</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ core/hooks rest: session_end, harness, missing_events, posttooluse split; CreateSessionHTML and ReapStaleSessionsAndCollectors extracted</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ otel writer family: writer.go split into 5 files; writeBatchAttempt, NewWriter, maybeCreatePlaceholder, tryReattributeParent extracted</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ planyaml family: Validate split into 13 validators; validate.go split into 4 files</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ codex family: codex.go split into 7 files; launchCodexDefaultWithMarketplace, execCodex, runCodexInit and 5 more extracted</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-8" data-agent="claude-code" data-created-by-agent="claude-code">✅ yolo family: launchYoloDefault/launchYoloDev share extracted isolation&#43;launch helpers; yolo.go split into 2 files</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-9" data-agent="claude-code" data-created-by-agent="claude-code">✅ compliance family: runComplianceAuto split into complianceRun phases; compliance_auto.go split into 4 files</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-10" data-agent="claude-code" data-created-by-agent="claude-code">✅ plan/who family: enrichPageFromYAML, wirePlan, runWho, promoteSliceFromYAML extracted; plan_create.go split</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-11" data-agent="claude-code" data-created-by-agent="claude-code">✅ core/db family: CreateAllTables DDL moved to data; ListHarnessGroupedResumableSessions extracted; session_repo.go split into 4 files</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-12" data-agent="claude-code" data-created-by-agent="claude-code">✅ plan-touched cmd/wipnote files: 11 files over 500 lines split by responsibility; source-scanning tests repointed</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-13" data-agent="claude-code" data-created-by-agent="claude-code">✅ plan-touched core/internal/port files split (migrations, htmlwriter, registry, pluginbuild/codex); CreateAllTables kept inline for its coverage guard</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-14" data-agent="claude-code" data-created-by-agent="claude-code">✅ Left over &gt;500 lines: arch_cmds.go, claude_chooser.go, internal/gate/check.go, otel collector/lifecycle.go, otel adapter/claude.go, pluginbuild/antigravity.go are outside the files this plan touches (scope rule in slice 9 decisions); core/db/schema.go stays because create_all_table_coverage_test extracts DDL from the CreateAllTables body</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-15" data-agent="claude-code" data-created-by-agent="claude-code">✅ Left over &gt;50-line functions: CreateAllTables (414, same coverage-guard reason) and 47 others in moved files (checkCmd, launchClaude, runUpgrade, hookCmd, ...) are beyond the top-15 scope; 236 prod funcs &gt;50 remain repo-wide as follow-up work items</li>
+            </ol>
+        </section>
 
         <section data-content>
             <h3>Description</h3>

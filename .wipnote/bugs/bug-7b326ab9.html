@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>containsWipnoteDir never matches, so the Write/Edit .wipnote guard never blocks</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-7b326ab9"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-10-25T16:14:39.901982"
+             data-updated="2026-10-25T16:14:39.905531" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-cli-version="888f588" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+
+        <header>
+            <h1>containsWipnoteDir never matches, so the Write/Edit .wipnote guard never blocks</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-25T16:14:39.905433">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>core/hooks/pretooluse_shell.go containsWipnoteDir compares path[i:i+11] with the 9-character string &#39;.wipnote/&#39;. The two can never be equal, so the function only returns true for the exact path &#39;.wipnote&#39;. Write and Edit calls into .wipnote/ files are not blocked by this guard. The Bash variant works. The length 11 is a leftover from the old &#39;.htmlgraph/&#39; name. Found during bloat slice 9 (feat-ffde27db); left unfixed there because a fix changes behaviour. Fix: compare against len(&#39;.wipnote/&#39;) and add a two-sided test (a .wipnote/ file path is blocked; a path like &#39;x.wipnotes/a&#39; is not).</p>
+        </section>
+    </article>
+</body>
+</html>
