@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote-orchestra loses classic.* hooks when a managed plugin bypasses user-tier plugins</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-12ef8d02"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-26T07:13:42.217321"
+             data-updated="2026-10-26T07:13:49.345847" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+
+        <header>
+            <h1>wipnote-orchestra loses classic.* hooks when a managed plugin bypasses user-tier plugins</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-26T07:13:49.345743">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-26T07:13:42.223613">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>A managed (prepend-tier) plugin can continue classic.* events past every user-tier plugin. wipnote-orchestra&#39;s classic.UserPromptSubmit/PostToolUse/Stop/Notification hooks (permission-mode pill alignment) and classic.SessionStart (rehydrate after /resume, /branch, /clear) then never run. Seen as: &#39;wipnote-orchestra: its classic.SessionStart hook was skipped. &lt;managed plugin&gt; runs first and sent the event on past it.&#39; Fix: refresh on session.end (reason clear/resume) and the next session.start/turn.complete; draw the band without the pill shift when no mode is known. wipnote&#39;s own settings hooks run at core tier and are unaffected.</p>
+        </section>
+    </article>
+</body>
+</html>
