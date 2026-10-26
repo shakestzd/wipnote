@@ -15,9 +15,9 @@ type Counts struct {
 	Total   int `json:"total"`
 }
 
-// Snapshot is the read state of one pull request. Available is false only
-// when gh cannot be used (missing or not signed in); Reason says why, or
-// that no pull request matched. Later sections (review, branch, base,
+// Snapshot is the read state of one pull request. Available is false when gh
+// cannot be used or a gh read failed (missing, not signed in, an HTTP or
+// network error); Reason says why, or that no pull request matched. Later sections (review, branch, base,
 // release) join as omitempty pointers after Counts.
 type Snapshot struct {
 	Available bool      `json:"available"`
@@ -30,20 +30,21 @@ type Snapshot struct {
 }
 
 // BuildSnapshot resolves arg to a PR (see ResolvePR) and reads its basics
-// and checks. A missing or signed-out gh and an unmatched lookup come back
-// as a Snapshot, not an error; other gh failures are errors.
+// and checks. Every gh failure and an unmatched lookup come back as a
+// Snapshot, not an error, so callers degrade instead of breaking; only a
+// cancelled or expired ctx is an error.
 func BuildSnapshot(ctx context.Context, r Runner, arg string, now func() time.Time) (*Snapshot, error) {
 	s := &Snapshot{Available: true, Checks: []Check{}, FetchedAt: now().UTC()}
 	pr, checks, err := fetchAll(ctx, r, arg)
 	switch {
-	case errors.Is(err, ErrNotAvailable):
-		s.Available, s.Reason = false, err.Error()
-		return s, nil
 	case errors.Is(err, ErrNoPR):
 		s.Reason = err.Error()
 		return s, nil
-	case err != nil:
+	case err != nil && ctx.Err() != nil:
 		return nil, err
+	case err != nil:
+		s.Available, s.Reason = false, err.Error()
+		return s, nil
 	}
 	SortChecks(checks)
 	s.PR, s.Checks, s.Counts = pr, checks, countChecks(checks)

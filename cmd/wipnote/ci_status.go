@@ -19,7 +19,7 @@ func ciStatusCmd() *cobra.Command {
 		Short: "Show a pull request's CI checks and linked work item",
 		Long: "Read a pull request's checks through gh and summarise them. The argument is a PR\n" +
 			"number or a head branch; with none, the current branch's PR, else your newest open PR.\n" +
-			"A missing or signed-out gh reports not-available and exits 0.",
+			"A missing or signed-out gh, or any failed gh read, reports not-available and exits 0.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			arg := ""

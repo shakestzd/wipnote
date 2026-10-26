@@ -58,6 +58,22 @@ func TestBuildSnapshot_NotAvailableIsNotAnError(t *testing.T) {
 	}
 }
 
+// Any other gh failure (an HTTP 403 from a proxy, a 502, no network) is also
+// reported as available=false with gh's first stderr line, never as an error,
+// so the pane and the gate degrade instead of breaking (owner, 2026-10-26).
+func TestBuildSnapshot_GhFailureIsUnavailable(t *testing.T) {
+	f := &FakeRunner{Results: map[string]FakeResult{
+		"gh pr view 42 --json " + prFields: {Stdout: "", Stderr: "HTTP 403: Forbidden\nmore", Exit: 1},
+	}}
+	s, err := BuildSnapshot(context.Background(), f, "42", fixedNow)
+	if err != nil {
+		t.Fatalf("gh failure must not be an error: %v", err)
+	}
+	if s.Available || s.PR != nil || !strings.Contains(s.Reason, "HTTP 403") {
+		t.Errorf("want available=false with the stderr reason, got %+v", s)
+	}
+}
+
 func TestBuildSnapshot_NoPR(t *testing.T) {
 	f := &FakeRunner{Results: map[string]FakeResult{
 		"gh pr list --head nobody --state all --limit 1 --json number": {Stdout: `[]`},
