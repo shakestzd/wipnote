@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 57
+    version: 59
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -1922,7 +1922,7 @@ slices:
       risk: Med
       tests: 'Integration (fake herdr and codex stub): TestCodexRun_InteractiveInHerdr, TestCodexRun_ExecOutsideHerdr, TestCodexRun_TrustDialogByLabel, TestCodexRun_ResultFile, TestCodexRun_TokensFromRollout, TestCodexRun_SandboxLadder'
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://learn.chatgpt.com/docs/hooks
@@ -1931,6 +1931,7 @@ slices:
         - url: https://github.com/shakestzd/wipnote/blob/delegate/d2/docs/design/delegate-phase-b.md
           claim: Phase B C1-C3 passed on the owner's Mac (codex-cli 0.164.0); B3b and B4 show the TUI SessionStart row tagged codex.
           accessed: "2026-10-26"
+      approval_status: approved
       questions:
         - id: q-codex-workers
           text: After the Phase B Codex probes, how do Codex delegate runs work?
@@ -1968,7 +1969,7 @@ slices:
       risk: Med
       tests: 'Unit: TestProfile_DefaultIsLean, TestProfile_WidenNamedOnly, TestClaudeFlags_StrictMCP, TestClaudeFlags_DisablesInstalledPlugins, TestClaudeFlags_KeepsWipnotePlugin, TestClaudeFlags_NoBareForOAuth, TestCodexConfig_ExecOverrides, TestCodexConfig_InteractiveProfileFile, TestCodexConfig_DisablesUnnamedMCP. Integration (fake harness stubs record argv/env): TestSpawn_LeanByDefault, TestRun_WidenedProfileRecorded, TestDoctor_ReportsUndisableable.'
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/cli-reference
@@ -2004,6 +2005,7 @@ slices:
         - url: https://learn.chatgpt.com/docs/agent-configuration/subagents
           claim: A Codex custom agent TOML can turn features and skills off but cannot set mcp_servers, sandbox or approval; it inherits them.
           accessed: "2026-10-26"
+      approval_status: approved
       questions:
         - id: q-lean-tools
           text: Which built-in tools does a delegated worker get by default?
@@ -2654,3 +2656,13 @@ feedback:
           value: promoted
           created_at: "2026-10-25T19:43:06Z"
           updated_at: "2026-10-25T19:43:06Z"
+        - section: slice-26
+          action: approve
+          value: "true"
+          created_at: "2026-10-26T08:41:05Z"
+          updated_at: "2026-10-26T08:41:05Z"
+        - section: slice-27
+          action: approve
+          value: "true"
+          created_at: "2026-10-26T08:41:06Z"
+          updated_at: "2026-10-26T08:41:06Z"
