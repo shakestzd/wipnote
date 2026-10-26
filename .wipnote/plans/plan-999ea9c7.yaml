@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 3
+    version: 4
 design:
     problem: ""
     goals: []
@@ -38,6 +38,27 @@ slices:
       effort: M
       risk: Low
       tests: 'Unit with fake Runner and recorded gh JSON fixtures: bucket mapping table incl STARTUP_FAILURE (red first), dedupe keeps latest, exit 8/1 with valid stdout parses, invalid stdout errors with first stderr line, id extraction positive and negative cases'
+      approved: false
+      comment: ""
+    - id: slic-d786b3ca
+      num: 2
+      title: 'Review state: decision, threads, requested reviewers, mergeability'
+      what: 'Add to gitwatch: gh pr view --json reviewDecision,reviewRequests,latestReviews,mergeable,mergeStateStatus,state,title,headRefName,baseRefName,baseRefOid,url, plus one gh api graphql call for reviewThreads(first:100){isResolved,isOutdated} (shape from gh-dash prapi.go). mergeable UNKNOWN is reported as computing, never as a conflict.'
+      why: 'CI green is not mergeable: threads, conflicts and missing approval block too.'
+      files:
+        - internal/gitwatch/review.go
+        - internal/gitwatch/review_test.go
+      deps:
+        - 1
+      done_when:
+        - status shows decision
+        - unresolved and outdated thread counts
+        - requested reviewers
+        - merge state
+        - UNKNOWN mergeable shows computing
+      effort: S
+      risk: Low
+      tests: Fixtures for APPROVED, CHANGES_REQUESTED, conflicts (DIRTY), BEHIND, UNKNOWN; thread counting excludes resolved
       approved: false
       comment: ""
 questions: []
