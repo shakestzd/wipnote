@@ -155,7 +155,7 @@ func attachReview(ctx context.Context, r Runner, s *Snapshot) error {
 		s.Notes = append(s.Notes, "review not read: "+err.Error())
 		return nil
 	}
-	s.Review = rv
+	s.Review, s.required = rv, required
 	MarkRequired(s.Checks, required)
 	return nil
 }

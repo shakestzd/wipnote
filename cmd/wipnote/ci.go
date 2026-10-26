@@ -15,6 +15,7 @@ func ciCmd() *cobra.Command {
 	}
 	cmd.AddCommand(ciInitCmd())
 	cmd.AddCommand(ciStatusCmd())
+	cmd.AddCommand(ciWatchCmd())
 	return cmd
 }
 

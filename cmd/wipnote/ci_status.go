@@ -46,11 +46,17 @@ func runCIStatus(ctx context.Context, w io.Writer, r gitwatch.Runner, arg string
 	if jsonOut {
 		return writeJSON(w, snap)
 	}
+	writeSnapshotText(w, snap)
+	return nil
+}
+
+// writeSnapshotText is the full text summary that ci status prints and ci
+// watch repeats on every change.
+func writeSnapshotText(w io.Writer, snap *gitwatch.Snapshot) {
 	writeCIStatusText(w, snap)
 	writeBranchText(w, snap)
 	writeBaseRelease(w, snap)
 	writeNotes(w, snap)
-	return nil
 }
 
 // writeCIStatusText prints a title line, the counts, and every check that

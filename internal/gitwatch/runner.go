@@ -75,9 +75,12 @@ type FakeResult struct {
 
 // FakeRunner answers from recorded results keyed by the space-joined argv
 // ("gh pr view --json number"). An argv with no result is an error, so a
-// test never reaches a real command. Calls records every argv in order.
+// test never reaches a real command. Seq, when it holds results for an
+// argv, answers them in order and then repeats the last; it wins over
+// Results. Calls records every argv in order.
 type FakeRunner struct {
 	Results map[string]FakeResult
+	Seq     map[string][]FakeResult
 	Calls   []string
 }
 
@@ -86,6 +89,12 @@ func (f *FakeRunner) Run(_ context.Context, name string, args ...string) ([]byte
 	key := strings.Join(append([]string{name}, args...), " ")
 	f.Calls = append(f.Calls, key)
 	res, ok := f.Results[key]
+	if seq := f.Seq[key]; len(seq) > 0 {
+		res, ok = seq[0], true
+		if len(seq) > 1 {
+			f.Seq[key] = seq[1:]
+		}
+	}
 	if !ok {
 		return nil, nil, -1, fmt.Errorf("fake runner: no result for %q", key)
 	}

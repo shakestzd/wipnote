@@ -36,6 +36,10 @@ type Snapshot struct {
 	Branch    *Branch    `json:"branch,omitempty"`
 	Worktrees []Worktree `json:"worktrees,omitempty"`
 	Notes     []string   `json:"notes,omitempty"`
+
+	// required is the last review read's required contexts, so a fast
+	// refresh of the checks keeps their Required marks.
+	required map[checkKey]bool
 }
 
 // BuildSnapshot resolves arg to a PR (see ResolvePR) and reads its basics
@@ -44,41 +48,62 @@ type Snapshot struct {
 // cancelled or expired ctx is an error.
 func BuildSnapshot(ctx context.Context, r Runner, arg string, now func() time.Time) (*Snapshot, error) {
 	s := &Snapshot{Available: true, Checks: []Check{}, FetchedAt: now().UTC()}
-	defer addBranchHealth(ctx, r, s, now) // local; runs on every return, after s.PR is set
-	pr, checks, err := fetchAll(ctx, r, arg)
+	n, err := ResolvePR(ctx, r, arg)
+	if err == nil {
+		err = refreshPR(ctx, r, n, s)
+	}
 	switch {
 	case errors.Is(err, ErrNoPR):
 		s.Reason = err.Error()
-		return addBaseAndRelease(ctx, r, s)
 	case err != nil && ctx.Err() != nil:
 		return nil, err
 	case err != nil:
 		s.Available, s.Reason = false, err.Error()
+		addBranchHealth(ctx, r, s, now)
 		return s, nil
 	}
-	SortChecks(checks)
-	s.PR, s.Checks, s.Counts = pr, checks, countChecks(checks)
-	s.WorkItem = WorkItemID(pr.Branch, pr.Title)
-	if err := attachReview(ctx, r, s); err != nil {
+	if err := refreshSlow(ctx, r, s, now); err != nil {
 		return nil, err
 	}
-	return addBaseAndRelease(ctx, r, s)
+	return s, nil
 }
 
-func fetchAll(ctx context.Context, r Runner, arg string) (*PR, []Check, error) {
-	n, err := ResolvePR(ctx, r, arg)
-	if err != nil {
-		return nil, nil, err
-	}
+// refreshPR is the fast section: it re-reads PR n's basics and checks into
+// s, keeping the base commit and required marks of the last slow read.
+func refreshPR(ctx context.Context, r Runner, n int, s *Snapshot) error {
 	pr, err := FetchPR(ctx, r, n)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 	checks, err := FetchChecks(ctx, r, n)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-	return pr, checks, nil
+	if s.PR != nil {
+		pr.BaseOID = s.PR.BaseOID
+	}
+	SortChecks(checks)
+	MarkRequired(checks, s.required)
+	s.PR, s.Checks, s.Counts = pr, checks, countChecks(checks)
+	s.WorkItem = WorkItemID(pr.Branch, pr.Title)
+	return nil
+}
+
+// refreshSlow re-reads the slow sections into s from scratch: review (with
+// a PR), base and release, then local branch health. Each failed read is a
+// note; only a cancelled or expired ctx is an error.
+func refreshSlow(ctx context.Context, r Runner, s *Snapshot, now func() time.Time) error {
+	s.Review, s.Base, s.Release, s.Branch, s.Worktrees, s.Notes = nil, nil, nil, nil, nil, nil
+	if s.PR != nil {
+		if err := attachReview(ctx, r, s); err != nil {
+			return err
+		}
+	}
+	if _, err := addBaseAndRelease(ctx, r, s); err != nil {
+		return err
+	}
+	addBranchHealth(ctx, r, s, now)
+	return nil
 }
 
 func countChecks(checks []Check) Counts {
