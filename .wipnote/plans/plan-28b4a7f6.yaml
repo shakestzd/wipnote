@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 53
+    version: 54
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -1894,6 +1894,32 @@ slices:
       decisions_notes: |
         **Principle (owner 2026-10-25):** delegate plus herdr is a multi-harness Projects harness, so its states use the Overview groups.
         **Mapping owner:** slice 10's readiness predicate stays the single source of state (D2); this slice only maps states to groups.
+    - id: slic-b5519cb3
+      num: 26
+      title: Codex runs inside herdr become interactive workers
+      what: Inside herdr a Codex delegate run is an interactive worker (spawn, send, wait, stop) in the Codex TUI, the same flow slice 22 gives Claude. Outside herdr, slice 8's codex exec path stays. codex review and ccx task stay one-shot.
+      why: 'Owner decision 2026-10-26: Codex workers run interactive like Claude. The condition slice 22 set is met: Phase B probes C1-C3 passed (TUI Stop payload carries the reply, token counts are non-zero, the plugin loads in TUI and exec).'
+      files:
+        - internal/delegate/oneshot/codex_interactive.go
+        - internal/delegate/oneshot/codex_interactive_test.go
+        - internal/delegate/oneshot/recipes.go
+      deps:
+        - 8
+        - 10
+        - 11
+        - 22
+      done_when:
+        - Inside herdr a Codex run spawns a TUI worker and prints the same report as codex exec
+        - The trust dialog is accepted by label for a folder delegate created or the worker is reported blocked
+        - The answer is the worker's result file (decision R)
+        - Token totals come from the rollout token_count
+        - The sandbox ladder from slice 15 applies to TUI workers
+        - Outside herdr codex exec runs with the same report
+      effort: L
+      risk: Med
+      tests: 'Integration (fake herdr and codex stub): TestCodexRun_InteractiveInHerdr, TestCodexRun_ExecOutsideHerdr, TestCodexRun_TrustDialogByLabel, TestCodexRun_ResultFile, TestCodexRun_TokensFromRollout, TestCodexRun_SandboxLadder'
+      approved: false
+      comment: ""
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
