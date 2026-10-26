@@ -50,6 +50,10 @@ func TestMain(m *testing.M) {
 
 	worktree.SetReindexFnForTest(func(string, io.Writer) {})
 
+	// No test reaches a real gh through the work-item PR lookup (gate
+	// warning, feature show); tests that need one swap in a fake.
+	linkRunner = noGhRunner{}
+
 	// Redirect XDG base dirs to isolated tempdirs.
 	xdgData, err := os.MkdirTemp("", "wipnote-test-xdg-data-*")
 	if err == nil {

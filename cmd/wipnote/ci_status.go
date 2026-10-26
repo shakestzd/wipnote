@@ -15,14 +15,22 @@ import (
 
 func ciStatusCmd() *cobra.Command {
 	var jsonOut bool
+	var workItem string
 	cmd := &cobra.Command{
 		Use:   "status [pr|branch]",
 		Short: "Show a pull request's CI checks and linked work item",
 		Long: "Read a pull request's checks through gh and summarise them. The argument is a PR\n" +
 			"number or a head branch; with none, the current branch's PR, else your newest open PR.\n" +
+			"--work-item <id> picks the newest PR whose title or head branch names that id.\n" +
 			"A missing or signed-out gh, or any failed gh read, reports not-available and exits 0.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if workItem != "" {
+				if len(args) == 1 {
+					return fmt.Errorf("pass a PR argument or --work-item, not both")
+				}
+				return runCIStatusWorkItem(cmd.Context(), os.Stdout, gitwatch.ExecRunner{}, workItem, jsonOut)
+			}
 			arg := ""
 			if len(args) == 1 {
 				arg = args[0]
@@ -31,6 +39,7 @@ func ciStatusCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output the snapshot as JSON")
+	cmd.Flags().StringVar(&workItem, "work-item", "", "Show the PR linked to this work item (id in its title or head branch)")
 	return cmd
 }
 
