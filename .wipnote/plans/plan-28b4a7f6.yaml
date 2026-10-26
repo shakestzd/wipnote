@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 56
+    version: 57
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -295,6 +295,7 @@ slices:
         **Evidence so far (mac-evidence, 2026-10-25):** B1 partly: `wipnote claude --settings F` fails with unknown flag; `wipnote claude -- --settings F` works and orch's hooks fired. Whether wipnote's own plugin hooks still fire beside them is open. B6 partly: container hooks wrote 800 of 800 lines to the shared mount, but no sessions-ledger row was checked. B7 partly: 4+4 writers with flock plus O_APPEND lost nothing; a 1 s flock under load lost 172 of 800; O_APPEND and rename across the mount are untested. B2 to B5 and B8 have no evidence. All checks stay.
         **Finding for slices 8 and 10:** wipnote claude does not accept --settings directly. Anything that must reach claude goes after `--`.
         **B9 (new):** slice 17 assumes a digit key selects an AskUserQuestion option. This is unverified.
+        **Results (Phase B runs 1-8, 2026-10-26; herdr 0.9.5, Claude Code 2.1.310, codex-cli 0.164.0, macOS bash 3.2.57):** PASS: H1-H9, B1, B2 (run 8, read-only: 34 of 35 orch sids in a wipnote ledger), B3a and B3b (run 6, rows tagged claude and codex), B4, B5, B7L, B8L, C1-C3. Runs 2-5 failed on script bugs (empty workspace id, trust-dialog keys and labels, harness filter) and on bug-5333ea49 (rows tagged human), fixed in wipnote dd659cfc1. NOT RUN: B9, D8a, D8b (need the owner at the keyboard); B6-B8 (devcontainer must be brought up from the worktree; not yet approved). Arch cards phase-b-b2 and phase-b-b3 record the passing results; no hazard card from the failed runs was recorded. Full record: docs/design/delegate-phase-b.md.
       blocks:
         - type: tabs
           title: Phase B checks
@@ -937,6 +938,8 @@ slices:
         - A grey next-prompt suggestion on the input line reads as empty and never as working; a person's draft still blocks send and stop (D8)
         - stop records pids first, closes at a bare shell only, never signals, prints pane_closed and survivors (D5)
         - After /clear both sessions are listed; binding adds under 2 ms
+        - 'A folder-trust dialog is detected by its labels (Claude: "No, exit" / "Yes, I trust this folder", cursor on No; Codex: "1. Trust and continue" / "2. Quit"); spawn never presses a key on it: trust is pre-seeded for a folder delegate created, otherwise the worker is reported blocked with the dialog named (Phase B runs 1-3)'
+        - At the workers cap spawn answers "at cap" as its own outcome before creating anything (Phase B run 6)
       effort: L
       risk: High
       tests: |
@@ -1932,6 +1935,10 @@ slices:
         - id: q-codex-workers
           text: After the Phase B Codex probes, how do Codex delegate runs work?
           answer: Inside herdr, Codex runs become interactive workers like Claude; outside herdr, codex exec stays (owner 2026-10-26).
+      decisions_notes: |
+        **Owner decision (2026-10-26):** Codex workers run interactively in a herdr pane, as delegate runs Claude; codex exec stays outside herdr. The owner proposed it; the Phase B Codex results meet slice 22's condition: C1, C2, C3, B4, B5 and B3b pass on codex-cli 0.164.0.
+        **Depends on D8b:** idle detection for a Codex TUI worker needs the grey next-prompt suggestion to read as empty. D8b (the owner's interactive run) is still not run.
+        **Profile:** Codex TUI workers start with slice 27's lean profile.
     - id: slic-5482c80d
       num: 27
       title: Lean default profile for delegated workers
@@ -1960,8 +1967,58 @@ slices:
       effort: M
       risk: Med
       tests: 'Unit: TestProfile_DefaultIsLean, TestProfile_WidenNamedOnly, TestClaudeFlags_StrictMCP, TestClaudeFlags_DisablesInstalledPlugins, TestClaudeFlags_KeepsWipnotePlugin, TestClaudeFlags_NoBareForOAuth, TestCodexConfig_ExecOverrides, TestCodexConfig_InteractiveProfileFile, TestCodexConfig_DisablesUnnamedMCP. Integration (fake harness stubs record argv/env): TestSpawn_LeanByDefault, TestRun_WidenedProfileRecorded, TestDoctor_ReportsUndisableable.'
+      complexity: complex
       approved: false
       comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/cli-reference
+          claim: 'Claude Code 2.1.310 (local --help confirms): --tools <list> sets the built-in tools ("" none, default all; MCP tools unaffected); --disallowedTools removes tools; --allowedTools only pre-approves; --strict-mcp-config uses only --mcp-config servers; --plugin-dir is repeatable; --setting-sources picks user/project/local; --disable-slash-commands turns off all skills and commands; all work interactively and with -p.'
+          accessed: "2026-10-26"
+        - url: https://code.claude.com/docs/en/settings
+          claim: --settings ranks above local, project and user settings and below managed; omitted keys keep lower values; lists merge across scopes.
+          accessed: "2026-10-26"
+        - url: https://code.claude.com/docs/en/settings-reference
+          claim: 'enabledPlugins {"<id>": false} disables an installed plugin; a managed force-enabled plugin cannot be disabled. There is no flag that disables all installed plugins.'
+          accessed: "2026-10-26"
+        - url: https://code.claude.com/docs/en/mcp
+          claim: disableClaudeAiConnectors (or ENABLE_CLAUDEAI_MCP_SERVERS=false) keeps claude.ai connectors out; under a deployed managed-mcp.json --strict-mcp-config exits.
+          accessed: "2026-10-26"
+        - url: https://code.claude.com/docs/en/headless
+          claim: --bare skips hooks, plugins, MCP, CLAUDE.md and auto-memory but authenticates only with ANTHROPIC_API_KEY or apiKeyHelper (OAuth is not read), so it is not a default for subscription users.
+          accessed: "2026-10-26"
+        - url: https://code.claude.com/docs/en/env-vars
+          claim: CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 and CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 turn off auto-memory and CLAUDE.md loading.
+          accessed: "2026-10-26"
+        - url: https://learn.chatgpt.com/docs/config-file/config-reference
+          claim: 'codex: mcp_servers.<id>.enabled=false (and enabled_tools/disabled_tools) per server; web_search = "disabled"; plugins."<name>@<mkt>".enabled; skills.bundled.enabled and skills.include_instructions.'
+          accessed: "2026-10-26"
+        - url: https://learn.chatgpt.com/docs/config-file/config-advanced
+          claim: codex -c key=value parses the value as TOML; --profile NAME layers ~/.codex/NAME.config.toml ([profiles.X] tables are ignored since 0.134.0).
+          accessed: "2026-10-26"
+        - url: https://learn.chatgpt.com/docs/developer-commands?surface=cli
+          claim: codex --enable/--disable X equals -c features.X=true/false; --ignore-user-config is exec-only.
+          accessed: "2026-10-26"
+        - url: https://raw.githubusercontent.com/openai/codex/rust-v0.164.0/codex-rs/features/src/lib.rs
+          claim: 'codex-cli 0.164.0 feature keys: shell_tool, view_image, image_generation, browser_use, multi_agent, apps, plugins, memories (memories off by default); apply_patch_freeform is Removed and cannot be toggled.'
+          accessed: "2026-10-26"
+        - url: https://learn.chatgpt.com/docs/agent-configuration/subagents
+          claim: A Codex custom agent TOML can turn features and skills off but cannot set mcp_servers, sandbox or approval; it inherits them.
+          accessed: "2026-10-26"
+      questions:
+        - id: q-lean-tools
+          text: Which built-in tools does a delegated worker get by default?
+          answer: 'The code set (owner 2026-10-26). Claude: Read, Edit, Write, Glob, Grep, Bash. Codex: shell and apply_patch on; web search, view_image, image_generation, browser_use, apps, multi_agent and plugins off.'
+        - id: q-lean-widen
+          text: How does a task widen the lean profile?
+          answer: 'Named flags on delegate spawn and run: --tools, --plugin and --mcp, each naming items. Only named items are added; the run folder records the widened set (owner 2026-10-26).'
+      decisions_notes: |
+        **Source:** owner requirement 2026-10-26, after Phase B showed workers loading the full plugin set.
+        **Claude interactive (2.1.310):** claude --plugin-dir <wipnote plugin> --tools "Read,Edit,Write,Glob,Grep,Bash" --strict-mcp-config --mcp-config <task mcp.json> --settings '{"disableClaudeAiConnectors":true,"autoMemoryEnabled":false,"enabledPlugins":{<each installed id>:false}}', with CLAUDE_CODE_DISABLE_AUTO_MEMORY=1. Installed plugin ids come from claude plugin list --json. One-shot: the same plus -p.
+        **Codex (0.164.0):** interactive: --profile <lean>, a profile file wipnote writes with web_search="disabled", features apps/plugins/multi_agent/image_generation/browser_use/view_image=false, and mcp_servers.<id>.enabled=false for each server not named. exec: the same as -c overrides, plus --ignore-user-config.
+        **Widening:** --tools adds Claude tool names (or turns a Codex feature back on); --mcp adds a server to the task mcp.json (Claude) or sets it enabled (Codex); --plugin adds a --plugin-dir (Claude) or enables a plugin (Codex).
+        **Kept on:** the wipnote plugin and its hooks, so the ledger and lineage still record the worker. CLAUDE.md stays loaded (project instructions); auto-memory is off.
+        **Rejected:** --bare as the default (OAuth users cannot authenticate under it); --safe-mode and --restricted (they also drop wipnote's plugin or tools a code task needs).
+        **Open (verify in the slice's tests on the real CLIs):** whether --strict-mcp-config also drops plugin-bundled MCP servers; whether codex -c mcp_servers={} replaces the table; docs say tools.view_image while 0.164.0 source has features.view_image; a trusted project's .codex/config.toml can still add servers, and delegate doctor must name them.
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
