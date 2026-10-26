@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 5
+    version: 6
 design:
     problem: ""
     goals: []
@@ -82,6 +82,26 @@ slices:
       effort: M
       risk: Med
       tests: 'Temp git repos (no real project): ahead/behind, dirty, unpushed, merged, squash-merged, upstream gone, idle via faked commit dates; old-git fallback path'
+      approved: false
+      comment: ""
+    - id: slic-d7d68ace
+      num: 4
+      title: Base branch CI and releases
+      what: 'Base = PR baseRefName, else plan base_branch, else main. gh run list --branch <base> --limit N --json headSha,status,conclusion,workflowName,url,createdAt; mark ''base red too'' when the PR''s base commit or latest base run failed. Releases: gh release view --json tagName,publishedAt, git rev-list --count <tag>..origin/<base>, latest runs of the release workflow (name a setting; default: workflow whose file matches release).'
+      why: Tell a PR's own failure from a broken base; see unreleased work at a glance.
+      files:
+        - internal/gitwatch/base.go
+        - internal/gitwatch/release.go
+      deps:
+        - 1
+      done_when:
+        - status shows base CI state and base-red-too flag
+        - latest release tag and commits since
+        - release workflow last run
+        - no releases reported as none not error
+      effort: S
+      risk: Low
+      tests: 'Fixtures: base green, base red, no runs; release present, absent; commit count from temp repo'
       approved: false
       comment: ""
 questions: []

@@ -502,6 +502,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       </a>
     </li>
     
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Base branch CI and releases</span>
+        
+        
+      </a>
+    </li>
+    
   </ul>
   
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
@@ -519,7 +528,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Make what the ci-live mod does native to wipnote, plus review state, branch health, base-branch CI and releases. A read-only Go layer (internal/gitwatch) shells out to gh and git (gh keeps auth; wipnote holds no token), a &#39;wipnote ci status --json&#39; and &#39;wipnote ci watch&#39; CLI usable from every harness, a thin Claude Code pane mod (mods/wipnote-ci), and links from PR state to work items. Ports MIT code from cli/cli, git-town, lazygit and gh-poi with notices; writes the rest fresh.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v5 · 3 slices · Created 2026-10-26</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v6 · 4 slices · Created 2026-10-26</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -545,10 +554,11 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <div data-node="1" data-name="gitwatch core: runner, PR checks snapshot, work-item link" data-status="pending" data-deps="" data-files="6"></div>
     <div data-node="2" data-name="Review state: decision, threads, requested reviewers, mergeability" data-status="pending" data-deps="1" data-files="2"></div>
     <div data-node="3" data-name="Branch health: ahead/behind, dirty, unpushed, stale worktrees" data-status="pending" data-deps="1" data-files="4"></div>
+    <div data-node="4" data-name="Base branch CI and releases" data-status="pending" data-deps="1" data-files="2"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="612" height="216" viewBox="0 0 612 216" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M232.3 80 L156.8 108 L156.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M383.3 80 L458.8 108 L458.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="175" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="307.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 gitwatch core: runner, PR che…</text><text class="dep-node-meta" x="307.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Review state: decision, threa…</text><text class="dep-node-meta" x="156.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="329.6" y="136" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="458.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Branch health: ahead/behind,…</text><text class="dep-node-meta" x="458.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a></g></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="896" height="216" viewBox="0 0 896 216" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M326 76.63 L156.8 108 L156.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M458.8 80 L458.8 108 L458.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M591.6 77.54 L750 108 L750 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="326" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="458.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 gitwatch core: runner, PR che…</text><text class="dep-node-meta" x="458.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Review state: decision, threa…</text><text class="dep-node-meta" x="156.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="329.6" y="136" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="458.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Branch health: ahead/behind,…</text><text class="dep-node-meta" x="458.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="628" y="136" width="244" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="750" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Base branch CI and releases</text><text class="dep-node-meta" x="750" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -899,6 +909,120 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slic-d7d68ace" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Base branch CI and releases">
+    <span class="slice-num">#4</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Base branch CI and releases</span>
+      <span class="slice-preview">Base = PR baseRefName, else plan basebranch, else main.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Base = PR baseRefName, else plan base_branch, else main. gh run list --branch &lt;base&gt; --limit N --json headSha,status,conclusion,workflowName,url,createdAt; mark &#39;base red too&#39; when the PR&#39;s base commit or latest base run failed. Releases: gh release view --json tagName,publishedAt, git rev-list --count ..origin/, latest runs of the release workflow (name a setting; default: workflow whose file matches release).</p>
+</div>
+          <label for="slice-4-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Tell a PR&#39;s own failure from a broken base; see unreleased work at a glance.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/gitwatch/base.go, internal/gitwatch/release.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>status shows base CI state and base-red-too flag</li><li>latest release tag and commits since</li><li>release workflow last run</li><li>no releases reported as none not error</li></ul>
+      </div>
+      
+    
+
+    
+
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="fixtures">
+            <span class="test-chip">FIXTURES &middot; 1</span>
+            <ul><li>base green, base red, no runs; release present, absent; commit count from temp repo</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
 
     <!--PLAN_SLICE_CARDS-->
   </div>
@@ -926,8 +1050,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">4</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">4</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">5</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">5</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -1019,7 +1143,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
