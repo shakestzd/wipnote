@@ -59,7 +59,9 @@ oneline() {
 }
 
 # redact: replace scratch, repo, home, any /Users/<name> or /home/<name>,
-# the user name (when it is not a generic account) and the host name.
+# any macOS per-user temp path (/var/folders/..., which a cut line can leave
+# only partly matching the scratch path), the user name (when it is not a
+# generic account) and the host name.
 redact() {
   P_SCRATCH="${SCRATCH:-}" P_CSCRATCH="${CSCRATCH:-}" P_REPO="${REPO:-}" \
     P_HOME="${HOME:-}" P_USER="${USER_NAME:-}" P_HOST="${HOST_NAME:-}" perl -pe '
@@ -67,6 +69,7 @@ redact() {
                   ["P_REPO","<repo>"],["P_HOME","~"]); }
     for my $p (@r) { my $v = $ENV{$p->[0]}; s/\Q$v\E/$p->[1]/g if length($v) > 1; }
     s{(/Users|/home)/[^/\s"'"'"'<>]+}{$1/<user>}g;
+    s{(?:/private)?/var/folders/[^\s"'"'"'<>]*}{<tmp>}g;
     my $u = $ENV{P_USER};
     s/(?<![\w])\Q$u\E(?![\w])/<user>/g if length($u) > 2 && $u !~ /^(root|user|admin|vscode|runner|ubuntu)$/;
     my $h = $ENV{P_HOST}; s/(?<![\w.-])\Q$h\E(?![\w-])/<host>/g if length($h) > 2;'
