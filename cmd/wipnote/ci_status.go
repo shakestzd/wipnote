@@ -47,6 +47,8 @@ func runCIStatus(ctx context.Context, w io.Writer, r gitwatch.Runner, arg string
 		return writeJSON(w, snap)
 	}
 	writeCIStatusText(w, snap)
+	writeBranchText(w, snap)
+	writeNotes(w, snap)
 	return nil
 }
 
@@ -79,9 +81,6 @@ func writeCIStatusText(w io.Writer, s *gitwatch.Snapshot) {
 		fmt.Fprintf(w, "  %-8s %s  %s\n", ch.Bucket, name, ch.Link)
 	}
 	writeReviewLine(w, s.Review)
-	for _, n := range s.Notes {
-		fmt.Fprintf(w, "note: %s\n", n)
-	}
 }
 
 // writeReviewLine prints "review: <decision> · <n> open threads · merge
@@ -99,4 +98,37 @@ func writeReviewLine(w io.Writer, rv *gitwatch.Review) {
 		line += " · requested " + strings.Join(rv.Requested, ", ")
 	}
 	fmt.Fprintln(w, line)
+}
+
+// writeBranchText prints the local branch health line and one line per stale
+// worktree. It prints nothing when there is no such section.
+func writeBranchText(w io.Writer, s *gitwatch.Snapshot) {
+	if b := s.Branch; b != nil {
+		if b.Base != "" {
+			fmt.Fprintf(w, "branch: %d ahead, %d behind %s · %d dirty · %d unpushed\n",
+				b.Ahead, b.Behind, b.Base, b.Dirty, b.Unpushed)
+		} else {
+			fmt.Fprintf(w, "branch: %s · %d dirty · %d unpushed\n", b.Name, b.Dirty, b.Unpushed)
+		}
+	}
+	for _, wt := range s.Worktrees {
+		if len(wt.Stale) == 0 {
+			continue
+		}
+		reasons := make([]string, 0, len(wt.Stale))
+		for _, r := range wt.Stale {
+			if r == gitwatch.StaleIdle {
+				r = fmt.Sprintf("idle %dd", wt.IdleDays)
+			}
+			reasons = append(reasons, r)
+		}
+		fmt.Fprintf(w, "stale worktree %s (%s): %s\n", wt.Path, wt.Branch, strings.Join(reasons, ", "))
+	}
+}
+
+// writeNotes prints each section's note once, after every section.
+func writeNotes(w io.Writer, s *gitwatch.Snapshot) {
+	for _, n := range s.Notes {
+		fmt.Fprintf(w, "note: %s\n", n)
+	}
 }

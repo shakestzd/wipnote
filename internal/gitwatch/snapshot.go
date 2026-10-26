@@ -17,8 +17,9 @@ type Counts struct {
 
 // Snapshot is the read state of one pull request. Available is false when gh
 // cannot be used or a gh read failed (missing, not signed in, an HTTP or
-// network error); Reason says why, or that no pull request matched. Later sections (review, branch, base,
-// release) join as omitempty pointers after Counts.
+// network error); Reason says why, or that no pull request matched. Later
+// sections (review, branch, base, release) are omitempty; a section whose
+// read failed stays nil and adds a line to Notes.
 type Snapshot struct {
 	Available bool      `json:"available"`
 	Reason    string    `json:"reason,omitempty"`
@@ -27,8 +28,12 @@ type Snapshot struct {
 	Checks    []Check   `json:"checks"`
 	Counts    Counts    `json:"counts"`
 	Review    *Review   `json:"review,omitempty"`
-	Notes     []string  `json:"notes,omitempty"`
 	FetchedAt time.Time `json:"fetched_at"`
+
+	// Local branch health (branch.go, worktrees.go); read even with no PR.
+	Branch    *Branch    `json:"branch,omitempty"`
+	Worktrees []Worktree `json:"worktrees,omitempty"`
+	Notes     []string   `json:"notes,omitempty"`
 }
 
 // BuildSnapshot resolves arg to a PR (see ResolvePR) and reads its basics
@@ -37,6 +42,7 @@ type Snapshot struct {
 // cancelled or expired ctx is an error.
 func BuildSnapshot(ctx context.Context, r Runner, arg string, now func() time.Time) (*Snapshot, error) {
 	s := &Snapshot{Available: true, Checks: []Check{}, FetchedAt: now().UTC()}
+	defer addBranchHealth(ctx, r, s, now) // local; runs on every return, after s.PR is set
 	pr, checks, err := fetchAll(ctx, r, arg)
 	switch {
 	case errors.Is(err, ErrNoPR):

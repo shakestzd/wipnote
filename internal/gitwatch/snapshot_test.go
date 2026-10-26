@@ -112,3 +112,46 @@ func TestSnapshotJSON_StableSnakeCase(t *testing.T) {
 		t.Errorf("empty reason should be omitted: %s", text)
 	}
 }
+
+// Branch health is local: a failed git read is a note, never a failed
+// snapshot, and it is read even when no pull request matched.
+func TestBuildSnapshot_BranchHealthFailureIsANote(t *testing.T) {
+	s, err := BuildSnapshot(context.Background(), snapshotFake(t), "42", fixedNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Branch != nil || s.Worktrees != nil || len(s.Notes) == 0 {
+		t.Errorf("want nil branch and worktrees with notes, got %+v / %+v / %q", s.Branch, s.Worktrees, s.Notes)
+	}
+	if s.PR == nil || s.Counts.Total != 6 {
+		t.Errorf("PR section must be unaffected: %+v", s)
+	}
+}
+
+func TestBuildSnapshot_BranchHealthWithoutPR(t *testing.T) {
+	r := newTestRepo(t)
+	r.commit("local.txt", "", 0)
+	t.Chdir(r.work)
+	gh := &FakeRunner{Results: map[string]FakeResult{
+		"gh pr list --head nobody --state all --limit 1 --json number": {Stdout: `[]`},
+	}}
+	s, err := BuildSnapshot(context.Background(), splitRunner{Git: ExecRunner{}, GH: gh}, "nobody", fixedNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.PR != nil || s.Branch == nil {
+		t.Fatalf("want branch health without a PR, got %+v", s)
+	}
+	if s.Branch.Name != "main" || s.Branch.Base != "origin/main" || s.Branch.Ahead != 1 || s.Branch.Unpushed != 1 {
+		t.Errorf("branch = %+v", *s.Branch)
+	}
+	if len(s.Worktrees) != 1 || s.Worktrees[0].Path != "." {
+		t.Errorf("worktrees = %+v", s.Worktrees)
+	}
+	data, _ := json.Marshal(s)
+	for _, k := range []string{`"branch":{`, `"worktrees":[`} {
+		if !strings.Contains(string(data), k) {
+			t.Errorf("missing %s in %s", k, data)
+		}
+	}
+}
