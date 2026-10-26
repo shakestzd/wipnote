@@ -13,6 +13,10 @@ export const COLOR: Record<string, string> = {
 /** The cadence of `wipnote ci watch`: checks while one is pending, else the slow sections. */
 export const CHECKS_MS = 15_000
 export const SLOW_MS = 60_000
+/** How long from the first read an open PR with no checks is still watched for them (ci watch --no-checks-grace). */
+export const NO_CHECKS_GRACE_MS = 120_000
+/** The note ci watch ends such a PR with. */
+export const NO_CHECKS_NOTE = 'no checks reported'
 
 const CLOSED = new Set(['MERGED', 'CLOSED'])
 
@@ -86,10 +90,25 @@ export function interval(s: Snapshot | null): number {
   return s !== null && s.counts.pending > 0 ? CHECKS_MS : SLOW_MS
 }
 
+/** An open PR still without a check once the grace from `since` has run out. */
+export function noChecksExpired(s: Snapshot, since: number, now: number): boolean {
+  if (!s.available || s.pr === undefined || CLOSED.has(s.pr.state)) return false
+  return s.counts.total === 0 && now - since >= NO_CHECKS_GRACE_MS
+}
+
+/** The wait before the next read, cut short at the grace end while there are no checks. */
+export function nextWait(s: Snapshot | null, since: number, now: number): number {
+  const wait = interval(s)
+  if (s === null || !s.available || s.pr === undefined || s.counts.total > 0) return wait
+  const left = since + NO_CHECKS_GRACE_MS - now
+  return left > 0 ? Math.min(wait, left) : wait
+}
+
 /** The toast when a followed PR settles; none without a PR. */
-export function toastText(s: Snapshot): string | undefined {
+export function toastText(s: Snapshot, noChecks = false): string | undefined {
   if (s.pr === undefined) return undefined
   const n = s.pr.number
+  if (noChecks) return `CI #${n}: ${NO_CHECKS_NOTE}`
   if (s.counts.fail > 0) return `CI #${n}: ${s.counts.fail} failed`
   if (s.pr.state === 'MERGED') return `PR #${n} merged`
   return `CI #${n}: all ${s.counts.total} checks finished`

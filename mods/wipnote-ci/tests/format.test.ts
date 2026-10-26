@@ -1,9 +1,9 @@
 import { expect, test } from 'claude-code/testing'
 
 import {
-  baseLines, branchLine, interval, prLine, releaseLine, reviewLine, settled, sortChecks, span, staleLines, summary, toastText,
+  NO_CHECKS_GRACE_MS, baseLines, branchLine, interval, nextWait, noChecksExpired, prLine, releaseLine, reviewLine, settled, sortChecks, span, staleLines, summary, toastText,
 } from '../hooks/format'
-import { COMPUTING, FAILED, FULL, GREEN, MERGED, NOW, NO_PR, RUNNING, UNAVAILABLE } from './fixtures/snapshots'
+import { COMPUTING, FAILED, FULL, GREEN, MERGED, NOW, NO_CHECKS, NO_PR, RUNNING, UNAVAILABLE } from './fixtures/snapshots'
 
 test('failed checks sort first, then cancelled, running, passed, skipped', async () => {
   expect(sortChecks(FULL.checks).map(c => c.name)).toEqual(['go-test', 'lint', 'build', 'docs'])
@@ -67,4 +67,20 @@ test('review, branch, base and release lines', async () => {
   expect(releaseLine(FULL.release!)).toBe('release v0.82.1 (2026-10-20), 14 commits since · release: green')
   expect(releaseLine(COMPUTING.release!)).toBe('release: none')
   expect(releaseLine({ state: 'published', tag: 'v1' })).toBe('release v1, commits since unknown')
+})
+
+test('an open PR with no checks settles only once the grace has run out', async () => {
+  expect(NO_CHECKS_GRACE_MS).toBe(120_000)
+  expect(noChecksExpired(NO_CHECKS, NOW, NOW + 119_000)).toBe(false)
+  expect(noChecksExpired(NO_CHECKS, NOW, NOW + 120_000)).toBe(true)
+  expect(noChecksExpired(RUNNING, NOW, NOW + 600_000)).toBe(false)
+  expect(noChecksExpired(UNAVAILABLE, NOW, NOW + 600_000)).toBe(false)
+  expect(noChecksExpired({ ...NO_CHECKS, pr: { ...NO_CHECKS.pr!, state: 'MERGED' } }, NOW, NOW + 600_000)).toBe(false)
+})
+
+test('the wait is cut short at the grace end so the grace ends on a fresh read', async () => {
+  expect(nextWait(NO_CHECKS, NOW, NOW)).toBe(60_000)
+  expect(nextWait(NO_CHECKS, NOW, NOW + 90_000)).toBe(30_000)
+  expect(nextWait(RUNNING, NOW, NOW + 90_000)).toBe(15_000)
+  expect(nextWait(UNAVAILABLE, NOW, NOW + 90_000)).toBe(60_000)
 })

@@ -87,8 +87,12 @@ export type CiView = {
   fetchedAt: number
   /** The last read's problem, empty when it worked */
   error: string
-  /** Settled (no check pending, the PR merged or closed, or no PR matched): polling has stopped */
+  /** Settled (no check pending, the PR merged or closed, no PR matched, or no checks after the grace): polling has stopped */
   done: boolean
+  /** When the first read of this /ci finished: the no-checks grace runs from here */
+  since: number
+  /** Settled because the PR still had no checks when the grace ran out */
+  noChecks: boolean
 }
 
 declare module 'claude-code' {

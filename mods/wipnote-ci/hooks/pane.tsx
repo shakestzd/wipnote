@@ -2,7 +2,7 @@ import type { EngineInterface } from 'claude-code'
 
 import type { CiView, Snapshot } from '../types'
 import {
-  COLOR, ICON, baseLines, branchLine, cut, interval, prLine, releaseLine, reviewLine, sortChecks, span, staleLines,
+  COLOR, ICON, NO_CHECKS_NOTE, baseLines, branchLine, cut, interval, prLine, releaseLine, reviewLine, sortChecks, span, staleLines,
 } from './format'
 
 type UI = ReturnType<EngineInterface['ui']['resolve']>
@@ -44,10 +44,10 @@ function Head({ Box, Text }: UI, s: Snapshot, width: number) {
 }
 
 // Every check goes in the tree: the pane's body scrolls a taller one.
-function Checks({ Box, Text }: UI, s: Snapshot, now: number, width: number) {
+function Checks({ Box, Text }: UI, v: CiView, s: Snapshot, now: number, width: number) {
   if (s.pr === undefined) return null
   const sorted = sortChecks(s.checks)
-  if (sorted.length === 0) return <Text dimColor>No checks reported yet.</Text>
+  if (sorted.length === 0) return <Text dimColor>{v.noChecks ? NO_CHECKS_NOTE : 'No checks reported yet.'}</Text>
   return (
     <Box flexDirection="column">
       {sorted.map((c, i) => {
@@ -101,7 +101,7 @@ export function paneTree(ui: UI, v: CiView, now: number, width: number) {
     <Box flexDirection="column">
       {Head(ui, s, width)}
       <Text> </Text>
-      {Checks(ui, s, now, width)}
+      {Checks(ui, v, s, now, width)}
       <Text> </Text>
       {Sections(ui, s)}
       <Text> </Text>

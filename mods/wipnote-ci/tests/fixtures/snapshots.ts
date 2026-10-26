@@ -95,3 +95,6 @@ export const NO_PR: Snapshot = {
   counts: { pass: 0, fail: 0, pending: 0, other: 0, total: 0 },
   fetched_at: '2026-10-25T23:05:00Z',
 }
+
+/** An open PR whose checks have not registered yet. */
+export const NO_CHECKS = withChecks([])

@@ -2,15 +2,15 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import type { CiView, Snapshot } from '../types'
-import { failReason, interval, parseSnapshot, settled, summary, toastText } from './format'
+import { failReason, nextWait, noChecksExpired, parseSnapshot, settled, summary, toastText } from './format'
 import { paneTree } from './pane'
 
 const PANE = 'wipnote-ci'
-const EMPTY: CiView = { arg: null, snap: null, fetchedAt: 0, error: '', done: false }
+const EMPTY: CiView = { arg: null, snap: null, fetchedAt: 0, error: '', done: false, since: 0, noChecks: false }
 
 // Change a tag when the fields of its value change: it declines what an
 // earlier version stored, which outlives a reload.
-const view = atom({ plugin: 'wipnote-ci', key: 'view' } as const, EMPTY, { shape: 'view-1' })
+const view = atom({ plugin: 'wipnote-ci', key: 'view' } as const, EMPTY, { shape: 'view-2' })
 const clock = atom({ plugin: 'wipnote-ci', key: 'now' } as const, 0, { shape: 'now-1' })
 
 // The next read (rescheduled after each one, at the watch cadence) and the
@@ -46,11 +46,13 @@ async function refresh($: EngineInterface, arg: string): Promise<CiView> {
   if (typeof got === 'string') {
     return update($, view, old => ({ ...old, fetchedAt: now, error: got.slice(0, 200) }))
   }
-  const done = settled(got)
-  const next = await update($, view, () => ({ arg, snap: got, fetchedAt: now, error: '', done }))
+  const since = before.since === 0 ? now : before.since
+  const noChecks = noChecksExpired(got, since, now)
+  const done = noChecks || settled(got)
+  const next = await update($, view, () => ({ arg, snap: got, fetchedAt: now, error: '', done, since, noChecks }))
   await update($, clock, () => now)
   if (got.pr !== undefined) await $.ui.status(summary(got))
-  const toast = toastText(got)
+  const toast = toastText(got, noChecks)
   if (done && !before.done && toast !== undefined) await $.ui.toast(toast)
   return next
 }
@@ -63,7 +65,7 @@ async function cycle($: EngineInterface, arg: string, mine: number) {
     stop()
     return
   }
-  poll = $.clock.after(interval(v.snap), () => void cycle($, arg, mine).catch(() => undefined))
+  poll = $.clock.after(nextWait(v.snap, v.since, await $.clock.now()), () => void cycle($, arg, mine).catch(() => undefined))
 }
 
 async function follow($: EngineInterface, arg: string): Promise<string> {

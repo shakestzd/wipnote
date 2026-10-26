@@ -3,7 +3,7 @@ import { mock, expect, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
 import type { Snapshot } from '../types'
-import { COMPUTING, FAILED, FULL, GREEN, MERGED, NOW, RUNNING, UNAVAILABLE } from './fixtures/snapshots'
+import { COMPUTING, FAILED, FULL, GREEN, MERGED, NOW, NO_CHECKS, RUNNING, UNAVAILABLE } from './fixtures/snapshots'
 
 const PANE = {
   plugin: 'wipnote-ci',
@@ -180,4 +180,34 @@ test('unreadable output keeps the last snapshot and shows the problem', async ($
   const shown = (await texts($)).map(t => t.text)
   expect(shown).toContain('● lint 5:15')
   expect(shown).toContain('last read failed: unreadable output from wipnote ci status')
+})
+
+test('an open PR still without checks after the 2 m grace settles, noted and toasted', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const w = engine(on, NO_CHECKS)
+  await start($, '85')
+  await clock.advance(119_000)
+  expect(w.runs).toHaveLength(2)
+  expect(w.seen.some(l => l.startsWith('toast:'))).toBe(false)
+  await clock.advance(1_000)
+  expect(w.runs).toHaveLength(3)
+  expect(w.seen.filter(l => l.startsWith('toast:'))).toEqual(['toast:CI #85: no checks reported'])
+  await clock.advance(600_000)
+  expect(w.runs).toHaveLength(3)
+  const shown = (await texts($)).map(t => t.text)
+  expect(shown).toContain('no checks reported')
+  expect(shown.some(l => l.startsWith('finished'))).toBe(true)
+})
+
+test('checks that appear inside the grace are followed as normal', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const w = engine(on, NO_CHECKS)
+  await start($, '85')
+  w.snap = RUNNING
+  await clock.advance(60_000)
+  expect(w.runs).toHaveLength(2)
+  await clock.advance(120_000)
+  expect(w.runs).toHaveLength(10)
+  expect(w.seen.some(l => l.startsWith('toast:'))).toBe(false)
+  expect((await texts($)).map(t => t.text)).toContain('● lint 8:00')
 })

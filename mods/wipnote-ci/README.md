@@ -29,10 +29,10 @@ live, every 15 s · read 23:05:00
 ## What it does
 
 - **`/ci`** follows the current branch's pull request (else your newest open one), **`/ci 85`** pull request 85, **`/ci <branch>`** that branch's. The argument goes to `wipnote ci status` unchanged; the CLI resolves it.
-- **Polls** at `wipnote ci watch`'s cadence: every 15 s while any check is pending, otherwise every 60 s. It stops once settled: at least one check and none pending, the PR merged or closed, or no PR matched. The elapsed time of each check ticks every second.
+- **Polls** at `wipnote ci watch`'s cadence: every 15 s while any check is pending, otherwise every 60 s. It stops once settled: at least one check and none pending, the PR merged or closed, or no PR matched. An open PR with no checks is watched for a 2-minute grace from the first read (`NO_CHECKS_GRACE_MS`, as `ci watch --no-checks-grace`), the last wait cut short so the grace ends on a fresh read; still none then, it settles showing `no checks reported`. Checks that appear inside the grace are followed as normal. The elapsed time of each check ticks every second.
 - **Shows** the title and PR line with the linked work item, the counts, the checks (failed first, each failure with its link), review (decision, open threads, merge state or `computing`, requested reviewers), branch health (ahead/behind, dirty, unpushed, stale worktrees), the base branch's CI with its failing workflows, the latest release, and the CLI's notes.
 - **`available: false`** (gh missing, signed out, a failed read) shows the reason dimmed and keeps polling every 60 s. Output it cannot read keeps the last snapshot and adds a `last read failed` line.
-- **Status line:** `CI #85: 3/5 passed · 1 failed · 1 running`. **Toast** when it settles: `CI #85: 2 failed`, `PR #85 merged` or `CI #85: all 5 checks finished`.
+- **Status line:** `CI #85: 3/5 passed · 1 failed · 1 running`. **Toast** when it settles: `CI #85: 2 failed`, `PR #85 merged`, `CI #85: no checks reported` or `CI #85: all 5 checks finished`.
 - **`/ci stop`** cancels both timers (the poll and the one-second tick) and clears the status line; the pane keeps the last read, marked stopped.
 
 ## Files
@@ -60,6 +60,6 @@ claude --plugin-dir mods/wipnote-ci
 
 ```bash
 claude plugin validate mods/wipnote-ci
-claude plugin test mods/wipnote-ci     # 19 tests
+claude plugin test mods/wipnote-ci     # 23 tests
 tsc -p mods/wipnote-ci                 # after a load lays .claude-plugin/types/
 ```
