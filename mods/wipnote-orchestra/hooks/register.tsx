@@ -7,6 +7,8 @@ import { drawBand } from './band'
 import { hydrate, refreshAfterTurn, refreshChanged, registerRefs, storeCard, wipnoteJSON } from './refcards'
 import { parseWho } from './refs'
 import { findProject, newRunCache, readRuns } from './runs'
+import type { SwapState } from './swap'
+import { swapClassic, swapSeen, swapStarted } from './swap'
 import {
   STALL_MS,
   keepFor,
@@ -189,6 +191,22 @@ async function refreshRuns($: EngineInterface, tick: number) {
   }
 }
 
+/** A swapped-in conversation: its project's runs, its claim, the cards its transcript references. */
+function rehydrate($: EngineInterface) {
+  runsProject = undefined
+  void refreshClaim($).catch(() => undefined)
+  void hydrate($).catch(() => undefined)
+}
+
+async function sessionId($: EngineInterface): Promise<string | undefined> {
+  return $.session.id().catch(() => undefined)
+}
+
+/** Rehydrates once when the session id moved since it was last seen (swap.ts). */
+async function checkSwap($: EngineInterface, swap: SwapState) {
+  if (swapSeen(swap, await sessionId($))) rehydrate($)
+}
+
 async function bandData($: EngineInterface, zone: string): Promise<BandData> {
   const [info, rows, ended, work, known, doing, delegated, at] = await Promise.all([
     read($, prompt),
@@ -206,6 +224,7 @@ async function bandData($: EngineInterface, zone: string): Promise<BandData> {
 export const register: Register = (on, options) => {
   const zone = zoneOf(options.timeZone)
   const pending = new Map<string, Hint>()
+  const swap: SwapState = {}
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -214,6 +233,7 @@ export const register: Register = (on, options) => {
       argumentHint: 'full|compact|off|above|below',
     })
     await refreshPrompt($).catch(() => undefined)
+    swapStarted(swap, await sessionId($))
     void refreshClaim($).catch(() => undefined)
     void hydrate($).catch(() => undefined)
     const started = await $.clock.now()
@@ -223,6 +243,7 @@ export const register: Register = (on, options) => {
     let tick = 0
     $.clock.every(1000, () => {
       tick += 1
+      void checkSwap($, swap).catch(() => undefined) // a swap whose classic.SessionStart was skipped
       void (async () => {
         const at = await $.clock.now()
         const rows = await read($, agents)
@@ -262,6 +283,8 @@ export const register: Register = (on, options) => {
       model: e.model !== undefined ? modelLabel(e.model) : undefined,
     }
     pending.set(e.description, hint)
+    // A main-loop spawn carries the main loop's mode: a source no classic.* skip can hide.
+    await noteMode($, { permission_mode: e.permissionMode, agent_id: e.parentAgentId })
     const at = await $.clock.now()
     const ran = await next(e)
     const id = ran.agentId
@@ -369,15 +392,18 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // /resume, /branch and /clear swap the conversation, but session.start does
-  // not fire again; the settings SessionStart does.
+  // /resume, /branch and /clear swap the conversation, but session.start does not fire again.
+  // The settings SessionStart does, unless a plugin above continues it past this one, so the
+  // swap is also caught by the changed session id: here, at session.end and on the tick.
+  on('session.end', async ($, e, next) => {
+    const r = await next(e)
+    if (e.reason === 'clear' || e.reason === 'resume') await checkSwap($, swap)
+    return r
+  })
+
   on('classic.SessionStart', async ($, e, next) => {
     await noteMode($, e) // a launch in a mode (wipnote claude's auto) shows its pill before any prompt
-    if (e.source !== 'startup') {
-      runsProject = undefined
-      void refreshClaim($).catch(() => undefined)
-      void hydrate($).catch(() => undefined)
-    }
+    if (e.source !== 'startup' && swapClassic(swap, await sessionId($))) rehydrate($)
     return next(e)
   })
 
