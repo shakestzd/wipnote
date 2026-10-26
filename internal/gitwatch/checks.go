@@ -18,7 +18,8 @@ const (
 )
 
 // checkFields is the --json field list asked of gh pr checks. gh has no
-// required-ness field here, so Check.Required stays false for now.
+// required-ness field here; MarkRequired sets Check.Required from the
+// review GraphQL call.
 const checkFields = "name,state,bucket,startedAt,completedAt,link,workflow,event"
 
 // Check is one CI check on a pull request.

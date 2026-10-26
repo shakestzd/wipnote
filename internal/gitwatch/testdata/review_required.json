@@ -1,0 +1,1 @@
+{"reviewDecision":"REVIEW_REQUIRED","reviewRequests":[{"__typename":"User","login":"carol"},{"__typename":"Team","name":"Platform","slug":"acme/platform"}],"latestReviews":[],"mergeable":"MERGEABLE","mergeStateStatus":"BLOCKED","baseRefOid":"1111111111111111111111111111111111111111"}
