@@ -1,0 +1,6 @@
+{
+  "name": "wipnote-ci",
+  "version": "0.1.0",
+  "description": "A side pane that follows a pull request's CI live through wipnote ci status: checks failed first with elapsed time, review, branch health, base, release and the linked work item.",
+  "types": "./types/index.d.ts"
+}
