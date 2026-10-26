@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 8
+    version: 9
 design:
     problem: ""
     goals: []
@@ -148,6 +148,27 @@ slices:
       effort: M
       risk: Low
       tests: Port ci-live register.test; render tests from JSON fixtures; stop clears timers
+      approved: false
+      comment: ""
+    - id: slic-6aaa0733
+      num: 7
+      title: Work-item links and gate warning
+      what: wipnote check --gate --work-item <id> finds the PR whose branch or title names the id and adds a WARN (not a fail) line when its CI is red, it has a conflict, or unresolved threads; skipped silently when gh is unavailable. 'wipnote ci status --work-item <id>' resolves the PR from the id. Feature show prints the linked PR and its CI state.
+      why: Plans and work items are the durable layer; PR state should show where the work is tracked.
+      files:
+        - cmd/wipnote/check.go
+        - internal/gitwatch/link.go
+      deps:
+        - 1
+        - 2
+      done_when:
+        - gate warns on red
+        - conflicted or threaded PR and stays exit 0
+        - no gh means no line and no delay beyond the runner timeout
+        - ci status --work-item resolves the PR
+      effort: S
+      risk: Med
+      tests: Gate test with fake runner for red, green, conflict, no gh; two-sided
       approved: false
       comment: ""
 questions: []
