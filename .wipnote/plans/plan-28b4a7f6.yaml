@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 73
+    version: 75
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -351,7 +351,7 @@ slices:
       comment: ""
       research_waiver: A docs-only slice. Its facts come from slices 1 and 2 and the owner's answers.
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |
         **Trigger:** slices 1 and 2 are done and the plan questions are answered.
         **State:** orch-integration.md keeps its history and gains a pointer; delegate.md becomes the spec.
@@ -2056,7 +2056,7 @@ slices:
           claim: A plugin skill is a SKILL.md with name and description frontmatter; Claude Code loads it from the plugin's skills directory.
           accessed: "2026-10-26"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
@@ -2749,6 +2749,11 @@ feedback:
           updated_at: "2026-10-26T22:08:35Z"
         - section: slice-28
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-10-26T22:08:39Z"
-          updated_at: "2026-10-26T22:08:39Z"
+          updated_at: "2026-10-26T23:18:35Z"
+        - section: slice-3
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-26T23:18:35Z"
+          updated_at: "2026-10-26T23:18:35Z"
