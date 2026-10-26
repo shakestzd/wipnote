@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 4
+    version: 5
 design:
     problem: ""
     goals: []
@@ -59,6 +59,29 @@ slices:
       effort: S
       risk: Low
       tests: Fixtures for APPROVED, CHANGES_REQUESTED, conflicts (DIRTY), BEHIND, UNKNOWN; thread counting excludes resolved
+      approved: false
+      comment: ""
+    - id: slic-39943c21
+      num: 3
+      title: 'Branch health: ahead/behind, dirty, unpushed, stale worktrees'
+      what: 'Local git only. One NUL-separated for-each-ref call (port git-town format + determineSyncStatus; lazygit ahead-behind parser, falling back to rev-list --left-right --count on git <2.41). git status --porcelain=v2 --branch for dirty and unpushed. Worktrees from git worktree list --porcelain (port gh-poi parseWorktrees). Stale when ANY of: branch merged into base incl squash (gh-poi isFullyMerged), upstream gone, idle N days (setting, default 7, via layered config), PR closed unmerged. Reports only; never removes a worktree. Replace context_pack gitAheadBehind with the shared code.'
+      why: Most lost work in this repo is a stale worktree or an unpushed branch.
+      files:
+        - internal/gitwatch/branch.go
+        - internal/gitwatch/worktrees.go
+        - cmd/wipnote/context_pack.go
+        - THIRD-PARTY-NOTICES.md
+      deps:
+        - 1
+      done_when:
+        - status shows ahead/behind base
+        - dirty and unpushed counts
+        - worktree list marks each stale reason
+        - idle days read from config
+        - nothing is deleted
+      effort: M
+      risk: Med
+      tests: 'Temp git repos (no real project): ahead/behind, dirty, unpushed, merged, squash-merged, upstream gone, idle via faked commit dates; old-git fallback path'
       approved: false
       comment: ""
 questions: []
