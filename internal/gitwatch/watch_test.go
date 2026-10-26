@@ -45,9 +45,15 @@ type watchRun struct {
 }
 
 func runWatch(ctx context.Context, f *FakeRunner, arg string, timeout time.Duration) watchRun {
+	return runWatchWith(ctx, f, WatchOptions{Arg: arg, Timeout: timeout})
+}
+
+// runWatchWith runs Watch with o on a fresh fake clock, recording emits.
+func runWatchWith(ctx context.Context, f *FakeRunner, o WatchOptions) watchRun {
 	w := watchRun{clock: &FakeClock{T: fixedNow()}}
-	w.code, w.err = Watch(ctx, f, WatchOptions{Arg: arg, Timeout: timeout, Clock: w.clock,
-		Emit: func(s *Snapshot) error { w.emitted = append(w.emitted, s); return nil }})
+	o.Clock = w.clock
+	o.Emit = func(s *Snapshot) error { w.emitted = append(w.emitted, s); return nil }
+	w.code, w.err = Watch(ctx, f, o)
 	return w
 }
 
@@ -95,7 +101,8 @@ func TestWatch_CadencePerSection(t *testing.T) {
 // With no check pending (none registered yet) everything polls every 60s.
 func TestWatch_BacksOffWhenNothingPending(t *testing.T) {
 	f := watchFake(t, `[]`)
-	w := runWatch(context.Background(), f, "42", 3*time.Minute)
+	w := runWatchWith(context.Background(), f, WatchOptions{Arg: "42", Timeout: 3 * time.Minute,
+		NoChecksGrace: 10 * time.Minute})
 	if w.err != nil || w.code != WatchTimeout {
 		t.Fatalf("want timeout exit 2, got %d, %v", w.code, w.err)
 	}
@@ -160,8 +167,8 @@ func TestWatch_NotAvailable(t *testing.T) {
 	f = watchFake(t, checksPending, checksPending)
 	f.Seq[checksArgv][1] = FakeResult{Stderr: "HTTP 502: Bad Gateway", Exit: 1}
 	w = runWatch(context.Background(), f, "42", time.Hour)
-	if w.code != WatchNotAvailable || w.emitted[len(w.emitted)-1].Available {
-		t.Errorf("mid-watch failure: got %d", w.code)
+	if w.code != WatchNotAvailable || w.emitted[len(w.emitted)-1].Available || waits(w.clock) != "15s 15s 15s" {
+		t.Errorf("mid-watch failure: got %d, waits %s; want exit 3 after three failed reads", w.code, waits(w.clock))
 	}
 }
 

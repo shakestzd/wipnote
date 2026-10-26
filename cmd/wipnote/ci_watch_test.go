@@ -74,16 +74,38 @@ func TestCIWatch_ExitCodes(t *testing.T) {
 	failed.Seq[ciWatchChecksArgv] = []gitwatch.FakeResult{ciWatchCheck("FAILURE", "fail")}
 	pending := ciWatchFake()
 	pending.Seq[ciWatchChecksArgv] = []gitwatch.FakeResult{ciWatchCheck("IN_PROGRESS", "pending")}
+	cancelled := ciWatchFake()
+	cancelled.Seq[ciWatchChecksArgv] = []gitwatch.FakeResult{ciWatchCheck("CANCELLED", "cancel")}
 	gone := &gitwatch.FakeRunner{Results: map[string]gitwatch.FakeResult{
 		"gh pr view 7 --json number,title,headRefName,baseRefName,state,url": {Err: gitwatch.ErrNotAvailable}}}
 	cases := []struct {
 		name string
 		f    *gitwatch.FakeRunner
 		want int
-	}{{"passed", ciWatchFake(), 0}, {"failed", failed, 1}, {"timeout", pending, 2}, {"not available", gone, 3}}
+	}{{"passed", ciWatchFake(), 0}, {"failed", failed, 1}, {"cancelled", cancelled, 1}, {"timeout", pending, 2}, {"not available", gone, 3}}
 	for _, c := range cases {
 		if code, out := watchOnce(t, c.f, ciWatchOpts{timeout: time.Minute}); code != c.want {
 			t.Errorf("%s: exit %d, want %d:\n%s", c.name, code, c.want, out)
+		}
+	}
+}
+
+// --no-checks-grace reaches the loop: zero checks for 90s ends with a note
+// and exit 0 at 12:01:30, not at the 2m default.
+func TestCIWatch_NoChecksGrace(t *testing.T) {
+	f := ciWatchFake()
+	f.Seq[ciWatchChecksArgv] = []gitwatch.FakeResult{{Stderr: "no checks reported on the 'x' branch\n", Exit: 1}}
+	code, out := watchOnce(t, f, ciWatchOpts{timeout: time.Hour, noChecksGrace: 90 * time.Second})
+	if code != 0 || !strings.Contains(out, "--- 2026-10-26T12:01:30Z") || !strings.Contains(out, "note: no checks reported") {
+		t.Errorf("want exit 0 with the note at 12:01:30, got %d:\n%s", code, out)
+	}
+}
+
+func TestCIWatch_HelpNamesExitCodesAndGrace(t *testing.T) {
+	long := ciWatchCmd().Long
+	for _, want := range []string{"--no-checks-grace", "1 a check failed or was cancelled", "3 failed reads in a row"} {
+		if !strings.Contains(long, want) {
+			t.Errorf("help is missing %q:\n%s", want, long)
 		}
 	}
 }
@@ -111,7 +133,8 @@ func TestCIWatch_RegisteredWithDefaults(t *testing.T) {
 	if err != nil || cmd.Name() != "watch" {
 		t.Fatalf("ci watch not registered: %v", err)
 	}
-	for flag, want := range map[string]string{"timeout": "1h0m0s", "interval-checks": "15s", "interval-slow": "1m0s", "json-lines": "false"} {
+	for flag, want := range map[string]string{"timeout": "1h0m0s", "interval-checks": "15s", "interval-slow": "1m0s", "json-lines": "false",
+		"no-checks-grace": "2m0s"} {
 		if f := cmd.Flags().Lookup(flag); f == nil || f.DefValue != want {
 			t.Errorf("--%s: %+v, want default %s", flag, f, want)
 		}
