@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 6
+    version: 7
 design:
     problem: ""
     goals: []
@@ -102,6 +102,28 @@ slices:
       effort: S
       risk: Low
       tests: 'Fixtures: base green, base red, no runs; release present, absent; commit count from temp repo'
+      approved: false
+      comment: ""
+    - id: slic-c42f5f06
+      num: 5
+      title: 'wipnote ci watch: bounded poll loop'
+      what: 'Foreground loop, no daemon: checks every 15s while any are pending, review/base/release every 60s, back off to 60s when nothing runs, stop when settled (no pending checks or PR merged/closed) or --timeout. --json-lines emits one snapshot per change; text mode redraws a summary. Exit code: 0 all passed, 1 any failed, 2 timeout, 3 not available.'
+      why: One watcher for the pane, Codex/Antigravity shells and scripts; orch-style durable settle.
+      files:
+        - internal/gitwatch/watch.go
+        - cmd/wipnote/ci_watch.go
+      deps:
+        - 1
+        - 2
+        - 3
+        - 4
+      done_when:
+        - watch stops on settle and on timeout with documented exit codes
+        - review state polled at the slower rate
+        - never runs from a hook
+      effort: S
+      risk: Low
+      tests: 'Fake clock and runner: cadence per field, backoff, settle on merged, timeout exit 2, json-lines only on change'
       approved: false
       comment: ""
 questions: []
