@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 54
+    version: 55
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -1918,8 +1918,20 @@ slices:
       effort: L
       risk: Med
       tests: 'Integration (fake herdr and codex stub): TestCodexRun_InteractiveInHerdr, TestCodexRun_ExecOutsideHerdr, TestCodexRun_TrustDialogByLabel, TestCodexRun_ResultFile, TestCodexRun_TokensFromRollout, TestCodexRun_SandboxLadder'
+      complexity: complex
       approved: false
       comment: ""
+      research:
+        - url: https://learn.chatgpt.com/docs/hooks
+          claim: Codex CLI hooks include SessionStart and Stop; Stop carries the last assistant message in the TUI.
+          accessed: "2026-10-26"
+        - url: https://github.com/shakestzd/wipnote/blob/delegate/d2/docs/design/delegate-phase-b.md
+          claim: Phase B C1-C3 passed on the owner's Mac (codex-cli 0.164.0); B3b and B4 show the TUI SessionStart row tagged codex.
+          accessed: "2026-10-26"
+      questions:
+        - id: q-codex-workers
+          text: After the Phase B Codex probes, how do Codex delegate runs work?
+          answer: Inside herdr, Codex runs become interactive workers like Claude; outside herdr, codex exec stays (owner 2026-10-26).
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
