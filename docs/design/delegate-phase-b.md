@@ -380,8 +380,10 @@ Follow-ups by slice:
 - **Slice 10:** `delegate spawn` must answer or report the folder-trust dialog, by its labels. Claude's
   dialog shows "No, exit" and "Yes, I trust this folder", with the cursor on "No, exit". Codex's shows
   "1. Trust and continue" and "2. Quit", with the cursor on option 1. A bare Enter is not safe. Spawn
-  accepts the dialog for a folder delegate created and reports the worker as blocked otherwise. It also
-  checks orch's or its own session cap first and reports "at cap" as its own outcome.
+  detects the dialog by these labels and never presses a key on it: it pre-seeds trust for a folder
+  delegate created (as slice 22 does), and otherwise reports the worker as blocked and names the dialog.
+  The plan keeps auto-accepting trust prompts a non-goal. Spawn also checks the session cap first and
+  reports "at cap" as its own outcome.
 - **Slice 22 and slice 26 (Codex):** C1, C2, C3, B4, B5 and B3b pass, which meets slice 22's condition.
   **Owner decision (2026-10-26):** Codex workers run interactively in a herdr pane, as Claude workers
   do; `codex exec` stays for runs outside herdr. This is slice 26.
