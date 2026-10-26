@@ -95,6 +95,9 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 					}
 					fmt.Printf(" with signature %s\n", slug.Truncate(result.Record.Signature, 12))
 				}
+				// Warn only (feat-f3b00ab5): a red, conflicted or threaded linked
+				// PR adds one line and never changes the gate's exit code.
+				writeGatePRWarning(os.Stdout, linkRunner, workItemID)
 				if !result.Passed {
 					if result.Skipped {
 						return fmt.Errorf("quality gate skipped — no supported project manifest detected; see WARN above (this is not a pass)")
