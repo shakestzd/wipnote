@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -46,6 +47,7 @@ func runCIStatus(ctx context.Context, w io.Writer, r gitwatch.Runner, arg string
 		return writeJSON(w, snap)
 	}
 	writeCIStatusText(w, snap)
+	writeBranchText(w, snap)
 	return nil
 }
 
@@ -76,5 +78,34 @@ func writeCIStatusText(w io.Writer, s *gitwatch.Snapshot) {
 			name = ch.Workflow + " / " + ch.Name
 		}
 		fmt.Fprintf(w, "  %-8s %s  %s\n", ch.Bucket, name, ch.Link)
+	}
+}
+
+// writeBranchText prints the local branch health line, one line per stale
+// worktree, and any notes. It prints nothing when there is no such section.
+func writeBranchText(w io.Writer, s *gitwatch.Snapshot) {
+	if b := s.Branch; b != nil {
+		if b.Base != "" {
+			fmt.Fprintf(w, "branch: %d ahead, %d behind %s · %d dirty · %d unpushed\n",
+				b.Ahead, b.Behind, b.Base, b.Dirty, b.Unpushed)
+		} else {
+			fmt.Fprintf(w, "branch: %s · %d dirty · %d unpushed\n", b.Name, b.Dirty, b.Unpushed)
+		}
+	}
+	for _, wt := range s.Worktrees {
+		if len(wt.Stale) == 0 {
+			continue
+		}
+		reasons := make([]string, 0, len(wt.Stale))
+		for _, r := range wt.Stale {
+			if r == gitwatch.StaleIdle {
+				r = fmt.Sprintf("idle %dd", wt.IdleDays)
+			}
+			reasons = append(reasons, r)
+		}
+		fmt.Fprintf(w, "stale worktree %s (%s): %s\n", wt.Path, wt.Branch, strings.Join(reasons, ", "))
+	}
+	for _, n := range s.Notes {
+		fmt.Fprintf(w, "note: %s\n", n)
 	}
 }

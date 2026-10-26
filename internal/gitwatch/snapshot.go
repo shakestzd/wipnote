@@ -27,6 +27,11 @@ type Snapshot struct {
 	Checks    []Check   `json:"checks"`
 	Counts    Counts    `json:"counts"`
 	FetchedAt time.Time `json:"fetched_at"`
+
+	// Local branch health (branch.go, worktrees.go); read even with no PR.
+	Branch    *Branch    `json:"branch,omitempty"`
+	Worktrees []Worktree `json:"worktrees,omitempty"`
+	Notes     []string   `json:"notes,omitempty"`
 }
 
 // BuildSnapshot resolves arg to a PR (see ResolvePR) and reads its basics
@@ -35,6 +40,7 @@ type Snapshot struct {
 // cancelled or expired ctx is an error.
 func BuildSnapshot(ctx context.Context, r Runner, arg string, now func() time.Time) (*Snapshot, error) {
 	s := &Snapshot{Available: true, Checks: []Check{}, FetchedAt: now().UTC()}
+	defer addBranchHealth(ctx, r, s, now) // local; runs on every return, after s.PR is set
 	pr, checks, err := fetchAll(ctx, r, arg)
 	switch {
 	case errors.Is(err, ErrNoPR):

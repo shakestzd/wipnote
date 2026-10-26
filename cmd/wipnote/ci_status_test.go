@@ -82,3 +82,34 @@ func TestCIStatus_Registered(t *testing.T) {
 		t.Error("ci status needs --json")
 	}
 }
+
+func TestCIStatus_BranchText(t *testing.T) {
+	s := &gitwatch.Snapshot{
+		Branch: &gitwatch.Branch{Name: "feat", Base: "origin/main", Ahead: 3, Behind: 1, Dirty: 2, Unpushed: 4},
+		Worktrees: []gitwatch.Worktree{
+			{Path: ".", Branch: "main", Main: true},
+			{Path: "wt-old", Branch: "old", Stale: []string{gitwatch.StaleMerged, gitwatch.StaleIdle}, IdleDays: 12},
+		},
+		Notes: []string{"pr_closed not checked: gh not found"},
+	}
+	var out bytes.Buffer
+	writeBranchText(&out, s)
+	text := out.String()
+	for _, want := range []string{
+		"branch: 3 ahead, 1 behind origin/main · 2 dirty · 4 unpushed",
+		"stale worktree wt-old (old): merged, idle 12d",
+		"note: pr_closed not checked",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("missing %q in:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "worktree . ") {
+		t.Errorf("only stale worktrees are listed:\n%s", text)
+	}
+	out.Reset()
+	writeBranchText(&out, &gitwatch.Snapshot{})
+	if out.Len() != 0 {
+		t.Errorf("no branch section prints nothing, got %q", out.String())
+	}
+}
