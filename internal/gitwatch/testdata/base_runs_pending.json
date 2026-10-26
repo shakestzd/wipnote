@@ -1,0 +1,4 @@
+[
+ {"headSha":"b5","status":"queued","conclusion":"","workflowName":"CI","url":"https://example.test/runs/32","createdAt":"2026-10-25T12:00:00Z"},
+ {"headSha":"b4","status":"completed","conclusion":"success","workflowName":"CI","url":"https://example.test/runs/31","createdAt":"2026-10-25T09:00:00Z"}
+]

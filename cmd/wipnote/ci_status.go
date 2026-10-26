@@ -48,6 +48,7 @@ func runCIStatus(ctx context.Context, w io.Writer, r gitwatch.Runner, arg string
 	}
 	writeCIStatusText(w, snap)
 	writeBranchText(w, snap)
+	writeBaseRelease(w, snap)
 	writeNotes(w, snap)
 	return nil
 }

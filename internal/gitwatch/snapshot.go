@@ -28,6 +28,8 @@ type Snapshot struct {
 	Checks    []Check   `json:"checks"`
 	Counts    Counts    `json:"counts"`
 	Review    *Review   `json:"review,omitempty"`
+	Base      *Base     `json:"base,omitempty"`
+	Release   *Release  `json:"release,omitempty"`
 	FetchedAt time.Time `json:"fetched_at"`
 
 	// Local branch health (branch.go, worktrees.go); read even with no PR.
@@ -47,7 +49,7 @@ func BuildSnapshot(ctx context.Context, r Runner, arg string, now func() time.Ti
 	switch {
 	case errors.Is(err, ErrNoPR):
 		s.Reason = err.Error()
-		return s, nil
+		return addBaseAndRelease(ctx, r, s)
 	case err != nil && ctx.Err() != nil:
 		return nil, err
 	case err != nil:
@@ -60,7 +62,7 @@ func BuildSnapshot(ctx context.Context, r Runner, arg string, now func() time.Ti
 	if err := attachReview(ctx, r, s); err != nil {
 		return nil, err
 	}
-	return s, nil
+	return addBaseAndRelease(ctx, r, s)
 }
 
 func fetchAll(ctx context.Context, r Runner, arg string) (*PR, []Check, error) {
