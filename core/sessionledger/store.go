@@ -90,6 +90,12 @@ func (s *Store) Get(sessionID string) (Record, bool, error) {
 // session id, and a replayed hook must not append a second row; Open therefore
 // writes NOTHING when a row for the id already exists.
 //
+// A harness that is the agent fallback identity is refused with
+// ErrAgentHarness rather than recorded. On an existing row, Open corrects a
+// harness that is empty or names no harness (see correctHarnessLocked), so the
+// authoritative SessionStart write wins over an earlier late writer's guess
+// (bug-5333ea49).
+//
 // Returns whether a new row was written.
 func (s *Store) Open(r Record) (bool, error) {
 	if r.StartedAt.IsZero() {
@@ -101,6 +107,9 @@ func (s *Store) Open(r Record) (bool, error) {
 	if err := r.Validate(); err != nil {
 		return false, err
 	}
+	if isAgentFallback(r.Harness) {
+		return false, ErrAgentHarness
+	}
 
 	release := filelock.Guard(s.path)
 	defer release()
@@ -111,7 +120,8 @@ func (s *Store) Open(r Record) (bool, error) {
 	}
 	if _, found := findRecord(existing, r.SessionID); found >= 0 {
 		// Already recorded — a resume or a replayed hook, not a new session.
-		return false, nil
+		// The one thing a start may still fix is a harness a late writer guessed.
+		return false, s.correctHarnessLocked(existing, found, r.Harness)
 	}
 
 	if err := appendRowLocked(s.path, r); err != nil {
@@ -119,6 +129,23 @@ func (s *Store) Open(r Record) (bool, error) {
 	}
 	s.notify("session start")
 	return true, nil
+}
+
+// correctHarnessLocked replaces the harness on records[idx] when the row
+// carries none, or carries a value that names no harness (an agent identity
+// such as "human" or "claude-code" from an older late writer), and harness is
+// a real one. A row that already names a harness is never retagged: the first
+// real harness recorded is the true one (bug-5333ea49). Caller holds the lock.
+func (s *Store) correctHarnessLocked(records []Record, idx int, harness string) error {
+	if !IsHarness(harness) || IsHarness(records[idx].Harness) {
+		return nil
+	}
+	records[idx].Harness = harness
+	if err := writeAllLocked(s.path, records); err != nil {
+		return err
+	}
+	s.notify("session harness")
+	return nil
 }
 
 // Close records the END of a session, in place so one session stays one row.
@@ -191,6 +218,9 @@ type Enrichment struct {
 //
 // Returns whether the ledger changed.
 func (s *Store) Enrich(sessionID string, e Enrichment) (bool, error) {
+	if isAgentFallback(e.Harness) {
+		e.Harness = "" // an agent identity is not a harness: record it as unknown
+	}
 	release := filelock.Guard(s.path)
 	defer release()
 

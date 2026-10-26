@@ -77,6 +77,12 @@ func activeSessionHarness(event *CloudEvent) string {
 
 // isSubagent returns true when env vars indicate this is a spawned subagent.
 // Falls back to checking .active-session when env vars are absent (worktrees).
+//
+// A parent variable at depth 0 is lineage, not nesting: every wipnote launcher
+// sets WIPNOTE_NESTING_DEPTH=0 (cmd/wipnote withRootSessionEnv), so a session
+// started through one is root even when it inherited a parent (bug-5333ea49).
+// Real subagents are recognised from the payload's agent_id
+// (isSubagentEvent), which does not depend on this variable.
 func isSubagent() bool {
 	if os.Getenv("WIPNOTE_PARENT_SESSION") != "" {
 		return os.Getenv("WIPNOTE_NESTING_DEPTH") != "0"
@@ -85,6 +91,20 @@ func isSubagent() bool {
 	// Worktree subagents get a fresh environment so WIPNOTE_PARENT_SESSION
 	// won't be propagated, but the .active-session file is project-scoped.
 	return false
+}
+
+// inheritedParentSession returns the parent session this session's
+// environment names, for the session record's lineage link. The parent
+// variable is the canonical lineage carrier: CLAUDE_ENV_FILE exports it, the
+// traceparent claim (ApplyTraceparent) sets it, and a launcher keeps an
+// inherited one at depth 0 (bug-5333ea49). A session is never its own parent:
+// writeEnvVars exports the session's own id under the same variable.
+func inheritedParentSession(sessionID string) string {
+	parent := strings.TrimSpace(os.Getenv("WIPNOTE_PARENT_SESSION"))
+	if parent == "" || parent == sessionID {
+		return ""
+	}
+	return parent
 }
 
 // emitRosettaEvent writes a session_start NDJSON line correlating the

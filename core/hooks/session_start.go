@@ -53,8 +53,8 @@ func SessionStart(event *CloudEvent, projectDir string) (*HookResult, error) {
 	now := time.Now().UTC()
 	shortID := sessionID[:minSessionLen(sessionID)]
 
-	startCommit := bootstrapSessionStart(event, projectDir, sessionID)
-	s := newStartedSession(event, projectDir, sessionID, now, startCommit)
+	s := newStartedSession(event, projectDir, sessionID, now, "")
+	s.StartCommit = bootstrapSessionStart(event, projectDir, s)
 	persistStartedSession(projectDir, sessionID, s)
 
 	LogTimed(projectDir, "session-start", map[string]string{
@@ -66,18 +66,11 @@ func SessionStart(event *CloudEvent, projectDir string) (*HookResult, error) {
 }
 
 // bootstrapSessionStart repairs the worktree gitdir, starts the background
-// sweeps, propagates the session ID to downstream hooks and returns the HEAD
-// commit the session starts at.
-func bootstrapSessionStart(event *CloudEvent, projectDir, sessionID string) string {
-	// Repair stale worktree .git gitdir pointer before any git operations.
-	// When a worktree is created on one machine (e.g. macOS) and opened on
-	// another (e.g. Linux devcontainer), the absolute path in the .git file
-	// becomes stale. Repair it now so all downstream git commands succeed.
-	if event.CWD != "" && event.CWD != projectDir {
-		if err := worktree.RepairGitdirFromRepoRoot(event.CWD, projectDir); err != nil {
-			debugLog(projectDir, "[session-start] worktree gitdir repair failed (cwd=%s): %v", event.CWD, err)
-		}
-	}
+// sweeps, records the session's ledger row, propagates the session ID to
+// downstream hooks and returns the HEAD commit the session starts at.
+func bootstrapSessionStart(event *CloudEvent, projectDir string, s *models.Session) string {
+	sessionID := s.SessionID
+	repairWorktreeGitdir(event, projectDir)
 
 	// Launch headCommit in a goroutine — I/O-bound, no data dependency with writeEnvVars.
 	commitCh := make(chan string, 1)
@@ -97,6 +90,16 @@ func bootstrapSessionStart(event *CloudEvent, projectDir, sessionID string) stri
 		go RetentionSweepFn(projectDir, sessionID)
 	}
 
+	// Record the session in the canonical, GIT-TRACKED sessions ledger BEFORE
+	// .active-session names it: from that moment any wipnote CLI command
+	// resolves this session id and may write its row with a weaker guess of
+	// the harness (bug-5333ea49). Writing first closes that window; Open also
+	// corrects a guessed harness, so the order is defence, not the guarantee.
+	// The session HTML lives under .wipnote/sessions/, gitignored and pruned on
+	// a retention timer, so it cannot be what an implemented_in edge resolves
+	// against. The ledger can.
+	recordSessionLedgerOpen(projectDir, s)
+
 	// Propagate session ID to downstream hooks while git is running. The
 	// .active-session entry is tagged with THIS event's harness so a later
 	// reader under another harness never adopts it (issue #148).
@@ -111,6 +114,19 @@ func bootstrapSessionStart(event *CloudEvent, projectDir, sessionID string) stri
 
 	// Wait for git result — upsertSession needs the commit hash.
 	return <-commitCh
+}
+
+// repairWorktreeGitdir repairs a stale worktree .git gitdir pointer before any
+// git operations. When a worktree is created on one machine (e.g. macOS) and
+// opened on another (e.g. Linux devcontainer), the absolute path in the .git
+// file becomes stale. Repair it now so all downstream git commands succeed.
+func repairWorktreeGitdir(event *CloudEvent, projectDir string) {
+	if event.CWD == "" || event.CWD == projectDir {
+		return
+	}
+	if err := worktree.RepairGitdirFromRepoRoot(event.CWD, projectDir); err != nil {
+		debugLog(projectDir, "[session-start] worktree gitdir repair failed (cwd=%s): %v", event.CWD, err)
+	}
 }
 
 // newStartedSession builds the session record SessionStart persists: the
@@ -128,10 +144,13 @@ func newStartedSession(event *CloudEvent, projectDir, sessionID string, now time
 		// machines; a foreign-machine path gets an "unresolved:" prefix.
 		ProjectDir: paths.NormalizeProjectDir(projectDir),
 		Harness:    resolveHarness(),
+		// Lineage only: at depth 0 an inherited parent does not make this a
+		// subagent, but which session it came from is still recorded.
+		ParentSessionID: inheritedParentSession(sessionID),
 	}
 }
 
-// persistStartedSession records the liveness anchor, the canonical session HTML and ledger entry, finishes sessions whose
+// persistStartedSession records the liveness anchor and the canonical session HTML, finishes sessions whose
 // end hook was cancelled, and runs the bounded orphan sweep.
 func persistStartedSession(projectDir, sessionID string, s *models.Session) {
 	// Record the session process-liveness anchor (feat-0a7db952, slice-1).
@@ -149,12 +168,6 @@ func persistStartedSession(projectDir, sessionID string, s *models.Session) {
 
 	// Write canonical session HTML file (non-critical, errors silently logged).
 	CreateSessionHTML(projectDir, s)
-
-	// Record the session in the canonical, GIT-TRACKED sessions ledger. The HTML
-	// written just above lives under .wipnote/sessions/, which is gitignored
-	// runtime telemetry and is pruned on a retention timer — so it cannot be
-	// what an implemented_in edge resolves against. The ledger can.
-	recordSessionLedgerOpen(projectDir, s)
 
 	// Record tool calls that never completed in recently active sessions as
 	// aborted, from the canonical tool log (feat-174dc958). Bounded: at most

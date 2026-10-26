@@ -161,7 +161,7 @@ func TestBackfillRecoversSessionsFromBothDurableSources(t *testing.T) {
 	if !ok {
 		t.Fatalf("session %s with surviving HTML was not recovered", backfillHTMLSession)
 	}
-	if htmlRec.Harness != "claude-code" || htmlRec.Events != 412 {
+	if htmlRec.Harness != "claude" || htmlRec.Events != 412 {
 		t.Errorf("HTML-sourced row lost detail: harness=%q events=%d", htmlRec.Harness, htmlRec.Events)
 	}
 

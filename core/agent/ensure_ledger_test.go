@@ -15,6 +15,7 @@ func TestEnsureSessionWritesLedgerAndActiveSession(t *testing.T) {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 	t.Setenv("WIPNOTE_SESSION_ID", "019fe7af-9ba5-7e60-b288-656d6fe72e6f")
+	t.Setenv("WIPNOTE_HARNESS", "claude") // the late row needs a known harness
 
 	got, err := agent.EnsureSession(nil, projectDir)
 	if err != nil {

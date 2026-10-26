@@ -457,7 +457,7 @@ const (
 // inherited value (launcher-authoritative). Shared across launchers so each
 // harness stamps a single source of truth. Reuses setOrReplaceEnv (claude_env.go).
 func withHarnessEnv(env []string, harness string) []string {
-	return launcher.SetEnv(env, harnessEnvKey, harness)
+	return launcher.SetEnv(withRootSessionEnv(env), harnessEnvKey, harness)
 }
 
 // writeLaunchMarker writes .wipnote/.launch-mode for hooks to detect the launch mode.

@@ -119,12 +119,8 @@ func writeSessionArticleOpen(b *strings.Builder, s *models.Session, canonicalPro
              data-start-commit="`)
 	b.WriteString(html.EscapeString(s.StartCommit))
 	b.WriteString(`"`)
-	if s.ActiveFeatureID != "" {
-		b.WriteString(`
-             data-active-feature-id="`)
-		b.WriteString(html.EscapeString(s.ActiveFeatureID))
-		b.WriteString(`"`)
-	}
+	writeOptionalSessionAttr(b, "data-parent-session-id", s.ParentSessionID)
+	writeOptionalSessionAttr(b, "data-active-feature-id", s.ActiveFeatureID)
 	// Provenance attributes — emitted only when populated so older sessions
 	// continue to round-trip with the same byte shape.
 	prov := provenance.Provenance{
@@ -134,6 +130,17 @@ func writeSessionArticleOpen(b *strings.Builder, s *models.Session, canonicalPro
 		CLIVersion: s.CreatedByCLIVersion,
 	}
 	b.WriteString(prov.HTMLAttrs())
+}
+
+// writeOptionalSessionAttr writes name="value" on the session <article> only
+// when value is set, so records without it keep their byte shape.
+func writeOptionalSessionAttr(b *strings.Builder, name, value string) {
+	if value == "" {
+		return
+	}
+	b.WriteString("\n             " + name + `="`)
+	b.WriteString(html.EscapeString(value))
+	b.WriteString(`"`)
 }
 
 // writeSessionArticleBody writes the session header, empty edge nav and

@@ -25,7 +25,7 @@ func sessionLedgerRepairCmd() *cobra.Command {
 	var apply bool
 	cmd := &cobra.Command{
 		Use:   "repair",
-		Short: "Re-derive ledger ends that came from an untrustworthy source",
+		Short: "Re-derive ledger ends and harness tags from the best available evidence",
 		Long: `Correct session rows whose end time came from a weaker source than the
 evidence now available.
 
@@ -48,6 +48,12 @@ event is wrong" looks general and is false: SessionEnd legitimately fires after
 the last tool event. Provenance is the only sound signal, so it is the only one
 used.
 
+Repair also fixes harness tags written before the tag was a closed set:
+"claude-code" (the old spelling) becomes "claude", and "human" or any other
+value that names no harness becomes the harness inferred from the session's
+canonical record (its data-agent), or unknown when none can be inferred. A row
+that already names a real harness is never retagged, and no row is dropped.
+
 Prints what would change and exits without writing unless --apply is given.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			wipnoteDir, err := findWipnoteDir()
@@ -61,22 +67,21 @@ Prints what would change and exits without writing unless --apply is given.`,
 	return cmd
 }
 
-// runSessionLedgerRepair re-derives ends from the best available evidence and
-// applies only the corrections that provenance justifies.
+// runSessionLedgerRepair re-derives ends and harness tags from the best
+// available evidence and applies only the corrections that evidence justifies.
 func runSessionLedgerRepair(cmd *cobra.Command, wipnoteDir string, apply bool) error {
 	store := sessionledger.NewStore(wipnoteDir)
 	records, err := store.ReadAll()
 	if err != nil {
 		return err
 	}
-	out := cmd.OutOrStdout()
 	if len(records) == 0 {
-		fmt.Fprintln(out, "sessions ledger is empty — nothing to repair")
+		fmt.Fprintln(cmd.OutOrStdout(), "sessions ledger is empty — nothing to repair")
 		return nil
 	}
 
-	// The candidate ends come from the SAME collectors backfill uses, so repair
-	// and backfill can never disagree about what a source says.
+	// The candidates come from the SAME collectors backfill uses, so repair and
+	// backfill can never disagree about what a source says.
 	candidates := collectBackfillCandidates(wipnoteDir)
 
 	ids := make([]string, 0, len(records))
@@ -85,7 +90,22 @@ func runSessionLedgerRepair(cmd *cobra.Command, wipnoteDir string, apply bool) e
 	}
 	sort.Strings(ids)
 
-	var corrected, attributed, refused int
+	ends := repairLedgerEnds(cmd, store, ids, candidates, apply)
+	retagged := repairLedgerHarnesses(cmd, store, ids, candidates, apply)
+	reportLedgerRepair(cmd, ends, retagged, apply)
+	return nil
+}
+
+// endRepairCounts tallies the end corrections one repair pass made.
+type endRepairCounts struct {
+	corrected, attributed, refused int
+}
+
+// repairLedgerEnds corrects each row's end where provenance justifies it,
+// printing every value change.
+func repairLedgerEnds(cmd *cobra.Command, store *sessionledger.Store, ids []string,
+	candidates map[string]backfillCandidate, apply bool) endRepairCounts {
+	var n endRepairCounts
 	for _, id := range ids {
 		cand, found := candidates[id]
 		if !found {
@@ -93,56 +113,58 @@ func runSessionLedgerRepair(cmd *cobra.Command, wipnoteDir string, apply bool) e
 		}
 		c, corrErr := store.Correct(id, cand.enrich.EndedAt, cand.enrich.EndSource, !apply)
 		if corrErr != nil {
-			if corrErr == sessionledger.ErrNoRow {
-				continue
+			if corrErr != sessionledger.ErrNoRow {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warn: %s: %v\n", id, corrErr)
 			}
-			fmt.Fprintf(cmd.ErrOrStderr(), "warn: %s: %v\n", id, corrErr)
 			continue
 		}
 		// Trust the decision the store made rather than re-deriving it here: a
 		// second copy of the rule is a copy that can disagree with the one that
 		// actually governs writes.
-		if !c.Applied && !c.WouldApply {
+		switch {
+		case !c.Applied && !c.WouldApply:
 			if c.Changed() {
-				refused++
+				n.refused++
 			}
-			continue
+		case c.AttributionOnly():
+			n.attributed++
+		default:
+			n.corrected++
+			fmt.Fprintf(cmd.OutOrStdout(), "%s\n  end %s -> %s\n  %s\n",
+				id, formatLedgerTime(c.OldEnd), formatLedgerTime(c.NewEnd), c.Reason)
 		}
-
-		if c.AttributionOnly() {
-			attributed++
-			continue
-		}
-		corrected++
-		fmt.Fprintf(out, "%s\n  end %s -> %s\n  %s\n",
-			id, formatLedgerTime(c.OldEnd), formatLedgerTime(c.NewEnd), c.Reason)
 	}
+	return n
+}
 
-	if corrected == 0 && attributed == 0 {
-		fmt.Fprintln(out, "every recorded end is already backed by the best available source")
-		return nil
-	}
-
+// reportLedgerRepair prints the summary of one repair pass.
+func reportLedgerRepair(cmd *cobra.Command, n endRepairCounts, retagged int, apply bool) {
+	out := cmd.OutOrStdout()
 	verb := "would be"
 	if apply {
 		verb = "were"
 	}
-	if corrected > 0 {
-		fmt.Fprintf(out, "\n%d session end(s) %s corrected\n", corrected, verb)
+	if n.corrected == 0 && n.attributed == 0 {
+		fmt.Fprintln(out, "every recorded end is already backed by the best available source")
+	}
+	if n.corrected > 0 {
+		fmt.Fprintf(out, "\n%d session end(s) %s corrected\n", n.corrected, verb)
 	}
 	// Attribution-only rows are reported as a count, not a list: nothing about
 	// the session's history changes, only the row's ability to say where its end
 	// came from, which is what makes the NEXT repair sound.
-	if attributed > 0 {
-		fmt.Fprintf(out, "%d row(s) %s left unchanged but gained provenance\n", attributed, verb)
+	if n.attributed > 0 {
+		fmt.Fprintf(out, "%d row(s) %s left unchanged but gained provenance\n", n.attributed, verb)
 	}
-	if refused > 0 {
-		fmt.Fprintf(out, "%d row(s) left alone — their recorded source is already at least as trustworthy\n", refused)
+	if n.refused > 0 {
+		fmt.Fprintf(out, "%d row(s) left alone — their recorded source is already at least as trustworthy\n", n.refused)
 	}
-	if !apply {
+	if retagged > 0 {
+		fmt.Fprintf(out, "%d session harness tag(s) %s corrected\n", retagged, verb)
+	}
+	if !apply && (n.corrected > 0 || n.attributed > 0 || retagged > 0) {
 		fmt.Fprintln(out, "\nRe-run with --apply to write.")
 	}
-	return nil
 }
 
 func formatLedgerTime(t time.Time) string {
