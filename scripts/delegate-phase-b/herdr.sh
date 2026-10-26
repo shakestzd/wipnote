@@ -34,6 +34,12 @@ herdr_init() {
 # tab_open LABEL CWD: a background tab (TabCreate). Sets T_TAB and T_PANE.
 tab_open() {
   T_TAB="" T_PANE=""
+  # Every pane check needs the workspace, not only check_H (run 2: --only B3a
+  # sent --workspace '' and got workspace_not_found).
+  if ! herdr_init; then
+    CAP_CMD="herdr pane get \$HERDR_PANE_ID" CAP_OUT="$(herdr_why)"
+    return 1
+  fi
   cap 15 herdr tab create --workspace "$HERDR_WS" --label "$1" --cwd "$2" --no-focus
   T_TAB=$(printf '%s' "$CAP_OUT" | jget result.tab.tab_id)
   T_PANE=$(printf '%s' "$CAP_OUT" | jget result.root_pane.pane_id)
@@ -67,14 +73,50 @@ dump_screen() {
   log "--- end $1 screen ---"
 }
 
-# maybe_trust PANE: accept a first-run folder-trust dialog once. The folder is
-# a scratch dir this script made, so trusting it is safe.
+# First-run folder-trust dialogs (Claude Code and Codex) and the highlighted
+# "Yes" row, marked by the select cursor.
+TRUST_RE='trust (this|the) (folder|files|directory|contents|project)|project you created or one you trust'
+TRUST_YES_RE='^[[:space:]]*(❯|›|>)[[:space:]]*(1[.)][[:space:]]*)?Yes'
+
+trust_up() { screen "$1" | strip_ansi | grep -qiE "$TRUST_RE"; }
+trust_gone() { ! trust_up "$1"; }
+trust_on_yes() { screen "$1" | strip_ansi | grep -qE "$TRUST_YES_RE"; }
+
+# trust_select_yes PANE: move the cursor to the Yes row (up keys, then the
+# digit 1 as a fallback). Never presses enter on another row: run 2 showed a
+# bare enter landing on "No, exit".
+trust_select_yes() {
+  local i=0
+  while [ "$i" -lt 4 ] && ! trust_on_yes "$1"; do
+    with_timeout 10 herdr pane send-keys "$1" up >/dev/null 2>&1
+    sleep 0.3
+    i=$((i + 1))
+  done
+  trust_on_yes "$1" && return 0
+  with_timeout 10 herdr pane send-text "$1" 1 >/dev/null 2>&1
+  sleep 0.5
+  trust_on_yes "$1" || trust_gone "$1"
+}
+
+# maybe_trust PANE: accept a first-run folder-trust dialog once, for a scratch
+# folder this script made. Selects Yes explicitly, presses enter, and checks
+# the dialog is gone; otherwise logs why and dumps the screen.
 maybe_trust() {
   case " $TRUSTED " in *" $1 "*) return 0 ;; esac
-  if screen "$1" | strip_ansi | grep -qiE 'trust (this|the) (folder|files|directory|contents|project)|project you created or one you trust'; then
-    log "trust dialog in $1: sending enter"
-    with_timeout 10 herdr pane send-keys "$1" enter >/dev/null 2>&1
-    TRUSTED="$TRUSTED $1"
+  trust_up "$1" || return 0
+  TRUSTED="$TRUSTED $1"
+  if ! trust_select_yes "$1"; then
+    log "trust dialog in $1: could not put the cursor on Yes; left it for the owner"
+    dump_screen trust "$1"
+    return 1
+  fi
+  trust_gone "$1" || with_timeout 10 herdr pane send-keys "$1" enter >/dev/null 2>&1
+  if wait_until 10 trust_gone "$1"; then
+    log "trust dialog in $1: selected Yes, dialog cleared"
+  else
+    log "trust dialog in $1: still up after Yes + enter"
+    dump_screen trust "$1"
+    return 1
   fi
 }
 

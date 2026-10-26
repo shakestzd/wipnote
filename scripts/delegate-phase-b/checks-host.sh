@@ -131,6 +131,11 @@ check_B2() {
   # orch's worker pane shows the same first-run folder-trust dialog as ours
   # (Phase B run 1: send answered "blocked"); accept it before sending.
   [ -n "$b2_pane" ] && poll_pane "$b2_pane" 30 b2_settled "$b2_pane"
+  if [ -n "$b2_pane" ] && trust_up "$b2_pane"; then
+    dump_screen B2 "$b2_pane"
+    fail B2 "orch spawn $name --kind claude" "worker pane $b2_pane still shows the folder-trust dialog; not sending (screen in the raw log)"
+    return 0
+  fi
   capd "$d" 300 orch send "$name" "$OK_PROMPT" --wait --timeout 240000
   local send_cmd="$CAP_CMD" send_rc="$CAP_RC"
   [ "$send_rc" != 0 ] && [ -n "$b2_pane" ] && dump_screen B2 "$b2_pane"
