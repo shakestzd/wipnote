@@ -211,6 +211,9 @@ func emitAntigravityAssets(m *Manifest, repoRoot, outDir string, t Target) error
 			return fmt.Errorf("antigravity copy %s -> %s: %w", p.src, p.dst, err)
 		}
 	}
+	if err := removeAntigravityExcludedSkills(filepath.Join(outDir, "skills")); err != nil {
+		return err
+	}
 
 	if t.ContextFile != "" {
 		src := filepath.Join(repoRoot, t.ContextFile)
@@ -219,6 +222,22 @@ func emitAntigravityAssets(m *Manifest, repoRoot, outDir string, t Target) error
 		dst := filepath.Join(outDir, "GEMINI.md")
 		if err := copyFile(src, dst); err != nil {
 			return fmt.Errorf("antigravity copy contextFile %s: %w", t.ContextFile, err)
+		}
+	}
+	return nil
+}
+
+// antigravityExcludedSkills are shared skills the Antigravity tree does not
+// ship. delegate: Antigravity has no delegate workers in v1 (plan-28b4a7f6,
+// q-antigravity answered no).
+var antigravityExcludedSkills = []string{"delegate"}
+
+// removeAntigravityExcludedSkills deletes each excluded skill's directory
+// from the freshly copied skills tree. A skill that is absent is not an error.
+func removeAntigravityExcludedSkills(skillsDir string) error {
+	for _, name := range antigravityExcludedSkills {
+		if err := os.RemoveAll(filepath.Join(skillsDir, name)); err != nil {
+			return fmt.Errorf("antigravity exclude skill %s: %w", name, err)
 		}
 	}
 	return nil

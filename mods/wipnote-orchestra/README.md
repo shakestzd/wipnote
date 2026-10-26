@@ -29,7 +29,7 @@ Segments are powerline-style with rounded caps and **wrap between segments** to 
 
 ## wipnote integration
 
-- **Active work items**: the session's claim from `wipnote who --json` comes first. It is read at session start, after `/resume`, `/branch` or `/clear`, and after each turn; when `who` fails, the last claim stays. Then come the items started by shell commands any loop runs: `wipnote <feature|bug|spike|track> start <id>` adds, `… complete <id>` removes. A subagent's work item is the first `feat-/bug-/spk-/trk-` id in its brief.
+- **Active work items**: the session's claim from `wipnote who --json` comes first. It is read at session start, after `/resume`, `/branch` or `/clear`, and after each turn (a swap is seen as a changed session id, after `session.end` and on the 1 s tick; each swap rehydrates once); when `who` fails, the last claim stays. Then come the items started by shell commands any loop runs: `wipnote <feature|bug|spike|track> start <id>` adds, `… complete <id>` removes. A subagent's work item is the first `feat-/bug-/spk-/trk-` id in its brief.
 - **Titles and progress**: every 5 s, `wipnote <kind> show <id> --format json` per item (title, status, steps, `part_of` track) and `wipnote track show <trk>` per track (title and `(n/m done)`, which only the text form carries). Up to 12 items.
 - **Delegate runs**: every second the band lists `.wipnote/delegate/runs/` and reads each open run's folder (`label`, `start`, `end`, `exit`, `last.md`; see `internal/delegate/runstore`), so a run folder Go writes shows within 2 s. A run has ended once its folder has an `exit` file or its ledger row is closed (a stopped worker has no exit code). Mode, harness and name come from the run's row in `.wipnote/delegations-ledger.html`, read again only when that file changes; a folder with no row shows its label alone. The project is found as wipnote's CLI finds it: `WIPNOTE_PROJECT_DIR`, else the main checkout of a git worktree, else the nearest folder with a `.wipnote/` up from the session's directory. Files only, so it works outside herdr.
 - The band and the cards never write to wipnote: the run reader only lists, stats and reads.
@@ -53,7 +53,8 @@ The former wipnote-cards status line (`wipnote · <id> · <status> · n/m steps`
 ```
 .claude-plugin/plugin.json   manifest (name, types contract, timeZone option)
 hooks/hooks.json             { "modules": ["./register.tsx"] }
-hooks/register.tsx           hooks: session.start timer, session claim, agent.spawn, tool.call, classic.* (permission mode, resume), ui.render
+hooks/register.tsx           hooks: session.start timer, session claim, agent.spawn (permission mode), tool.call, session.end, ui.render
+hooks/swap.ts                conversation swaps (/clear, /resume, /branch): one tracker so each swap rehydrates once
 hooks/refcards.tsx           wipnote-ref cards: fetch on reply and turn, the model rule, the AssistantMessage drawing
 hooks/refs.ts                pure helpers for cards: fence parsing, show argv, card parsing, TTL, refresh order
 hooks/band.tsx               the band's tree (pure: data + room → elements)
@@ -112,7 +113,8 @@ Set it in `/config`, or in settings under `pluginConfigs["wipnote-orchestra"].op
 
 ## Known limits
 
-- **Mode pill alignment**: Claude Code draws the permission-mode pill beside the mod's tree, so the band rows are shifted left by the pill's width, computed from `permission_mode` (classic hook events). It is learned on the next prompt or tool call, so after shift+tab between two non-default modes the indent can lag by a cell or two.
+- **No classic hooks**: the mod reads no `classic.*` event. A managed (prepend-tier) plugin such as `cc-plugin-sec-default` continues every `classic.*` event past user-tier plugins, and Claude Code prints a transcript line for each hook it skips; with none hooked, that block costs nothing. The same plugin also continues `prompt.attachment` and `session.append` rows from the `attachment` door, so the mod hooks neither: the plan-mode attachments (`plan_mode`, `plan_mode_reentry`, `plan_mode_exit`) would never reach it there.
+- **Mode pill alignment**: Claude Code draws the permission-mode pill beside the mod's tree, so the band rows are shifted left by the pill's width. Neither the `PromptHint` props (the engine cuts the pill out of `hint`) nor `SessionMode` (the footer's memory labels) carry the mode, so it is learned from a main-loop `agent.spawn`'s `permissionMode` alone. With no mode learned, a `(shift+tab …)` hint, which only shows beside a pill, takes the auto pill's width, and any other hint none. Until the first spawn, and after a shift+tab until the next one, the band can sit a few cells off: about one in plan mode (the auto fallback is 18 cells, the plan pill 17), three in accept-edits, and in auto beside a hint that does not start with `(` it is not shifted at all.
 - **Usage limits** appear only with a subscription sign-in (an API key reports no windows) and after the first API response.
 - **Glyphs** need a Nerd Font: powerline arrow and caps U+E0B0, U+E0B4, U+E0B6; branch U+E0A0; clock U+F017; gauge U+F0E4. The example above shows them as spaces. Write them as `\u` escapes in code, never literal: a byte-level edit tool once double-encoded the file and the engine refused the tree.
 - **Colors**: hex colors fall back to the 16 ANSI colors when the terminal advertises none (`TERM=xterm`, no `COLORTERM`); set `COLORTERM=truecolor`.

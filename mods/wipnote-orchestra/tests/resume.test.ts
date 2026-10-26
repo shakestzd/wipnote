@@ -20,19 +20,32 @@ const settle = () => new Promise(resolve => setTimeout(() => resolve(undefined),
 
 test('a resumed conversation reads the claim, shows it in the band and reloads its cards', async ($, on) => {
   mock.clock(on)
-  on('session.id', async () => ({ value: 'session-1' }))
+  // /resume moves the process to another session id; no session.start and no classic event.
+  let sid = 'session-1'
+  let resumed = false
+  on('session.id', async () => ({ value: sid }))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('command.register', (_$, e) => ({ value: { command: e.name } }))
+  on('session.end', (_$, e) => {
+    sid = 'session-2'
+    resumed = true
+    return { sessionId: e.sessionId }
+  })
   const runs: string[] = []
   const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
   on('process.run', async (_$, e) => {
     runs.push(e.argv.join(' '))
-    if (e.argv[1] === 'who') return ok(JSON.stringify({ work_item: ID }))
+    if (e.argv[1] === 'who') return ok(JSON.stringify({ work_item: resumed ? ID : '' }))
     if (e.argv[1] === 'feature') return ok(SHOW)
     return { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
-  on('session.messages', async () => ({ value: [{ role: 'assistant', text: `Done.\n\`\`\`wipnote-ref\n${ID}\n\`\`\`` }] }) as never)
-  on('classic.SessionStart', async () => ({}))
+  const fence = `Done.\n\`\`\`wipnote-ref\n${ID}\n\`\`\``
+  on('session.messages', async () => ({ value: resumed ? [{ role: 'assistant', text: fence }] : [] }) as never)
 
-  await $.classic.SessionStart({ source: 'resume' })
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
+  for (let i = 0; i < 20; i++) await settle()
+  runs.length = 0
+  await $.session.end({ reason: 'resume', sessionId: 'session-1', resume: { id: 'session-2' } })
   for (let i = 0; i < 20; i++) await settle()
 
   expect(runs).toContain('wipnote who --json')

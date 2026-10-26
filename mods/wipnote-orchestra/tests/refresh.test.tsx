@@ -28,10 +28,11 @@ test('a card moves as soon as a Bash call ticks one of its steps, mid-turn', asy
     return { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('session.messages', async () => ({ value: [{ role: 'assistant', text: REPLY }] }) as never)
-  on('classic.SessionStart', async () => ({}))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('command.register', (_$, e) => ({ value: { command: e.name } }))
   on('tool.call', () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }) as never)
 
-  await $.classic.SessionStart({ source: 'resume' })
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
   for (let i = 0; i < 20; i++) await settle()
 
   const message = { plugin: 'wipnote-orchestra', component: 'AssistantMessage', props: { text: REPLY }, surface: 'terminal' } as const

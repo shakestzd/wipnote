@@ -7,6 +7,8 @@ import { drawBand } from './band'
 import { hydrate, refreshAfterTurn, refreshChanged, registerRefs, storeCard, wipnoteJSON } from './refcards'
 import { parseWho } from './refs'
 import { findProject, newRunCache, readRuns } from './runs'
+import type { SwapState } from './swap'
+import { swapSeen, swapStarted } from './swap'
 import {
   STALL_MS,
   keepFor,
@@ -161,10 +163,13 @@ async function activeItems($: EngineInterface): Promise<string[]> {
   return claimed === null ? started : [claimed, ...started.filter(id => id !== claimed)]
 }
 
-/** Records the permission mode a main-loop classic event carries (a subagent's is its own). */
-async function noteMode($: EngineInterface, e: { permission_mode?: string; agent_id?: string }) {
-  const mode = e.permission_mode
-  if (mode !== undefined && e.agent_id === undefined) await update($, permissionMode, () => mode)
+/**
+ * Records the permission mode a main-loop `agent.spawn` carries (a subagent's spawn carries its
+ * own loop's). It is the mod's one source for the mode pill: classic.* events, which carry it
+ * on every prompt, may be continued past the mod by a managed plugin, so it hooks none.
+ */
+async function noteMode($: EngineInterface, mode: string | undefined, parentAgentId: string | undefined) {
+  if (mode !== undefined && parentAgentId === undefined) await update($, permissionMode, () => mode)
 }
 
 /**
@@ -189,6 +194,22 @@ async function refreshRuns($: EngineInterface, tick: number) {
   }
 }
 
+/** A swapped-in conversation: its project's runs, its claim, the cards its transcript references. */
+function rehydrate($: EngineInterface) {
+  runsProject = undefined
+  void refreshClaim($).catch(() => undefined)
+  void hydrate($).catch(() => undefined)
+}
+
+async function sessionId($: EngineInterface): Promise<string | undefined> {
+  return $.session.id().catch(() => undefined)
+}
+
+/** Rehydrates once when the session id moved since it was last seen (swap.ts). */
+async function checkSwap($: EngineInterface, swap: SwapState) {
+  if (swapSeen(swap, await sessionId($))) rehydrate($)
+}
+
 async function bandData($: EngineInterface, zone: string): Promise<BandData> {
   const [info, rows, ended, work, known, doing, delegated, at] = await Promise.all([
     read($, prompt),
@@ -206,6 +227,7 @@ async function bandData($: EngineInterface, zone: string): Promise<BandData> {
 export const register: Register = (on, options) => {
   const zone = zoneOf(options.timeZone)
   const pending = new Map<string, Hint>()
+  const swap: SwapState = {}
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -214,6 +236,7 @@ export const register: Register = (on, options) => {
       argumentHint: 'full|compact|off|above|below',
     })
     await refreshPrompt($).catch(() => undefined)
+    swapStarted(swap, await sessionId($))
     void refreshClaim($).catch(() => undefined)
     void hydrate($).catch(() => undefined)
     const started = await $.clock.now()
@@ -223,6 +246,7 @@ export const register: Register = (on, options) => {
     let tick = 0
     $.clock.every(1000, () => {
       tick += 1
+      void checkSwap($, swap).catch(() => undefined) // a swap session.end did not see
       void (async () => {
         const at = await $.clock.now()
         const rows = await read($, agents)
@@ -262,6 +286,8 @@ export const register: Register = (on, options) => {
       model: e.model !== undefined ? modelLabel(e.model) : undefined,
     }
     pending.set(e.description, hint)
+    // A main-loop spawn carries the main loop's mode: a source no classic.* skip can hide.
+    await noteMode($, e.permissionMode, e.parentAgentId)
     const at = await $.clock.now()
     const ran = await next(e)
     const id = ran.agentId
@@ -338,29 +364,6 @@ export const register: Register = (on, options) => {
     }
   }).catch(($, e, next) => next(e))
 
-  // The mode pill Claude Code draws left of the band (the band shifts left past it, pillIndent):
-  // the hint's props do not carry it, so every main-loop event that does keeps it current. A
-  // shift+tab change shows from the next of them (a prompt, a tool call, the turn's end).
-  on('classic.UserPromptSubmit', async ($, e, next) => {
-    await noteMode($, e)
-    return next(e)
-  })
-
-  on('classic.PostToolUse', async ($, e, next) => {
-    await noteMode($, e)
-    return next(e)
-  })
-
-  on('classic.Stop', async ($, e, next) => {
-    await noteMode($, e)
-    return next(e)
-  })
-
-  on('classic.Notification', async ($, e, next) => {
-    await noteMode($, e)
-    return next(e)
-  })
-
   on('turn.complete', async ($, e, next) => {
     await update($, mainTool, () => null)
     await refreshPrompt($).catch(() => undefined)
@@ -369,16 +372,12 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // /resume, /branch and /clear swap the conversation, but session.start does
-  // not fire again; the settings SessionStart does.
-  on('classic.SessionStart', async ($, e, next) => {
-    await noteMode($, e) // a launch in a mode (wipnote claude's auto) shows its pill before any prompt
-    if (e.source !== 'startup') {
-      runsProject = undefined
-      void refreshClaim($).catch(() => undefined)
-      void hydrate($).catch(() => undefined)
-    }
-    return next(e)
+  // /resume, /branch and /clear swap the conversation, but session.start does not fire again.
+  // The swap is caught by the changed session id: here, at session.end, and on the tick.
+  on('session.end', async ($, e, next) => {
+    const r = await next(e)
+    if (e.reason === 'clear' || e.reason === 'resume') await checkSwap($, swap)
+    return r
   })
 
   registerRefs(on)
@@ -406,7 +405,8 @@ export const register: Register = (on, options) => {
       isCompact: shown === 'compact',
     })
     if (tree === null) return next(e)
-    // Row one is the engine's own hint line, as it draws it; the band takes the rows under it.
+    // Row one is the engine's own hint line, as it draws it; the band takes the rows under it,
+    // shifted left past the mode pill the engine draws beside the tree (noteMode, pillIndent).
     const { Box, Text } = els
     const indent = pillIndent(await read($, permissionMode), e.props.hint)
     return (
