@@ -1,0 +1,422 @@
+# Delegate Phase B: harness and herdr checks (feat-0c976595)
+
+Plan plan-28b4a7f6, slice 2. `docs/design/orch-integration.md` section 6 lists what was
+never verified: `--settings` hooks beside the plugin hooks, worker session ids, Codex
+hooks, container workers writing the host's `.wipnote/`, and locking across the bind
+mount. Slice 6 (feat-39bc46a1) built the herdr adapter from help text and skill text,
+so some of its herdr calls were never run. Spike spk-87139e0e
+(`docs/design/delegate-interactive-parity.md`) left the Codex TUI result and token
+capture on HOLD until it runs with a real login. This page lists the checks that answer
+those questions, how to run them, and where the results go.
+
+## How to run
+
+The owner runs one command on the Mac, inside a herdr pane, from the repo root:
+
+```bash
+scripts/delegate-phase-b.sh
+```
+
+It needs `herdr`, `claude`, `codex`, `wipnote`, `git` and `perl` on PATH. A missing tool
+stops the run before any check, with exit 3 and a line such as
+`missing tool: codex (needed by B3b B4 B5 D8b C1 C2)`. `go` is needed only for H9.
+`orch` is needed only for B2. B6 to B8 need the `devcontainer` CLI, `docker` and a
+running devcontainer (`scripts/devcontainer.sh up`). Without them those checks are
+NOT RUN, with the reason.
+
+| Flag | Effect |
+|---|---|
+| `--only B4,D8` | Run only these checks. A group letter (`H`, `B`, `C`, `D`) or a base id (`B3`, `D8`) selects every row under it. |
+| `--no-model` | Every check that sends a model prompt is NOT RUN. |
+| `--no-interactive` | B9 and D8 (they ask you y/n) are NOT RUN. |
+| `--out FILE` | Results table path (default `./phase-b-results.md`). The raw log goes beside it as `phase-b-raw.log`. |
+| `--self-test` | Smoke run for a container without herdr or Codex. It does not stop on a missing tool, and it implies `--no-model` and `--no-interactive`. herdr and container checks are NOT RUN; B7L and B8L run. |
+| `--list` | Print each check id, what it verifies and what it needs. |
+| `--help` | Usage. |
+
+Exit status: 0 when no check failed, 1 when one failed, 2 for bad usage, 3 for a
+missing tool.
+
+What a run does:
+
+- Everything happens in a `mktemp -d` scratch dir. Each check makes its own throwaway
+  git repo and runs `wipnote init` in it. The real checkout's `.wipnote/` is never
+  written. `wipnote init` may add the scratch project to wipnote's cross-project
+  registry; `wipnote registry prune` removes it.
+- B6 to B8 need a folder the container can see, so their scratch project is a
+  temporary `.phase-b-scratch.XXXXXX/` folder at the repo root. It is removed on exit.
+- The C checks copy `~/.codex/auth.json` into a scratch `CODEX_HOME` (mode 600). The
+  copy is removed on exit.
+- Checks that drive a TUI open background herdr tabs named `phase-b-<check>`. On first
+  use in a new folder, the script accepts the folder-trust dialog itself (the folder is
+  its own scratch dir). If a tab waits on any other dialog, switch to it and answer it.
+  An exit trap closes every tab and pane the script opened and stops any orch session
+  it spawned.
+- Every model prompt is "reply with the word ok", except B9, which asks for an
+  AskUserQuestion dialog. `--dangerously-skip-permissions` is never used. C1 and C2
+  pass `--dangerously-bypass-hook-trust`, as the parity probe does, so that their
+  `-c` dump hooks run in the scratch `CODEX_HOME`.
+- `$HOME`, the scratch paths, the repo path, any `/Users/<name>` or `/home/<name>`,
+  the user name and the host name are replaced with `~`, `<scratch>`, `<repo>`,
+  `<user>` and `<host>` in both output files. That makes them safe to commit.
+
+The script runs on macOS `/bin/bash` 3.2 and on Linux bash. It is split into
+`scripts/delegate-phase-b.sh` (flags, preflight, order) and `scripts/delegate-phase-b/`
+(`lib.sh`, `herdr.sh`, `checks-host.sh`, `checks-pane.sh`, `checks-container.sh`,
+`report.sh`, and `probe.pl` for the file-system and SGR probes).
+
+## The checks
+
+"Needs" uses: herdr (inside a herdr pane), model (sends a prompt), interactive (asks
+you y/n), container (devcontainer).
+
+### herdr calls slice 6 could not confirm
+
+Each uses the exact form `internal/delegate/herdr` sends. A FAIL means the adapter's
+form or its reply parsing is wrong. The fix goes in `commands.go`, `agent.go` or
+`errors.go`. Slices 6, 10, 11, 16 and 17 rely on these calls.
+
+| Id | Proves | Command | Needs |
+|---|---|---|---|
+| H1 | `TabClose` works and takes the root pane with it | `herdr tab close <tab>`, then `pane get <root>` fails | herdr |
+| H2 | `Split` accepts a positional pane id | `herdr pane split <pane> --direction right --cwd D --no-focus` gives `result.pane.pane_id` | herdr |
+| H3 | `Layout` reply shape | `herdr pane layout --pane <id>` has `result.layout.panes[].pane_id`, `.rect.width`, `.rect.height` | herdr |
+| H4 | `PaneRead` form and plain-text reply | `herdr pane read <pane> --source recent-unwrapped --lines 20` shows a marker echoed with `pane run` | herdr |
+| H5 | `AgentRename` | `herdr agent rename <pane> phaseb-h5`, then `agent get phaseb-h5` gives that name (plain `claude` in the pane, no prompt) | herdr |
+| H6 | `Rename` positional form | `herdr pane rename <pane> phaseb-h6` exits 0 | herdr |
+| H7 | the gone-pane error code `IsAbsent` accepts | `pane get` on a closed pane: exit 1 and `pane_not_found` or `not_found` in the stderr JSON | herdr |
+| H8 | `Close` | `herdr pane close <pane>` exits 0 | herdr |
+| H9 | the adapter end to end | `HERDR_ENV=1 go test ./internal/delegate/herdr/ -run '^TestHerdr_LiveTabRoundTrip$' -count=1 -v` | herdr, go |
+
+### Hooks and sessions (plan tabs B1 to B9)
+
+| Id | Proves | How | Needs | Slices that use the answer |
+|---|---|---|---|---|
+| B1 | `--settings` hooks add to the wipnote plugin hooks, not replace them | `wipnote claude --in-place --allow-non-interactive -- --settings F --session-id U -p ...`: F's SessionStart marker fires, and the scratch sessions ledger has row U | model | 8 (orch-style hook file), 10 |
+| B2 | orch workers' `sid` in `events.ndjson` are their wipnote session ids | read-only: each session in orch's registry (`ORCH_REGISTRY`, default `~/.cache/orch/registry.json`) with a Claude or Codex kind; its mailbox's `events.ndjson` sids are looked up in the sessions ledger of the project it ran in (the main checkout for a worktree). PASS when at least one sid is found; misses are listed. Nothing is spawned, sent or stopped (owner 2026-10-26), so orch's session cap does not matter | perl, git, an orch registry | import-orch (18); not slice 10 |
+| B3a, B3b | herdr's own Claude and Codex integration hooks and the wipnote plugin hooks both report | an interactive `wipnote claude` / `wipnote codex` turn in a tab: `herdr agent get` shows the agent and a status, and the ledger has a new row. NOT RUN when no herdr hook is found in `~/.claude/settings.json` or `~/.codex/` | herdr, model | 10, 12 |
+| B4 | interactive `wipnote codex`: SessionStart fires and carries the Codex session id | one turn in a tab; a new codex row in the ledger, also found in `~/.codex/session_index.jsonl` | herdr, model | 10, 12, Codex HOLD |
+| B5 | `codex exec` under the wipnote plugin fires SessionStart (bug-3e4c6e02) | `wipnote codex --in-place --allow-non-interactive -- exec ...`; a new codex row in the ledger. Also records the `--dry-run` argv | model | 8 (Codex one-shot) |
+| B6 | a container worker started with `wipnote claude` writes its ledger row into the host checkout | `devcontainer exec ... wipnote claude ... -p` in the shared scratch project; the host's ledger has row U with `data-project="."` | container, model | 21 (container workers) |
+| B7L | control for B7 on the local disk, so a B7 FAIL is about the mount | the B7 probes with both sides on the host | perl | none |
+| B7 | flock is exclusive, O_APPEND loses no line, rename is atomic across the bind mount | `probe.pl`: LOCK_EX on one side, LOCK_NB on the other, both ways; 2 sides x 4 writers x 5000 64-byte lines; one side renames a 4 KiB file over and over while the other reads it | container | 4, 5, 10 (ledger and run-store locking) |
+| B8L | control for B8: the claim gate refuses a second session on one side | `WIPNOTE_SESSION_ID=a wipnote feature start F`, then `=b` is refused, naming a | none | none |
+| B8 | the claim gate on each side sees the other side's live episode in `.wipnote/claims/` | the same pair, host then container, and container then host | container | 10 (co-claim), q-claim-handoff |
+| B9 | `herdr pane send-text <pane> 2` then `pane send-keys <pane> enter` picks AskUserQuestion option 2 | a Claude turn asks for red, green or blue; the script sends 2 and enter; you confirm green was picked | herdr, model, interactive | 17 (answer) |
+
+### D8: styled screen reads
+
+| Id | Proves | How | Needs |
+|---|---|---|---|
+| D8a | `herdr pane read --format ansi` keeps the dim or grey SGR codes of Claude Code's next-prompt suggestion, and a typed draft reads in the default colour | after one turn: one read is checked for dim or grey runs; the script types `phaseb typed draft`, reads again and checks the draft's style; you confirm both by eye | herdr, model, interactive |
+| D8b | the same for Codex's composer | the same in `wipnote codex` | herdr, model, interactive |
+
+PASS needs the machine check and your answers to agree. If they disagree, the read
+dropped or changed the styling. Delegate's idle detection (decision D8) cannot then
+tell a suggestion from a human draft. The flag form `--format ansi` is itself
+unverified; a usage error (exit 2) is a FAIL that answers that too.
+
+### C: Codex parity probes (spk-87139e0e, last section of the parity doc)
+
+These run plain `codex`, not `wipnote codex`, in a scratch `CODEX_HOME` with `-c`
+Stop and SessionEnd hooks that dump their payloads.
+
+| Id | Proves | Needs |
+|---|---|---|
+| C1 | headless baseline: `codex exec --json -o last.txt` exit code, final text, `turn.completed` usage, and whether the Stop hook fires in exec | model |
+| C2 | the TUI gives the same facts: Stop `last_assistant_message`, non-zero `token_count` in the rollout, `task_complete`, and the exit code after `/exit` | herdr, model |
+| C3 | the wipnote plugin loads in both modes. Derived: B4 (TUI) and B5 (exec) both PASS | B4, B5 |
+
+The Codex HOLD in the parity doc lifts when C2 and C3 pass.
+
+## Reading the table
+
+The script prints a markdown table and writes it to `phase-b-results.md`:
+
+| Column | Meaning |
+|---|---|
+| Check | id and what it verifies |
+| Result | PASS, FAIL or NOT RUN |
+| Command | the command that decided the result (redacted, cut to 240 characters) |
+| Observed | exit codes and the facts the verdict used, or the NOT RUN reason (cut to 400 characters) |
+
+The full output of every command is in `phase-b-raw.log`. Below the table the script
+prints one `wipnote arch add` command per check group that ran. Those commands are not
+run by the script. Review them, then run them from the real checkout to store each
+result as an arch card (slice done_when).
+
+## Evidence so far
+
+From the plan's mac-evidence notes (2026-10-25), before this script existed:
+
+- **B1 partly:** `wipnote claude --settings F` fails with "unknown flag".
+  `wipnote claude -- --settings F` works, and orch's hooks fired. Whether wipnote's own
+  plugin hooks still fire beside them was open. Finding for slices 8 and 10: anything
+  that must reach claude goes after `--`.
+- **B6 partly:** container hooks wrote 800 of 800 lines to the shared mount. No
+  sessions-ledger row was checked.
+- **B7 partly:** 4+4 writers with flock plus O_APPEND lost nothing. A 1 s flock under
+  load lost 172 of 800. O_APPEND alone and rename across the mount were untested.
+- **B2 to B5 and B8:** no evidence. **B9:** new, unverified (slice 17 assumes a digit
+  key selects an option).
+
+From this slice's runs in the Linux devcontainer (2026-10-26; not the Mac, no herdr, no
+Codex):
+
+- B1 passed with Claude Code 2.1.310: the `--settings` SessionStart marker fired, and
+  the wipnote plugin wrote the session's ledger row. On Linux at least, `--settings`
+  hooks add to the plugin hooks.
+- B7L and B8L passed on the local disk.
+- The `--self-test` run exits 0, with every herdr, Codex and container check NOT RUN
+  and the reason given.
+
+## Results (owner's Mac run)
+
+### Run 1 (2026-10-26, `--no-interactive`, no devcontainer)
+
+- Versions: wipnote 0.82.1, Claude Code 2.1.310, codex-cli 0.164.0, herdr 0.9.5, macOS (Darwin 27).
+- Totals: 18 pass, 2 fail, 6 not run.
+- The first results file leaked two macOS temp-folder paths in cut lines. The
+  script now redacts any `/var/folders/...` path as `<tmp>`; the table below is
+  scrubbed.
+
+| Check | Result | What it showed |
+|---|---|---|
+| H1–H8 | PASS | Every form slice 6 sends works on herdr 0.9.5: tab close takes its root pane; positional `pane split`; `pane layout` reply has `result.layout.panes[].pane_id` and `.rect`; `pane read --source recent-unwrapped --lines N`; `agent rename`; `pane rename`; a gone pane gives exit 1 with `pane_not_found`; `pane close`. |
+| H9 | PASS | `TestHerdr_LiveTabRoundTrip` against real herdr. |
+| B1 | PASS | `wipnote claude -- --settings F -p ...`: the marker hook fired and the wipnote session row was written. `--settings` hooks add to the plugin hooks on macOS too. |
+| B2 | FAIL | `orch spawn` worked; `orch send --wait` answered `blocked`: the worker sat at the first-run folder-trust dialog in orch's own pane, which the script did not answer. Script gap, not an orch or wipnote defect. Fixed: the script now accepts that dialog in orch's pane before sending, and dumps the pane on failure. |
+| B3a | FAIL | Claude under `wipnote claude` with herdr's Claude hooks installed: no wipnote session row, and herdr's `agent get` showed no agent. The cut screen line ends in Claude's `❯` prompt, so Claude started. See run 2: most likely the bare enter chose "No, exit". The script now dumps the full screen into the raw log on a FAIL. |
+| B3b | PASS | herdr's Codex hooks and wipnote's plugin hooks both report (`agent=codex status=done`, a wipnote session row). |
+| B4 | PASS | Interactive `wipnote codex` fires SessionStart with a session id. |
+| B5 | PASS | `codex exec` under `wipnote codex` runs SessionStart, UserPromptSubmit and Stop, and writes a session row (closes bug-3e4c6e02's question). |
+| B7L, B8L | PASS | Local controls: flock busy both ways, O_APPEND 40000/40000, rename torn=0; the claim gate refuses a second session. |
+| C1 | PASS | `codex exec --json`: final text, `turn.completed` usage, exit 0, Stop hook `last_assistant_message`. |
+| C2 | PASS | Codex TUI: Stop final text, non-zero `token_count`, `task_complete`, exit 0. |
+| C3 | PASS | The wipnote plugin loads in both Codex modes (B4 and B5). |
+| B9, D8a, D8b | NOT RUN | Need the owner's y/n (`--only B9,D8`). |
+| B6, B7, B8 | NOT RUN | The devcontainer was not running. |
+
+### Run 2 (2026-10-26, `--only B2,B3a`, commit ea0a48f4f)
+
+No check passed; both failures were script bugs, not delegate or harness facts.
+
+- **B3a, B3b:** `herdr tab create --workspace ''` gave `workspace_not_found`. Only the
+  H checks set the workspace. Fixed: `tab_open` now resolves it for every pane check.
+- **B2:** after the script's enter, the trust dialog in orch's pane was still up with
+  the cursor on "No, exit"; `orch send --wait` then gave `occupant_unknown`.
+- **Run 1's B3a, re-read:** the same bare enter most likely chose "No, exit", Claude
+  quit, and the `❯` in the cut screen line was the shell prompt, not Claude's.
+- Fixed: the script now moves the cursor to the "Yes" row (up keys, then the digit 1),
+  presses enter only when "Yes" is highlighted, and checks the dialog cleared. When it
+  cannot, it leaves the dialog, dumps the screen and fails the check. B2 never sends
+  while the dialog is up. A stub-herdr test covers cursor-on-Yes, cursor-on-No and a
+  cursor that will not move (no enter is sent).
+- Run 2 left two orch worker panes at the trust dialog on the owner's machine.
+
+**Finding for slice 10:** a bare enter on a trust dialog is unsafe; the default row
+is not always "Yes". `delegate spawn` must select the option explicitly and verify.
+
+### Run 3 (2026-10-26, `--only B2,B3a,B3b`, commit cfca9e1b1)
+
+All three failed on one script fault in the trust-dialog handler, not on delegate or
+the harnesses. The herdr workspace fix from run 2 held.
+
+- **Claude Code 2.1.310's trust dialog** lists "No, exit" first, with the cursor on it,
+  and no numbers ("❯ No, exit / Yes, I trust this folder"). Up keys did nothing; the
+  fallback typed "1", which chose "No, exit". Claude quit before trust, so no wipnote
+  hook ran and no session row was written (B3a: the resume line right after the banner;
+  B2: orch's worker, same dialog). The handler then counted "dialog gone" as success.
+- **Codex's trust dialog** reads "› 1. Trust and continue / 2. Quit"; the handler looked
+  only for "Yes" and left it up (B3b).
+- Reproduced here with Claude Code 2.1.310 in tmux: the dialog showed "❯ No, exit"
+  first; one Down key put the cursor on "Yes", enter accepted it, and the wipnote session
+  row appeared within 5 s. `wipnote claude -p` from current main also wrote its row.
+- Fixed: arrow keys only (down, then up), never a digit; enter only when the accepting
+  row ("Yes…" or "Trust and continue") is highlighted; "dialog gone" alone is no longer
+  success. Stub-herdr tests cover both Claude layouts, the Codex layout and a cursor that
+  will not move.
+
+**Finding for slice 10, sharpened:** the default row of Claude's trust dialog is
+"No, exit". `delegate spawn` must navigate to the accepting row by its label and verify
+it before enter; a bare enter or a digit declines trust and the worker exits.
+
+### Run 4 (2026-10-26, `--only B2,B3a,B3b`, commit 0f137ac87)
+
+The trust-dialog fix held in all three panes ("selected Yes, dialog cleared"). B3b
+**passed** (herdr's Codex hooks and wipnote's both report). B3a and B2 failed: the Claude
+session ran normally (B3a: 2m 32s, ended with its resume line; B2: `orch send` exit 0,
+events.ndjson sid present), but the script found **no `claude` row** in the project's
+sessions ledger. The run-3 reading "Claude exited after the banner" is withdrawn for run 4.
+
+This is a wipnote finding, filed as **bug-5333ea49**:
+
+- Calling the SessionStart hook directly (current main) with `CLAUDE_CODE_ENTRYPOINT`
+  set: without `WIPNOTE_PARENT_SESSION` it writes a `claude` row; with
+  `WIPNOTE_PARENT_SESSION` set and `WIPNOTE_NESTING_DEPTH` unset it writes **no row**,
+  because `isSubagent()` treats the session as a subagent.
+- An interactive `wipnote claude` run in tmux with that variable set later gained a row
+  tagged **`human`**, not `claude`; the script filters by harness, so it saw nothing.
+  The same run without the variable gave a `claude` row.
+- Suspected trigger on the Mac: a herdr pane gets the herdr server's environment, which
+  may carry `WIPNOTE_PARENT_SESSION` from the session that started herdr. B1 (run from
+  the caller's shell) and the Codex panes do not hit this. Not yet confirmed: the script
+  now writes each pane's inherited `WIPNOTE_`/`CLAUDE_`/`CODEX_` variables, and every
+  ledger row of any harness, into the raw log on a FAIL.
+
+**Finding for slice 10:** delegate workers run in herdr panes. Unless `spawn` sets the
+worker's session lineage explicitly, an inherited parent variable hides the worker's
+session from the ledger. The fix direction is an owner decision (bug-5333ea49).
+
+### Run 5 (2026-10-26, `--only B3a,B2`, commit 1fa53835b)
+
+- B3b passed again. B3a and B2 reported "none", but the ledger held a row with exactly
+  the expected session id in each (B3a: the id in Claude's resume line; B2: the id in
+  orch's events.ndjson and in herdr's `agent_session`), both tagged
+  **`data-harness="human"`**. The script filtered by harness `claude`, so it missed them.
+- The pane inherited **no** `WIPNOTE_`/`CLAUDE_`/`CODEX_` variables, so run 4's suspected
+  trigger (an inherited `WIPNOTE_PARENT_SESSION`) is **withdrawn** for the Mac. That path is
+  real and is still fixed under bug-5333ea49, but it is not what happened here.
+- Likely writer (to be confirmed in bug-5333ea49): `agent.EnsureSessionWithTimeout` runs
+  before every non-hook wipnote command, takes the session id from `.active-session`
+  (written by the SessionStart hook) and tags the row with `agent.Detect().ID`, which is
+  `"human"` when `CLAUDECODE` is unset. A wipnote command that runs in the session before
+  the hook's own ledger write (a mod poll, a status line) wins, and the hook's `claude`
+  row becomes a no-op. In this container the mods' hook modules do not load, which is why
+  interactive runs here were tagged `claude`.
+- Script change: rows are matched on the session id, any harness; the observed harness is
+  reported beside each id (`id=harness`). A `human` tag is a wipnote finding, not a Phase B
+  failure.
+
+**Plan finding:** an interactive Claude session started by `wipnote claude` must be
+recorded as `claude`, never `human` (owner, 2026-10-26: no ledger row carries `human`).
+This is fixed in bug-5333ea49; delegate workers depend on it.
+
+### Run 6 (2026-10-26, `--only B3a,B3b,B2`, script 9e825a28b, wipnote dd659cfc)
+
+- wipnote was built from main after the bug-5333ea49 merge.
+- **B3a PASS:** the row is tagged `claude`. **B3b PASS:** the row is tagged `codex`. No row
+  carries `human` or an empty tag, which confirms the bug-5333ea49 fix on the interactive
+  Claude path.
+- **B2 did not run its check:** `orch spawn` exited 1 with `err: cap` ("6 live sessions
+  already (ORCH_MAX_SESSIONS)"). Two of the six were left over from earlier testing (a probe
+  and run 1's worker, from before the script stopped its own workers on exit). The other four
+  belong to another session. This is an environment limit, not a finding about lineage.
+
+**Plan finding (slice 10):** `delegate spawn` must check orch's session cap before it spawns,
+and report "at cap" as its own outcome, not as a worker failure.
+
+### Run 7 (2026-10-26, `--only B2`, script 9e825a28b, wipnote dd659cfc1)
+
+- The owner stopped two stale orch sessions (a probe and run 1's worker), which freed room below orch's
+  session cap. B2 then spawned a worker and **PASS**ed: the events.ndjson sid
+  `704cebd4-ee66-4176-9b79-8d2c691abc40` has a ledger row tagged `claude`.
+
+### Run 8 (2026-10-26, `--only B2`, read-only B2, script 5777e18f4, wipnote dd659cfc1)
+
+- B2 now reads orch's registry and each live session's events.ndjson, and spawns nothing (owner, B2
+  option 1). **PASS:** 34 of 35 sids are in a wipnote ledger. The one miss is the second sid of worker
+  `cx`, `s1`, which is not a session UUID (a test value). 17 registry workers ran in a folder with no
+  wipnote project (all test workers), so they were not counted.
+- Ten Claude workers' rows are tagged `human` (cdx-example-fix, cdx-kit-cost, cdx-kit-runtime,
+  cdx-setup-fix, ci-impl, cx, docs-prep, img-fix, rec2b, two-b). They were probably started before the
+  bug-5333ea49 fix, but their start times have not been checked. **Open check:** compare each row's
+  `data-start` with when wipnote dd659cfc1 was installed on the Mac. A worker started after that and
+  still tagged `human` is a real finding. `wipnote session ledger repair --apply` retags the old rows
+  from the session records.
+
+### Run 9 (2026-10-26, `--only B6,B7L,B7,B8L,B8`, script a92ff38bd, wipnote dd659cfc1, devcontainer up from the worktree)
+
+| Check | Result | Observed |
+|---|---|---|
+| B7L (control, local disk) | PASS | flock exclusive both ways; O_APPEND 40000 of 40000 lines; rename: 92705 reads, 0 torn, 0 missing |
+| B8L (control, one side) | PASS | the second session's `feature start` is refused and names the holder |
+| B8 (claim gate across the mount) | PASS | refused both ways (host holds, container starts; container holds, host starts); claim files `sess-<id>.html` seen from both sides |
+| B7 (across the bind mount) | **FAIL** | **flock is not exclusive:** host holds, container gets it; container holds, host gets it. **O_APPEND:** 29599 of 40000 lines arrived, all 29599 intact (0 torn). **rename:** atomic (108721 reads, 0 torn, 0 missing; 1315 renames) |
+| B6 (container worker writes the host ledger) | FAIL (environment) | `Not logged in · Please run /login`: Claude Code in the container has no login, so no session started and no row was expected. Also `SessionEnd hook [wipnote hook session-end] failed: EACCES: permission denied, mkdir '<container home>/.claude/plugins'`: the container user cannot write `~/.claude` |
+
+**B7 is a real finding, not a script bug.** On this Mac's Docker bind mount an advisory lock taken on one
+side is invisible to the other, and appends from both sides lost about a quarter of the lines. The run
+does not show whose lines were lost: the probe now counts lines per writer, so the next run will. What
+holds across the mount: per-session files (B8's claim gate works because each session writes its own
+`sess-<id>.html`) and rename.
+
+**Consequence for slices 4, 5, 10 and 21:** no file may be written from both sides of the mount under
+`filelock` alone. That covers the sessions ledger, the gate ledger and any run-store file that two writers
+append to. A container worker must write only files it alone owns (its own `events-<writer>.ndjson`,
+result file and claim file), with rename for replacement. Something on the host must fold them into the
+shared files. orch's inventory already chose "no lock, one writer per folder" for the mailbox; B7 shows
+the same rule is required for every shared `.wipnote/` file a container worker touches.
+
+**B6 needs two container fixes before it can test anything (slice 21):**
+- The worker needs Claude credentials inside the container, for example a token passed in by the launcher, or credentials mounted read-only.
+- The container user needs a writable `~/.claude` (a volume or a tmpfs home).
+
+### Summary of runs 1 to 8
+
+| Run | Script | wipnote | Result | Cause of failures |
+|---|---|---|---|---|
+| 1 | 29521f261 | 0.82.1 | 18 pass, 2 fail (B2, B3a), 6 not run | trust dialog (B2); no herdr agent and no row (B3a) |
+| 2 | ea0a48f4f | 0.82.1 | B3a, B3b, B2 fail | script: empty workspace id; Enter landed on "No, exit" |
+| 3 | cfca9e1b1 | 0.82.1 | all fail | script: Codex's "Trust and continue" label not matched |
+| 4 | 0f137ac87 | 0.82.1 | B3b pass; B3a, B2 fail | script matched only `claude` rows; rows were `human` |
+| 5 | 1fa53835b | 0.82.1 | B3b pass; B3a, B2 fail | the same; found the `human` tag (bug-5333ea49) |
+| 6 | 9e825a28b | dd659cfc1 | B3a, B3b pass; B2 fail | orch's session cap (stale test sessions) |
+| 7 | 9e825a28b | dd659cfc1 | B2 pass | none |
+| 8 | 5777e18f4 | dd659cfc1 | B2 pass (read-only) | none |
+
+**Confirmed by runs 6 to 8:** the bug-5333ea49 fix works for both Claude paths (an interactive
+`wipnote claude`, B3a, and an orch worker, B2) and for Codex (B3b).
+
+### Not run yet
+
+- **B9, D8a, D8b** need the owner at the keyboard (y/n answers):
+  `scripts/delegate-phase-b.sh --only B9,D8a,D8b --out phase-b-results-interactive.md`. D8b (Codex's
+  grey next-prompt suggestion) matters for interactive Codex workers (slice 26).
+- **B6, B7, B8 (container):** ran in run 9 (above).
+
+### Script findings (not delegate defects)
+
+- The spawning B2 did not stop the worker it started when a run ended early, which filled orch's session
+  cap by run 6. The read-only B2 (run 8) spawns nothing.
+- The results table cut a long Observed cell mid-word, and the full text was not in the raw log. Fixed:
+  a long cell is now cut at a word boundary and says so, and `record` writes the full Observed text to
+  the raw log.
+- Run 1 showed an unredacted macOS temp path in two rows. Results from run 2 on show `<tmp>` (the
+  `/var/folders/...` rule). The shell prompt's short form `/private/v/f/...` was still unredacted in the
+  raw log of run 5; that form is now redacted too.
+- Arch cards: the hazard cards the script suggested after the failed runs were not recorded, because
+  those failures came from script bugs. `phase-b-b2` (from run 8) and `phase-b-b3` (from run 6) are
+  recorded as invariants.
+
+Side observation: B1's output shows another plugin's security hook running first
+and passing events past wipnote-orchestra's classic hooks ("its classic.Stop hook
+was skipped"). The wipnote plugin's own hooks still ran. Not a Phase B failure. The mod no longer depends on
+those events: bug-12ef8d02 (merged as PR #272) refreshes its band from a changed session id instead.
+
+Follow-ups by slice:
+
+- **Slice 6 (herdr adapter forms):** every herdr call checked (H1 to H9) works on herdr 0.9.5. No change
+  needed.
+- **Slices 5, 10, 12:** B1, B3a, B3b, B4 and B5 hold.
+- **Slice 18 (import-orch):** B2 holds (run 8). Imported runs can be linked by the worker's sid.
+- **Slice 10:** `delegate spawn` must answer or report the folder-trust dialog, by its labels. Claude's
+  dialog shows "No, exit" and "Yes, I trust this folder", with the cursor on "No, exit". Codex's shows
+  "1. Trust and continue" and "2. Quit", with the cursor on option 1. A bare Enter is not safe. Spawn
+  detects the dialog by these labels and never presses a key on it: it pre-seeds trust for a folder
+  delegate created (as slice 22 does), and otherwise reports the worker as blocked and names the dialog.
+  The plan keeps auto-accepting trust prompts a non-goal. Spawn also checks the session cap first and
+  reports "at cap" as its own outcome.
+- **Slice 22 and slice 26 (Codex):** C1, C2, C3, B4, B5 and B3b pass, which meets slice 22's condition.
+  **Owner decision (2026-10-26):** Codex workers run interactively in a herdr pane, as Claude workers
+  do; `codex exec` stays for runs outside herdr. This is slice 26.
+- **New slice 27 (owner requirement, 2026-10-26):** a lean default profile for delegated workers. Claude
+  and Codex workers, interactive and one-shot, start with a small default tool set and only the plugins
+  and MCP servers the task needs; the task can widen it. In Phase B the workers loaded the full plugin
+  set.
+- **Slice 17 (B9)** and **D8:** wait for the interactive run.
+- **Slice 21 (container workers):** B8 holds across the mount. B7 fails: container workers must not write
+  shared `.wipnote/` files under `filelock`; they write files they alone own, and the host folds them in.
+  B6 waits for Claude credentials and a writable `~/.claude` inside the container.
+- **Slices 4, 5 and 10:** the one-writer-per-file rule from B7 applies to every ledger and run-store file a
+  container worker can reach.

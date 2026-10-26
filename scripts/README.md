@@ -45,6 +45,15 @@ scripts/devcontainer-verify.sh          # Full verification suite for the devcon
                                          # (go build + go vet + go test + binary + dashboard smoke test)
 ```
 
+## Delegate Phase B
+
+```bash
+scripts/delegate-phase-b.sh             # on the Mac, inside a herdr pane, from the repo root
+scripts/delegate-phase-b.sh --self-test # container smoke run (no herdr, no model)
+```
+
+See `docs/design/delegate-phase-b.md` for the checks and flags.
+
 ## Other
 
 ```bash
