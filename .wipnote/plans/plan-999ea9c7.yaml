@@ -1,0 +1,18 @@
+meta:
+    id: plan-999ea9c7
+    track_id: trk-2505b527
+    title: 'Git workflow monitoring: native CI, review, branch, base and release watch'
+    description: Make what the ci-live mod does native to wipnote, plus review state, branch health, base-branch CI and releases. A read-only Go layer (internal/gitwatch) shells out to gh and git (gh keeps auth; wipnote holds no token), a 'wipnote ci status --json' and 'wipnote ci watch' CLI usable from every harness, a thin Claude Code pane mod (mods/wipnote-ci), and links from PR state to work items. Ports MIT code from cli/cli, git-town, lazygit and gh-poi with notices; writes the rest fresh.
+    created_at: "2026-10-26"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
