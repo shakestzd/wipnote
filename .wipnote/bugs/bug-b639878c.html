@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Subagent detection misreads inherited parent and global traceparent queue</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-b639878c"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-26T06:05:06.130696"
+             data-updated="2026-10-26T06:05:06.13441" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+
+        <header>
+            <h1>Subagent detection misreads inherited parent and global traceparent queue</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-26T06:05:06.134272">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Two gaps found while fixing bug-5333ea49. (1) A bare claude run outside the wipnote launcher, with an inherited WIPNOTE_PARENT_SESSION and no WIPNOTE_NESTING_DEPTH, is still treated as a subagent and gets no ledger row. (2) A session that starts within 30s of any SubagentStart can claim that subagent&#39;s traceparent, because the queue in the temp dir is global and not scoped to the parent. That can mark a root session as a subagent and record the wrong parent.</p>
+        </section>
+    </article>
+</body>
+</html>
