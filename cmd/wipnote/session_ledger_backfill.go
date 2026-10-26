@@ -244,7 +244,7 @@ func parseSessionHTMLForLedger(path string) (sessionledger.Record, bool) {
 
 	rec := sessionledger.Record{
 		SessionID:  id,
-		Harness:    strings.TrimSpace(attrOrDefault(article, "data-agent", "")),
+		Harness:    sessionledger.HarnessFromAgent(attrOrDefault(article, "data-agent", "")),
 		ProjectDir: strings.TrimSpace(attrOrDefault(article, "data-project-dir", "")),
 	}
 	if t, err := sessionledger.ParseTime(attrOrDefault(article, "data-started-at", "")); err == nil {

@@ -34,6 +34,8 @@ func effectiveProjectDir(explicit string) string {
 // inherits the user's shell env) and layers wipnote-specific overrides
 // on top:
 //
+//  0. WIPNOTE_NESTING_DEPTH=0 — the child is a root session
+//     (withRootSessionEnv, bug-5333ea49).
 //  1. WIPNOTE_PROJECT_DIR — set when the launcher runs inside a
 //     worktree, so hooks resolve to the main .wipnote/ directory.
 //  2. Harness-specific launch env from the registry (e.g.
@@ -59,6 +61,7 @@ func buildClaudeLaunchEnv(wipnoteProjectDir string, overrides *otelEnvOverrides)
 	// (bug-b262d303).
 	env = removeEnv(env, "WIPNOTE_SESSION_ID")
 	env = removeEnv(env, "WIPNOTE_OTEL_SESSION_ID")
+	env = withRootSessionEnv(env)
 
 	// Resolve an effective projectDir for OTel port derivation.
 	// Priority chain: explicit arg → CLAUDE_PROJECT_DIR → WIPNOTE_PROJECT_DIR → os.Getwd.
@@ -130,6 +133,22 @@ func buildClaudeLaunchEnv(wipnoteProjectDir string, overrides *otelEnvOverrides)
 	probeReceiverReachability(endpoint)
 
 	return env
+}
+
+// withRootSessionEnv marks the child a ROOT session: a session a person or a
+// script starts through a wipnote launcher is never a subagent, whatever its
+// environment inherited (bug-5333ea49). A herdr pane, for one, inherits the
+// herdr server's environment, which can carry WIPNOTE_PARENT_SESSION from the
+// session that started herdr; with no depth set, SessionStart read that as a
+// subagent and wrote no ledger row. WIPNOTE_NESTING_DEPTH=0 is the root marker
+// SessionStart already honours. An inherited WIPNOTE_PARENT_SESSION is kept:
+// at depth 0 it is lineage only, recorded on the session record.
+//
+// Every launcher's env builder goes through here (buildClaudeLaunchEnv for
+// claude/yolo/dev, withHarnessEnv for codex and antigravity), so this is the
+// one place to set lineage explicitly when a delegating caller knows it.
+func withRootSessionEnv(env []string) []string {
+	return launcher.SetEnv(env, "WIPNOTE_NESTING_DEPTH", "0")
 }
 
 // addIfUnset appends key=value to env only when key is not already set

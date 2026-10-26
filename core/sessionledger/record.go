@@ -163,7 +163,8 @@ type Record struct {
 	// make an id valid that the gate would not have recognised as a session.
 	SessionID string
 
-	// Harness is the CLI that ran the session (claude-code, codex, …).
+	// Harness is the CLI that ran the session (claude, codex, …). Empty means
+	// unknown; it is never an agent identity such as "human".
 	Harness string
 	// ProjectDir is the repo-relative project path, normalized by core/paths so
 	// rows stay stable across worktrees and machines. Absolute host paths must

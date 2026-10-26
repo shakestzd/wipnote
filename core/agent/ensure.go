@@ -33,20 +33,36 @@ func EnsureSessionWithTimeout(_ any, projectDir string, _ time.Duration) (string
 		return sessionID, nil
 	}
 
-	wipnoteDir := filepath.Join(projectDir, ".wipnote")
-	record := sessionledger.Record{
-		SessionID:  sessionID,
-		Harness:    info.ID,
-		ProjectDir: paths.NormalizeProjectDir(projectDir),
-		StartedAt:  time.Now().UTC(),
-	}
-	if _, err := sessionledger.NewStore(wipnoteDir).Open(record); err != nil {
+	if err := ensureLedgerRow(projectDir, sessionID); err != nil {
 		return sessionID, err
 	}
 
 	writeEnsuredActiveSession(sessionID, projectDir, info.ID)
 	os.Setenv("WIPNOTE_SESSION_ID", sessionID) //nolint:errcheck
 	return sessionID, nil
+}
+
+// ensureLedgerRow records sessionID in the ledger when no row exists yet. This
+// is a LATE writer: SessionStart normally wrote the row already, so this only
+// fills a row SessionStart skipped. The row takes the harness the environment
+// names (DetectEnvHarness) — the same tag SessionStart writes — never the agent
+// identity, whose "human" fallback misfiled a real session under a harness
+// that does not exist (bug-5333ea49). With no harness known (a plain shell or
+// a delegate script that resolved the session from .active-session) the row is
+// left out: SessionStart, which knows the harness, owns it.
+func ensureLedgerRow(projectDir, sessionID string) error {
+	harness := DetectEnvHarness()
+	if harness == "" {
+		return nil
+	}
+	record := sessionledger.Record{
+		SessionID:  sessionID,
+		Harness:    harness,
+		ProjectDir: paths.NormalizeProjectDir(projectDir),
+		StartedAt:  time.Now().UTC(),
+	}
+	_, err := sessionledger.NewStore(filepath.Join(projectDir, ".wipnote")).Open(record)
+	return err
 }
 
 // ensuredActiveSession is the JSON shape written to .wipnote/.active-session
