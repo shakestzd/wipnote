@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 61
+    version: 62
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -1218,6 +1218,7 @@ slices:
         - Under each delegation, lineage shows each worker's claim episode (start, end, outcome)
         - Overlapping orchestrator and worker episodes show as a co-claim with the dlg- id, not a collision
         - After removal, nothing imports orchlink, and the lineage JSON note records that orch_sessions was dropped
+        - wipnote feature show <id> and the dashboard list the work item's delegation runs from the ledger (moved here from slice 4, owner 2026-10-26)
       effort: M
       risk: Med
       tests: |
@@ -2049,6 +2050,10 @@ slices:
       tests: 'Unit: TestBuildPorts_DelegateSkillInClaudeAndCodex, TestBuildPorts_NoDelegateSkillInAntigravity. Manual: wipnote claude loads the skill.'
       approved: false
       comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/skills
+          claim: A plugin skill is a SKILL.md with name and description frontmatter; Claude Code loads it from the plugin's skills directory.
+          accessed: "2026-10-26"
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
