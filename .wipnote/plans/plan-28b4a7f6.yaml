@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 59
+    version: 60
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -295,7 +295,7 @@ slices:
         **Evidence so far (mac-evidence, 2026-10-25):** B1 partly: `wipnote claude --settings F` fails with unknown flag; `wipnote claude -- --settings F` works and orch's hooks fired. Whether wipnote's own plugin hooks still fire beside them is open. B6 partly: container hooks wrote 800 of 800 lines to the shared mount, but no sessions-ledger row was checked. B7 partly: 4+4 writers with flock plus O_APPEND lost nothing; a 1 s flock under load lost 172 of 800; O_APPEND and rename across the mount are untested. B2 to B5 and B8 have no evidence. All checks stay.
         **Finding for slices 8 and 10:** wipnote claude does not accept --settings directly. Anything that must reach claude goes after `--`.
         **B9 (new):** slice 17 assumes a digit key selects an AskUserQuestion option. This is unverified.
-        **Results (Phase B runs 1-8, 2026-10-26; herdr 0.9.5, Claude Code 2.1.310, codex-cli 0.164.0, macOS bash 3.2.57):** PASS: H1-H9, B1, B2 (run 8, read-only: 34 of 35 orch sids in a wipnote ledger), B3a and B3b (run 6, rows tagged claude and codex), B4, B5, B7L, B8L, C1-C3. Runs 2-5 failed on script bugs (empty workspace id, trust-dialog keys and labels, harness filter) and on bug-5333ea49 (rows tagged human), fixed in wipnote dd659cfc1. NOT RUN: B9, D8a, D8b (need the owner at the keyboard); B6-B8 (devcontainer must be brought up from the worktree; not yet approved). Arch cards phase-b-b2 and phase-b-b3 record the passing results; no hazard card from the failed runs was recorded. Full record: docs/design/delegate-phase-b.md.
+        **Results (Phase B runs 1-9, 2026-10-26; herdr 0.9.5, Claude Code 2.1.310, codex-cli 0.164.0, macOS bash 3.2.57):** PASS: H1-H9, B1, B2 (run 8, read-only: 34 of 35 orch sids in a wipnote ledger), B3a and B3b (run 6, rows tagged claude and codex), B4, B5, B7L, B8L, C1-C3. Runs 2-5 failed on script bugs (empty workspace id, trust-dialog keys and labels, harness filter) and on bug-5333ea49 (rows tagged human), fixed in wipnote dd659cfc1. Run 9 (container, devcontainer up from the worktree): B7L, B8L and B8 PASS; B7 FAIL (flock not exclusive across the bind mount, O_APPEND lost lines, rename atomic: a real finding, now a slice 21 rule); B6 FAIL on environment (Claude not logged in inside the container, ~/.claude not writable). NOT RUN: B9, D8a, D8b (need the owner at the keyboard). Arch cards phase-b-b2, phase-b-b3 and phase-b-b8 (invariants) and phase-b-b7 (hazard) record the results; no hazard card from the failed runs was recorded. Full record: docs/design/delegate-phase-b.md.
       blocks:
         - type: tabs
           title: Phase B checks
@@ -1693,6 +1693,9 @@ slices:
         - A container worker's events and result file land in the host's .wipnote/delegate/
         - stop checks host and container pids and never signals
         - A bare ccx task is redirected to delegate run --container
+        - A container worker writes only files it alone owns (its events-<writer>.ndjson, result file and sess-<id>.html claim; replaced by rename), never a shared .wipnote/ file such as the sessions or gate ledger; wipnote on the host folds them in (owner 2026-10-26, Phase B B7)
+        - The worker's sessions-ledger row reaches the host ledger through that fold, with host=container and the real harness
+        - doctor checks inside the container that Claude Code is logged in and ~/.claude is writable, and names the fix (log in inside once with /login; the named ~/.claude volume keeps it; fix the volume's owner when it is not writable)
       effort: L
       risk: High
       tests: |
@@ -1718,7 +1721,9 @@ slices:
         **State:** the place (container) and the container's workspace folder go in the run folder; host=container in the ledger. No new store.
         **Payload:** the boot line runs devcontainer up --workspace-folder <root> (idempotent), then devcontainer exec --workspace-folder <root> wipnote claude|codex. up prints JSON with remoteWorkspaceFolder, which maps run-folder paths into the container.
         **Reuse:** scripts/devcontainer.sh already uses devcontainer up and exec with --workspace-folder and finds the container by the label devcontainer.local_folder. Port those calls to Go; do not shell out to the script. The repo's devcontainer.json mounts per-user volumes for ~/.claude, ~/.codex and ~/.local, so wipnote and its plugin inside come from the container's own install; doctor checks it.
-        **Hooks inside:** wipnote's plugin hooks run in the container and write to .wipnote/delegate/ through the workspace mount. One writer per file, no flock across the mount (Phase B B7: a 1 s flock under load lost 172 of 800).
+        **Hooks inside:** wipnote's plugin hooks run in the container and write to .wipnote/delegate/ through the workspace mount. One writer per file, no flock across the mount.
+        **Writes across the mount (owner decision 2026-10-26, Phase B run 9):** B7 showed flock is not exclusive between the Mac host and the container (each side gets a lock the other holds) and appends from both sides lost lines (29599 of 40000 arrived, none torn); rename stays atomic, and B8's claim gate works because each session writes its own claim file. So a container worker writes only files it alone owns and replaces them by rename; wipnote on the host folds them into the sessions ledger, the gate ledger and the run store. Rejected: a host write call over a socket (a unix socket on the mount does not cross the VM) and a container that writes nothing (it loses the worker's own row and gate).
+        **Login (owner decision 2026-10-26, Phase B run 9 B6):** the owner logs in to Claude Code inside the container once with /login; the repo's named ~/.claude volume keeps the login across restarts. Run 9 found the container not logged in and ~/.claude not writable (EACCES on mkdir ~/.claude/plugins), so doctor checks both before a worker starts. Rejected for now: a launcher-passed token and mounting the Mac's credentials.
         **Stop:** herdr sees only host processes (devcontainer exec). Container pids are recorded through devcontainer exec and checked the same way; never signalled.
         **Codex inside:** bwrap fails in containers, so slice 12's ladder applies: refuse unless the host opted in.
         **Rejected:** an ad-hoc image (it drifts from the project's toolchain). A second-account gate for ccx (owner: none). orch's typed pointer-line transport (wipnote hooks prove readiness).
