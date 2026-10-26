@@ -306,15 +306,89 @@ This is fixed in bug-5333ea49; delegate workers depend on it.
 **Plan finding (slice 10):** `delegate spawn` must check orch's session cap before it spawns,
 and report "at cap" as its own outcome, not as a worker failure.
 
+### Run 7 (2026-10-26, `--only B2`, script 9e825a28b, wipnote dd659cfc1)
+
+- The owner stopped two stale orch sessions (a probe and run 1's worker), which freed room below orch's
+  session cap. B2 then spawned a worker and **PASS**ed: the events.ndjson sid
+  `704cebd4-ee66-4176-9b79-8d2c691abc40` has a ledger row tagged `claude`.
+
+### Run 8 (2026-10-26, `--only B2`, read-only B2, script 5777e18f4, wipnote dd659cfc1)
+
+- B2 now reads orch's registry and each live session's events.ndjson, and spawns nothing (owner, B2
+  option 1). **PASS:** 34 of 35 sids are in a wipnote ledger. The one miss is the second sid of worker
+  `cx`, `s1`, which is not a session UUID (a test value). 17 registry workers ran in a folder with no
+  wipnote project (all test workers), so they were not counted.
+- Ten Claude workers' rows are tagged `human` (cdx-example-fix, cdx-kit-cost, cdx-kit-runtime,
+  cdx-setup-fix, ci-impl, cx, docs-prep, img-fix, rec2b, two-b). They were probably started before the
+  bug-5333ea49 fix, but their start times have not been checked. **Open check:** compare each row's
+  `data-start` with when wipnote dd659cfc1 was installed on the Mac. A worker started after that and
+  still tagged `human` is a real finding. `wipnote session ledger repair --apply` retags the old rows
+  from the session records.
+
+### Summary of runs 1 to 8
+
+| Run | Script | wipnote | Result | Cause of failures |
+|---|---|---|---|---|
+| 1 | 29521f261 | 0.82.1 | 18 pass, 2 fail (B2, B3a), 6 not run | trust dialog (B2); no herdr agent and no row (B3a) |
+| 2 | ea0a48f4f | 0.82.1 | B3a, B3b, B2 fail | script: empty workspace id; Enter landed on "No, exit" |
+| 3 | cfca9e1b1 | 0.82.1 | all fail | script: Codex's "Trust and continue" label not matched |
+| 4 | 0f137ac87 | 0.82.1 | B3b pass; B3a, B2 fail | script matched only `claude` rows; rows were `human` |
+| 5 | 1fa53835b | 0.82.1 | B3b pass; B3a, B2 fail | the same; found the `human` tag (bug-5333ea49) |
+| 6 | 9e825a28b | dd659cfc1 | B3a, B3b pass; B2 fail | orch's session cap (stale test sessions) |
+| 7 | 9e825a28b | dd659cfc1 | B2 pass | none |
+| 8 | 5777e18f4 | dd659cfc1 | B2 pass (read-only) | none |
+
+**Confirmed by runs 6 to 8:** the bug-5333ea49 fix works for both Claude paths (an interactive
+`wipnote claude`, B3a, and an orch worker, B2) and for Codex (B3b).
+
+### Not run yet
+
+- **B9, D8a, D8b** need the owner at the keyboard (y/n answers):
+  `scripts/delegate-phase-b.sh --only B9,D8a,D8b --out phase-b-results-interactive.md`. D8b (Codex's
+  grey next-prompt suggestion) matters for interactive Codex workers (slice 26).
+- **B6, B7, B8 (container):** `devcontainer exec` answers "Dev container not found" from the worktree.
+  The devcontainer CLI finds a container by a label that holds the workspace folder path, and the
+  worktree is a new path, so the container has to be brought up from the worktree with
+  `scripts/devcontainer.sh up`. The owner has not approved that yet, because it changes the container
+  setup.
+
+### Script findings (not delegate defects)
+
+- The spawning B2 did not stop the worker it started when a run ended early, which filled orch's session
+  cap by run 6. The read-only B2 (run 8) spawns nothing.
+- The results table cut a long Observed cell mid-word, and the full text was not in the raw log. Fixed:
+  a long cell is now cut at a word boundary and says so, and `record` writes the full Observed text to
+  the raw log.
+- Run 1 showed an unredacted macOS temp path in two rows. Results from run 2 on show `<tmp>` (the
+  `/var/folders/...` rule). The shell prompt's short form `/private/v/f/...` was still unredacted in the
+  raw log of run 5; that form is now redacted too.
+- Arch cards: the hazard cards the script suggested after the failed runs were not recorded, because
+  those failures came from script bugs. `phase-b-b2` (from run 8) and `phase-b-b3` (from run 6) are
+  recorded as invariants.
+
 Side observation: B1's output shows another plugin's security hook running first
 and passing events past wipnote-orchestra's classic hooks ("its classic.Stop hook
-was skipped"). The wipnote plugin's own hooks still ran. Not a Phase B failure.
+was skipped"). The wipnote plugin's own hooks still ran. Not a Phase B failure. The mod no longer depends on
+those events: bug-12ef8d02 (merged as PR #272) refreshes its band from a changed session id instead.
 
 Follow-ups by slice:
 
-- **Slice 6 (herdr adapter forms):** all confirmed. No change needed.
-- **Slices 5, 10, 12:** B1, B3a, B3b, B4, B5 hold (B3a since run 6). B2 waits for a run below orch's session cap.
-- **Slice 8 and the Codex hold:** C1–C3 pass, so the condition slice 22 set for Codex interactive workers is met; the owner decides whether Codex workers move to interactive.
+- **Slice 6 (herdr adapter forms):** every herdr call checked (H1 to H9) works on herdr 0.9.5. No change
+  needed.
+- **Slices 5, 10, 12:** B1, B3a, B3b, B4 and B5 hold.
+- **Slice 18 (import-orch):** B2 holds (run 8). Imported runs can be linked by the worker's sid.
+- **Slice 10:** `delegate spawn` must answer or report the folder-trust dialog, by its labels. Claude's
+  dialog shows "No, exit" and "Yes, I trust this folder", with the cursor on "No, exit". Codex's shows
+  "1. Trust and continue" and "2. Quit", with the cursor on option 1. A bare Enter is not safe. Spawn
+  accepts the dialog for a folder delegate created and reports the worker as blocked otherwise. It also
+  checks orch's or its own session cap first and reports "at cap" as its own outcome.
+- **Slice 22 and slice 26 (Codex):** C1, C2, C3, B4, B5 and B3b pass, which meets slice 22's condition.
+  **Owner decision (2026-10-26):** Codex workers run interactively in a herdr pane, as Claude workers
+  do; `codex exec` stays for runs outside herdr. This is slice 26.
+- **New slice 27 (owner requirement, 2026-10-26):** a lean default profile for delegated workers. Claude
+  and Codex workers, interactive and one-shot, start with a small default tool set and only the plugins
+  and MCP servers the task needs; the task can widen it. In Phase B the workers loaded the full plugin
+  set.
 - **Slice 17 (B9)** and **D8:** wait for the interactive run.
-- **Slice 21 (container workers):** B6–B8 wait for a run with the devcontainer up.
-- **New for slice 10:** a spawned worker's pane can stop at the folder-trust dialog (B2). `delegate spawn` must detect it and either accept it for a folder it created or report the worker as blocked.
+- **Slice 21 (container workers):** B6 to B8 wait for the devcontainer to be brought up from the
+  worktree.

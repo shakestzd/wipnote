@@ -17,6 +17,7 @@ record() {
   R_CMD+=("$3")
   R_OBS+=("$4")
   log "== $1: $2"
+  log "   observed: $4"
   printf '%-5s %-8s %s\n' "$1" "$2" "$(oneline "$4" 100)"
 }
 
@@ -60,7 +61,8 @@ oneline() {
 
 # redact: replace scratch, repo, home, any /Users/<name> or /home/<name>,
 # any macOS per-user temp path (/var/folders/..., which a cut line can leave
-# only partly matching the scratch path), the user name (when it is not a
+# only partly matching the scratch path, and the /private/v/f/... form a shell
+# prompt shortens it to), the user name (when it is not a
 # generic account) and the host name.
 redact() {
   P_SCRATCH="${SCRATCH:-}" P_CSCRATCH="${CSCRATCH:-}" P_REPO="${REPO:-}" \
@@ -70,13 +72,20 @@ redact() {
     for my $p (@r) { my $v = $ENV{$p->[0]}; s/\Q$v\E/$p->[1]/g if length($v) > 1; }
     s{(/Users|/home)/[^/\s"'"'"'<>]+}{$1/<user>}g;
     s{(?:/private)?/var/folders/[^\s"'"'"'<>]*}{<tmp>}g;
+    s{(?:/private)?/v/f/[^\s"'"'"'<>]*}{<tmp>}g;
     my $u = $ENV{P_USER};
     s/(?<![\w])\Q$u\E(?![\w])/<user>/g if length($u) > 2 && $u !~ /^(root|user|admin|vscode|runner|ubuntu)$/;
     my $h = $ENV{P_HOST}; s/(?<![\w.-])\Q$h\E(?![\w-])/<host>/g if length($h) > 2;'
 }
 
-# cell TEXT MAX: one markdown table cell (no pipes, no newlines).
-cell() { oneline "$1" "${2:-300}" | sed 's/|/\\|/g'; }
+# cell TEXT MAX: one markdown table cell (no pipes, no newlines). Text longer
+# than MAX characters is cut at a word boundary and says so; record() keeps
+# the whole text in the raw log.
+cell() {
+  oneline "$1" 1000000 | perl -CSD -pe 'BEGIN { $m = shift @ARGV }
+    if (length($_) > $m) { $_ = substr($_, 0, $m); s/\s+\S*$//; $_ .= " ... (cut; full text in the raw log)" }' \
+    "${2:-300}" | sed 's/|/\\|/g'
+}
 
 # --- command capture --------------------------------------------------------
 # quote_cmd ARGS...: the command as a shell line, without the env -u prefix
