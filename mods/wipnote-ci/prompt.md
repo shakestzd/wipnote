@@ -1,0 +1,1 @@
+When the user wants to follow a pull request's CI, tell them `/ci` (this branch's PR), `/ci <pr>` or `/ci <branch>` opens the wipnote-ci pane, which follows `wipnote ci status` live; `/ci stop` ends it. For a one-off answer run `wipnote ci status` yourself.
