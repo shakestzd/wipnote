@@ -76,26 +76,29 @@ dump_screen() {
 # First-run folder-trust dialogs (Claude Code and Codex) and the highlighted
 # "Yes" row, marked by the select cursor.
 TRUST_RE='trust (this|the) (folder|files|directory|contents|project)|project you created or one you trust'
-TRUST_YES_RE='^[[:space:]]*(❯|›|>)[[:space:]]*(1[.)][[:space:]]*)?Yes'
+TRUST_YES_RE='^[[:space:]]*(❯|›|>)[[:space:]]*([0-9][.)][[:space:]]*)?(Yes|Trust and continue)'
 
 trust_up() { screen "$1" | strip_ansi | grep -qiE "$TRUST_RE"; }
 trust_gone() { ! trust_up "$1"; }
 trust_on_yes() { screen "$1" | strip_ansi | grep -qE "$TRUST_YES_RE"; }
 
-# trust_select_yes PANE: move the cursor to the Yes row (up keys, then the
-# digit 1 as a fallback). Never presses enter on another row: run 2 showed a
-# bare enter landing on "No, exit".
+# trust_select_yes PANE: move the cursor to the accepting row with arrow keys
+# only, down first, then up. Never presses enter elsewhere and never types a
+# digit: Claude Code 2.1.310 lists "No, exit" first with the cursor on it and
+# no numbers (run 3: a typed "1" chose "No, exit"); Codex shows
+# "1. Trust and continue" with the cursor already there.
 trust_select_yes() {
-  local i=0
-  while [ "$i" -lt 4 ] && ! trust_on_yes "$1"; do
-    with_timeout 10 herdr pane send-keys "$1" up >/dev/null 2>&1
-    sleep 0.3
-    i=$((i + 1))
+  local key i
+  for key in down up; do
+    i=0
+    while [ "$i" -lt 4 ] && ! trust_on_yes "$1"; do
+      with_timeout 10 herdr pane send-keys "$1" "$key" >/dev/null 2>&1
+      sleep 0.3
+      i=$((i + 1))
+    done
+    trust_on_yes "$1" && return 0
   done
-  trust_on_yes "$1" && return 0
-  with_timeout 10 herdr pane send-text "$1" 1 >/dev/null 2>&1
-  sleep 0.5
-  trust_on_yes "$1" || trust_gone "$1"
+  return 1
 }
 
 # maybe_trust PANE: accept a first-run folder-trust dialog once, for a scratch

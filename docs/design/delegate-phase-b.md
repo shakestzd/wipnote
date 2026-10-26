@@ -217,6 +217,30 @@ No check passed; both failures were script bugs, not delegate or harness facts.
 **Finding for slice 10:** a bare enter on a trust dialog is unsafe; the default row
 is not always "Yes". `delegate spawn` must select the option explicitly and verify.
 
+### Run 3 (2026-10-26, `--only B2,B3a,B3b`, commit cfca9e1b1)
+
+All three failed on one script fault in the trust-dialog handler, not on delegate or
+the harnesses. The herdr workspace fix from run 2 held.
+
+- **Claude Code 2.1.310's trust dialog** lists "No, exit" first, with the cursor on it,
+  and no numbers ("❯ No, exit / Yes, I trust this folder"). Up keys did nothing; the
+  fallback typed "1", which chose "No, exit". Claude quit before trust, so no wipnote
+  hook ran and no session row was written (B3a: the resume line right after the banner;
+  B2: orch's worker, same dialog). The handler then counted "dialog gone" as success.
+- **Codex's trust dialog** reads "› 1. Trust and continue / 2. Quit"; the handler looked
+  only for "Yes" and left it up (B3b).
+- Reproduced here with Claude Code 2.1.310 in tmux: the dialog showed "❯ No, exit"
+  first; one Down key put the cursor on "Yes", enter accepted it, and the wipnote session
+  row appeared within 5 s. `wipnote claude -p` from current main also wrote its row.
+- Fixed: arrow keys only (down, then up), never a digit; enter only when the accepting
+  row ("Yes…" or "Trust and continue") is highlighted; "dialog gone" alone is no longer
+  success. Stub-herdr tests cover both Claude layouts, the Codex layout and a cursor that
+  will not move.
+
+**Finding for slice 10, sharpened:** the default row of Claude's trust dialog is
+"No, exit". `delegate spawn` must navigate to the accepting row by its label and verify
+it before enter; a bare enter or a digit declines trust and the worker exits.
+
 Side observation: B1's output shows another plugin's security hook running first
 and passing events past wipnote-orchestra's classic hooks ("its classic.Stop hook
 was skipped"). The wipnote plugin's own hooks still ran. Not a Phase B failure.
