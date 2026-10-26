@@ -16,7 +16,7 @@ Three front ends share it:
 - `/wipnote:ci` (`plugin/commands/ci.md`) tells the agent to run the two commands.
   It ships to Claude Code, Codex and Antigravity.
 
-In Claude Code, the `mods/wipnote-ci` pane (`/ci`) polls `wipnote ci status --json`.
+In Claude Code, the `mods/wipnote-ci` pane (`/ci-pane`) polls `wipnote ci status --json`.
 It makes no `gh` calls of its own.
 
 ## Sections and their reads
@@ -77,7 +77,7 @@ Exit codes:
 | 3 | Not available: the first read, or 3 failed reads in a row |
 | 130 | Interrupted |
 
-The pane uses the same cadence and the same 2-minute grace.
+The pane uses the same cadence and the same 2-minute grace. It stops polling on `/ci-pane stop` or when the pane is closed.
 
 ## Gate warning
 
@@ -137,4 +137,3 @@ decided from local git, not from a PR's commit list.
 - Squash detection is local, through `git merge-tree --write-tree` (git 2.38+). On older git, squash merges go undetected.
 - `pr_closed` only covers PRs of the current repository.
 - No GitHub Enterprise in v1.
-- The pane keeps polling after it is closed, until `/ci stop`.

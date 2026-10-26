@@ -11,8 +11,8 @@ function Idle({ Box, Text }: UI) {
   return (
     <Box flexDirection="column">
       <Text dimColor>No pull request is followed.</Text>
-      <Text dimColor>/ci follows the pull request of this branch.</Text>
-      <Text dimColor>/ci 85 follows PR 85, /ci &lt;branch&gt; that branch's, /ci stop ends it.</Text>
+      <Text dimColor>/ci-pane follows the pull request of this branch.</Text>
+      <Text dimColor>/ci-pane 85 follows PR 85, /ci-pane &lt;branch&gt; that branch's, /ci-pane stop ends it.</Text>
     </Box>
   )
 }
@@ -87,7 +87,7 @@ function Sections({ Box, Text }: UI, s: Snapshot) {
 
 function footer(v: CiView, s: Snapshot): string {
   const at = v.fetchedAt === 0 ? 'not yet' : new Date(v.fetchedAt).toTimeString().slice(0, 8)
-  if (v.arg === null) return `stopped · read ${at} · /ci starts it again`
+  if (v.arg === null) return `stopped · read ${at} · /ci-pane starts it again`
   if (v.done) return `${s.pr === undefined ? 'nothing to follow' : 'finished'} · read ${at}`
   return `live, every ${interval(s) / 1000} s · read ${at}`
 }

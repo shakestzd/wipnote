@@ -35,7 +35,7 @@ With no argument, the current branch's PR is used, else your newest open PR.
    - `3`: not available: the first read failed, or 3 reads failed in a row. A single failed read keeps the last snapshot and is retried.
    - `130`: interrupted.
    `ci watch` takes no `--work-item`: for a work item, take the PR number from `ci status --work-item <id>` first. When it exits, summarise the final snapshot as in step 2 and name the exit code's meaning. Use a long enough tool timeout, or pass a shorter `--timeout`.
-4. In Claude Code with the wipnote mods loaded, the `/ci` pane (`/ci`, `/ci 85`, `/ci <branch>`, `/ci stop`) follows the same data live beside the chat. Mention it once if the user wants to keep watching while working; it keeps polling until `/ci stop`.
+4. In Claude Code with the wipnote mods loaded, the wipnote-ci pane (`/ci-pane`, `/ci-pane 85`, `/ci-pane <branch>`, `/ci-pane stop`) follows the same data live beside the chat. Mention it once if the user wants to keep watching while working; it polls until `/ci-pane stop` or the pane is closed.
 
 ## Examples
 

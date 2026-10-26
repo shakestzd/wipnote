@@ -19,15 +19,16 @@ const PANE = {
   },
 } as const
 
-type World = { snap: Snapshot | string; runs: string[]; seen: string[] }
+type World = { snap: Snapshot | string; runs: string[]; seen: string[]; names: string[] }
 
 // Everything beneath the plugin is the engine: each hook answers for it.
 function engine(on: On, first: Snapshot | string): World {
-  const w: World = { snap: first, runs: [], seen: [] }
-  on('command.register', () => ({ value: { command: 'ci' } }))
+  const w: World = { snap: first, runs: [], seen: [], names: [] }
+  on('command.register', (_, e) => { w.names.push(e.name); return { value: { command: e.name } } })
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.status', (_, e) => { w.seen.push(`status:${JSON.stringify(e)}`); return { value: undefined } })
   on('ui.toast', (_, e) => { w.seen.push(`toast:${e.text}`); return { value: undefined } })
+  on('ui.close', () => ({ value: undefined }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('process.run', (_, e) => {
     w.runs.push(e.argv.join(' '))
@@ -39,7 +40,7 @@ function engine(on: On, first: Snapshot | string): World {
 
 async function start($: Engine, args: string) {
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-  return (await $.command.run({ command: 'ci', args } as never)) as { text?: string }
+  return (await $.command.run({ command: 'ci-pane', args } as never)) as { text?: string }
 }
 
 async function texts($: Engine) {
@@ -49,7 +50,7 @@ async function texts($: Engine) {
   return all
 }
 
-test('/ci 85 reads wipnote ci status, never gh, and the pane lists failures first', async ($, on) => {
+test('/ci-pane 85 reads wipnote ci status, never gh, and the pane lists failures first', async ($, on) => {
   mock.clock(on, { now: NOW })
   const w = engine(on, FULL)
   const ran = await start($, '85')
@@ -67,15 +68,15 @@ test('/ci 85 reads wipnote ci status, never gh, and the pane lists failures firs
   await ui.unmount()
 })
 
-test('/ci with no argument and /ci <branch> pass the argument through', async ($, on) => {
+test('/ci-pane with no argument and /ci-pane <branch> pass the argument through', async ($, on) => {
   mock.clock(on, { now: NOW })
   const w = engine(on, RUNNING)
   await start($, '')
-  await $.command.run({ command: 'ci', args: 'feat/ci-pane' } as never)
+  await $.command.run({ command: 'ci-pane', args: 'feat/ci-pane' } as never)
   expect(w.runs).toEqual(['wipnote ci status --json', 'wipnote ci status feat/ci-pane --json'])
 })
 
-test('before any /ci the pane says how to start', async ($, on) => {
+test('before any /ci-pane the pane says how to start', async ($, on) => {
   engine(on, FULL)
   const all = await texts($)
   expect(all[0]?.text).toBe('No pull request is followed.')
@@ -154,15 +155,15 @@ for (const [name, snap, toast] of [
   })
 }
 
-test('/ci stop cancels both timers and clears the status line', async ($, on) => {
+test('/ci-pane stop cancels both timers and clears the status line', async ($, on) => {
   const clock = mock.clock(on, { now: NOW })
   const w = engine(on, RUNNING)
   await start($, '85')
   await clock.advance(1_000)
   expect((await texts($)).map(t => t.text)).toContain('● lint 5:01')
 
-  const stopped = (await $.command.run({ command: 'ci', args: 'stop' } as never)) as { text?: string }
-  expect(stopped.text).toBe('CI pane stopped. /ci starts it again.')
+  const stopped = (await $.command.run({ command: 'ci-pane', args: 'stop' } as never)) as { text?: string }
+  expect(stopped.text).toBe('CI pane stopped. /ci-pane starts it again.')
   expect(w.seen[w.seen.length - 1]).toBe('status:{}')
   await clock.advance(300_000)
   expect(w.runs).toHaveLength(1)
@@ -210,4 +211,57 @@ test('checks that appear inside the grace are followed as normal', async ($, on)
   expect(w.runs).toHaveLength(10)
   expect(w.seen.some(l => l.startsWith('toast:'))).toBe(false)
   expect((await texts($)).map(t => t.text)).toContain('● lint 8:00')
+})
+
+test('the slash command is /ci-pane and the empty pane names it', async ($, on) => {
+  const w = engine(on, FULL)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  expect(w.names).toEqual(['ci-pane'])
+  const shown = (await texts($)).map(t => t.text)
+  expect(shown).toContain('/ci-pane follows the pull request of this branch.')
+  expect(shown.some(l => /\/ci\b(?!-pane)/.test(l))).toBe(false)
+})
+
+// Another plugin that closes a pane by id, as the person's close mark does:
+// every close raises ui.close for the plugins, whoever closed it.
+const CLOSER = {
+  plugins: [{
+    name: 'closer',
+    register(on: On) {
+      on('command.run', { command: 'close' }, async ($, e) => {
+        await $.ui.close({ id: e.args })
+        return { text: 'closed' }
+      })
+    },
+  }],
+}
+const close = ($: Engine, id: string) => $.command.run({ command: 'close', args: id } as never)
+
+test('closing the pane cancels both timers and clears the status line; /ci-pane starts again', CLOSER, async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const w = engine(on, RUNNING)
+  await start($, '85')
+  await clock.advance(1_000)
+  await close($, 'wipnote-ci')
+  expect(w.seen[w.seen.length - 1]).toBe('status:{}')
+  await clock.advance(300_000)
+  expect(w.runs).toHaveLength(1)
+  const shown = (await texts($)).map(t => t.text)
+  expect(shown).toContain('● lint 5:01')
+  expect(shown.some(l => l.startsWith('stopped'))).toBe(true)
+
+  await $.command.run({ command: 'ci-pane', args: '85' } as never)
+  expect(w.runs).toHaveLength(2)
+  await clock.advance(15_000)
+  expect(w.runs).toHaveLength(3)
+})
+
+test('closing another pane leaves the CI pane polling', CLOSER, async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const w = engine(on, RUNNING)
+  await start($, '85')
+  await close($, 'some-other-pane')
+  expect(w.seen[w.seen.length - 1]).not.toBe('status:{}')
+  await clock.advance(15_000)
+  expect(w.runs).toHaveLength(2)
 })

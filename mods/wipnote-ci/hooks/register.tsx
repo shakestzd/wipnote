@@ -14,8 +14,8 @@ const view = atom({ plugin: 'wipnote-ci', key: 'view' } as const, EMPTY, { shape
 const clock = atom({ plugin: 'wipnote-ci', key: 'now' } as const, 0, { shape: 'now-1' })
 
 // The next read (rescheduled after each one, at the watch cadence) and the
-// one-second tick of the elapsed times. `run` numbers each /ci, so a read
-// still in flight when /ci stop or a new /ci lands schedules nothing.
+// one-second tick of the elapsed times. `run` numbers each /ci-pane, so a read
+// still in flight when /ci-pane stop, a close or a new /ci-pane lands schedules nothing.
 let poll: Timer | undefined
 let tick: Timer | undefined
 let run = 0
@@ -38,9 +38,11 @@ async function readSnapshot($: EngineInterface, arg: string): Promise<Snapshot |
   return ran.exitCode !== 0 ? failReason(ran.stderr, ran.exitCode) : 'unreadable output from wipnote ci status'
 }
 
-/** Reads once into the view; a failed read keeps the last snapshot. */
-async function refresh($: EngineInterface, arg: string): Promise<CiView> {
+/** Reads once into the view; a failed read keeps the last snapshot. A read
+ *  that /ci-pane stop or a close overtook writes nothing. */
+async function refresh($: EngineInterface, arg: string, mine: number): Promise<CiView> {
   const got = await readSnapshot($, arg)
+  if (mine !== run) return read($, view)
   const now = await $.clock.now()
   const before = await read($, view)
   if (typeof got === 'string') {
@@ -59,7 +61,7 @@ async function refresh($: EngineInterface, arg: string): Promise<CiView> {
 
 /** Reads, then waits the cadence the read calls for, until settled or stopped. */
 async function cycle($: EngineInterface, arg: string, mine: number) {
-  const v = await refresh($, arg)
+  const v = await refresh($, arg, mine)
   if (mine !== run) return
   if (v.done) {
     stop()
@@ -85,11 +87,18 @@ async function follow($: EngineInterface, arg: string): Promise<string> {
   return `Following CI of PR #${s.pr.number} in the CI pane.`
 }
 
+/** /ci-pane stop and a close: both timers cancelled, the status line cleared, the last read kept. */
+async function halt($: EngineInterface) {
+  stop()
+  await update($, view, old => ({ ...old, arg: null }))
+  await $.ui.status(undefined)
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
-      name: 'ci',
-      description: 'Follow a pull request\'s CI live in a pane: /ci, /ci 85, /ci <branch>, /ci stop',
+      name: 'ci-pane',
+      description: 'Follow a pull request\'s CI live in a pane: /ci-pane, /ci-pane 85, /ci-pane <branch>, /ci-pane stop',
       argumentHint: '[pr|branch|stop]',
     })
     return next(e)
@@ -100,13 +109,18 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'ci' }, async ($, e) => {
+  on('command.run', { command: 'ci-pane' }, async ($, e) => {
     const arg = e.args.trim()
     if (arg !== 'stop') return { text: await follow($, arg) }
-    stop()
-    await update($, view, old => ({ ...old, arg: null }))
-    await $.ui.status(undefined)
-    return { text: 'CI pane stopped. /ci starts it again.' }
+    await halt($)
+    return { text: 'CI pane stopped. /ci-pane starts it again.' }
+  })
+
+  // Closing the pane (the person's mark or key, a plugin, an unload) ends the
+  // following as /ci-pane stop does; /ci-pane opens it and starts again.
+  on('ui.close', {}, async ($, e, next) => {
+    if (e.id === PANE) await halt($).catch(() => undefined)
+    return next(e)
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {

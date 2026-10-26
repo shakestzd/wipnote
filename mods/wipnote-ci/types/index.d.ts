@@ -80,7 +80,7 @@ export type Snapshot = {
 
 /** What the pane follows and the last snapshot it read. */
 export type CiView = {
-  /** The argument /ci was given ('' for the current branch); null before the first /ci or after /ci stop */
+  /** The argument /ci-pane was given ('' for the current branch); null before the first /ci-pane, after /ci-pane stop or a close */
   arg: string | null
   snap: Snapshot | null
   /** When the last read finished, in milliseconds since the epoch */
@@ -89,7 +89,7 @@ export type CiView = {
   error: string
   /** Settled (no check pending, the PR merged or closed, no PR matched, or no checks after the grace): polling has stopped */
   done: boolean
-  /** When the first read of this /ci finished: the no-checks grace runs from here */
+  /** When the first read of this /ci-pane finished: the no-checks grace runs from here */
   since: number
   /** Settled because the PR still had no checks when the grace ran out */
   noChecks: boolean
