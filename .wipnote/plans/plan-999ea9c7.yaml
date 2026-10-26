@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 7
+    version: 8
 design:
     problem: ""
     goals: []
@@ -124,6 +124,30 @@ slices:
       effort: S
       risk: Low
       tests: 'Fake clock and runner: cadence per field, backoff, settle on merged, timeout exit 2, json-lines only on change'
+      approved: false
+      comment: ""
+    - id: slic-e9bbd921
+      num: 6
+      title: mods/wipnote-ci pane over the CLI
+      what: 'Thin Claude Code mod, modeled on ci-live (format, sort fail first, icons, elapsed time, toast on finish, status-line summary): /ci, /ci 85, /ci <branch>, /ci stop. It runs ''wipnote ci status --json'' on the cadence from slice 5 (or reads watch --json-lines) and renders sections: checks, review, branch, base, release, linked work item. No gh calls in TypeScript. Loaded by the existing mods folder; README and prompt.md.'
+      why: Keep the live pane the owner liked, with logic in Go shared by every harness.
+      files:
+        - mods/wipnote-ci/hooks/register.tsx
+        - mods/wipnote-ci/hooks/format.ts
+        - mods/wipnote-ci/types/index.d.ts
+        - mods/wipnote-ci/.claude-plugin/plugin.json
+        - mods/wipnote-ci/README.md
+        - mods/wipnote-ci/tests/pane.test.tsx
+      deps:
+        - 5
+      done_when:
+        - /ci opens the pane and follows the PR
+        - /ci stop ends polling
+        - pane shows all five sections and the work item
+        - mod tests pass
+      effort: M
+      risk: Low
+      tests: Port ci-live register.test; render tests from JSON fixtures; stop clears timers
       approved: false
       comment: ""
 questions: []
