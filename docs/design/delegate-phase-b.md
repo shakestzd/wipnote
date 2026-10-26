@@ -292,6 +292,20 @@ session from the ledger. The fix direction is an owner decision (bug-5333ea49).
 recorded as `claude`, never `human` (owner, 2026-10-26: no ledger row carries `human`).
 This is fixed in bug-5333ea49; delegate workers depend on it.
 
+### Run 6 (2026-10-26, `--only B3a,B3b,B2`, script 9e825a28b, wipnote dd659cfc)
+
+- wipnote was built from main after the bug-5333ea49 merge.
+- **B3a PASS:** the row is tagged `claude`. **B3b PASS:** the row is tagged `codex`. No row
+  carries `human` or an empty tag, which confirms the bug-5333ea49 fix on the interactive
+  Claude path.
+- **B2 did not run its check:** `orch spawn` exited 1 with `err: cap` ("6 live sessions
+  already (ORCH_MAX_SESSIONS)"). Two of the six were left over from earlier testing (a probe
+  and run 1's worker, from before the script stopped its own workers on exit). The other four
+  belong to another session. This is an environment limit, not a finding about lineage.
+
+**Plan finding (slice 10):** `delegate spawn` must check orch's session cap before it spawns,
+and report "at cap" as its own outcome, not as a worker failure.
+
 Side observation: B1's output shows another plugin's security hook running first
 and passing events past wipnote-orchestra's classic hooks ("its classic.Stop hook
 was skipped"). The wipnote plugin's own hooks still ran. Not a Phase B failure.
@@ -299,7 +313,7 @@ was skipped"). The wipnote plugin's own hooks still ran. Not a Phase B failure.
 Follow-ups by slice:
 
 - **Slice 6 (herdr adapter forms):** all confirmed. No change needed.
-- **Slices 5, 10, 12:** B1, B4, B5 hold. B3a (Claude beside herdr's Claude hooks) is still open.
+- **Slices 5, 10, 12:** B1, B3a, B3b, B4, B5 hold (B3a since run 6). B2 waits for a run below orch's session cap.
 - **Slice 8 and the Codex hold:** C1–C3 pass, so the condition slice 22 set for Codex interactive workers is met; the owner decides whether Codex workers move to interactive.
 - **Slice 17 (B9)** and **D8:** wait for the interactive run.
 - **Slice 21 (container workers):** B6–B8 wait for a run with the devcontainer up.
