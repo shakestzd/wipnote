@@ -54,6 +54,26 @@ func TestFetchReview_States(t *testing.T) {
 	}
 }
 
+// FetchReview keeps the baseRefOid its view read already asks for.
+func TestFetchReview_FillsBaseOID(t *testing.T) {
+	f := reviewFake(t, "review_approved.json")
+	f.Results[reviewViewArgv] = FakeResult{Stdout: `{"reviewDecision":"APPROVED","baseRefOid":"abc123"}`}
+	pr := &PR{Number: 42, URL: ghPR.URL}
+	if _, _, err := FetchReview(context.Background(), f, pr); err != nil {
+		t.Fatal(err)
+	}
+	if pr.BaseOID != "abc123" {
+		t.Errorf("BaseOID = %q, want abc123", pr.BaseOID)
+	}
+	if strings.Contains(strings.Join(f.Calls, "\n"), "latestReviews") {
+		t.Errorf("latestReviews is unused and must not be asked for: %q", f.Calls)
+	}
+	data, _ := json.Marshal(pr)
+	if !strings.Contains(string(data), `"base_oid":"abc123"`) {
+		t.Errorf("missing base_oid in %s", data)
+	}
+}
+
 // UNKNOWN means GitHub is still computing; it must never read as a conflict.
 func TestFetchReview_UnknownIsNotAConflict(t *testing.T) {
 	rv, _, err := FetchReview(context.Background(), reviewFake(t, "review_unknown.json"), ghPR)

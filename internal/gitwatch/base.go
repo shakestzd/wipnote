@@ -31,7 +31,8 @@ var failedConclusions = map[string]bool{"failure": true, "startup_failure": true
 // red when any workflow's latest completed run failed, else pending when any
 // workflow's newest run is still going, else green; none when nothing ran.
 // RedToo (base_red_too) lets a reader tell a PR's own failure from a broken
-// base. Runs holds the latest completed run per workflow.
+// base: it is set when the base is red or when a run at the PR's base
+// commit (PR.BaseOID) failed. Runs holds the latest completed run per workflow.
 type Base struct {
 	Name    string    `json:"name"`
 	State   string    `json:"state"`
@@ -68,7 +69,9 @@ func BaseName(pr *PR) string {
 }
 
 // FetchBase reads the recent runs on branch name and summarises them.
-func FetchBase(ctx context.Context, r Runner, name string) (*Base, error) {
+// prBaseOID is the PR's base commit ("" with no PR); a failed run there also
+// sets RedToo.
+func FetchBase(ctx context.Context, r Runner, name, prBaseOID string) (*Base, error) {
 	var raw []rawRun
 	err := ghJSON(ctx, r, &raw, "run", "list", "--branch", name, "--limit", baseRunLimit, "--json", baseRunFields)
 	if err != nil {
@@ -76,6 +79,9 @@ func FetchBase(ctx context.Context, r Runner, name string) (*Base, error) {
 	}
 	b := summariseBase(raw)
 	b.Name = name
+	if failedAt(raw, prBaseOID) {
+		b.RedToo = true
+	}
 	return b, nil
 }
 
@@ -113,12 +119,26 @@ func summariseBase(raw []rawRun) *Base {
 	return b
 }
 
+// failedAt reports whether any completed run at commit oid failed.
+func failedAt(raw []rawRun, oid string) bool {
+	for _, run := range raw {
+		if oid != "" && run.HeadSha == oid && run.Status == "completed" && failedConclusions[run.Conclusion] {
+			return true
+		}
+	}
+	return false
+}
+
 // addBaseAndRelease adds the base CI and release sections to s. A failed
 // read leaves its section nil and adds a note; only a cancelled or expired
 // ctx is an error.
 func addBaseAndRelease(ctx context.Context, r Runner, s *Snapshot) (*Snapshot, error) {
 	name := BaseName(s.PR)
-	base, err := FetchBase(ctx, r, name)
+	oid := ""
+	if s.PR != nil {
+		oid = s.PR.BaseOID
+	}
+	base, err := FetchBase(ctx, r, name, oid)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 // reviewFields is the --json field list asked of gh pr view for review state.
-const reviewFields = "reviewDecision,reviewRequests,latestReviews,mergeable,mergeStateStatus,baseRefOid"
+const reviewFields = "reviewDecision,reviewRequests,mergeable,mergeStateStatus,baseRefOid"
 
 // MergeableComputing replaces GitHub's UNKNOWN mergeable: GitHub is still
 // computing mergeability in the background. It is never a conflict.
@@ -48,6 +48,7 @@ type rawReviewView struct {
 	} `json:"reviewRequests"`
 	Mergeable        string `json:"mergeable"`
 	MergeStateStatus string `json:"mergeStateStatus"`
+	BaseRefOid       string `json:"baseRefOid"`
 }
 
 // repoRef names the repository a PR lives in, read from its URL.
@@ -59,6 +60,7 @@ type checkKey struct{ Name, Workflow string }
 
 // FetchReview reads the review state of pr and which of its check contexts
 // are required. pr.URL supplies owner and repo, so no extra call is made.
+// The same view read fills pr.BaseOID.
 func FetchReview(ctx context.Context, r Runner, pr *PR) (*Review, map[checkKey]bool, error) {
 	repo, err := repoFromURL(pr.URL)
 	if err != nil {
@@ -76,6 +78,7 @@ func FetchReview(ctx context.Context, r Runner, pr *PR) (*Review, map[checkKey]b
 	if err != nil {
 		return nil, nil, fmt.Errorf("review threads of PR #%d: %w", pr.Number, err)
 	}
+	pr.BaseOID = view.BaseRefOid
 	rv := reviewFromView(view)
 	rv.ThreadsOpen, rv.ThreadsOutdated = countThreads(node)
 	return rv, requiredContexts(node), nil

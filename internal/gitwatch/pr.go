@@ -22,6 +22,8 @@ type PR struct {
 	Base   string `json:"base"`
 	State  string `json:"state"`
 	URL    string `json:"url"`
+	// BaseOID is the base commit (baseRefOid), filled by FetchReview's read.
+	BaseOID string `json:"base_oid"`
 }
 
 type rawPR struct {
