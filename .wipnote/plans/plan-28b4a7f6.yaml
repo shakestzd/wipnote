@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 60
+    version: 61
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -2026,6 +2026,29 @@ slices:
         **Kept on:** the wipnote plugin and its hooks, so the ledger and lineage still record the worker. CLAUDE.md stays loaded (project instructions); auto-memory is off.
         **Rejected:** --bare as the default (OAuth users cannot authenticate under it); --safe-mode and --restricted (they also drop wipnote's plugin or tools a code task needs).
         **Open (verify in the slice's tests on the real CLIs):** whether --strict-mcp-config also drops plugin-bundled MCP servers; whether codex -c mcp_servers={} replaces the table; docs say tools.view_image while 0.164.0 source has features.view_image; a trusted project's .codex/config.toml can still add servers, and delegate doctor must name them.
+    - id: slic-e365e7ee
+      num: 28
+      title: Preview delegate skill for one-shot runs
+      what: Add a delegate skill and a short system-prompt section that teach agents to use wipnote delegate run for one-shot runs (codex exec and review, ccx task, claude -p), marked preview. codex-herdr-pane stays installed; slice 14 removes it in Release 2 and replaces this guidance with the full delegate skill. Regenerate the plugin trees.
+      why: 'Owner decision 2026-10-26: ship Release 1 as a one-shot preview while the codex-herdr-pane mod stays, because slice 14 depends on interactive slices 11 to 13.'
+      files:
+        - plugin/skills/delegate/SKILL.md
+        - cmd/wipnote/prompts/system-prompt.md
+        - port/pluginbuild/antigravity.go
+      deps:
+        - 8
+        - 19
+      done_when:
+        - The Claude and Codex trees carry the delegate skill and the Antigravity tree does not (q-antigravity)
+        - The skill covers delegate run only and marks interactive commands as coming in Release 2
+        - The skill names the run page and the delegations ledger as where results live
+        - build-ports and check-ports run clean
+        - The release note says two one-shot paths (delegate run and codex-herdr-pane) exist until Release 2
+      effort: S
+      risk: Low
+      tests: 'Unit: TestBuildPorts_DelegateSkillInClaudeAndCodex, TestBuildPorts_NoDelegateSkillInAntigravity. Manual: wipnote claude loads the skill.'
+      approved: false
+      comment: ""
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
