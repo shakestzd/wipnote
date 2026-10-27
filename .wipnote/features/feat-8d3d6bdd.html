@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-27T21:39:40.657677"
-             data-updated="2026-10-27T21:41:47.725588" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
+             data-updated="2026-10-27T21:51:59.915553" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
 
         <header>
             <h1>Label herdr panes with their work item</h1>
@@ -43,6 +43,16 @@
                 </ul>
             </section>
         </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-8d3d6bdd-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Finding: herdr 0.9.5 can rename an existing pane and tab. Primary source https://herdr.dev/docs/cli-reference/ lists &#39;herdr pane rename &lt;pane_id&gt; &lt;label&gt;|--clear&#39; and &#39;herdr tab rename &lt;tab_id&gt; &lt;label&gt;&#39;; pane rename added in v0.5.8 (https://newreleases.io/project/github/herdrdev/herdr/release/v0.5.8). Same page: HERDR_ENV=1 inside herdr panes, HERDR_PANE_ID / HERDR_TAB_ID / HERDR_WORKSPACE_ID name the pane, tab, workspace. No herdr binary here, so not run live. flaviocopes and betterstack guides do not document rename. Plan: label the caller&#39;s pane via the adapter&#39;s existing Rename (pane rename HERDR_PANE_ID label).</li>
+                <li data-completed="false" data-step-id="step-feat-8d3d6bdd-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ herdr adapter: label.go adds WorkLabel (&lt;id&gt;: &lt;title&gt;, whitespace collapsed, cut to 48 runes with an ellipsis), LabelTimeout (1s) and LabelCallerPane (no call outside herdr, no caller pane or blank label). Tests in label_test.go with the scripted fake, red then green.</li>
+                <li data-completed="false" data-step-id="step-feat-8d3d6bdd-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ feature/bug/spike start labels the caller&#39;s herdr pane via pane rename (root or codex agent only; a subagent start leaves the pane alone). cmd TestMain clears HERDR_* and doubles as the fake herdr.</li>
+                <li data-completed="false" data-step-id="step-feat-8d3d6bdd-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ wipnote claude (dev/default) and wipnote codex (--feature/--track; --work-item goes through feature start) label the pane in a background goroutine so launch never waits. delegate run left unchanged: it already names its own pane with --label or the derived label.</li>
+            </ol>
+        </section>
 
         <section data-content>
             <h3>Description</h3>
