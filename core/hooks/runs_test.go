@@ -73,6 +73,20 @@ func appendFile(t *testing.T, path, s string) {
 	f.WriteString(s)
 }
 
+// notifiedTranscript writes a task output file and a transcript holding one
+// ordinary line and the task's completion notification.
+func notifiedTranscript(t *testing.T, taskID, toolUseID, output, summary string) string {
+	t.Helper()
+	tmp := t.TempDir()
+	outPath := filepath.Join(tmp, "tasks", taskID+".output")
+	os.MkdirAll(filepath.Dir(outPath), 0o755)
+	os.WriteFile(outPath, []byte(output), 0o644)
+	transcript := filepath.Join(tmp, "session.jsonl")
+	appendFile(t, transcript, `{"type":"user","message":{"content":"hi"}}`+"\n")
+	appendFile(t, transcript, notificationLine(taskID, toolUseID, outPath, "completed", summary))
+	return transcript
+}
+
 func TestRuns_BackgroundBashStartPlusNotificationIsComplete(t *testing.T) {
 	projectDir, wipnoteDir := runsProject(t)
 	claimFor(t, wipnoteDir, "feat-c0ffee01")
@@ -90,14 +104,8 @@ func TestRuns_BackgroundBashStartPlusNotificationIsComplete(t *testing.T) {
 		t.Errorf("command/folder = %q/%q, want relative to the project", r.Command, r.Folder)
 	}
 
-	tmp := t.TempDir()
-	output := filepath.Join(tmp, "tasks", "bwylhfzv1.output")
-	os.MkdirAll(filepath.Dir(output), 0o755)
-	os.WriteFile(output, []byte("--- FAIL: TestFlaky (0.01s)\nretry ok\ngate done\n"), 0o644)
-	transcript := filepath.Join(tmp, "session.jsonl")
-	appendFile(t, transcript, `{"type":"user","message":{"content":"hi"}}`+"\n")
-	appendFile(t, transcript, notificationLine("bwylhfzv1", "toolu_A", output, "completed",
-		`Background command "Rebuild and run the full gate" completed (exit code 0)`))
+	transcript := notifiedTranscript(t, "bwylhfzv1", "toolu_A", "--- FAIL: TestFlaky (0.01s)\nretry ok\ngate done\n",
+		`Background command "Rebuild and run the full gate" completed (exit code 0)`)
 
 	if _, err := Stop(&CloudEvent{SessionID: runsSession, CWD: projectDir, TranscriptPath: transcript, Harness: HarnessClaude}); err != nil {
 		t.Fatal(err)
