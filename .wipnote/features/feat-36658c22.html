@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-27T21:39:40.653855"
-             data-updated="2026-10-27T21:45:22.227094" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
+             data-updated="2026-10-27T22:08:13.681812" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
 
         <header>
             <h1>Record every background task an agent starts</h1>
@@ -48,6 +48,9 @@
             <h3>Implementation Steps</h3>
             <ol>
                 <li data-completed="false" data-step-id="step-feat-36658c22-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Transcript finding: start = PreToolUse (Bash run_in_background, Agent run_in_background, Monitor) &#43; tool_result (Bash &#39;Command running in background with ID: &lt;tid&gt;. Output is being written to: &lt;file&gt;&#39;, toolUseResult.backgroundTaskId; Agent toolUseResult.agentId; Monitor &#39;Monitor started (task &lt;tid&gt;&#39;); end = queue-operation enqueue &lt;task-notification&gt; with task-id, tool-use-id, output-file, status (only &#39;completed&#39; seen), summary &#39;Background command &#34;X&#34; completed (exit code N)&#39; / &#39;Agent &#34;X&#34; finished&#39; / &#39;Monitor &#34;X&#34; stream ended&#39;. Correlate on tool-use-id (task-id as fallback). Skip notifications without task-id (queued-remote-notifications, Monitor event). Agents may notify more than once (keep latest). Many notifications lack a start line in the transcript, so an end alone must still yield a record.</li>
+                <li data-completed="false" data-step-id="step-feat-36658c22-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Finding: tasks a subagent starts (its Bash/Monitor calls live in subagents/agent-*.jsonl) still get their enqueue task-notification in the MAIN session transcript, and subagent hooks carry the parent session_id, so reading the main transcript on Stop/UserPromptSubmit covers them. Claude&#39;s PostToolUse tool_response for a backgrounded Bash has backgroundTaskId but no output path; the output-file comes from the notification.</li>
+                <li data-completed="false" data-step-id="step-feat-36658c22-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ core: ingest.ParseTaskNotifications &#43; ReadTranscriptChunk (bounded, resumable); core/runledger append-only event shards .wipnote/runs/sess-&lt;session&gt;.html folded into Records; hooks record starts at PostToolUse (Claude) / PreToolUse (Codex), ends from transcript on Stop&#43;UserPromptSubmit and Codex PostToolUse</li>
+                <li data-completed="false" data-step-id="step-feat-36658c22-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ cmd: lineage &#43; feature show list item runs (&#39;gate exit 0 at HH:MM on commit X&#39;, first error); lineage --json &#39;runs&#39;; optional &#39;wipnote run --work-item -- &lt;cmd&gt;&#39; wrapper; run-ledger commit seam. Gate green on obs/d1 (7d649d50c).</li>
             </ol>
         </section>
 
