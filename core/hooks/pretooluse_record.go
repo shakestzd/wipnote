@@ -28,6 +28,9 @@ func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext) (*HookResult, e
 		TS:      toolLogNow().Unix(),
 	})
 
+	// A Codex shell call starts a run record here (feat-36658c22).
+	recordRunFromPreToolUse(event, ctx)
+
 	result := &HookResult{}
 	// bug-190950e0: this is the single choke point every "allow" exit of
 	// PreToolUse passes through, so patching it here (rather than each call
