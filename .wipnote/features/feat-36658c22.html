@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-27T21:39:40.653855"
-             data-updated="2026-10-27T21:41:45.057583" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
+             data-updated="2026-10-27T21:45:22.227094" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
 
         <header>
             <h1>Record every background task an agent starts</h1>
@@ -43,6 +43,13 @@
                 </ul>
             </section>
         </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-36658c22-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Transcript finding: start = PreToolUse (Bash run_in_background, Agent run_in_background, Monitor) &#43; tool_result (Bash &#39;Command running in background with ID: &lt;tid&gt;. Output is being written to: &lt;file&gt;&#39;, toolUseResult.backgroundTaskId; Agent toolUseResult.agentId; Monitor &#39;Monitor started (task &lt;tid&gt;&#39;); end = queue-operation enqueue &lt;task-notification&gt; with task-id, tool-use-id, output-file, status (only &#39;completed&#39; seen), summary &#39;Background command &#34;X&#34; completed (exit code N)&#39; / &#39;Agent &#34;X&#34; finished&#39; / &#39;Monitor &#34;X&#34; stream ended&#39;. Correlate on tool-use-id (task-id as fallback). Skip notifications without task-id (queued-remote-notifications, Monitor event). Agents may notify more than once (keep latest). Many notifications lack a start line in the transcript, so an end alone must still yield a record.</li>
+            </ol>
+        </section>
 
         <section data-content>
             <h3>Description</h3>
