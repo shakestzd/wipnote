@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote-orchestra still prints a skip line for each classic.* hook a managed plugin bypasses</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-c5cf24ec"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-10-26T16:16:36.368177"
+             data-updated="2026-10-26T22:09:35.907778" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>wipnote-orchestra still prints a skip line for each classic.* hook a managed plugin bypasses</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="cf271270ef6dad34e6e13ef606601f46737e4400.html" data-relationship="committed_in" data-since="2026-10-26T18:09:28">Merge pull request #273 from shakestzd/fix/bug-c5cf24ec</a></li>
+                    <li><a href="8d0b7b3d1e702df83c21736d4f3edc2d02d8eb8a.html" data-relationship="committed_in" data-since="2026-10-26T20:24:32">fix(orchestra): hook no classic.* event, so a managed plugin has nothing to skip (bug-c5cf24ec)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-26T16:17:50.912928">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-26T16:16:36.372863">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>After bug-12ef8d02 the band no longer depends on classic.* events, but the mod still registers classic.UserPromptSubmit, PostToolUse, Stop, Notification and SessionStart. A managed plugin (cc-plugin-sec-default) passes those events past user-tier plugins, and a hot-reloading session prints a transcript line for every skip (&#39;wipnote-orchestra: its classic.Stop hook was skipped...&#39;). Fix: read the permission-mode pill from the SessionMode render component (its props carry the footer&#39;s mode labels) and drop every classic.* hook; the conversation swap is already caught by the session-id tracker.</p>
+        </section>
+    </article>
+</body>
+</html>
