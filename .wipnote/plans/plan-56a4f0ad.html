@@ -478,7 +478,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <li>
       <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
         <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
-        <span>#1 Run records on the work item</span>
+        <span>#1 Record every background task an agent starts</span>
         
         <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
       </a>
@@ -502,6 +502,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       </a>
     </li>
     
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Sweep for processes that outlive their session</span>
+        
+        <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
+      </a>
+    </li>
+    
   </ul>
   
   
@@ -519,7 +528,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">One answer across all projects for where each project is, what each agent is doing, why, and what waits on the owner. wipnote supplies the data; herdr and the owner&#39;s pane show it. No new dashboard.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 3 slices · Created 2026-10-27</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v4 · 4 slices · Created 2026-10-27</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -544,7 +553,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       <div class="overview-block-entry">
         <a class="overview-slice-label" href="#slice-1-block-data-model-1" title="Jump to slice 1">
           <span class="slice-num">#1</span>
-          <span class="overview-slice-title">Run records on the work item</span>
+          <span class="overview-slice-title">Record every background task an agent starts</span>
         </a>
         <div class="block-anchor" id="overview-slice-1-block-data-model-1" data-block-anchor="slice-1-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
   <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Run</span></div>
@@ -552,8 +561,11 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
     <tbody>
       <tr><td><code>id</code></td><td><code>run-&lt;12 hex&gt;</code></td><td>&mdash;</td></tr>
+      <tr><td><code>task_id</code></td><td><code>string (harness task id)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>description</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>status</code></td><td><code>running | completed | failed | killed | unknown</code></td><td>&mdash;</td></tr>
       <tr><td><code>work_item</code></td><td><code>string</code></td><td>&mdash;</td></tr>
-      <tr><td><code>source</code></td><td><code>wrapper | hook</code></td><td>&mdash;</td></tr>
+      <tr><td><code>kind</code></td><td><code>shell | subagent | monitor | wrapper</code></td><td>&mdash;</td></tr>
       <tr><td><code>command</code></td><td><code>string</code></td><td>&mdash;</td></tr>
       <tr><td><code>folder</code></td><td><code>path, relative to project root</code></td><td>&mdash;</td></tr>
       <tr><td><code>started_at</code></td><td><code>time</code></td><td>&mdash;</td></tr>
@@ -592,6 +604,28 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   </table>
 </div></div>
       </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-4-block-data-model-1" title="Jump to slice 4">
+          <span class="slice-num">#4</span>
+          <span class="overview-slice-title">Sweep for processes that outlive their session</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-4-block-data-model-1" data-block-anchor="slice-4-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Proc</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>pid</code></td><td><code>int</code></td><td>&mdash;</td></tr>
+      <tr><td><code>command</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>session_id</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>project</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>started_at</code></td><td><code>time</code></td><td>&mdash;</td></tr>
+      <tr><td><code>orphan</code></td><td><code>bool</code></td><td>&mdash;</td></tr>
+      <tr><td><code>stop_hint</code></td><td><code>string, e.g. &#39;kill &lt;pid&gt;&#39;</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
       
     </div>
   </div>
@@ -602,13 +636,14 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="Run records on the work item" data-status="pending" data-deps="" data-files="4" data-questions="1"></div>
+    <div data-node="1" data-name="Record every background task an agent starts" data-status="pending" data-deps="" data-files="5" data-questions="1"></div>
     <div data-node="2" data-name="Label herdr panes with their work item" data-status="pending" data-deps="" data-files="4"></div>
     <div data-node="3" data-name="wipnote status --all for every project" data-status="pending" data-deps="1" data-files="3" data-questions="1"></div>
+    <div data-node="4" data-name="Sweep for processes that outlive their session" data-status="pending" data-deps="1" data-files="3" data-questions="1"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="633.6" height="216" viewBox="0 0 633.6 216" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M171.2 80 L171.2 108 L171.2 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="31.19999999999999" y="24" width="280" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="171.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Run records on the work item  ?1</text><text class="dep-node-meta" x="171.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="351.2" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="480.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Label herdr panes with their…</text><text class="dep-node-meta" x="480.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="136" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="171.2" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 wipnote status --all for ever…  ?1</text><text class="dep-node-meta" x="171.2" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a></g></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="804.4" height="216" viewBox="0 0 804.4 216" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M254.8 80 L171.2 108 L171.2 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M422 80 L505.6 108 L505.6 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="194.79999999999998" y="24" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="338.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Record every background task…  ?1</text><text class="dep-node-meta" x="338.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="522" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="651.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Label herdr panes with their…</text><text class="dep-node-meta" x="651.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="136" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="171.2" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 wipnote status --all for ever…  ?1</text><text class="dep-node-meta" x="171.2" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="358.40000000000003" y="136" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="505.6" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Sweep for processes that outl…  ?1</text><text class="dep-node-meta" x="505.6" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -643,7 +678,8 @@ wipnote supplies the data and does not build a screen. The old dashboard and act
 
 ## Owner decisions 2026-10-27
 
-- Capture runs both ways: hooks for agent shells, and a &#39;wipnote run&#39; wrapper for scripts and gates.
+- Capture every background task an agent starts, without wrapping it: read the harness&#39;s own records. A &#39;wipnote run&#39; wrapper stays optional for scripts run outside a harness.
+- A process that outlives its session is reported only; wipnote never stops it.
 - Each project row answers: where it is, what agents do, why, and what needs the owner.
 - Adopt over build: no new dashboard; feed the existing pane and herdr.</div>
 <h4>Goals</h4>
@@ -678,11 +714,11 @@ wipnote supplies the data and does not build a screen. The old dashboard and act
   <div class="section-body">
     <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
     <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="" data-status="pending" data-approval="pending">
-  <summary class="slice-summary" aria-label="Slice 1: Run records on the work item">
+  <summary class="slice-summary" aria-label="Slice 1: Record every background task an agent starts">
     <span class="slice-num">#1</span>
     <span class="slice-title-col">
-      <span class="slice-name">Run records on the work item</span>
-      <span class="slice-preview">New &#39;wipnote run --work-item  -- &#39; runs a command, logs its output, and appends a run record to the work item.</span>
+      <span class="slice-name">Record every background task an agent starts</span>
+      <span class="slice-preview">Record each background task without wrapping it: Bash calls with runinbackground, subagents and monitors.</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
@@ -721,7 +757,7 @@ wipnote supplies the data and does not build a screen. The old dashboard and act
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>New &#39;wipnote run --work-item &lt;id&gt; -- &#39; runs a command, logs its output, and appends a run record to the work item. A Bash hook adds the same record for long agent shells, linked to the session&#39;s active item. Lineage and feature show list the runs.</p>
+          <div class="markdown-block serif-prose"><p>Record each background task without wrapping it: Bash calls with run_in_background, subagents and monitors. The start comes from the tool call and its result (task id, output file). The end, status and exit code come from Claude Code&#39;s task-notification in the session transcript, and from Codex&#39;s late PostToolUse. Optional &#39;wipnote run&#39; for scripts.</p>
 </div>
           
         </div>
@@ -732,7 +768,7 @@ wipnote supplies the data and does not build a screen. The old dashboard and act
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Long runs and gates are invisible today and are not linked to the work they belong to.</p>
+          <div class="markdown-block serif-prose"><p>Agents start many background tasks (84 in one session) and none show on the work item, in lineage or across projects.</p>
 </div>
           
         </div>
@@ -741,13 +777,13 @@ wipnote supplies the data and does not build a screen. The old dashboard and act
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>cmd/wipnote/run.go, core/runledger/, internal/hooks/ (Bash pre and post tool hooks), cmd/wipnote/lineage_render.go</code></div>
+        <div class="slice-field-value"><code>core/runledger/, internal/hooks/ (Bash pre and post tool hooks), core/ingest/ (transcript task-notification reader), cmd/wipnote/run.go, cmd/wipnote/lineage_render.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list slice-done-list--grid"><li>wipnote run records command, folder, times, exit code and log path on the work item</li><li>the record keeps the first error line and the last output line</li><li>a nonzero exit is recorded and returned unchanged</li><li>a background agent shell in a session with an active item gets a record</li><li>wipnote lineage &lt;id&gt; shows &#39;gate exit 0 at HH:MM on commit X&#39;</li><li>hooks add no measurable delay and write no SQLite</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>every run_in_background Bash call, subagent and monitor gets a record, with no length filter</li><li>the record is linked to the session, and to the work item when one is active</li><li>the task-notification fills end time, status and exit code, for example &#39;Rebuild and run the full gate completed (exit code 0)&#39;</li><li>the record keeps the output file path, its last line and its first error line</li><li>a task with no notification yet shows as running; one whose session ended without a notification shows as unknown</li><li>the agent command is never rewritten or wrapped</li><li>wipnote lineage &lt;id&gt; shows &#39;gate exit 0 at HH:MM on commit X&#39;</li><li>hooks add no measurable delay and write no SQLite</li></ul>
       </div>
       
     
@@ -758,9 +794,11 @@ wipnote supplies the data and does not build a screen. The old dashboard and act
       <div class="slice-field-value">
         
         <input type="checkbox" id="slice-1-decisions-reveal" class="reveal-toggle">
-        <div class="markdown-block reveal-content serif-prose"><p><strong>First step:</strong> verify on Claude Code and Codex which hook, if any, fires when a background shell ends. If none does, the hook record shows start and log path, and the end is filled when the log&#39;s exit marker appears or the session ends.
-<strong>Store:</strong> one append-only file per writer, following core/sessionledger; no shared append from two writers.
-<strong>Record fields:</strong> command, folder, start, end, duration, exit code, log path, last line and first error line.</p>
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Evidence (one session, 2026-10-27):</strong> 84 background tasks, each with a start (tool result: &#39;Command running in background with ID: &lt;id&gt;. Output is being written to: &#39;) and an end (queue-operation enqueue carrying  with task-id, tool-use-id, output-file, status and summary).
+<strong>Reader:</strong> reuse the transcript reader that resumes from a saved offset (Stop backfill); read on Stop, on UserPromptSubmit, and on demand from status --all.
+<strong>Exit code caveat:</strong> the code is the outer command&#39;s. A command ending in &#39;echo&#39; reports 0 even if an earlier step failed, so the first error line from the output file is kept.
+<strong>Store:</strong> one append-only file per writer, following core/sessionledger.
+<strong>Record fields:</strong> task id, tool-use id, kind (shell, subagent, monitor), description, command, folder, start, end, status, exit code, output file, last line and first error line.</p>
 </div>
         <label for="slice-1-decisions-reveal" class="reveal-label">Show full decisions</label>
         
@@ -777,8 +815,11 @@ wipnote supplies the data and does not build a screen. The old dashboard and act
     <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
     <tbody>
       <tr><td><code>id</code></td><td><code>run-&lt;12 hex&gt;</code></td><td>&mdash;</td></tr>
+      <tr><td><code>task_id</code></td><td><code>string (harness task id)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>description</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>status</code></td><td><code>running | completed | failed | killed | unknown</code></td><td>&mdash;</td></tr>
       <tr><td><code>work_item</code></td><td><code>string</code></td><td>&mdash;</td></tr>
-      <tr><td><code>source</code></td><td><code>wrapper | hook</code></td><td>&mdash;</td></tr>
+      <tr><td><code>kind</code></td><td><code>shell | subagent | monitor | wrapper</code></td><td>&mdash;</td></tr>
       <tr><td><code>command</code></td><td><code>string</code></td><td>&mdash;</td></tr>
       <tr><td><code>folder</code></td><td><code>path, relative to project root</code></td><td>&mdash;</td></tr>
       <tr><td><code>started_at</code></td><td><code>time</code></td><td>&mdash;</td></tr>
@@ -802,7 +843,7 @@ wipnote supplies the data and does not build a screen. The old dashboard and act
       <div class="slice-field-value">
         
         
-        <div class="markdown-block slice-tests"><p>Two-sided, written first. Wrapper: exit 0 and nonzero, first error line found and absent, signal kill. Hook: a record when a work item is active, none when no item is active, no record for short foreground calls. Temp projects only.</p>
+        <div class="markdown-block slice-tests"><p>Two-sided, written first, from recorded transcript fixtures: start plus notification gives a complete record; start without notification stays running; notification with a nonzero exit; subagent and monitor rows; no item active links to the session only; wrapper exit 0 and nonzero. Temp projects only.</p>
 </div>
         
       </div>
@@ -817,13 +858,13 @@ wipnote supplies the data and does not build a screen. The old dashboard and act
       <div class="slice-field-value">
         
         <div class="question-block slice-question-block">
-          <p>How does wipnote learn about a long process?</p>
+          <p>How does wipnote learn about background tasks?</p>
           
           
           <textarea
             data-section="slice-1-question-q-capture"
             data-comment-for="slice-1-question-q-capture"
-            placeholder="Answer question q-capture...">Both (owner, 2026-10-27). Hooks record agent shells; the wrapper covers scripts, gates and commands run outside a harness.</textarea>
+            placeholder="Answer question q-capture...">Read the harness&#39;s own records, with no wrapping (owner, 2026-10-27). Claude Code: the tool call, its result, and the transcript task-notification. Codex: PreToolUse and the late PostToolUse. &#39;wipnote run&#39; is optional, for scripts outside a harness.</textarea>
           
         </div>
         
@@ -1117,6 +1158,162 @@ blocks_waiver: the label is one string, &#39;&lt;id&gt;: &#39;; no structure to 
     </details>
   </div>
 </details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Sweep for processes that outlive their session">
+    <span class="slice-num">#4</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Sweep for processes that outlive their session</span>
+      <span class="slice-preview">Find every live process an agent started, including &#39;cmd &amp;&#39;, nohup, dev servers and watchers that hooks cannot see, by the session id each c…</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Find every live process an agent started, including &#39;cmd &amp;&#39;, nohup, dev servers and watchers that hooks cannot see, by the session id each child inherits. Processes whose session has ended are orphans. status --all and wipnote reconcile list them, with a stop command to copy. wipnote never stops anything.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Background processes started inside a command are invisible to hooks and can keep running after their session ends.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/procsweep/, cmd/wipnote/reconcile.go, internal/statusall/</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>a process started with &amp; inside an agent command shows under its session</li><li>a process still running after its session ended shows as an orphan with a copyable stop command</li><li>wipnote never sends a signal to any process</li><li>works on macOS and Linux; when the platform cannot read a process environment, it says so</li><li>the sweep has a time bound and never runs in a hook</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>First step:</strong> confirm that child processes inherit a session variable on both harnesses (Claude Code sets CLAUDE_CODE_SESSION_ID in its environment), and that macOS ps can read the environment of the user&#39;s own processes.
+<strong>Match:</strong> by inherited session id, not by parent pid, because an orphan is re-parented and its parent link is lost.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-4-block-data-model-1" data-block-anchor="slice-4-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Proc</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>pid</code></td><td><code>int</code></td><td>&mdash;</td></tr>
+      <tr><td><code>command</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>session_id</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>project</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>started_at</code></td><td><code>time</code></td><td>&mdash;</td></tr>
+      <tr><td><code>orphan</code></td><td><code>bool</code></td><td>&mdash;</td></tr>
+      <tr><td><code>stop_hint</code></td><td><code>string, e.g. &#39;kill &lt;pid&gt;&#39;</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Two-sided, written first: a temp child with a fake session id is found; a process without one is ignored; an ended session marks its child an orphan; no signal API is ever called (fake process table).</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>What happens to a process that outlives its session?</p>
+          
+          
+          <textarea
+            data-section="slice-4-question-q-orphans"
+            data-comment-for="slice-4-question-q-orphans"
+            placeholder="Answer question q-orphans...">Report only (owner, 2026-10-27). It shows as a needs-you entry with a stop command to copy.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
 
     <!--PLAN_SLICE_CARDS-->
   </div>
@@ -1134,8 +1331,8 @@ blocks_waiver: the label is one string, &#39;&lt;id&gt;: &#39;; no structure to 
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">4</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">4</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">5</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">5</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -1227,7 +1424,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');

@@ -6,7 +6,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 3
+    version: 4
 design:
     problem: |-
         ## Problem
@@ -34,7 +34,8 @@ design:
 
         ## Owner decisions 2026-10-27
 
-        - Capture runs both ways: hooks for agent shells, and a 'wipnote run' wrapper for scripts and gates.
+        - Capture every background task an agent starts, without wrapping it: read the harness's own records. A 'wipnote run' wrapper stays optional for scripts run outside a harness.
+        - A process that outlives its session is reported only; wipnote never stops it.
         - Each project row answers: where it is, what agents do, why, and what needs the owner.
         - Adopt over build: no new dashboard; feed the existing pane and herdr.
     goals:
@@ -62,43 +63,54 @@ design:
         - url: https://github.com/yigitkonur/awesome-herdr
           claim: herdr-portal aggregates every workspace, tab and pane agent into a terminal kanban and a web view.
           accessed: "2026-10-27"
+        - url: https://learn.chatgpt.com/docs/hooks
+          claim: Codex PreToolUse and PostToolUse cover shell commands (match Bash); for unified exec, a later write_stdin poll delivers the original command's PostToolUse when it finishes.
+          accessed: "2026-10-27"
 slices:
     - id: ""
       num: 1
-      title: Run records on the work item
-      what: New 'wipnote run --work-item <id> -- <cmd>' runs a command, logs its output, and appends a run record to the work item. A Bash hook adds the same record for long agent shells, linked to the session's active item. Lineage and feature show list the runs.
-      why: Long runs and gates are invisible today and are not linked to the work they belong to.
+      title: Record every background task an agent starts
+      what: 'Record each background task without wrapping it: Bash calls with run_in_background, subagents and monitors. The start comes from the tool call and its result (task id, output file). The end, status and exit code come from Claude Code''s task-notification in the session transcript, and from Codex''s late PostToolUse. Optional ''wipnote run'' for scripts.'
+      why: Agents start many background tasks (84 in one session) and none show on the work item, in lineage or across projects.
       files:
-        - cmd/wipnote/run.go
         - core/runledger/
         - internal/hooks/ (Bash pre and post tool hooks)
+        - core/ingest/ (transcript task-notification reader)
+        - cmd/wipnote/run.go
         - cmd/wipnote/lineage_render.go
       deps: []
       done_when:
-        - wipnote run records command, folder, times, exit code and log path on the work item
-        - the record keeps the first error line and the last output line
-        - a nonzero exit is recorded and returned unchanged
-        - a background agent shell in a session with an active item gets a record
+        - every run_in_background Bash call, subagent and monitor gets a record, with no length filter
+        - the record is linked to the session, and to the work item when one is active
+        - the task-notification fills end time, status and exit code, for example 'Rebuild and run the full gate completed (exit code 0)'
+        - the record keeps the output file path, its last line and its first error line
+        - a task with no notification yet shows as running; one whose session ended without a notification shows as unknown
+        - the agent command is never rewritten or wrapped
         - wipnote lineage <id> shows 'gate exit 0 at HH:MM on commit X'
         - hooks add no measurable delay and write no SQLite
       effort: M
       risk: Med
-      tests: 'Two-sided, written first. Wrapper: exit 0 and nonzero, first error line found and absent, signal kill. Hook: a record when a work item is active, none when no item is active, no record for short foreground calls. Temp projects only.'
+      tests: 'Two-sided, written first, from recorded transcript fixtures: start plus notification gives a complete record; start without notification stays running; notification with a nonzero exit; subagent and monitor rows; no item active links to the session only; wrapper exit 0 and nonzero. Temp projects only.'
       complexity: complex
       approved: false
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/hooks
-          claim: PreToolUse and PostToolUse hooks receive the tool name and tool input for Bash calls; the first step checks which event, if any, reports when a background shell ends.
+          claim: PreToolUse Bash tool_input includes run_in_background, description and command; common fields include session_id, transcript_path and tool_use_id. No hook event fires when a background shell ends.
+          accessed: "2026-10-27"
+        - url: https://learn.chatgpt.com/docs/hooks
+          claim: Codex PostToolUse for unified exec is delivered when the command finishes, through a later write_stdin poll.
           accessed: "2026-10-27"
       questions:
         - id: q-capture
-          text: How does wipnote learn about a long process?
-          answer: Both (owner, 2026-10-27). Hooks record agent shells; the wrapper covers scripts, gates and commands run outside a harness.
+          text: How does wipnote learn about background tasks?
+          answer: 'Read the harness''s own records, with no wrapping (owner, 2026-10-27). Claude Code: the tool call, its result, and the transcript task-notification. Codex: PreToolUse and the late PostToolUse. ''wipnote run'' is optional, for scripts outside a harness.'
       decisions_notes: |-
-        **First step:** verify on Claude Code and Codex which hook, if any, fires when a background shell ends. If none does, the hook record shows start and log path, and the end is filled when the log's exit marker appears or the session ends.
-        **Store:** one append-only file per writer, following core/sessionledger; no shared append from two writers.
-        **Record fields:** command, folder, start, end, duration, exit code, log path, last line and first error line.
+        **Evidence (one session, 2026-10-27):** 84 background tasks, each with a start (tool result: 'Command running in background with ID: <id>. Output is being written to: <file>') and an end (queue-operation enqueue carrying <task-notification> with task-id, tool-use-id, output-file, status and summary).
+        **Reader:** reuse the transcript reader that resumes from a saved offset (Stop backfill); read on Stop, on UserPromptSubmit, and on demand from status --all.
+        **Exit code caveat:** the code is the outer command's. A command ending in 'echo' reports 0 even if an earlier step failed, so the first error line from the output file is kept.
+        **Store:** one append-only file per writer, following core/sessionledger.
+        **Record fields:** task id, tool-use id, kind (shell, subagent, monitor), description, command, folder, start, end, status, exit code, output file, last line and first error line.
       blocks:
         - type: data-model
           title: Run record
@@ -107,10 +119,16 @@ slices:
           rows:
             - name: id
               type: run-<12 hex>
+            - name: task_id
+              type: string (harness task id)
+            - name: description
+              type: string
+            - name: status
+              type: running | completed | failed | killed | unknown
             - name: work_item
               type: string
-            - name: source
-              type: wrapper | hook
+            - name: kind
+              type: shell | subagent | monitor | wrapper
             - name: command
               type: string
             - name: folder
@@ -218,4 +236,58 @@ slices:
               type: '[{kind, what, since}]'
             - name: errors
               type: '[string]'
+    - id: ""
+      num: 4
+      title: Sweep for processes that outlive their session
+      what: Find every live process an agent started, including 'cmd &', nohup, dev servers and watchers that hooks cannot see, by the session id each child inherits. Processes whose session has ended are orphans. status --all and wipnote reconcile list them, with a stop command to copy. wipnote never stops anything.
+      why: Background processes started inside a command are invisible to hooks and can keep running after their session ends.
+      files:
+        - internal/procsweep/
+        - cmd/wipnote/reconcile.go
+        - internal/statusall/
+      deps:
+        - 1
+      done_when:
+        - a process started with & inside an agent command shows under its session
+        - a process still running after its session ended shows as an orphan with a copyable stop command
+        - wipnote never sends a signal to any process
+        - works on macOS and Linux; when the platform cannot read a process environment, it says so
+        - the sweep has a time bound and never runs in a hook
+      effort: M
+      risk: Med
+      tests: 'Two-sided, written first: a temp child with a fake session id is found; a process without one is ignored; an ended session marks its child an orphan; no signal API is ever called (fake process table).'
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/hooks
+          claim: Hooks see only the tool call; a process started inside a command (& or nohup) produces no hook event.
+          accessed: "2026-10-27"
+      questions:
+        - id: q-orphans
+          text: What happens to a process that outlives its session?
+          answer: Report only (owner, 2026-10-27). It shows as a needs-you entry with a stop command to copy.
+      decisions_notes: |-
+        **First step:** confirm that child processes inherit a session variable on both harnesses (Claude Code sets CLAUDE_CODE_SESSION_ID in its environment), and that macOS ps can read the environment of the user's own processes.
+        **Match:** by inherited session id, not by parent pid, because an orphan is re-parented and its parent link is lost.
+      blocks:
+        - type: data-model
+          title: Swept process
+          fields:
+            name: Proc
+          rows:
+            - name: pid
+              type: int
+            - name: command
+              type: string
+            - name: session_id
+              type: string
+            - name: project
+              type: string
+            - name: started_at
+              type: time
+            - name: orphan
+              type: bool
+            - name: stop_hint
+              type: string, e.g. 'kill <pid>'
 questions: []
