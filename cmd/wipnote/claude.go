@@ -57,6 +57,9 @@ type LaunchOpts struct {
 	// ExtraEnv is layered onto the child environment after the launcher builds
 	// its standard wipnote + telemetry overrides.
 	ExtraEnv []string
+	// WorkItem is the launch's work item; inside herdr the launcher labels
+	// the caller's pane "<id>: <title>" with it, in the background.
+	WorkItem string
 }
 
 func claudeCmd() *cobra.Command {
@@ -255,6 +258,7 @@ func launchClaude(opts LaunchOpts) error {
 		markerRoot = opts.WipnoteRoot
 	}
 	writeLaunchMarker(opts.Mode, markerRoot)
+	launchHerdrLabel(markerRoot, opts.WorkItem)
 
 	// Start the work-item daemon ensure now and collect it just before exec,
 	// so its startup overlaps the rest of the launch (bug-06d2c91d).

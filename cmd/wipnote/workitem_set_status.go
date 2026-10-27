@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -407,8 +408,13 @@ func (t *statusTransition) report() {
 		maybeAutoGeneratePlanRollupRecap(dir, node, t.p)
 	}
 
-	// On start, print a session-label hint tailored to the active harness.
+	// On start, print a session-label hint tailored to the active harness,
+	// and name the caller's herdr pane after the item. A subagent's start
+	// leaves the pane alone: the pane belongs to the session that runs it.
 	if status == "in-progress" {
 		printStartTip(typeName, node.Title)
+		if slices.Contains(legacyActiveFeatureAgents(), dbpkg.NormaliseAgentID(t.agentID)) {
+			labelHerdrPane(node.ID, node.Title)
+		}
 	}
 }

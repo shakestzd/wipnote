@@ -63,6 +63,10 @@ func launchCodexDefaultWithMarketplace(resumeID, trackID, featureID, worktreePat
 		if err := runCodexFeatureStartFn(l.workItem); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not start work item %s: %v\n", l.workItem, err)
 		}
+	} else if id := firstNonEmpty(l.featureID, l.trackID); id != "" {
+		// feature start labels the herdr pane itself; --feature/--track
+		// launches do not run it, so label the pane here, in the background.
+		launchHerdrLabel(l.canonicalRoot, id)
 	}
 
 	workDir, wipnoteRoot, err := l.resolveWorkDir(launchPlan)
