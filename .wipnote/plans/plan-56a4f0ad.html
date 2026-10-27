@@ -469,11 +469,42 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <a href="/" class="brand">wipnote</a>
     <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
   </div>
-  
+  <a href="#visual-overview" class="nav-link" data-spy="visual-overview" data-initial="V">Visual</a>
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
   
-  <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span>#1 Run records on the work item</span>
+        
+        <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 Label herdr panes with their work item</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 wipnote status --all for every project</span>
+        
+        <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  
   
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
   <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="&#9825;">Chat</a>
@@ -488,7 +519,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">One answer across all projects for where each project is, what each agent is doing, why, and what waits on the owner. wipnote supplies the data; herdr and the owner&#39;s pane show it. No new dashboard.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-10-27</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 3 slices · Created 2026-10-27</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -505,16 +536,79 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </details>
 
 <!-- ZONE 0: Visual Overview (blocks-first headline — expanded, above dependency graph) -->
-
+<section class="visual-overview" id="visual-overview" data-zone="visual-overview">
+  <h2>Visual Overview</h2>
+  <div class="overview-group" data-block-kind="data-model">
+    <h3>Data Models</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-1-block-data-model-1" title="Jump to slice 1">
+          <span class="slice-num">#1</span>
+          <span class="overview-slice-title">Run records on the work item</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-1-block-data-model-1" data-block-anchor="slice-1-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Run</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td><code>run-&lt;12 hex&gt;</code></td><td>&mdash;</td></tr>
+      <tr><td><code>work_item</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>source</code></td><td><code>wrapper | hook</code></td><td>&mdash;</td></tr>
+      <tr><td><code>command</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>folder</code></td><td><code>path, relative to project root</code></td><td>&mdash;</td></tr>
+      <tr><td><code>started_at</code></td><td><code>time</code></td><td>&mdash;</td></tr>
+      <tr><td><code>ended_at</code></td><td><code>time?</code></td><td>&mdash;</td></tr>
+      <tr><td><code>exit_code</code></td><td><code>int?</code></td><td>&mdash;</td></tr>
+      <tr><td><code>log_path</code></td><td><code>path</code></td><td>&mdash;</td></tr>
+      <tr><td><code>last_line</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>first_error</code></td><td><code>string?</code></td><td>&mdash;</td></tr>
+      <tr><td><code>commit</code></td><td><code>sha</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-3-block-data-model-1" title="Jump to slice 3">
+          <span class="slice-num">#3</span>
+          <span class="overview-slice-title">wipnote status --all for every project</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-3-block-data-model-1" data-block-anchor="slice-3-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Project</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>name</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>plan</code></td><td><code>{id, title, slice, done, total}?</code></td><td>&mdash;</td></tr>
+      <tr><td><code>in_progress</code></td><td><code>[{id, title}]</code></td><td>&mdash;</td></tr>
+      <tr><td><code>last_commit</code></td><td><code>{sha, subject, at}</code></td><td>&mdash;</td></tr>
+      <tr><td><code>pr</code></td><td><code>{number, checks, review, mergeable}?</code></td><td>&mdash;</td></tr>
+      <tr><td><code>agents</code></td><td><code>[{harness, state, work_item, title, last_line}]</code></td><td>&mdash;</td></tr>
+      <tr><td><code>runs</code></td><td><code>[Run] (recent)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>needs_you</code></td><td><code>[{kind, what, since}]</code></td><td>&mdash;</td></tr>
+      <tr><td><code>errors</code></td><td><code>[string]</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  
+</section>
 
 <!-- ZONE 1: Dependency Graph (drawn at render time — no script, no CDN) -->
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Run records on the work item" data-status="pending" data-deps="" data-files="4" data-questions="1"></div>
+    <div data-node="2" data-name="Label herdr panes with their work item" data-status="pending" data-deps="" data-files="4"></div>
+    <div data-node="3" data-name="wipnote status --all for every project" data-status="pending" data-deps="1" data-files="3" data-questions="1"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" class="dep-graph-static"></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="633.6" height="216" viewBox="0 0 633.6 216" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M171.2 80 L171.2 108 L171.2 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="31.19999999999999" y="24" width="280" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="171.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Run records on the work item  ?1</text><text class="dep-node-meta" x="171.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="351.2" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="480.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Label herdr panes with their…</text><text class="dep-node-meta" x="480.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="136" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="171.2" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 wipnote status --all for ever…  ?1</text><text class="dep-node-meta" x="171.2" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -523,17 +617,57 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>## Problem
+
+The owner runs many Claude and Codex sessions across several projects. It is hard to see where each project is, what each agent is doing, why, and what waits on the owner. A session retro listed the gaps: a guardrail hold cancelled a command with no sign it was waiting; long runs (promote dry run, pnpm test) show nothing until they exit; an error did not name its input; a gate run was a plain background shell that wipnote did not link to its bug.
+
+## Approach
+
+wipnote supplies the data and does not build a screen. The old dashboard and activity feed became bloat; this plan does not bring them back.
+- Run records put each long command on its work item (command, folder, times, exit, first error line).
+- herdr pane labels carry the work item, so any herdr view shows why an agent runs.
+- &#39;wipnote status --all --json&#39; reads every project in the registry on demand. The owner&#39;s project-monitor pane reads it; herdr-portal is an optional viewer.
+
+## Prior art checked 2026-10-27
+
+- Claude Code agent view: cross-project and groups &#39;Needs input&#39;, but background sessions only, Claude only, and minimal. The owner rejected it as the main view.
+- herdr already tracks idle, working, blocked and done per pane for Claude and Codex, and has a socket JSON API. herdr-portal shows one kanban across workspaces (new, 4 stars).
+- Web dashboards (Agent-Monitor, ccdeck) repeat the bloat; skipped.
+
+## Non-goals
+
+- A web dashboard, an activity feed, or a status.json writer in hooks.
+- Replacing herdr&#39;s agent state detection.
+- Cloud or remote sessions in v1.
+
+## Owner decisions 2026-10-27
+
+- Capture runs both ways: hooks for agent shells, and a &#39;wipnote run&#39; wrapper for scripts and gates.
+- Each project row answers: where it is, what agents do, why, and what needs the owner.
+- Adopt over build: no new dashboard; feed the existing pane and herdr.</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>A long command shows on its work item and in lineage, for example &#39;gate exit 0 at 16:31 on commit X&#39;.</li>
+<li data-markdown>Every herdr pane that runs an agent shows its work item id and title.</li>
+<li data-markdown>One command prints, for every registered project, its plan and slice, items in progress, PR and CI, live agents with their work items, and what waits on the owner.</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>Hooks and launchers never block on this; hook writes are small appends, with no SQLite and no network call.</li>
+<li data-markdown>status --all is read-only; every gh and herdr call has a timeout, and a missing gh or herdr gives &#39;not available&#39;, not an error.</li>
+<li data-markdown>No host paths, user names or company names in committed records; paths are stored relative to the project root.</li>
+<li data-markdown>Tests use temp projects with WIPNOTE_PROJECT_DIR and CLAUDE_PROJECT_DIR unset, never the real project&#39;s .wipnote/.</li>
+<li data-markdown>Functions under 50 lines, files under 500.</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -542,23 +676,454 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
+    <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 1: Run records on the work item">
+    <span class="slice-num">#1</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Run records on the work item</span>
+      <span class="slice-preview">New &#39;wipnote run --work-item  -- &#39; runs a command, logs its output, and appends a run record to the work item.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
     
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>New &#39;wipnote run --work-item &lt;id&gt; -- &#39; runs a command, logs its output, and appends a run record to the work item. A Bash hook adds the same record for long agent shells, linked to the session&#39;s active item. Lineage and feature show list the runs.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Long runs and gates are invisible today and are not linked to the work they belong to.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/run.go, core/runledger/, internal/hooks/ (Bash pre and post tool hooks), cmd/wipnote/lineage_render.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>wipnote run records command, folder, times, exit code and log path on the work item</li><li>the record keeps the first error line and the last output line</li><li>a nonzero exit is recorded and returned unchanged</li><li>a background agent shell in a session with an active item gets a record</li><li>wipnote lineage &lt;id&gt; shows &#39;gate exit 0 at HH:MM on commit X&#39;</li><li>hooks add no measurable delay and write no SQLite</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-1-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>First step:</strong> verify on Claude Code and Codex which hook, if any, fires when a background shell ends. If none does, the hook record shows start and log path, and the end is filled when the log&#39;s exit marker appears or the session ends.
+<strong>Store:</strong> one append-only file per writer, following core/sessionledger; no shared append from two writers.
+<strong>Record fields:</strong> command, folder, start, end, duration, exit code, log path, last line and first error line.</p>
+</div>
+        <label for="slice-1-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-1-block-data-model-1" data-block-anchor="slice-1-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Run</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td><code>run-&lt;12 hex&gt;</code></td><td>&mdash;</td></tr>
+      <tr><td><code>work_item</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>source</code></td><td><code>wrapper | hook</code></td><td>&mdash;</td></tr>
+      <tr><td><code>command</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>folder</code></td><td><code>path, relative to project root</code></td><td>&mdash;</td></tr>
+      <tr><td><code>started_at</code></td><td><code>time</code></td><td>&mdash;</td></tr>
+      <tr><td><code>ended_at</code></td><td><code>time?</code></td><td>&mdash;</td></tr>
+      <tr><td><code>exit_code</code></td><td><code>int?</code></td><td>&mdash;</td></tr>
+      <tr><td><code>log_path</code></td><td><code>path</code></td><td>&mdash;</td></tr>
+      <tr><td><code>last_line</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>first_error</code></td><td><code>string?</code></td><td>&mdash;</td></tr>
+      <tr><td><code>commit</code></td><td><code>sha</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Two-sided, written first. Wrapper: exit 0 and nonzero, first error line found and absent, signal kill. Hook: a record when a work item is active, none when no item is active, no record for short foreground calls. Temp projects only.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>How does wipnote learn about a long process?</p>
+          
+          
+          <textarea
+            data-section="slice-1-question-q-capture"
+            data-comment-for="slice-1-question-q-capture"
+            placeholder="Answer question q-capture...">Both (owner, 2026-10-27). Hooks record agent shells; the wrapper covers scripts, gates and commands run outside a harness.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: Label herdr panes with their work item">
+    <span class="slice-num">#2</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Label herdr panes with their work item</span>
+      <span class="slice-preview">When wipnote starts or switches an agent inside herdr (wipnote claude, wipnote codex, delegate spawn, feature start), it sets the pane or ta…</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>When wipnote starts or switches an agent inside herdr (wipnote claude, wipnote codex, delegate spawn, feature start), it sets the pane or tab label to &#39;&lt;id&gt;: &#39; through the existing internal/delegate/herdr adapter. Outside herdr it does nothing.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>herdr already shows what each agent is doing; the label adds why, in every herdr view.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/delegate/herdr/commands.go, cmd/wipnote/claude.go, cmd/wipnote/codex.go, cmd/wipnote/workitem.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>a session started in herdr shows &#39;&lt;id&gt;: &lt;title&gt;&#39; on its pane or tab</li><li>feature start updates the label in the current pane</li><li>outside herdr, or with herdr missing, nothing runs and nothing fails</li><li>the label call has a timeout and never blocks launch</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>First step:</strong> check the herdr CLI for a pane or tab rename command. &#39;tab create --label&#39; is verified in the adapter; a rename of an existing pane is not. If herdr has none, label the tab and record the gap.
+blocks_waiver: the label is one string, &#39;&lt;id&gt;: &#39;; no structure to draw.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Fake herdr (internal/delegate/herdr/fake.go): label set inside herdr, no call outside herdr, timeout leaves launch unchanged, long titles cut to a fixed width.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: wipnote status --all for every project">
+    <span class="slice-num">#3</span>
+    <span class="slice-title-col">
+      <span class="slice-name">wipnote status --all for every project</span>
+      <span class="slice-preview">New &#39;wipnote status --all&#39; (text) and &#39;--json&#39; (documented schema).</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>New &#39;wipnote status --all&#39; (text) and &#39;--json&#39; (documented schema). For each registered project: plan and slice, items in progress, last commit, PR and CI, live agents with work item and title, recent runs, herdr agent state, and a needs-you list.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>One read answers where each project is, what each agent does, why, and what waits on the owner. The owner&#39;s project-monitor pane reads it, so the Mac sync script has less to rebuild.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/status_all.go, internal/statusall/, docs/design/status-all.md</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>status --all lists every registered project, newest activity first</li><li>each project shows plan and slice, items in progress, PR and CI, live agents with work item, and needs-you entries</li><li>--json output matches the documented schema</li><li>a project that cannot be read shows an error line and the rest still print</li><li>a missing gh or herdr gives &#39;not available&#39; for that part only</li><li>every external call has a timeout; the whole run finishes in a bounded time</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Sources:</strong> internal/registry (projects.json), the sessions and claims ledgers, plan YAML, internal/gitwatch for PR and CI, internal/delegate/herdr for pane state.
+<strong>Viewer:</strong> the owner&#39;s project-monitor pane first; herdr-portal is optional and needs no wipnote change.
+<strong>Needs you:</strong> blocked herdr panes, held or failed runs, and worker questions waiting.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-3-block-data-model-1" data-block-anchor="slice-3-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Project</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>name</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>plan</code></td><td><code>{id, title, slice, done, total}?</code></td><td>&mdash;</td></tr>
+      <tr><td><code>in_progress</code></td><td><code>[{id, title}]</code></td><td>&mdash;</td></tr>
+      <tr><td><code>last_commit</code></td><td><code>{sha, subject, at}</code></td><td>&mdash;</td></tr>
+      <tr><td><code>pr</code></td><td><code>{number, checks, review, mergeable}?</code></td><td>&mdash;</td></tr>
+      <tr><td><code>agents</code></td><td><code>[{harness, state, work_item, title, last_line}]</code></td><td>&mdash;</td></tr>
+      <tr><td><code>runs</code></td><td><code>[Run] (recent)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>needs_you</code></td><td><code>[{kind, what, since}]</code></td><td>&mdash;</td></tr>
+      <tr><td><code>errors</code></td><td><code>[string]</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Two-sided, written first, with temp registries and temp projects: two projects, one unreadable; fake gh and fake herdr present and absent; schema golden file; needs-you entry present for a blocked pane and absent for an idle one.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Does the pane pull a command, or does wipnote write a status file?</p>
+          
+          
+          <textarea
+            data-section="slice-3-question-q-feed"
+            data-comment-for="slice-3-question-q-feed"
+            placeholder="Answer question q-feed...">The pane runs the command (owner approved the recommendation, 2026-10-27). Nothing is written in hooks, so startup and hooks never wait.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        <!--PLAN_QUESTIONS_RECAP-->
-      </tbody>
-    </table>
-  </div>
-</details>
+
 
 
 
@@ -569,8 +1134,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">4</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">4</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -662,7 +1227,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');

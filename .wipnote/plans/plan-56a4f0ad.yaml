@@ -6,12 +6,216 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 2
+    version: 3
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |-
+        ## Problem
+
+        The owner runs many Claude and Codex sessions across several projects. It is hard to see where each project is, what each agent is doing, why, and what waits on the owner. A session retro listed the gaps: a guardrail hold cancelled a command with no sign it was waiting; long runs (promote dry run, pnpm test) show nothing until they exit; an error did not name its input; a gate run was a plain background shell that wipnote did not link to its bug.
+
+        ## Approach
+
+        wipnote supplies the data and does not build a screen. The old dashboard and activity feed became bloat; this plan does not bring them back.
+        - Run records put each long command on its work item (command, folder, times, exit, first error line).
+        - herdr pane labels carry the work item, so any herdr view shows why an agent runs.
+        - 'wipnote status --all --json' reads every project in the registry on demand. The owner's project-monitor pane reads it; herdr-portal is an optional viewer.
+
+        ## Prior art checked 2026-10-27
+
+        - Claude Code agent view: cross-project and groups 'Needs input', but background sessions only, Claude only, and minimal. The owner rejected it as the main view.
+        - herdr already tracks idle, working, blocked and done per pane for Claude and Codex, and has a socket JSON API. herdr-portal shows one kanban across workspaces (new, 4 stars).
+        - Web dashboards (Agent-Monitor, ccdeck) repeat the bloat; skipped.
+
+        ## Non-goals
+
+        - A web dashboard, an activity feed, or a status.json writer in hooks.
+        - Replacing herdr's agent state detection.
+        - Cloud or remote sessions in v1.
+
+        ## Owner decisions 2026-10-27
+
+        - Capture runs both ways: hooks for agent shells, and a 'wipnote run' wrapper for scripts and gates.
+        - Each project row answers: where it is, what agents do, why, and what needs the owner.
+        - Adopt over build: no new dashboard; feed the existing pane and herdr.
+    goals:
+        - A long command shows on its work item and in lineage, for example 'gate exit 0 at 16:31 on commit X'.
+        - Every herdr pane that runs an agent shows its work item id and title.
+        - One command prints, for every registered project, its plan and slice, items in progress, PR and CI, live agents with their work items, and what waits on the owner.
+    constraints:
+        - Hooks and launchers never block on this; hook writes are small appends, with no SQLite and no network call.
+        - status --all is read-only; every gh and herdr call has a timeout, and a missing gh or herdr gives 'not available', not an error.
+        - No host paths, user names or company names in committed records; paths are stored relative to the project root.
+        - Tests use temp projects with WIPNOTE_PROJECT_DIR and CLAUDE_PROJECT_DIR unset, never the real project's .wipnote/.
+        - Functions under 50 lines, files under 500.
     approved: false
     comment: ""
-slices: []
+    research:
+        - url: https://code.claude.com/docs/en/agent-view.md
+          claim: Agent view lists background sessions only (interactive ones after /bg), groups Needs input, Working and Completed, and does not mention Codex. Research preview.
+          accessed: "2026-10-27"
+        - url: https://flaviocopes.com/herdr.md
+          claim: herdr exposes a Unix socket JSON API; the CLI wraps it. Agent status is idle, working, blocked, done or unknown; Claude Code and Codex integrations report state; custom integrations can report labels.
+          accessed: "2026-10-27"
+        - url: https://mer.vin/2026/07/herdr-explained-terminal-multiplexer-for-running-multiple-ai-coding-agents/
+          claim: herdr workspaces hold tabs and tabs hold panes; a workspace usually maps to one project folder. Pane ids can be renumbered, so they must be re-read, not cached.
+          accessed: "2026-10-27"
+        - url: https://github.com/yigitkonur/awesome-herdr
+          claim: herdr-portal aggregates every workspace, tab and pane agent into a terminal kanban and a web view.
+          accessed: "2026-10-27"
+slices:
+    - id: ""
+      num: 1
+      title: Run records on the work item
+      what: New 'wipnote run --work-item <id> -- <cmd>' runs a command, logs its output, and appends a run record to the work item. A Bash hook adds the same record for long agent shells, linked to the session's active item. Lineage and feature show list the runs.
+      why: Long runs and gates are invisible today and are not linked to the work they belong to.
+      files:
+        - cmd/wipnote/run.go
+        - core/runledger/
+        - internal/hooks/ (Bash pre and post tool hooks)
+        - cmd/wipnote/lineage_render.go
+      deps: []
+      done_when:
+        - wipnote run records command, folder, times, exit code and log path on the work item
+        - the record keeps the first error line and the last output line
+        - a nonzero exit is recorded and returned unchanged
+        - a background agent shell in a session with an active item gets a record
+        - wipnote lineage <id> shows 'gate exit 0 at HH:MM on commit X'
+        - hooks add no measurable delay and write no SQLite
+      effort: M
+      risk: Med
+      tests: 'Two-sided, written first. Wrapper: exit 0 and nonzero, first error line found and absent, signal kill. Hook: a record when a work item is active, none when no item is active, no record for short foreground calls. Temp projects only.'
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/hooks
+          claim: PreToolUse and PostToolUse hooks receive the tool name and tool input for Bash calls; the first step checks which event, if any, reports when a background shell ends.
+          accessed: "2026-10-27"
+      questions:
+        - id: q-capture
+          text: How does wipnote learn about a long process?
+          answer: Both (owner, 2026-10-27). Hooks record agent shells; the wrapper covers scripts, gates and commands run outside a harness.
+      decisions_notes: |-
+        **First step:** verify on Claude Code and Codex which hook, if any, fires when a background shell ends. If none does, the hook record shows start and log path, and the end is filled when the log's exit marker appears or the session ends.
+        **Store:** one append-only file per writer, following core/sessionledger; no shared append from two writers.
+        **Record fields:** command, folder, start, end, duration, exit code, log path, last line and first error line.
+      blocks:
+        - type: data-model
+          title: Run record
+          fields:
+            name: Run
+          rows:
+            - name: id
+              type: run-<12 hex>
+            - name: work_item
+              type: string
+            - name: source
+              type: wrapper | hook
+            - name: command
+              type: string
+            - name: folder
+              type: path, relative to project root
+            - name: started_at
+              type: time
+            - name: ended_at
+              type: time?
+            - name: exit_code
+              type: int?
+            - name: log_path
+              type: path
+            - name: last_line
+              type: string
+            - name: first_error
+              type: string?
+            - name: commit
+              type: sha
+    - id: ""
+      num: 2
+      title: Label herdr panes with their work item
+      what: 'When wipnote starts or switches an agent inside herdr (wipnote claude, wipnote codex, delegate spawn, feature start), it sets the pane or tab label to ''<id>: <title>'' through the existing internal/delegate/herdr adapter. Outside herdr it does nothing.'
+      why: herdr already shows what each agent is doing; the label adds why, in every herdr view.
+      files:
+        - internal/delegate/herdr/commands.go
+        - cmd/wipnote/claude.go
+        - cmd/wipnote/codex.go
+        - cmd/wipnote/workitem.go
+      deps: []
+      done_when:
+        - 'a session started in herdr shows ''<id>: <title>'' on its pane or tab'
+        - feature start updates the label in the current pane
+        - outside herdr, or with herdr missing, nothing runs and nothing fails
+        - the label call has a timeout and never blocks launch
+      effort: S
+      risk: Med
+      tests: 'Fake herdr (internal/delegate/herdr/fake.go): label set inside herdr, no call outside herdr, timeout leaves launch unchanged, long titles cut to a fixed width.'
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://flaviocopes.com/herdr.md
+          claim: herdr integrations can report agent labels over the socket API.
+          accessed: "2026-10-27"
+      decisions_notes: |-
+        **First step:** check the herdr CLI for a pane or tab rename command. 'tab create --label' is verified in the adapter; a rename of an existing pane is not. If herdr has none, label the tab and record the gap.
+        blocks_waiver: the label is one string, '<id>: <title>'; no structure to draw.
+    - id: ""
+      num: 3
+      title: wipnote status --all for every project
+      what: 'New ''wipnote status --all'' (text) and ''--json'' (documented schema). For each registered project: plan and slice, items in progress, last commit, PR and CI, live agents with work item and title, recent runs, herdr agent state, and a needs-you list.'
+      why: One read answers where each project is, what each agent does, why, and what waits on the owner. The owner's project-monitor pane reads it, so the Mac sync script has less to rebuild.
+      files:
+        - cmd/wipnote/status_all.go
+        - internal/statusall/
+        - docs/design/status-all.md
+      deps:
+        - 1
+      done_when:
+        - status --all lists every registered project, newest activity first
+        - each project shows plan and slice, items in progress, PR and CI, live agents with work item, and needs-you entries
+        - --json output matches the documented schema
+        - a project that cannot be read shows an error line and the rest still print
+        - a missing gh or herdr gives 'not available' for that part only
+        - every external call has a timeout; the whole run finishes in a bounded time
+      effort: M
+      risk: Low
+      tests: 'Two-sided, written first, with temp registries and temp projects: two projects, one unreadable; fake gh and fake herdr present and absent; schema golden file; needs-you entry present for a blocked pane and absent for an idle one.'
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://flaviocopes.com/herdr.md
+          claim: herdr agent status values are idle, working, blocked, done and unknown; blocked maps to needs-you.
+          accessed: "2026-10-27"
+      questions:
+        - id: q-feed
+          text: Does the pane pull a command, or does wipnote write a status file?
+          answer: The pane runs the command (owner approved the recommendation, 2026-10-27). Nothing is written in hooks, so startup and hooks never wait.
+      decisions_notes: |-
+        **Sources:** internal/registry (projects.json), the sessions and claims ledgers, plan YAML, internal/gitwatch for PR and CI, internal/delegate/herdr for pane state.
+        **Viewer:** the owner's project-monitor pane first; herdr-portal is optional and needs no wipnote change.
+        **Needs you:** blocked herdr panes, held or failed runs, and worker questions waiting.
+      blocks:
+        - type: data-model
+          title: Project row (--json)
+          fields:
+            name: Project
+          rows:
+            - name: name
+              type: string
+            - name: plan
+              type: '{id, title, slice, done, total}?'
+            - name: in_progress
+              type: '[{id, title}]'
+            - name: last_commit
+              type: '{sha, subject, at}'
+            - name: pr
+              type: '{number, checks, review, mergeable}?'
+            - name: agents
+              type: '[{harness, state, work_item, title, last_line}]'
+            - name: runs
+              type: '[Run] (recent)'
+            - name: needs_you
+              type: '[{kind, what, since}]'
+            - name: errors
+              type: '[string]'
 questions: []
