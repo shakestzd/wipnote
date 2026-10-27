@@ -1,0 +1,17 @@
+meta:
+    id: plan-56a4f0ad
+    title: 'Cross-project status: where each project is, what each agent does, and why'
+    description: One answer across all projects for where each project is, what each agent is doing, why, and what waits on the owner. wipnote supplies the data; herdr and the owner's pane show it. No new dashboard.
+    created_at: "2026-10-27"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
