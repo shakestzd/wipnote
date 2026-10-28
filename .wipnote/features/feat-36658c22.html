@@ -10,20 +10,31 @@
 <body>
     <article id="feat-36658c22"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-27T21:39:40.653855"
-             data-updated="2026-10-28T02:25:36.143716" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
+             data-updated="2026-10-28T02:38:45.638997" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Record every background task an agent starts</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="27ca0697e3490c668e782c13b0b4f76c82c660de.html" data-relationship="committed_in" data-since="2026-10-27T22:38:26">Merge pull request #278 from shakestzd/obs/d1</a></li>
+                    <li><a href="89310e746640485d966916df752bf8ba3a2e6cc7.html" data-relationship="committed_in" data-since="2026-10-28T02:26:29">wipnote: sync feat-36658c22</a></li>
+                    <li><a href="bd0d0c432f6385ba301cf046f7007b63be50bccf.html" data-relationship="committed_in" data-since="2026-10-28T02:25:31">feat-36658c22: record only slow Codex calls; bound the prompt-path pass</a></li>
+                    <li><a href="d33d5dd769fcb3cbbeed33e8cf1982e1ac5463a9.html" data-relationship="committed_in" data-since="2026-10-27T22:09:51">wipnote: start feat-36658c22</a></li>
+                    <li><a href="7d649d50c83bdad405ca908138719b20c57eb65b.html" data-relationship="committed_in" data-since="2026-10-27T22:08:09">feat-36658c22: show runs in lineage and feature show; add wipnote run</a></li>
+                    <li><a href="e280875c29ccf9b3bcaa45455e6a83705e6139c2.html" data-relationship="committed_in" data-since="2026-10-27T22:00:30">feat-36658c22: record background task runs from harness records</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -47,11 +58,11 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-feat-36658c22-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Transcript finding: start = PreToolUse (Bash run_in_background, Agent run_in_background, Monitor) &#43; tool_result (Bash &#39;Command running in background with ID: &lt;tid&gt;. Output is being written to: &lt;file&gt;&#39;, toolUseResult.backgroundTaskId; Agent toolUseResult.agentId; Monitor &#39;Monitor started (task &lt;tid&gt;&#39;); end = queue-operation enqueue &lt;task-notification&gt; with task-id, tool-use-id, output-file, status (only &#39;completed&#39; seen), summary &#39;Background command &#34;X&#34; completed (exit code N)&#39; / &#39;Agent &#34;X&#34; finished&#39; / &#39;Monitor &#34;X&#34; stream ended&#39;. Correlate on tool-use-id (task-id as fallback). Skip notifications without task-id (queued-remote-notifications, Monitor event). Agents may notify more than once (keep latest). Many notifications lack a start line in the transcript, so an end alone must still yield a record.</li>
-                <li data-completed="false" data-step-id="step-feat-36658c22-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Finding: tasks a subagent starts (its Bash/Monitor calls live in subagents/agent-*.jsonl) still get their enqueue task-notification in the MAIN session transcript, and subagent hooks carry the parent session_id, so reading the main transcript on Stop/UserPromptSubmit covers them. Claude&#39;s PostToolUse tool_response for a backgrounded Bash has backgroundTaskId but no output path; the output-file comes from the notification.</li>
-                <li data-completed="false" data-step-id="step-feat-36658c22-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ core: ingest.ParseTaskNotifications &#43; ReadTranscriptChunk (bounded, resumable); core/runledger append-only event shards .wipnote/runs/sess-&lt;session&gt;.html folded into Records; hooks record starts at PostToolUse (Claude) / PreToolUse (Codex), ends from transcript on Stop&#43;UserPromptSubmit and Codex PostToolUse</li>
-                <li data-completed="false" data-step-id="step-feat-36658c22-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ cmd: lineage &#43; feature show list item runs (&#39;gate exit 0 at HH:MM on commit X&#39;, first error); lineage --json &#39;runs&#39;; optional &#39;wipnote run --work-item -- &lt;cmd&gt;&#39; wrapper; run-ledger commit seam. Gate green on obs/d1 (7d649d50c).</li>
-                <li data-completed="false" data-step-id="step-feat-36658c22-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Owner follow-ups (bd0d0c432): Codex records only calls &gt;= 10s (runs.codexMinSeconds), start held in gitignored session scratch, capped at 64 and removed at SessionEnd; UserPromptSubmit pass capped at 512KB/8 ends (Stop 4MB); error-line regexp replaced by string checks. Measured 10MB first pass: Stop 4MB ~70ms, prompt ~10ms, dense worst case ~27ms.</li>
+                <li data-completed="true" data-step-id="step-feat-36658c22-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Transcript finding: start = PreToolUse (Bash run_in_background, Agent run_in_background, Monitor) &#43; tool_result (Bash &#39;Command running in background with ID: &lt;tid&gt;. Output is being written to: &lt;file&gt;&#39;, toolUseResult.backgroundTaskId; Agent toolUseResult.agentId; Monitor &#39;Monitor started (task &lt;tid&gt;&#39;); end = queue-operation enqueue &lt;task-notification&gt; with task-id, tool-use-id, output-file, status (only &#39;completed&#39; seen), summary &#39;Background command &#34;X&#34; completed (exit code N)&#39; / &#39;Agent &#34;X&#34; finished&#39; / &#39;Monitor &#34;X&#34; stream ended&#39;. Correlate on tool-use-id (task-id as fallback). Skip notifications without task-id (queued-remote-notifications, Monitor event). Agents may notify more than once (keep latest). Many notifications lack a start line in the transcript, so an end alone must still yield a record.</li>
+                <li data-completed="true" data-step-id="step-feat-36658c22-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Finding: tasks a subagent starts (its Bash/Monitor calls live in subagents/agent-*.jsonl) still get their enqueue task-notification in the MAIN session transcript, and subagent hooks carry the parent session_id, so reading the main transcript on Stop/UserPromptSubmit covers them. Claude&#39;s PostToolUse tool_response for a backgrounded Bash has backgroundTaskId but no output path; the output-file comes from the notification.</li>
+                <li data-completed="true" data-step-id="step-feat-36658c22-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ core: ingest.ParseTaskNotifications &#43; ReadTranscriptChunk (bounded, resumable); core/runledger append-only event shards .wipnote/runs/sess-&lt;session&gt;.html folded into Records; hooks record starts at PostToolUse (Claude) / PreToolUse (Codex), ends from transcript on Stop&#43;UserPromptSubmit and Codex PostToolUse</li>
+                <li data-completed="true" data-step-id="step-feat-36658c22-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ cmd: lineage &#43; feature show list item runs (&#39;gate exit 0 at HH:MM on commit X&#39;, first error); lineage --json &#39;runs&#39;; optional &#39;wipnote run --work-item -- &lt;cmd&gt;&#39; wrapper; run-ledger commit seam. Gate green on obs/d1 (7d649d50c).</li>
+                <li data-completed="true" data-step-id="step-feat-36658c22-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Owner follow-ups (bd0d0c432): Codex records only calls &gt;= 10s (runs.codexMinSeconds), start held in gitignored session scratch, capped at 64 and removed at SessionEnd; UserPromptSubmit pass capped at 512KB/8 ends (Stop 4MB); error-line regexp replaced by string checks. Measured 10MB first pass: Stop 4MB ~70ms, prompt ~10ms, dense worst case ~27ms.</li>
             </ol>
         </section>
 
