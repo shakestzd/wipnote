@@ -1,0 +1,128 @@
+package container
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/shakestzd/wipnote/core/agent"
+	"github.com/shakestzd/wipnote/core/containerwrite"
+	"github.com/shakestzd/wipnote/core/gateledger"
+	"github.com/shakestzd/wipnote/core/sessionledger"
+)
+
+const foldRun = "dlg-0123456789ab"
+
+// workerWrites writes, as the container worker would, its own session row
+// (started and ended), its family entry and one gate run.
+func workerWrites(t *testing.T, wipnoteDir, sid string, t0 time.Time) gateledger.Record {
+	t.Helper()
+	t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+	t.Setenv(containerwrite.RunEnv, foldRun)
+	defer t.Setenv(containerwrite.PlaceEnv, "")
+	if _, err := sessionledger.NewStore(wipnoteDir).Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: t0}); err != nil {
+		t.Fatal(err)
+	}
+	if err := agent.RegisterSessionFamily(filepath.Dir(wipnoteDir), sid, sid); err != nil {
+		t.Fatal(err)
+	}
+	if err := sessionledger.NewStore(wipnoteDir).Close(sid, t0.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	rec, err := gateledger.NewStore(wipnoteDir).Append(gateledger.Record{SessionID: sid, WorkItemID: "feat-1", Harness: "claude",
+		ProjectType: "go", GateCommand: "go test ./...", Status: gateledger.StatusPass, CheckedAt: t0.Add(time.Minute), Source: "check"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rec
+}
+
+func foldProject(t *testing.T) (wipnoteDir, runDir string) {
+	t.Helper()
+	wipnoteDir = filepath.Join(t.TempDir(), ".wipnote")
+	runDir = filepath.Join(wipnoteDir, "delegate", "runs", foldRun)
+	if err := os.MkdirAll(runDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return wipnoteDir, runDir
+}
+
+// TestFold_SessionRowReachesHostLedger: the host folds a container worker's
+// own files into the sessions ledger (host=container, the real harness, its
+// end), the family index and the gate ledger; a second fold changes nothing.
+func TestFold_SessionRowReachesHostLedger(t *testing.T) {
+	wipnoteDir, runDir := foldProject(t)
+	sid := "ffffffff-1111-2222-3333-444444444444"
+	t0 := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	gate := workerWrites(t, wipnoteDir, sid, t0)
+	if _, err := os.Stat(sessionledger.NewStore(wipnoteDir).Path()); !os.IsNotExist(err) {
+		t.Fatalf("the worker wrote the shared ledger before the fold (err %v)", err)
+	}
+	got, err := Fold(wipnoteDir, runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Sessions != 1 || got.Ended != 1 || got.Gates != 1 || got.Families != 1 {
+		t.Errorf("Fold = %+v, want one of each", got)
+	}
+	row, ok, _ := sessionledger.NewStore(wipnoteDir).Get(sid)
+	if !ok || row.Host != sessionledger.HostContainer || row.Harness != "claude" || !row.EndedAt.Equal(t0.Add(time.Hour)) {
+		t.Errorf("host row %+v (found %v): want host=container, claude, ended", row, ok)
+	}
+	if fam := agent.SessionFamilyFor(filepath.Dir(wipnoteDir), sid); fam != sid {
+		t.Errorf("family %q, want %q", fam, sid)
+	}
+	gates, _ := gateledger.NewStore(wipnoteDir).ReadAll()
+	if len(gates) != 1 || gates[0].ID != gate.ID || gates[0].Signature != gate.Signature {
+		t.Errorf("gate ledger %+v, want the worker's record with its id and signature", gates)
+	}
+	before, _ := os.ReadFile(sessionledger.NewStore(wipnoteDir).Path())
+	again, err := Fold(wipnoteDir, runDir)
+	after, _ := os.ReadFile(sessionledger.NewStore(wipnoteDir).Path())
+	if err != nil || again != (Folded{}) || string(before) != string(after) {
+		t.Errorf("second fold = %+v, %v (ledger changed %v), want nothing", again, err, string(before) != string(after))
+	}
+	if gates, _ := gateledger.NewStore(wipnoteDir).ReadAll(); len(gates) != 1 {
+		t.Errorf("second fold appended the gate again: %d records", len(gates))
+	}
+}
+
+// TestFold_OpenWorkerStaysOpen is the other side of the end: a worker whose
+// own file has no end yet is folded as an open row; its later end closes it.
+func TestFold_OpenWorkerStaysOpen(t *testing.T) {
+	wipnoteDir, runDir := foldProject(t)
+	sid := "abababab-1111-2222-3333-444444444444"
+	t.Setenv(containerwrite.RunEnv, foldRun)
+	t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+	if _, err := sessionledger.NewStore(wipnoteDir).Open(sessionledger.Record{SessionID: sid, Harness: "codex", StartedAt: time.Now().UTC()}); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(containerwrite.PlaceEnv, "")
+	if _, err := Fold(wipnoteDir, runDir); err != nil {
+		t.Fatal(err)
+	}
+	row, _, _ := sessionledger.NewStore(wipnoteDir).Get(sid)
+	if !row.IsOpen() || row.Harness != "codex" {
+		t.Fatalf("row %+v: want open, codex", row)
+	}
+	t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+	if err := sessionledger.NewStore(wipnoteDir).Close(sid, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(containerwrite.PlaceEnv, "")
+	if got, _ := Fold(wipnoteDir, runDir); got.Ended != 1 {
+		t.Errorf("fold after the end = %+v, want it ended", got)
+	}
+}
+
+// TestFold_RefusedInsideAContainerWorker: only the host folds; a worker
+// inside never writes the shared ledgers, even through Fold.
+func TestFold_RefusedInsideAContainerWorker(t *testing.T) {
+	wipnoteDir, runDir := foldProject(t)
+	t.Setenv(containerwrite.RunEnv, foldRun)
+	t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+	if _, err := Fold(wipnoteDir, runDir); err == nil {
+		t.Error("Fold ran inside a container worker")
+	}
+}
