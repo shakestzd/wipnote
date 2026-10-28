@@ -43,6 +43,8 @@ func runWiShowWithFormat(id, format string) error {
 		return printNodeDetailJSON(node)
 	default:
 		printNodeDetail(node)
+		// Background runs recorded for the item (feat-36658c22).
+		printLineageRuns(os.Stdout, loadLineageRuns(dir, node.ID, detectLineageKind(node.ID)))
 		return nil
 	}
 }

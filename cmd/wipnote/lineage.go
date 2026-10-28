@@ -140,6 +140,8 @@ type lineageJSON struct {
 	// when orch is not in use or no orch session serves the root.
 	OrchSessions []orchlink.Session `json:"orch_sessions,omitempty"`
 	OrchError    string             `json:"orch_error,omitempty"`
+	// Runs are the background runs recorded for a work item (lineage_runs.go).
+	Runs []lineageRun `json:"runs,omitempty"`
 }
 
 // allLineageRels lists all 10 relationship types we traverse. It is the shared
@@ -247,7 +249,7 @@ func runLineage(w io.Writer, db *sql.DB, arg string, opts lineageOpts) error {
 	}
 
 	if opts.jsonOut {
-		return renderLineageJSON(w, arg, kind, forward, backward, agentTree, nil)
+		return renderLineageJSON(w, arg, kind, forward, backward, agentTree, nil, nil)
 	}
 
 	if err := renderLineageTree(w, db, arg, kind, forward, backward, opts.timeline); err != nil {
@@ -274,13 +276,15 @@ func runLineageProjection(w io.Writer, wipnoteDir, arg string, opts lineageOpts)
 	forward := lineage.ForwardProjectionWalk(snap, arg, allLineageRels, opts.depth)
 	backward := lineage.BackwardProjectionWalk(snap, arg, allLineageRels, opts.depth)
 	orch := loadLineageOrch(arg, kind, forward)
+	runs := loadLineageRuns(wipnoteDir, arg, kind)
 	if opts.jsonOut {
-		return renderLineageJSON(w, arg, kind, forward, backward, "", orch)
+		return renderLineageJSON(w, arg, kind, forward, backward, "", orch, runs)
 	}
 	if err := renderLineageProjectionTree(w, snap, arg, kind, forward, backward, opts.timeline); err != nil {
 		return err
 	}
 	printLineageResearch(w, wipnoteDir, arg)
 	printLineageOrch(w, orch)
+	printLineageRuns(w, runs)
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/projection"
+	"github.com/shakestzd/wipnote/core/runledger"
 	"github.com/shakestzd/wipnote/core/slug"
 )
 
@@ -31,8 +32,8 @@ func sortLineageTimeline(nodes []lineageNode) {
 	})
 }
 
-// renderLineageJSON emits the stable {root, kind, forward, backward, agent_tree?, orch_*?} schema.
-func renderLineageJSON(w io.Writer, root string, kind lineageKind, forward, backward []lineageNode, agentTree string, orch *lineageOrchView) error {
+// renderLineageJSON emits the stable {root, kind, forward, backward, agent_tree?, orch_*?, runs?} schema.
+func renderLineageJSON(w io.Writer, root string, kind lineageKind, forward, backward []lineageNode, agentTree string, orch *lineageOrchView, runs []runledger.Record) error {
 	out := lineageJSON{
 		Root:      root,
 		Kind:      kind.String(),
@@ -42,6 +43,9 @@ func renderLineageJSON(w io.Writer, root string, kind lineageKind, forward, back
 	}
 	if orch != nil {
 		out.OrchSessions, out.OrchError = orch.Sessions, orch.Err
+	}
+	if len(runs) > 0 {
+		out.Runs = lineageRunsJSON(runs)
 	}
 	return writeJSON(w, out)
 }
