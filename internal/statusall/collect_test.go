@@ -179,6 +179,27 @@ func TestCollect_HerdrPaneWithoutCwdMatchesByWorkItemLabel(t *testing.T) {
 	}
 }
 
+// The foreground process's folder places a pane before the pane cwd; with
+// neither, the work-item label places it.
+func TestCollect_HerdrForegroundCwdWinsOverCwd(t *testing.T) {
+	a := tempProject(t, "c1", testNow.Add(-time.Hour))
+	b := tempProject(t, "c2", testNow.Add(-time.Hour))
+	writeItem(t, b, "feat-dddd0002", "feature", "in-progress", "Labelled")
+	fg := herdrAgent("w1:p1", "claude", b, "", herdr.StateWorking)
+	fg.ForegroundCwd = filepath.Join(a, "sub")
+	o := baseOptions(entry(a, "a", testNow), entry(b, "b", testNow))
+	o.Herdr = &fakeHerdr{agents: []herdr.Agent{fg,
+		herdrAgent("w1:p2", "codex", "", "feat-dddd0002: Labelled", herdr.StateIdle)}}
+
+	r := Collect(context.Background(), o)
+	if got := findProject(t, r, "a").Agents; len(got) != 1 || got[0].Pane != "w1:p1" {
+		t.Fatalf("project a agents = %+v; the foreground cwd is in a", got)
+	}
+	if got := findProject(t, r, "b").Agents; len(got) != 1 || got[0].Pane != "w1:p2" {
+		t.Fatalf("project b agents = %+v; want only the labelled pane", got)
+	}
+}
+
 func TestCollect_HerdrAbsentKeepsLedgerAgents(t *testing.T) {
 	p := tempProject(t, "c1", testNow.Add(-time.Hour))
 	writeItem(t, p, "feat-eeee0001", "feature", "in-progress", "Claimed work")

@@ -34,14 +34,21 @@ func paneObj(id string) map[string]any {
 	}
 }
 
+// agentObj carries cwd always and foreground_cwd only when scripted: herdr
+// reports it only when it can resolve the foreground process's cwd
+// (https://herdr.dev/docs/cli-reference/).
 func agentObj(a map[string]any) map[string]any {
 	pane := fmt.Sprint(arg(a, "pane_id", "w1:p2"))
-	return map[string]any{
+	obj := map[string]any{
 		"terminal_id": arg(a, "terminal_id", "t-"+pane), "agent_status": arg(a, "status", "working"),
 		"workspace_id": workspaceOf(pane), "tab_id": workspaceOf(pane) + ":t1", "pane_id": pane,
 		"focused": false, "revision": 7, "agent": arg(a, "kind", "claude"), "name": arg(a, "name", "worker"),
-		"completion_seq": arg(a, "completion_seq", 4), "interactive_ready": true,
+		"completion_seq": arg(a, "completion_seq", 4), "interactive_ready": true, "cwd": arg(a, "cwd", ""),
 	}
+	if fg, ok := a["foreground_cwd"]; ok && fg != nil {
+		obj["foreground_cwd"] = fg
+	}
+	return obj
 }
 
 func objects(v any) []map[string]any {

@@ -42,10 +42,11 @@ func listHerdr(ctx context.Context, o Options) herdrState {
 	return herdrState{src: o.Herdr, agents: agents, state: SourceOK}
 }
 
-// placeByCwd gives each herdr agent with a working folder to the project
-// whose folder holds it (the deepest one), or whose main repository it is a
-// linked worktree of. It returns the agent indexes per entry, and records the
-// agents no project holds in hs.unplaced.
+// placeByCwd gives each herdr agent to the project whose folder holds its
+// foreground process's cwd, else its pane cwd: the deepest project folder, or
+// the main repository of a linked worktree. It returns the agent indexes per
+// entry, and records the agents no project holds in hs.unplaced (placed later
+// by their work-item label).
 func placeByCwd(ctx context.Context, entries []registry.Entry, hs *herdrState) [][]int {
 	roots := make([]string, len(entries))
 	for i, e := range entries {
@@ -53,12 +54,9 @@ func placeByCwd(ctx context.Context, entries []registry.Entry, hs *herdrState) [
 	}
 	placed := make([][]int, len(entries))
 	for ai, a := range hs.agents {
-		owner := -1
-		if a.Cwd != "" {
-			cwd := clean(a.Cwd)
-			if owner = deepestOwner(roots, cwd); owner < 0 {
-				owner = deepestOwner(roots, worktreeMain(ctx, cwd))
-			}
+		owner := ownerOf(ctx, roots, a.ForegroundCwd)
+		if owner < 0 {
+			owner = ownerOf(ctx, roots, a.Cwd)
 		}
 		if owner < 0 {
 			hs.unplaced = append(hs.unplaced, ai)
@@ -67,6 +65,19 @@ func placeByCwd(ctx context.Context, entries []registry.Entry, hs *herdrState) [
 		placed[owner] = append(placed[owner], ai)
 	}
 	return placed
+}
+
+// ownerOf is the entry whose folder holds dir, directly or as the main
+// repository of the linked worktree dir is in; -1 when none or dir is empty.
+func ownerOf(ctx context.Context, roots []string, dir string) int {
+	if dir == "" {
+		return -1
+	}
+	dir = clean(dir)
+	if owner := deepestOwner(roots, dir); owner >= 0 {
+		return owner
+	}
+	return deepestOwner(roots, worktreeMain(ctx, dir))
 }
 
 func clean(p string) string {

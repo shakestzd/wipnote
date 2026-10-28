@@ -32,7 +32,8 @@ type wireAgent struct {
 	Agent         string `json:"agent"`
 	AgentStatus   string `json:"agent_status"`
 	CompletionSeq int    `json:"completion_seq"`
-	Cwd           string `json:"cwd"` // UNVERIFIED field; see Agent.Cwd
+	Cwd           string `json:"cwd"`
+	ForegroundCwd string `json:"foreground_cwd"`
 }
 
 func (w wireAgent) agent() Agent {
@@ -41,7 +42,7 @@ func (w wireAgent) agent() Agent {
 		state = StateUnknown
 	}
 	return Agent{Pane: PaneID(w.PaneID), TerminalID: w.TerminalID, Name: w.Name, Kind: w.Agent,
-		State: state, CompletionSeq: w.CompletionSeq, Cwd: w.Cwd}
+		State: state, CompletionSeq: w.CompletionSeq, Cwd: w.Cwd, ForegroundCwd: w.ForegroundCwd}
 }
 
 // TabCreate makes a background tab in workspace and returns it and its root

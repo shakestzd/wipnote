@@ -59,10 +59,12 @@ type Agent struct {
 	Kind          string
 	State         AgentState
 	CompletionSeq int
-	// Cwd is the agent's working folder when herdr reports one. UNVERIFIED:
-	// herdr's documented `agent list` fields do not name it; empty means
-	// unknown, and status --all then matches the agent by its work-item label.
-	Cwd string
+	// Cwd is the pane's cwd, "used for labels and follow-cwd behavior", and
+	// ForegroundCwd the cwd of the foreground process controlling the pane,
+	// present only when herdr can resolve it. Both are documented on `agent
+	// list` in https://herdr.dev/docs/cli-reference/. Empty means unknown.
+	Cwd           string
+	ForegroundCwd string
 }
 
 // Proc is one foreground process of a pane.

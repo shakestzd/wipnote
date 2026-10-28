@@ -57,10 +57,12 @@ the first unfinished slice whose feature is in progress, else the first `promote
 slice, else the first unfinished one. `done` counts `done` slices; `total` counts every slice
 except `superseded` ones.
 
-**Agents.** Each herdr agent is placed in the project whose folder holds its working folder (the
-deepest one), or whose main repository it is a linked worktree of. herdr's `agent list` is not
-documented to report a working folder; when it reports none, the agent is placed by the work item
-its label names (`<id>: <title>`, set by slice 2). An agent placed nowhere is not shown. Each open
+**Agents.** herdr's `agent list` reports each pane's `cwd` and, when herdr can resolve it, the
+`foreground_cwd` of the process controlling the pane
+([herdr CLI reference](https://herdr.dev/docs/cli-reference/)). An agent is placed in the project
+whose folder holds its `foreground_cwd`, else its `cwd`: the deepest project folder, or the project
+whose main repository that folder is a linked worktree of. With neither, the agent is placed by the
+work item its label names (`<id>: <title>`, set by slice 2). An agent placed nowhere is not shown. Each open
 claim episode whose root session has not ended (sessions ledger) is a `ledger` agent. A herdr agent
 is joined to the claim on the same work item; an unlabelled pane is joined to the one claim of its
 harness only when it is the only unlabelled pane of that harness. A session that crashed without
@@ -70,6 +72,9 @@ an end keeps its claim until `wipnote claims reconcile` closes it.
 failed in the last 24 h and was not re-run green since (a later run with the same label that
 completed). `lost_run`: a run started in the last 24 h with no end whose session has ended
 (runledger status `unknown`); it may still be running. Idle, working and done agents never need you.
+Not yet sourced: held runs (a guardrail hold waiting on the owner) and worker questions waiting for
+an answer. The plan's notes list both as needs-you entries; no ledger records them yet, so they are
+left out until one does.
 
 **Activity.** `last_activity` is the newest of the last commit, the runs, the agents' `since` and the
 in-progress items' update times; the registry's last-seen time when there is none.
