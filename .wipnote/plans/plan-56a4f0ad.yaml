@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 9
+    version: 11
 design:
     problem: |-
         ## Problem
@@ -104,7 +104,7 @@ slices:
           claim: Codex PostToolUse for unified exec is delivered when the command finishes, through a later write_stdin poll.
           accessed: "2026-10-27"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       questions:
         - id: q-capture
           text: How does wipnote learn about background tasks?
@@ -179,7 +179,7 @@ slices:
           claim: herdr integrations can report agent labels over the socket API.
           accessed: "2026-10-27"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **First step:** check the herdr CLI for a pane or tab rename command. 'tab create --label' is verified in the adapter; a rename of an existing pane is not. If herdr has none, label the tab and record the gap.
         blocks_waiver: the label is one string, '<id>: <title>'; no structure to draw.
@@ -331,3 +331,13 @@ feedback:
           value: "true"
           created_at: "2026-10-27T21:39:40Z"
           updated_at: "2026-10-27T21:39:40Z"
+        - section: slice-1
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T02:38:45Z"
+          updated_at: "2026-10-28T02:38:45Z"
+        - section: slice-2
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T02:38:46Z"
+          updated_at: "2026-10-28T02:38:46Z"
