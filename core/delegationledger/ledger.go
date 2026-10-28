@@ -18,7 +18,7 @@ const ledgerHeader = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Delegation Runs</title></head><body>
 <main>
 <table data-delegation-ledger="true">
-<thead><tr><th>Run</th><th>Mode</th><th>Harness</th><th>Name</th><th>Label</th><th>Work Item</th><th>Link</th><th>Caller Session</th><th>Worker Sessions</th><th>Host</th><th>Started</th><th>Ended</th><th>Exit</th><th>End Reason</th><th>Input</th><th>Cached</th><th>Output</th><th>Resumed From</th></tr></thead>
+<thead><tr><th>Run</th><th>Mode</th><th>Harness</th><th>Name</th><th>Label</th><th>Work Item</th><th>Link</th><th>Caller Session</th><th>Worker Sessions</th><th>Host</th><th>Started</th><th>Ended</th><th>Exit</th><th>End Reason</th><th>Input</th><th>Cached</th><th>Output</th><th>Reasoning</th><th>Resumed From</th></tr></thead>
 <tbody>
 `
 
@@ -64,6 +64,7 @@ func columns(r Record) []column {
 		{"usage-input", strconv.Itoa(r.UsageInput)},
 		{"usage-cached", strconv.Itoa(r.UsageCached)},
 		{"usage-output", strconv.Itoa(r.UsageOutput)},
+		{"usage-reasoning", strconv.Itoa(r.UsageReasoning)},
 		{"resumed-from", r.ResumedFrom},
 	}
 }
@@ -132,6 +133,7 @@ func parseRow(row *goquery.Selection) (Record, bool) {
 	r.UsageInput, _ = strconv.Atoi(a("usage-input"))
 	r.UsageCached, _ = strconv.Atoi(a("usage-cached"))
 	r.UsageOutput, _ = strconv.Atoi(a("usage-output"))
+	r.UsageReasoning, _ = strconv.Atoi(a("usage-reasoning"))
 	if r.Validate() != nil {
 		return Record{}, false
 	}

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# A stand-in for codex in doctor tests: --version prints a version.
+[ "$1" = "--version" ] && { echo "codex-cli 0.164.0"; exit 0; }
+exit 0
