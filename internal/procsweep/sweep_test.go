@@ -78,7 +78,7 @@ func TestSweep_ChildWithSessionIDIsFound(t *testing.T) {
 }
 
 func TestSweep_ProcessWithoutSessionIDIsIgnored(t *testing.T) {
-	res := sweepOne(t, fakeTable(raw(102, "vim notes.txt", map[string]string{"HOME": "/home/x"})))
+	res := sweepOne(t, fakeTable(raw(102, "vim notes.txt", map[string]string{"HOME": "/nonexistent"})))
 	if len(res.Procs) != 0 {
 		t.Fatalf("process without a session id must be ignored, got %+v", res.Procs)
 	}
