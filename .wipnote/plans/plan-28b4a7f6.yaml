@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 75
+    version: 76
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -1872,6 +1872,7 @@ slices:
       decisions_notes: |
         **Source of truth:** the plan YAML. The project gets a printed copy; nothing reads it back (owner 2026-10-25: wipnote plans are the shared durable layer).
     - id: slic-f9043a7e
+      feature_id: feat-5ffcd488
       num: 25
       title: Overview state vocabulary for delegate
       what: 'delegate list and the orchestra band and run.html group workers and runs with the Projects Overview groups: Working; Waiting on you; Ready for review; Landing; Idle; Resolved. A table maps slice 10 readiness states and run states to those groups.'
@@ -1900,6 +1901,7 @@ slices:
           claim: The Overview Threads tab groups threads as Ready for review, Waiting on you (needs a reply or approval, or failed), Working, Landing (PR approved or queued), Idle and Resolved.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Principle (owner 2026-10-25):** delegate plus herdr is a multi-harness Projects harness, so its states use the Overview groups.
         **Mapping owner:** slice 10's readiness predicate stays the single source of state (D2); this slice only maps states to groups.
@@ -2757,3 +2759,8 @@ feedback:
           value: done
           created_at: "2026-10-26T23:18:35Z"
           updated_at: "2026-10-26T23:18:35Z"
+        - section: slice-25
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-10-28T16:33:00Z"
+          updated_at: "2026-10-28T16:33:00Z"
