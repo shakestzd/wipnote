@@ -12,6 +12,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/testenv"
 	"github.com/shakestzd/wipnote/core/worktree"
+	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 )
 
 // TestMain is the test suite entry point for the non-integration (unit) test
@@ -39,11 +40,25 @@ import (
 //     subagent (typically one running in a worktree) makes every work-item
 //     start a subagent start, so active_feature_id is never set (issue #194).
 //     Tests that need one of these set it with t.Setenv.
-//  6. Cleans up the binary temp dir created by buildOtelCollectTestBinary.
+//  6. Clears HERDR_* so no test renames a real herdr pane, and doubles as
+//     the fake herdr when run under that name (herdr_label_test.go).
+//  7. Cleans up the binary temp dir created by buildOtelCollectTestBinary.
 //
 // Cleanup runs explicitly before os.Exit; deferred cleanups would never fire
 // because os.Exit skips deferred functions.
 func TestMain(m *testing.M) {
+	// The herdr label tests link this binary in as a fake "herdr".
+	if filepath.Base(os.Args[0]) == "herdr" {
+		os.Exit(herdr.FakeMain(os.Args[1:], os.Stdout, os.Stderr))
+	}
+	// No test may reach the developer's real herdr pane: a work-item start
+	// inside herdr renames the caller's pane. Tests that need herdr set it.
+	for _, kv := range os.Environ() {
+		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "HERDR_") {
+			_ = os.Unsetenv(name)
+		}
+	}
+
 	// Must run before the sandbox variables below are set: it clears all
 	// WIPNOTE_* variables, including the ones this function then sets.
 	testenv.ClearAmbientSession()

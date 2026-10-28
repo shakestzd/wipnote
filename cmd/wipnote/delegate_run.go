@@ -38,7 +38,8 @@ or with --no-pane). Prints a status line, the answer (or the end of the log on
 failure) and the run page. Exits with the tool's status, 130 if its pane closed.
 
 Only --label enters the ledger; a derived pane title stays in the run folder.
-The work item defaults to the caller's active claim. Chained commands (pipes,
+Without --label the pane title is "<id>: <title>" of the work item, or one
+derived from the prompt when there is none. The work item defaults to the caller's active claim. Chained commands (pipes,
 ;) are not supported. Settings: the "delegate" object (layout, maxPanes,
 closePane, closeDelay, tailLines, maxReturnLines, leanProfile, leanProfileName,
 ccxRunsDir, ccxWaitSeconds, keepDays), merged per key from ~/.wipnote/config.json,
@@ -78,10 +79,11 @@ func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, n
 	if workItem == "" {
 		workItem = gate.ActiveWorkItemForGate(projectDir, session, db.NormaliseAgentID(os.Getenv("WIPNOTE_AGENT_ID")))
 	}
+	_, workTitle := workItemTitle(wipnoteDir, workItem)
 	cwd, _ := os.Getwd()
 	env := herdr.EnvFrom(os.Getenv)
 	o := oneshot.Options{
-		Argv: argv, Label: label, WorkItem: workItem, CallerSession: session, NoPane: noPane, Cwd: cwd,
+		Argv: argv, Label: label, WorkItem: workItem, WorkTitle: workTitle, CallerSession: session, NoPane: noPane, Cwd: cwd,
 		Settings: oneshot.LoadSettings(projectDir, cmd.ErrOrStderr()), Store: store, Ledger: delegationledger.NewStore(wipnoteDir),
 		HerdrEnv: env, PaneLine: delegatePaneLine(projectDir), Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
 	}
