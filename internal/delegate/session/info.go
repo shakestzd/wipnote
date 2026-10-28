@@ -3,6 +3,8 @@ package session
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/filelock"
+	"path/filepath"
 
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
@@ -50,7 +52,25 @@ func (i Info) Pin() herdr.Pin {
 	return herdr.Pin{Pane: herdr.PaneID(i.Pane), TerminalID: i.TerminalID}
 }
 
-// WriteInfo replaces the run folder's session.json atomically.
+// UpdateInfo is the one read-modify-write of session.json: under the run's
+// session lock it re-reads the file, lets set change only the fields its
+// caller owns (spawn: Pane; adoption: TerminalID, Renamed; the boot:
+// Workspace), and replaces the file by rename. It returns the info written.
+// Every writer of session.json runs on the host, where the lock holds.
+func UpdateInfo(rf *runstore.RunFolder, set func(*Info)) (Info, error) {
+	release := filelock.Guard(filepath.Join(rf.Dir(), runstore.FileSession))
+	defer release()
+	info, err := ReadInfo(rf)
+	if err != nil {
+		return Info{}, err
+	}
+	set(&info)
+	return info, WriteInfo(rf, info)
+}
+
+// WriteInfo replaces the run folder's session.json atomically. It writes
+// the whole record, so it is for creating the file only; a change to an
+// existing one goes through UpdateInfo.
 func WriteInfo(rf *runstore.RunFolder, info Info) error {
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
@@ -80,4 +100,14 @@ func loadInfo(store *runstore.Store, runID string) (*runstore.RunFolder, Info, e
 	}
 	info, err := ReadInfo(rf)
 	return rf, info, err
+}
+
+// infoLoaded is a test seam: called with the run id after list or send
+// loaded session.json and before they save an adoption.
+var infoLoaded func(run string)
+
+func onInfoLoaded(run string) {
+	if infoLoaded != nil {
+		infoLoaded(run)
+	}
 }

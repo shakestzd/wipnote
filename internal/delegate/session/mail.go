@@ -44,9 +44,8 @@ func Send(ctx context.Context, d Deps, name, text string) (Sent, error) {
 	if d.Herdr == nil {
 		return Sent{}, ErrNotInHerdr
 	}
-	if adopt(ctx, d.Herdr, &info) {
-		_ = WriteInfo(rf, info)
-	}
+	onInfoLoaded(info.Run)
+	adoptAndSave(ctx, d, rf, &info)
 	mb, err := d.Store.Mailbox(info.Name)
 	if err != nil {
 		return Sent{}, err

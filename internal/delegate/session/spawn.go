@@ -85,8 +85,8 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 			abandon(d, info.Run, rf, "")
 			return fmt.Errorf("delegate: no pane for %s: %w", o.Name, err)
 		}
-		info.Pane = string(pane)
-		return WriteInfo(rf, info)
+		info, err = UpdateInfo(rf, func(i *Info) { i.Pane = string(pane) })
+		return err
 	})
 	if err != nil {
 		return Spawned{}, err

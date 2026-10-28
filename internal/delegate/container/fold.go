@@ -29,6 +29,10 @@ var ErrFoldInside = errors.New("delegate: only the host folds a container worker
 // alone writes it (replaced by rename); the container never does.
 const FoldedFile = "folded.json"
 
+// foldLock names the host's fold lock in .wipnote/delegate/ (its sidecar is
+// fold.lock).
+const foldLock = "fold"
+
 type foldedSession struct {
 	Runs  int  `json:"runs"`
 	Ended bool `json:"ended"`
@@ -64,7 +68,10 @@ func Fold(wipnoteDir, runDir string) (Folded, error) {
 
 func foldSessions(wipnoteDir, runDir string, sessions []containerwrite.Session, f *Folded) error {
 	path := filepath.Join(runDir, FoldedFile)
-	release := filelock.Guard(path)
+	// One project-wide lock for every session fold: two folds of one run
+	// re-read folded.json under it, and two run folders of one resumed
+	// session (an end and a resume) never interleave on the host's row.
+	release := filelock.Guard(filepath.Join(wipnoteDir, "delegate", foldLock))
 	defer release()
 	st := foldedState{Sessions: map[string]foldedSession{}}
 	if data, err := os.ReadFile(path); err == nil {
@@ -163,28 +170,30 @@ func foldFamily(wipnoteDir string, s containerwrite.Session, f *Folded) error {
 	return nil
 }
 
+// foldGates records each of the worker's gate runs the host's ledger does
+// not hold yet. The check and the append are one step under the ledger
+// lock (AppendIfAbsent), so concurrent folds of one run record it once.
 func foldGates(wipnoteDir, runDir string, f *Folded) error {
 	own, err := gateledger.ReadOwn(runDir)
 	if err != nil || len(own) == 0 {
 		return err
 	}
 	store := gateledger.NewStore(wipnoteDir)
-	have, err := store.ReadAll()
-	if err != nil {
-		return err
-	}
-	seen := map[string]bool{}
-	for _, r := range have {
-		seen[r.ID] = true
-	}
 	for _, r := range own {
-		if seen[r.ID] {
-			continue
+		if foldGateCheck != nil {
+			foldGateCheck()
 		}
-		if _, err := store.Append(r); err != nil {
+		_, added, err := store.AppendIfAbsent(r)
+		if err != nil {
 			return err
 		}
-		f.Gates++
+		if added {
+			f.Gates++
+		}
 	}
 	return nil
 }
+
+// foldGateCheck is a test seam: called just before a fold records a gate
+// run, where an unlocked check-then-append would let another fold in.
+var foldGateCheck func()

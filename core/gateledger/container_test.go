@@ -65,3 +65,26 @@ func TestAppend_HostWritesSharedLedger(t *testing.T) {
 		t.Errorf("host wrote own gate files: %+v", own)
 	}
 }
+
+// TestAppendIfAbsent_OncePerID: a record already in the ledger is not
+// appended again; a record with another id is.
+func TestAppendIfAbsent_OncePerID(t *testing.T) {
+	t.Setenv(containerwrite.PlaceEnv, "")
+	store := gateledger.NewStore(filepath.Join(t.TempDir(), ".wipnote"))
+	r := passing("sess-a", "feat-a", time.Now().UTC())
+	r.ID = "gr-0000000000000001"
+	if _, added, err := store.AppendIfAbsent(r); err != nil || !added {
+		t.Fatalf("first: %v, %v", added, err)
+	}
+	if _, added, err := store.AppendIfAbsent(r); err != nil || added {
+		t.Errorf("second of the same id: added %v, %v", added, err)
+	}
+	other := r
+	other.ID, other.Signature = "gr-0000000000000002", ""
+	if _, added, _ := store.AppendIfAbsent(other); !added {
+		t.Error("another id was not appended")
+	}
+	if all, _ := store.ReadAll(); len(all) != 2 {
+		t.Errorf("%d records, want 2", len(all))
+	}
+}

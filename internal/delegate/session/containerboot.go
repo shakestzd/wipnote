@@ -68,8 +68,7 @@ func ContainerBoot(ctx context.Context, store *runstore.Store, run, caller strin
 	if err != nil {
 		return nil, err
 	}
-	info.Workspace = up.RemoteWorkspaceFolder
-	if err := recordContainer(rf, info, up); err != nil {
+	if info, err = recordContainer(rf, up); err != nil {
 		return nil, err
 	}
 	m := container.Mapper{Root: info.Root, Remote: up.RemoteWorkspaceFolder}
@@ -85,13 +84,17 @@ func ContainerBoot(ctx context.Context, store *runstore.Store, run, caller strin
 	return container.ExecArgv(info.Root, env, container.InDir(cwd, up.RemoteWorkspaceFolder, containerArgv(info, brief))), nil
 }
 
-func recordContainer(rf *runstore.RunFolder, info Info, up container.Up) error {
-	if err := WriteInfo(rf, info); err != nil {
-		return err
+// recordContainer records the workspace folder in session.json (only that
+// field, so a concurrent adoption is kept) and writes container.json, which
+// the boot alone writes.
+func recordContainer(rf *runstore.RunFolder, up container.Up) (Info, error) {
+	info, err := UpdateInfo(rf, func(i *Info) { i.Workspace = up.RemoteWorkspaceFolder })
+	if err != nil {
+		return Info{}, err
 	}
 	data, _ := json.MarshalIndent(map[string]string{"place": PlaceContainer, "workspace_folder": up.RemoteWorkspaceFolder,
 		"container_id": up.ContainerID, "remote_user": up.RemoteUser}, "", "  ")
-	return rf.WriteFile(runstore.FileContainer, append(data, '\n'))
+	return info, rf.WriteFile(runstore.FileContainer, append(data, '\n'))
 }
 
 // containerBrief is brief.md with its preamble's result path in the

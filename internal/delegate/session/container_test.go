@@ -353,3 +353,45 @@ func TestClose_FoldsContainerWorkerFirst(t *testing.T) {
 		t.Errorf("a host worker's close wrote the sessions ledger (err %v)", err)
 	}
 }
+
+// TestInfo_BootAndAdoptRaceKeepsWorkspace: list (or send) loads session.json
+// before the boot records the workspace folder, then adopts the agent and
+// saves. The interleaving is forced through the infoLoaded seam: the boot
+// runs between the load and the save. The save must keep the boot's
+// workspace folder (and the boot must keep the adoption), so later sends
+// still find it. The other side: without the race both fields are there too.
+func TestInfo_BootAndAdoptRaceKeepsWorkspace(t *testing.T) {
+	for _, verb := range []string{"list", "send"} {
+		e, _, remote := containerEnv(t)
+		o := e.containerOpts("w1", HarnessClaude)
+		o.Brief = ""
+		s, err := Spawn(context.Background(), e.deps, o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.herdr.prompts = true
+		e.herdr.pane(PaneOf(s)).styled = "> \n"
+		e.event(s.Run, "sid-1", runstore.KindSessionStart)
+		e.herdr.agents = []herdr.Agent{{Pane: PaneOf(s), TerminalID: "term-1"}}
+		booted := false
+		infoLoaded = func(run string) {
+			if run == s.Run && !booted {
+				booted = true
+				if _, err := ContainerBoot(context.Background(), e.deps.Store, s.Run, "", nil); err != nil {
+					t.Error(err)
+				}
+			}
+		}
+		t.Cleanup(func() { infoLoaded = nil })
+		if verb == "list" {
+			_, _ = List(context.Background(), e.deps, false)
+		} else {
+			_, _ = Send(context.Background(), e.deps, "w1", "x")
+		}
+		info, _ := ReadInfo(e.runFolder(s.Run))
+		if !booted || info.Workspace != remote || !info.Renamed || info.TerminalID != "term-1" {
+			t.Errorf("%s racing the boot: info %+v, want the workspace folder %s and the adoption both kept", verb, info, remote)
+		}
+		infoLoaded = nil
+	}
+}

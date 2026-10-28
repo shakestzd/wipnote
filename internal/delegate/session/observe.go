@@ -159,6 +159,19 @@ func exited(ctx context.Context, d Deps, pane herdr.PaneID) (bool, string) {
 	return true, fmt.Sprintf("the worker exited; pane %s holds only its shell", pane)
 }
 
+// adoptAndSave adopts a late agent and saves only the adoption's fields, so
+// a field another writer set since info was loaded (the boot's workspace
+// folder) is kept; info is refreshed from what was written.
+func adoptAndSave(ctx context.Context, d Deps, rf *runstore.RunFolder, info *Info) {
+	if !adopt(ctx, d.Herdr, info) {
+		return
+	}
+	term := info.TerminalID
+	if saved, err := UpdateInfo(rf, func(i *Info) { i.TerminalID, i.Renamed = term, true }); err == nil {
+		*info = saved
+	}
+}
+
 // adopt renames and pins a late agent (orch launch.adopt_late_agent): once
 // herdr lists an agent in the worker's pane, it is renamed to the worker's
 // name and its terminal id is pinned. It reports whether info changed.
