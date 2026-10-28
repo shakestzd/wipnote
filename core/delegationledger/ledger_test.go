@@ -450,3 +450,27 @@ func TestLedger_OnCommitGetsRepoRelativePath(t *testing.T) {
 		t.Errorf("OnCommit calls = %v, want %v", got, want)
 	}
 }
+
+// TestLedger_EnrichIfOpenNeverTouchesClosedRow: the late write a delegate
+// wait makes applies to an open row and changes nothing on a closed one.
+func TestLedger_EnrichIfOpenNeverTouchesClosedRow(t *testing.T) {
+	s := testStore(t)
+	open := mustOpen(t, s, interactiveRow("dlg-333333333333", "feat-a", t0))
+	shut := mustOpen(t, s, interactiveRow("dlg-444444444444", "feat-a", t0))
+	if _, err := s.CloseIfOpen(shut.ID, CloseInfo{Ended: t0.Add(time.Minute), Reason: EndStop}); err != nil {
+		t.Fatal(err)
+	}
+	add := Enrichment{WorkerSessions: []string{"sid-a"}}
+	if changed, err := s.EnrichIfOpen(open.ID, add); err != nil || !changed {
+		t.Fatalf("open row: %v %v", changed, err)
+	}
+	if changed, err := s.EnrichIfOpen(shut.ID, add); err != nil || changed {
+		t.Fatalf("closed row: %v %v", changed, err)
+	}
+	if got, _, _ := s.Get(shut.ID); len(got.WorkerSessions) != 0 || got.EndReason != EndStop {
+		t.Fatalf("closed row changed: %+v", got)
+	}
+	if got, _, _ := s.Get(open.ID); len(got.WorkerSessions) != 1 {
+		t.Fatalf("open row not enriched: %+v", got)
+	}
+}
