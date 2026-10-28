@@ -22,17 +22,8 @@ import (
 // replace it.
 var delegateRunExit = os.Exit
 
-// delegateRunCmd is `wipnote delegate run [--label] [--work-item] [--no-pane]
-// -- <cmd>` (plan-28b4a7f6 slice 8): one codex exec or review, claude -p or
-// ccx task, in a herdr pane inside herdr, else headless, with the
-// codex-herdr-pane mod's report. The exit status is the tool's.
-func delegateRunCmd() *cobra.Command {
-	var label, workItem string
-	var noPane, write, inContainer bool
-	cmd := &cobra.Command{
-		Use:   "run [--label L] [--work-item ID] [--no-pane] [--write] [--container] -- <codex exec|codex review|claude -p|ccx task> ...",
-		Short: "Run one delegated codex, claude -p or ccx call and print its report",
-		Long: `Runs one tool call (codex exec or review, claude -p, ccx task) as a recorded
+// delegateRunLong is delegate run's help.
+const delegateRunLong = `Runs one tool call (codex exec or review, claude -p, ccx task) as a recorded
 delegation: a row in .wipnote/delegations-ledger.html, a run folder under
 .wipnote/delegate/runs/, and a herdr pane when HERDR_ENV=1 (headless otherwise,
 or with --no-pane). Prints a status line, the answer (or the end of the log on
@@ -59,8 +50,20 @@ doctor) the run is refused with the probe output unless the host opted in.
 --workspace-folder <root>, with the run folder's paths mapped into the
 container. It refuses without the config or the devcontainer CLI. An argv that
 is not claude or codex is a ccx task's arguments and runs as claude -p inside.
-Codex inside needs this host in dangerFullAccessHosts (bwrap fails there).`,
-		Args: cobra.MinimumNArgs(1),
+Codex inside needs this host in dangerFullAccessHosts (bwrap fails there).`
+
+// delegateRunCmd is `wipnote delegate run [--label] [--work-item] [--no-pane]
+// -- <cmd>` (plan-28b4a7f6 slice 8): one codex exec or review, claude -p or
+// ccx task, in a herdr pane inside herdr, else headless, with the
+// codex-herdr-pane mod's report. The exit status is the tool's.
+func delegateRunCmd() *cobra.Command {
+	var label, workItem string
+	var noPane, write, inContainer bool
+	cmd := &cobra.Command{
+		Use:   "run [--label L] [--work-item ID] [--no-pane] [--write] [--container] -- <codex exec|codex review|claude -p|ccx task> ...",
+		Short: "Run one delegated codex, claude -p or ccx call and print its report",
+		Long:  delegateRunLong,
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			code, err := runDelegateRun(cmd, args, label, workItem, runFlags{noPane: noPane, write: write, container: inContainer})
 			if err != nil {
