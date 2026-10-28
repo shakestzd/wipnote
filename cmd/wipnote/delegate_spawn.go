@@ -25,7 +25,7 @@ func delegateSpawnCmd() *cobra.Command {
 	var harness, workItem, brief, briefFile string
 	var inContainer bool
 	cmd := &cobra.Command{
-		Use:   "spawn NAME --harness claude|codex [--work-item ID] [--brief TEXT | --brief-file PATH] [--container]",
+		Use:   "spawn [NAME] --harness claude|codex [--work-item ID] [--brief TEXT | --brief-file PATH] [--container]",
 		Short: "Start an interactive Claude or Codex worker in the caller's herdr workers tab",
 		Long: `Starts an interactive worker under wipnote claude or wipnote codex in a split of
 the caller's workers tab (one tab per caller, at most 6 workers). spawn types one
@@ -35,7 +35,9 @@ delegate list renames and pins its herdr agent.
 
 The brief goes by file (the run folder's brief.md), never on the typed line, with
 a preamble that tells the worker where to write its result. NAME is [a-z0-9-],
-1 to 32 characters, starting with a letter, and unique among live workers. The
+1 to 32 characters, starting with a letter, and unique among live workers.
+Without NAME the worker is named <item-id>-<slug of its title>, cut to 32; the
+name is both its mailbox name and its Claude session name (--name). The
 work item defaults to the caller's active claim; spawn refuses without one.
 
 --container starts the worker in the project's own devcontainer: the boot in
@@ -43,13 +45,17 @@ the pane runs devcontainer up, then devcontainer exec --workspace-folder <root>
 wipnote claude|codex. spawn still returns at once. It refuses without
 .devcontainer/devcontainer.json or the devcontainer CLI, and a Codex worker
 unless this host is in delegate.codex.dangerFullAccessHosts.`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			text, err := readBrief(brief, briefFile, cmd.InOrStdin())
 			if err != nil {
 				return err
 			}
-			return runDelegateSpawn(cmd, args[0], harness, workItem, text, inContainer)
+			name := ""
+			if len(args) == 1 {
+				name = args[0]
+			}
+			return runDelegateSpawn(cmd, name, harness, workItem, text, inContainer)
 		},
 	}
 	cmd.Flags().StringVar(&harness, "harness", "", "claude or codex")
@@ -88,13 +94,17 @@ func runDelegateSpawn(cmd *cobra.Command, name, harness, workItem, brief string,
 	if workItem == "" {
 		workItem = gate.ActiveWorkItemForGate(projectDir, caller, db.NormaliseAgentID(os.Getenv("WIPNOTE_AGENT_ID")))
 	}
+	title := ""
+	if name == "" {
+		workItem, title = workItemTitle(wipnoteDir, workItem)
+	}
 	cwd, _ := os.Getwd()
 	exe, err := os.Executable()
 	if err != nil {
 		exe = "wipnote"
 	}
 	s, err := session.Spawn(cmd.Context(), d, session.SpawnOptions{
-		Name: name, Harness: harness, WorkItem: workItem, CallerSession: caller, CallerPane: env.CallerPane,
+		Name: name, Harness: harness, WorkItem: workItem, WorkTitle: title, CallerSession: caller, CallerPane: env.CallerPane,
 		Brief: brief, Cwd: cwd, Container: inContainer, Root: projectDir, CodexOptIn: inContainer && hostOptedIn(projectDir),
 		BootLine: func(run string) string { return session.BootLine(exe, projectDir, run, caller) },
 	})
@@ -121,7 +131,7 @@ func delegateSessionDeps(wipnoteDir string) (session.Deps, herdr.Env, error) {
 	if err != nil {
 		return session.Deps{}, herdr.Env{}, err
 	}
-	d := session.Deps{Store: store, Ledger: delegationledger.NewStore(wipnoteDir)}
+	d := session.Deps{Store: store, Ledger: delegationledger.NewStore(wipnoteDir), Claims: claimLedgerStore(wipnoteDir)}
 	env := herdr.EnvFrom(os.Getenv)
 	if env.InHerdr {
 		d.Herdr = herdr.New(env)

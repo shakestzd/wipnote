@@ -25,12 +25,17 @@ import (
 const DelegateRunEnv = "WIPNOTE_DELEGATE_RUN"
 
 // DelegateEvent is one event a worker hook records. Kind is a runstore event
-// kind (session_start, prompt, stop, subagent_start, subagent_stop).
+// kind (session_start, prompt, stop, subagent_start, subagent_stop, and from
+// delegate_events.go tool_start, tool_end, question, permission_request).
+// Summary is bounded short text; message and prompt text are never stored.
 type DelegateEvent struct {
 	Kind      string
 	SID       string
 	AgentID   string
 	AgentType string
+	Tool      string
+	ToolUseID string
+	Summary   string
 }
 
 var (
@@ -50,6 +55,9 @@ type delegateLine struct {
 	SID       string `json:"sid,omitempty"`
 	AgentID   string `json:"agent_id,omitempty"`
 	AgentType string `json:"agent_type,omitempty"`
+	Tool      string `json:"tool,omitempty"`
+	ToolUseID string `json:"tool_use_id,omitempty"`
+	Summary   string `json:"summary,omitempty"`
 }
 
 // RecordDelegateEvent appends ev to the worker's events file when this
@@ -68,7 +76,8 @@ func RecordDelegateEvent(projectDir string, ev DelegateEvent) {
 		return
 	}
 	line := delegateLine{V: 1, TS: time.Now().UTC().Format(time.RFC3339Nano), Run: run, Kind: ev.Kind,
-		SID: ev.SID, AgentID: ev.AgentID, AgentType: ev.AgentType}
+		SID: ev.SID, AgentID: ev.AgentID, AgentType: ev.AgentType, Tool: ev.Tool, ToolUseID: ev.ToolUseID,
+		Summary: boundSummary(ev.Summary)}
 	seq, torn := delegateNextSeq(dir, path)
 	line.Seq = seq
 	data, err := json.Marshal(line)
@@ -148,4 +157,7 @@ func recordDelegateHook(event *CloudEvent, projectDir, sessionID, kind string) {
 		return
 	}
 	RecordDelegateEvent(projectDir, DelegateEvent{Kind: kind, SID: sessionID, AgentID: event.AgentID, AgentType: event.AgentType})
+	if kind == "prompt" {
+		delegateAckNewestTask(projectDir) // after the prompt event: no gap reads as an older turn
+	}
 }

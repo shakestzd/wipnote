@@ -10,7 +10,6 @@ import (
 
 	"github.com/shakestzd/wipnote/core/projection"
 	"github.com/shakestzd/wipnote/internal/lineage"
-	"github.com/shakestzd/wipnote/internal/orchlink"
 	"github.com/spf13/cobra"
 )
 
@@ -28,6 +27,7 @@ const (
 	kindSession
 	kindCommit
 	kindFile
+	kindDelegation
 )
 
 // String makes lineageKind printable for test failures.
@@ -49,6 +49,8 @@ func (k lineageKind) String() string {
 		return "commit"
 	case kindFile:
 		return "file"
+	case kindDelegation:
+		return "delegation"
 	default:
 		return "unknown"
 	}
@@ -80,6 +82,8 @@ func detectLineageKind(arg string) lineageKind {
 		return kindTrack
 	case strings.HasPrefix(arg, "sess-"):
 		return kindSession
+	case strings.HasPrefix(arg, "dlg-"):
+		return kindDelegation
 	}
 	if lineageHexRe.MatchString(arg) {
 		return kindCommit
@@ -118,9 +122,14 @@ type lineageNode = lineage.Node
 //	  "forward":  [{id,type,title,edge_type,depth,timestamp?,metadata?}, ...],
 //	  "backward": [{id,type,title,edge_type,depth,timestamp?,metadata?}, ...],
 //	  "agent_tree": "<indented text>",  // only for session roots
-//	  "orch_sessions": [...],           // work items served by orch sessions
-//	  "orch_error": "<why>"             // the orch registry exists but is unreadable
+//	  "runs": [...],                    // background runs of a work item
+//	  "delegations": [...],             // delegation runs serving the root (dlg- roots: the run)
+//	  "delegations_error": "<why>"      // the delegations ledger exists but is unreadable
 //	}
+//
+// orch_sessions and orch_error were dropped with internal/orchlink
+// (plan-28b4a7f6 slice 13): orch history enters the delegations ledger
+// through `wipnote delegate import-orch` and shows in delegations[].
 //
 // Forward edges follow `from_node_id = root` outward; backward edges follow
 // `to_node_id = root` inward. Each list is depth-ordered (BFS). For session
@@ -136,12 +145,12 @@ type lineageJSON struct {
 	Forward   []lineageNode `json:"forward"`
 	Backward  []lineageNode `json:"backward"`
 	AgentTree string        `json:"agent_tree,omitempty"`
-	// OrchSessions and OrchError come from lineage_orch.go; both are omitted
-	// when orch is not in use or no orch session serves the root.
-	OrchSessions []orchlink.Session `json:"orch_sessions,omitempty"`
-	OrchError    string             `json:"orch_error,omitempty"`
 	// Runs are the background runs recorded for a work item (lineage_runs.go).
 	Runs []lineageRun `json:"runs,omitempty"`
+	// Delegations and DelegationsError come from lineage_delegate.go; both
+	// are omitted when no delegation serves the root.
+	Delegations      []lineageDelegation `json:"delegations,omitempty"`
+	DelegationsError string              `json:"delegations_error,omitempty"`
 }
 
 // allLineageRels lists all 10 relationship types we traverse. It is the shared
@@ -171,6 +180,7 @@ func newLineageCmd() *cobra.Command {
 Supported inputs:
   feat-/bug-/spk-/plan-/trk- ID  — graph walk across all 10 edge types
   sess-<id>                      — graph walk plus agent spawn tree
+  dlg-<id>                       — a delegation run: caller, work item, workers, claims
   <commit-sha>                   — git commit attribution
   <file/path.go>                 — file-to-feature attribution
 
@@ -187,8 +197,8 @@ Examples:
 			}
 			opts.depthSet = cmd.Flags().Changed("depth")
 			opts.timelineSet = cmd.Flags().Changed("timeline")
-			if isCanonicalLineageKind(detectLineageKind(args[0])) {
-				return runLineageProjection(os.Stdout, dir, args[0], opts)
+			if k := detectLineageKind(args[0]); isCanonicalLineageKind(k) || k == kindDelegation {
+				return runLineageFor(os.Stdout, dir, args[0], opts)
 			}
 			db, err := openReadOnlyDB(dir)
 			if err != nil {
@@ -275,16 +285,16 @@ func runLineageProjection(w io.Writer, wipnoteDir, arg string, opts lineageOpts)
 	}
 	forward := lineage.ForwardProjectionWalk(snap, arg, allLineageRels, opts.depth)
 	backward := lineage.BackwardProjectionWalk(snap, arg, allLineageRels, opts.depth)
-	orch := loadLineageOrch(arg, kind, forward)
+	dlg := loadLineageDelegations(wipnoteDir, arg, kind, forward)
 	runs := loadLineageRuns(wipnoteDir, arg, kind)
 	if opts.jsonOut {
-		return renderLineageJSON(w, arg, kind, forward, backward, "", orch, runs)
+		return renderLineageJSON(w, arg, kind, forward, backward, "", dlg, runs)
 	}
 	if err := renderLineageProjectionTree(w, snap, arg, kind, forward, backward, opts.timeline); err != nil {
 		return err
 	}
 	printLineageResearch(w, wipnoteDir, arg)
-	printLineageOrch(w, orch)
+	printLineageDelegations(w, dlg)
 	printLineageRuns(w, runs)
 	return nil
 }

@@ -7,8 +7,8 @@ A Claude Code mod (function hooks) that turns the line under the prompt into an 
   5h 42% resets 9:40 PM   7d 83% resets Fri 3:00 PM    Tue 20 · 7:40 PM        ← usage limits, then the clock
  ionna-rca   main !3 ⇡1  ✻ Opus 5.5  ctx 33%  Raw-data RCA agents [1/46]  → Routine setup script  ◉ 3 agents · ✔ 12 ✘ 1 
    ⚠ Explore no tool call for 6m12s  Survey workbench types  ↳ $ npm test         ← needs a look
-   ⇄ w1  codex · interactive  ● live  Working on it.                             ← delegate runs
-   ⇄ Fix the tests  ccx · oneshot  ✘ ended exit 2  ccx: failed in 3s
+   ⇄ w1  codex · interactive  ● live  Waiting on you  Working on it.             ← delegate runs
+   ⇄ Fix the tests  ccx · oneshot  ✘ ended exit 2  Waiting on you  ccx: failed in 3s
    ▸ Routine setup script 2/5 steps   ● 2 running  ✔ 1 done                     ← agents by work item
 ```
 
@@ -20,7 +20,7 @@ A Claude Code mod (function hooks) that turns the line under the prompt into an 
 | Limits | each rate-limit window (`5h`, `7d`, `spend`): % used, green/amber/red at 50/80, local reset time; then the clock: weekday, day of the month, local time (without a limits row, in compact or before limits are known, the clock is the last segment) | `$.session.usage().rateLimits`, `timeZone` |
 | Segments | repo/worktree name · git branch, dirty count, ahead/behind · model · context % · per track: title `[done/total]` · per work item: `→ title n/m` (steps), coloured by status · live agent count and the session's finished tally (`✔ done ✘ failed`) | `git`, `$.session.*`, `wipnote` |
 | Needs a look | a running agent quiet for 5 min: on one call that long (`◷ one call running for …`) or with no tool call at all (`⚠ no tool call for …`), with its last call; and a failed or stopped agent for 10 min (`✘`) | `tool.call`, `$.agent.list()` |
-| Delegate runs | one row per `wipnote delegate` run, one-shot or interactive (never one per pane or split): its name (interactive) or label, harness and mode, `● live` or ended (`✔ ended`, `✘ ended exit 2`, `■ ended (stop)`), and the first line of its `last.md`. Live runs first, then runs that ended in the last hour, newest first | `.wipnote/delegate/runs/`, `.wipnote/delegations-ledger.html` |
+| Delegate runs | one row per `wipnote delegate` run, one-shot or interactive (never one per pane or split): its name (interactive) or label, harness and mode, `● live` or ended (`✔ ended`, `✘ ended exit 2`, `■ ended (stop)`), its Projects Overview group (Working, Waiting on you, Ready for review, Landing, Idle, Resolved; the table in `internal/delegate/session/groups.go`, an open worker's from the `state.json` that `wipnote delegate list` keeps), and the first line of its `last.md`. Live runs first, then runs that ended in the last hour, newest first | `.wipnote/delegate/runs/` (incl. `state.json`), `.wipnote/delegations-ledger.html` |
 | Work items | one row per work item the agents' briefs name: title, steps, and how many of its agents are running, waiting, done, failed (finished ones counted 90 s) | `agent.spawn`, `$.agent.list()`, `wipnote` |
 
 **No row per agent.** Claude Code's own agent panel under the prompt already lists every subagent with its time, tokens and current activity, and opens one with Enter (or from `/tasks`). The band only adds what that panel does not show: agents grouped by work item, a stall warning, failures that stay past the panel's 30 s, and a session tally.
@@ -82,7 +82,7 @@ does not show there.
 
 ```bash
 claude plugin validate mods/wipnote-orchestra
-claude plugin test mods/wipnote-orchestra     # 53 tests
+claude plugin test mods/wipnote-orchestra     # 65 tests
 tsc -p mods/wipnote-orchestra                 # after a load lays .claude-plugin/types/
 ```
 

@@ -166,6 +166,18 @@ func (s *Store) Enrich(runID string, e Enrichment) (bool, error) {
 	return changed, err
 }
 
+// EnrichIfOpen is Enrich that changes nothing once the row is closed,
+// decided under the ledger lock, so a late write (delegate wait adding a
+// /clear session) never touches a stopped row: a stop always wins (orch F-1).
+func (s *Store) EnrichIfOpen(runID string, e Enrichment) (bool, error) {
+	changed := false
+	err := s.update(runID, "delegation enrich", func(r *Record) bool {
+		changed = r.IsOpen() && applyEnrichment(r, e)
+		return changed
+	})
+	return changed, err
+}
+
 func applyEnrichment(r *Record, e Enrichment) bool {
 	changed := false
 	for _, sid := range e.WorkerSessions {
