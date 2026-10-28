@@ -56,10 +56,10 @@ func runQuestions(d Deps, r delegationledger.Record) ([]Question, error) {
 		return nil, err
 	}
 	evs, _ := rf.ReadEvents()
-	return pendingQuestions(d.Store, r.Name, factsOf(evs)), nil
+	return pendingQuestions(d.Store, r.Name, r.ID, factsOf(evs)), nil
 }
 
-func pendingQuestions(store *runstore.Store, name string, f eventFacts) []Question {
+func pendingQuestions(store *runstore.Store, name, run string, f eventFacts) []Question {
 	out := []Question{}
 	for _, ev := range f.asks {
 		kind := KindAsk
@@ -68,7 +68,7 @@ func pendingQuestions(store *runstore.Store, name string, f eventFacts) []Questi
 		}
 		out = append(out, Question{ID: ev.ToolUseID, Kind: kind, Tool: ev.Tool, Text: ev.Summary})
 	}
-	for _, q := range pendingQFiles(store, name) {
+	for _, q := range pendingQFiles(store, name, run) {
 		out = append(out, Question{ID: q.ID, Kind: KindQuestionFile, Task: q.Task, Text: q.Text(), Options: q.Options})
 	}
 	return out
@@ -76,8 +76,8 @@ func pendingQuestions(store *runstore.Store, name string, f eventFacts) []Questi
 
 // pendingQFiles are the newest task's question files with no answer yet. An
 // older task's question is not pending: the caller has moved on.
-func pendingQFiles(store *runstore.Store, name string) []runstore.QFile {
-	t, ok := newestTask(store, name)
+func pendingQFiles(store *runstore.Store, name, run string) []runstore.QFile {
+	t, ok := newestTask(store, name, run)
 	if !ok {
 		return nil
 	}

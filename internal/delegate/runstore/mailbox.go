@@ -50,8 +50,12 @@ var (
 // Message is one mailbox file, <seq>-<id>.json. The worker's result is
 // outbox/<task-id>-result.json, with id <task-id>-result.
 type Message struct {
-	V         int    `json:"v"`
-	ID        string `json:"id"`
+	V  int    `json:"v"`
+	ID string `json:"id"`
+	// Run is the run the message belongs to. A mailbox is keyed by worker
+	// name, so a later run with the same name shares it; readers keep only
+	// their own run's messages.
+	Run       string `json:"run,omitempty"`
 	From      string `json:"from"`
 	To        string `json:"to"`
 	Type      string `json:"type"`

@@ -30,11 +30,14 @@ type Sent struct {
 }
 
 // Send gives a live worker a task. It refuses, writing nothing, unless the
-// readiness predicate accepts input and the input line holds no draft
-// (SendCheck, D2 and D8). Then it writes the inbox file with the result
-// preamble first and only then types the hint (herdr agent prompt).
+// readiness predicate accepts input, the input line holds no draft
+// (SendCheck, D2 and D8) and the worker acked its newest task. That whole
+// decision and the post run under the worker's send lock, so no reading
+// taken before the lock decides anything. The inbox file (with the result
+// preamble) is written first; only then is the hint typed (herdr agent
+// prompt), after the lock is released.
 func Send(ctx context.Context, d Deps, name, text string) (Sent, error) {
-	r, rf, info, err := findWorker(d, name)
+	_, rf, info, err := findWorker(d, name)
 	if err != nil {
 		return Sent{}, err
 	}
@@ -44,15 +47,17 @@ func Send(ctx context.Context, d Deps, name, text string) (Sent, error) {
 	if adopt(ctx, d.Herdr, &info) {
 		_ = WriteInfo(rf, info)
 	}
-	o, _ := observe(ctx, d, rf, info)
-	if err := SendCheck(o, ReadInput(ctx, d.Herdr, herdr.PaneID(info.Pane))); err != nil {
-		return Sent{}, err
-	}
-	mb, msg, turn, err := postTaskOnce(d, info, text)
+	mb, err := d.Store.Mailbox(info.Name)
 	if err != nil {
 		return Sent{}, err
 	}
-	sent := Sent{Run: r.ID, Name: name, Task: msg.ID, Turn: turn}
+	release := filelock.Guard(filepath.Join(mb.Dir(), sendLock))
+	msg, turn, err := decideAndPost(ctx, d, rf, info, mb, text)
+	release()
+	if err != nil {
+		return Sent{}, err
+	}
+	sent := Sent{Run: info.Run, Name: name, Task: msg.ID, Turn: turn}
 	if err := d.Herdr.Prompt(ctx, info.Pin(), msg.Body); err != nil {
 		sent.HintError = err.Error()
 		return sent, nil
@@ -62,43 +67,31 @@ func Send(ctx context.Context, d Deps, name, text string) (Sent, error) {
 	return sent, nil
 }
 
-// sendLock, in the worker's mailbox, makes the acked check and the post one
-// step, so two concurrent sends cannot both pass.
+// sendLock, in the worker's mailbox, makes send's decision and post one step.
 const sendLock = "send.lock"
 
-// postTaskOnce posts the task only when the newest one is acked (or there is
-// none), under sendLock.
-func postTaskOnce(d Deps, info Info, text string) (*runstore.Mailbox, runstore.Message, int, error) {
-	mb, err := d.Store.Mailbox(info.Name)
-	if err != nil {
-		return nil, runstore.Message{}, 0, err
+// decideAndPost runs under sendLock: the row must still be open, the
+// readiness and the input line are read now, the run's newest task must be
+// acked, and then the task is posted, tagged with the run.
+func decideAndPost(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info, mb *runstore.Mailbox, text string) (runstore.Message, int, error) {
+	if r, ok, err := d.Ledger.Get(info.Run); err != nil || !ok || !r.IsOpen() {
+		return runstore.Message{}, 0, fmt.Errorf("%w: %q (run %s ended)", ErrNoWorker, info.Name, info.Run)
 	}
-	release := filelock.Guard(filepath.Join(mb.Dir(), sendLock))
-	defer release()
-	if t, ok := newestTask(d.Store, info.Name); ok && !t.acked {
-		return nil, runstore.Message{}, 0, fmt.Errorf("%w: task %s is pending; wait for the worker (delegate wait) or check delegate inbox in the worker",
+	o, _ := observe(ctx, d, rf, info)
+	if err := SendCheck(o, ReadInput(ctx, d.Herdr, herdr.PaneID(info.Pane))); err != nil {
+		return runstore.Message{}, 0, err
+	}
+	t, ok := newestTask(d.Store, info.Name, info.Run)
+	if ok && !t.acked {
+		return runstore.Message{}, 0, fmt.Errorf("%w: task %s is pending; wait for the worker (delegate wait) or check delegate inbox in the worker",
 			ErrTaskUnacked, t.msg.ID)
-	}
-	return postTask(d, info, text)
-}
-
-// postTask writes the task to the inbox with the preamble naming its result
-// and question files.
-func postTask(d Deps, info Info, text string) (*runstore.Mailbox, runstore.Message, int, error) {
-	mb, err := d.Store.Mailbox(info.Name)
-	if err != nil {
-		return nil, runstore.Message{}, 0, err
-	}
-	turn := 1
-	if t, ok := newestTask(d.Store, info.Name); ok {
-		turn = t.turn + 1
 	}
 	info.Task = runstore.NewMsgID()
 	msg, err := mb.Post(runstore.Inbox, runstore.Message{
-		ID: info.Task, From: "caller", To: info.Name, Type: runstore.TypeTask, Turn: turn,
+		ID: info.Task, Run: info.Run, From: "caller", To: info.Name, Type: runstore.TypeTask, Turn: t.turn + 1,
 		Body: Preamble(info, mb.Dir()) + text,
 	})
-	return mb, msg, turn, err
+	return msg, t.turn + 1, err
 }
 
 // Result values.
@@ -130,7 +123,7 @@ func Result(d Deps, name string) (ResultOut, error) {
 	if err != nil {
 		return out, err
 	}
-	msg, ok, err := mb.NewestResult()
+	msg, ok, err := mb.NewestResultFor(runTasks(mb, r.ID)) // this run's tasks only
 	if err != nil || !ok {
 		return out, err
 	}
@@ -171,12 +164,28 @@ func Inbox(d Deps, runID string) ([]InboxRow, error) {
 	}
 	rows := []InboxRow{}
 	for _, m := range msgs {
+		if m.Run != info.Run {
+			continue // an earlier run with the same name
+		}
 		acked := mb.Acked(m.ID)
 		rows = append(rows, InboxRow{ID: m.ID, Seq: m.Seq, Type: m.Type, From: m.From, Turn: m.Turn,
 			InReplyTo: m.InReplyTo, Created: m.Created, Hinted: m.Hinted, Acked: acked,
 			Lost: m.Type == runstore.TypeTask && !m.Hinted && !acked, Body: m.Body})
 	}
 	return rows, nil
+}
+
+// runTasks accepts the task ids run posted to mb.
+func runTasks(mb *runstore.Mailbox, run string) func(string) bool {
+	ids := map[string]bool{}
+	if msgs, err := mb.Read(runstore.Inbox); err == nil {
+		for _, m := range msgs {
+			if m.Type == runstore.TypeTask && m.Run == run {
+				ids[m.ID] = true
+			}
+		}
+	}
+	return func(task string) bool { return ids[task] }
 }
 
 // findRow returns the newest interactive row named name, open or closed.

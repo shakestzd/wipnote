@@ -70,8 +70,11 @@ type task struct {
 	acked bool
 }
 
-// newestTask returns name's newest inbox task; ok is false when there is none.
-func newestTask(store *runstore.Store, name string) (task, bool) {
+// newestTask returns run's newest inbox task in name's mailbox; ok is false
+// when there is none. A task of an earlier run with the same name never
+// counts: every reader (send, wait, list, result, questions, inbox) scopes
+// the shared mailbox to its run this way.
+func newestTask(store *runstore.Store, name, run string) (task, bool) {
 	mb, err := store.Mailbox(name)
 	if err != nil {
 		return task{}, false
@@ -82,7 +85,7 @@ func newestTask(store *runstore.Store, name string) (task, bool) {
 	}
 	t := task{mb: mb}
 	for _, m := range msgs {
-		if m.Type == runstore.TypeTask {
+		if m.Type == runstore.TypeTask && m.Run == run {
 			t.msg, t.turn = m, t.turn+1
 		}
 	}
@@ -91,8 +94,8 @@ func newestTask(store *runstore.Store, name string) (task, bool) {
 }
 
 // taskFacts reports whether the newest inbox task has its result file.
-func taskFacts(store *runstore.Store, name string) (pending, answered bool) {
-	t, ok := newestTask(store, name)
+func taskFacts(store *runstore.Store, name, run string) (pending, answered bool) {
+	t, ok := newestTask(store, name, run)
 	if !ok {
 		return false, false
 	}
@@ -109,8 +112,8 @@ func observe(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info) (Ob
 	evs, _ := rf.ReadEvents()
 	f := factsOf(evs)
 	o := Observation{Bound: len(f.sessions) > 0, Turn: f.turn, Question: f.question, ShellRunning: f.shell}
-	o.TaskPending, o.TaskAnswered = taskFacts(d.Store, info.Name)
-	o.Question = o.Question || len(pendingQFiles(d.Store, info.Name)) > 0 // D7
+	o.TaskPending, o.TaskAnswered = taskFacts(d.Store, info.Name, info.Run)
+	o.Question = o.Question || len(pendingQFiles(d.Store, info.Name, info.Run)) > 0 // D7
 	if d.Herdr == nil || info.Pane == "" {
 		return o, f
 	}

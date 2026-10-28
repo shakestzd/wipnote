@@ -124,7 +124,7 @@ func waitOnce(ctx context.Context, d Deps, runID, name string) (WaitResult, bool
 	// The ack is read before the events: the hook writes its prompt event
 	// before the ack, so a seen ack's turn is in the snapshot, and an ack
 	// written during the look reads as unacked until the next one.
-	t, hasTask := newestTask(d.Store, name)
+	t, hasTask := newestTask(d.Store, name, runID)
 	o, f := observe(ctx, d, rf, info)
 	addSessions(d, runID, f.sessions)
 	if hasTask {
@@ -146,7 +146,7 @@ func settle(d Deps, res WaitResult, o Observation, f eventFacts, unacked bool) (
 	case o.TaskAnswered:
 		res.Outcome = OutcomeDone
 	case o.Question:
-		res.Outcome, res.Asks = OutcomeAsks, pendingQuestions(d.Store, res.Name, f)
+		res.Outcome, res.Asks = OutcomeAsks, pendingQuestions(d.Store, res.Name, res.Run, f)
 	case o.Dialog != "": // a trust dialog holds the first task unacked
 		res.Outcome, res.Detail = OutcomeBlocked, Ready(o).Detail
 	case o.TaskPending && unacked: // only stale turn signals are rejected

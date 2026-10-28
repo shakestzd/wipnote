@@ -218,7 +218,8 @@ wipnote delegate inbox            # inside a worker
 
 **send** refuses, writing nothing, unless the readiness predicate accepts input and the input line
 holds no draft (the same `SendCheck` as slice 10; a grey suggestion reads as empty), and while the
-newest inbox task is not acked yet (checked with the post under `mail/<name>/send.lock`). It writes
+newest inbox task is not acked yet. The whole decision (row still open, readiness, input line,
+ack) and the post run under `mail/<name>/send.lock`. It writes
 `inbox/<seq>-<task>.json` first, with the result preamble (decision R) that also names the question
 file `outbox/<task>-q<n>.json`, then types the same text with `herdr agent prompt` as a hint and
 marks the message `hinted`. A failed hint keeps the task in the inbox (`hinted: false`,
@@ -236,6 +237,10 @@ Every herdr call is bounded by the wait's deadline, which still ends in `timeout
 It polls at most twice a second, never reads the input line (D8) and writes no run state; its only
 writes are the two ledger ones under the ledger lock on a still-open row (a `/clear` session joins
 `worker_sessions`; the worker-loss close). Prints `{run, name, turn, outcome, task, detail, asks}`.
+
+**Run scoping.** A mailbox is keyed by worker name, so a later worker with the same name shares
+it. Every message carries `run`, and send, wait, list, result, questions, inbox and the worker's ack
+hook read only their own run's tasks (and the result and question files of those tasks).
 
 **result** prints the newest result file's body and the task it answers whatever the state
 (D3), or `"result": "none"`. **questions** prints the current session's pending AskUserQuestion

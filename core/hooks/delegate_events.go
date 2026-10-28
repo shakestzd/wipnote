@@ -141,7 +141,7 @@ func delegateAckNewestTask(projectDir string) {
 	if !plainDir(filepath.Join(root, "mail")) || !plainDir(mail) || !plainDir(ackDir) {
 		return
 	}
-	id := newestInboxTask(filepath.Join(mail, "inbox"))
+	id := newestInboxTask(filepath.Join(mail, "inbox"), run)
 	if id == "" {
 		return
 	}
@@ -163,9 +163,10 @@ func delegateWorkerName(path string) string {
 	return info.Name
 }
 
-// newestInboxTask is the id of the newest task among the newest few inbox
-// files, or "".
-func newestInboxTask(inbox string) string {
+// newestInboxTask is the id of run's newest task among the newest few inbox
+// files, or "". The mailbox is keyed by worker name, so an earlier run with
+// the same name may have left tasks there; they are never this run's.
+func newestInboxTask(inbox, run string) string {
 	if !plainDir(inbox) {
 		return ""
 	}
@@ -189,8 +190,8 @@ func newestInboxTask(inbox string) string {
 		if i >= delegateAckScan {
 			break
 		}
-		var msg struct{ ID, Type string }
-		if readSmallJSON(filepath.Join(inbox, f.name), delegateMaxMsg, &msg) && msg.ID == f.id && msg.Type == "task" {
+		var msg struct{ ID, Run, Type string }
+		if readSmallJSON(filepath.Join(inbox, f.name), delegateMaxMsg, &msg) && msg.ID == f.id && msg.Type == "task" && msg.Run == run {
 			return f.id
 		}
 	}

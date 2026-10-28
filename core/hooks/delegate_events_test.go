@@ -35,7 +35,12 @@ func delegateWorker(t *testing.T) (project, runDir, mail string) {
 
 func postInbox(t *testing.T, mail string, seq int, id, typ string) {
 	t.Helper()
-	body := fmt.Sprintf(`{"v":1,"id":%q,"type":%q,"seq":%d,"body":"x"}`, id, typ, seq)
+	postInboxRun(t, mail, seq, id, typ, "dlg-0123456789ab")
+}
+
+func postInboxRun(t *testing.T, mail string, seq int, id, typ, run string) {
+	t.Helper()
+	body := fmt.Sprintf(`{"v":1,"id":%q,"run":%q,"type":%q,"seq":%d,"body":"x"}`, id, run, typ, seq)
 	if err := os.WriteFile(filepath.Join(mail, "inbox", fmt.Sprintf("%06d-%s.json", seq, id)), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -123,6 +128,12 @@ func TestDelegateEvents_PromptAcksNewestTask(t *testing.T) {
 	}
 	if lines := eventsOf(t, runDir); len(lines) != 1 || lines[0]["kind"] != "prompt" {
 		t.Fatalf("%v", lines)
+	}
+	// An earlier run's task in the shared mailbox is never this run's.
+	postInboxRun(t, mail, 5, "msg-00000000000005", "task", "dlg-ffffffffffff")
+	recordDelegateHook(&CloudEvent{SessionID: "sid-1"}, project, "sid-1", "prompt")
+	if _, err := os.Lstat(filepath.Join(mail, "ack", "msg-00000000000005")); err == nil {
+		t.Fatal("acked another run's task")
 	}
 	// Other side: a stop never acks.
 	postInbox(t, mail, 4, "msg-00000000000004", "task")
