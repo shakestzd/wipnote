@@ -10,21 +10,21 @@ type word struct {
 }
 
 // lexer splits one standalone command into shell words. It knows quotes,
-// backslash escapes and continuations, comments and output redirections
-// (dropped with their target). Expansions ($VAR, globs) stay as written: the
+// backslash escapes and continuations and comments. Expansions ($VAR, globs) stay as written: the
 // words only feed delegate run's argv classifier.
 type lexer struct {
 	s     string
 	i     int
 	cur   strings.Builder
 	start int // -1: between words
-	drop  bool
 	out   []word
 }
 
 // splitWords is the command's words. ok is false when the command must run as
-// typed: an unterminated quote, or input on stdin (<, <<, <<<), which
-// delegate run does not forward.
+// typed: an unterminated quote, input on stdin (<, <<, <<<), which delegate
+// run does not forward, or any output redirection (>, >>, 2>, &>): the caller
+// owns that stream, and delegate run would put its report there instead of
+// the tool's output.
 func splitWords(s string) ([]word, bool) {
 	l := &lexer{s: s, start: -1}
 	for l.i < len(s) {
@@ -47,10 +47,8 @@ func (l *lexer) step() bool {
 	case c == ' ' || c == '\t' || c == '\n' || c == '\r':
 		l.flush()
 		l.i++
-	case c == '<':
+	case c == '<' || c == '>' || c == '&' && strings.HasPrefix(l.s[l.i:], "&>"):
 		return false
-	case c == '>' || c == '&' && strings.HasPrefix(l.s[l.i:], "&>"):
-		l.redirect()
 	case c == '#' && l.start < 0:
 		l.flush()
 		l.i = len(l.s)
@@ -72,11 +70,7 @@ func (l *lexer) flush() {
 	if l.start < 0 {
 		return
 	}
-	if l.drop {
-		l.drop = false
-	} else {
-		l.out = append(l.out, word{l.cur.String(), l.start})
-	}
+	l.out = append(l.out, word{l.cur.String(), l.start})
 	l.cur.Reset()
 	l.start = -1
 }
@@ -127,23 +121,4 @@ func (l *lexer) double() bool {
 		}
 	}
 	return false
-}
-
-// redirect drops an output redirection: an fd prefix (2>), the operator
-// (>, >>, >&, >|, &>, &>>) and its target, attached or the next word.
-func (l *lexer) redirect() {
-	if l.start >= 0 && isDigits(l.cur.String()) {
-		l.cur.Reset()
-		l.start = -1
-	}
-	l.flush()
-	l.i++ // > or &
-	for l.i < len(l.s) && strings.IndexByte(">&|", l.s[l.i]) >= 0 {
-		l.i++
-	}
-	l.drop = true
-}
-
-func isDigits(s string) bool {
-	return s != "" && strings.Trim(s, "0123456789") == ""
 }

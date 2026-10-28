@@ -15,7 +15,6 @@ func TestRedirect_NamesTheSameArgv(t *testing.T) {
 		`claude -p "say ok" --allowedTools Read`: `wipnote delegate run -- claude -p "say ok" --allowedTools Read`,
 		"claude \\\n  -p \"x\"":                  "wipnote delegate run -- claude \\\n  -p \"x\"",
 		`FOO=1 codex e "x"`:                      `FOO=1 wipnote delegate run -- codex e "x"`,
-		`codex exec "x" > out.txt 2>&1`:          `wipnote delegate run -- codex exec "x" > out.txt 2>&1`,
 		"  codex exec \"x\"\n":                   `wipnote delegate run -- codex exec "x"`,
 	}
 	for cmd, want := range cases {
@@ -71,6 +70,10 @@ func TestRedirect_PassesWhatDelegateRunWouldRefuse(t *testing.T) {
 		`dev exec claude -p "x"`, `claude -p "x" --output-format json`,
 		`codex exec --help`, `ls`, `git log --grep="codex exec"`, `echo "claude -p x"`,
 		`codex exec "unterminated`,
+		// The caller owns stdout: delegate run would print its report there,
+		// not the tool's answer, so these run as typed.
+		`claude -p "write the doc" > answer.md`, `codex exec "x" > out.txt 2>&1`,
+		`codex review --base main >> review.md`, `claude -p "x" &> all.log`, `codex exec "x" 2>/dev/null`,
 	} {
 		if got := Redirect(c); got != "" {
 			t.Errorf("Redirect(%q) = %q, want no redirect", c, got)
