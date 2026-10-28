@@ -10,15 +10,15 @@
 <body>
     <article id="feat-ee335139"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-25T14:56:32.993078"
-             data-updated="2026-10-28T18:56:45.647323" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
+             data-updated="2026-10-28T21:53:40.601451" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Interactive sessions: spawn, stop, list and tree</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -32,6 +32,18 @@
                     <li><a href="../features/feat-dd8b0cde.html" data-relationship="blocked_by">feat-dd8b0cde</a></li>
                     <li><a href="../features/feat-7565fbf7.html" data-relationship="blocked_by">feat-7565fbf7</a></li>
                     <li><a href="../features/feat-39bc46a1.html" data-relationship="blocked_by">feat-39bc46a1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="7b717e80f60a404d27f333c39c0c79036f5cf4b3.html" data-relationship="committed_in" data-since="2026-10-28T17:42:19">Merge pull request #292 from shakestzd/dlg/s10</a></li>
+                    <li><a href="fe3807a348e700d5f0120e811c7991f67ba5e823.html" data-relationship="committed_in" data-since="2026-10-28T18:47:05">feat-ee335139: merge main into dlg/s10</a></li>
+                    <li><a href="1d764698c500b79fdaa9768b092257aaafc60d97.html" data-relationship="committed_in" data-since="2026-10-28T17:17:09">feat-ee335139: a worker whose harness exited in a live pane reads as gone (review)</a></li>
+                    <li><a href="d10fb42ea0c0fd2fe7147a2d1ee51b5069c736d3.html" data-relationship="committed_in" data-since="2026-10-28T17:05:47">feat-ee335139: a draft on the input&#39;s continuation lines blocks send and stop (review)</a></li>
+                    <li><a href="def7df44d1dca279687ed17057da4595eb5312df.html" data-relationship="committed_in" data-since="2026-10-28T16:44:54">feat-ee335139: stop refuses a reused pane id; one spawn per name (review)</a></li>
+                    <li><a href="cdc81fc2b74b13e65e4b92e3cf7e84420471728d.html" data-relationship="committed_in" data-since="2026-10-28T16:26:26">feat-ee335139: delegate spawn, boot, stop, list and tree (plan-28b4a7f6 slice 10)</a></li>
+                    <li><a href="8415cc96752b1b36b2183f58411da85f9a2740b4.html" data-relationship="committed_in" data-since="2026-10-28T16:26:26">feat-ee335139: worker hooks bind delegate sessions (plan-28b4a7f6 slice 10)</a></li>
                 </ul>
             </section>
             <section data-edge-type="implemented_in">
@@ -57,12 +69,12 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-feat-ee335139-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ D8: a grey next-prompt suggestion reads as empty input and never as working; a default-colour draft still blocks send and stop (two-sided tests, red first)</li>
-                <li data-completed="false" data-step-id="step-feat-ee335139-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Wave 1 build started in worktree (plan-28b4a7f6); tests-first, PR per slice</li>
-                <li data-completed="false" data-step-id="step-feat-ee335139-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Built on dlg/s10 (2 commits, 38 tests red then green); PR 292</li>
-                <li data-completed="false" data-step-id="step-feat-ee335139-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fixed Codex finding: multi-line draft with empty first line now blocks send and stop (d10fb42ea); re-requested review</li>
-                <li data-completed="false" data-step-id="step-feat-ee335139-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fixed Codex finding: exited harness in a live pane reads as gone (1d764698c); re-requested review</li>
-                <li data-completed="false" data-step-id="step-feat-ee335139-5" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Merged main into dlg/s10 (fe3807a34), resolved delegate.go</li>
+                <li data-completed="true" data-step-id="step-feat-ee335139-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ D8: a grey next-prompt suggestion reads as empty input and never as working; a default-colour draft still blocks send and stop (two-sided tests, red first)</li>
+                <li data-completed="true" data-step-id="step-feat-ee335139-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Wave 1 build started in worktree (plan-28b4a7f6); tests-first, PR per slice</li>
+                <li data-completed="true" data-step-id="step-feat-ee335139-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Built on dlg/s10 (2 commits, 38 tests red then green); PR 292</li>
+                <li data-completed="true" data-step-id="step-feat-ee335139-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fixed Codex finding: multi-line draft with empty first line now blocks send and stop (d10fb42ea); re-requested review</li>
+                <li data-completed="true" data-step-id="step-feat-ee335139-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fixed Codex finding: exited harness in a live pane reads as gone (1d764698c); re-requested review</li>
+                <li data-completed="true" data-step-id="step-feat-ee335139-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Merged main into dlg/s10 (fe3807a34), resolved delegate.go</li>
             </ol>
         </section>
 
