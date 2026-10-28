@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Flaky TempDir cleanup in provenance gate tests</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-a2ea88db"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-28T02:33:10.767492"
+             data-updated="2026-10-28T02:33:10.772225" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+
+        <header>
+            <h1>Flaky TempDir cleanup in provenance gate tests</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-621f9064.html" data-relationship="part_of" data-since="2026-10-28T02:33:10.772135">trk-621f9064</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>TestCanonicalLinkedCommits_BareMentionLinksNearMissDoesNot failed once in CI on PR 278 (head bd0d0c432) with &#39;TempDir RemoveAll cleanup: unlinkat .../.git/objects/pack: directory not empty&#39;; the assertions passed and a re-run was green. Locally -count=20 passes. Likely a git process outliving the test (detached gc --auto after commits, or a deferred artifact-commit flush). Proposed fix: -c gc.auto=0 in provGit and provInitRepo, and wait for any deferred commit flush before the test returns.</p>
+        </section>
+    </article>
+</body>
+</html>
