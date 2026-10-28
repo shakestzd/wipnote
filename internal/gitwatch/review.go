@@ -84,6 +84,17 @@ func FetchReview(ctx context.Context, r Runner, pr *PR) (*Review, map[checkKey]b
 	return rv, requiredContexts(node), nil
 }
 
+// FetchReviewState reads only the review decision, requested reviewers and
+// mergeability of PR n: one gh call, with no thread counts or required
+// checks. status --all uses it to keep its gh calls per project low.
+func FetchReviewState(ctx context.Context, r Runner, n int) (*Review, error) {
+	var view rawReviewView
+	if err := ghJSON(ctx, r, &view, "pr", "view", strconv.Itoa(n), "--json", reviewFields); err != nil {
+		return nil, fmt.Errorf("review of PR #%d: %w", n, err)
+	}
+	return reviewFromView(view), nil
+}
+
 func reviewFromView(v rawReviewView) *Review {
 	rv := &Review{Decision: v.ReviewDecision, Requested: []string{},
 		Mergeable: v.Mergeable, MergeState: v.MergeStateStatus}

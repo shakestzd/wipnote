@@ -77,3 +77,24 @@ func TestFakeRunner_RecordsAndRejectsUnknown(t *testing.T) {
 		t.Errorf("calls = %q", f.Calls)
 	}
 }
+
+// A Dir runs the command in that folder, so gh reads that repository.
+func TestExecRunner_RunsInDir(t *testing.T) {
+	dir := t.TempDir()
+	out, _, code, err := ExecRunner{Dir: dir}.Run(context.Background(), "pwd")
+	if err != nil || code != 0 {
+		t.Fatalf("pwd: code %d err %v", code, err)
+	}
+	if got, _ := filepath.EvalSymlinks(strings.TrimSpace(string(out))); got != mustEval(t, dir) {
+		t.Fatalf("pwd = %q, want %q", got, dir)
+	}
+}
+
+func mustEval(t *testing.T, p string) string {
+	t.Helper()
+	r, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}

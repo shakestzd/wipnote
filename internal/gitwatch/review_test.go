@@ -223,3 +223,24 @@ func attachReviewTo(ctx context.Context, r Runner) (*Snapshot, error) {
 	s := &Snapshot{Available: true, PR: ghPR, Checks: []Check{}}
 	return s, attachReview(ctx, r, s)
 }
+
+// FetchReviewState makes the one view call and maps UNKNOWN to computing.
+func TestFetchReviewState_OneCall(t *testing.T) {
+	f := &FakeRunner{Results: map[string]FakeResult{
+		reviewViewArgv: {Stdout: `{"reviewDecision":"APPROVED","reviewRequests":[],"mergeable":"UNKNOWN","mergeStateStatus":"UNKNOWN"}`},
+	}}
+	rv, err := FetchReviewState(context.Background(), f, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rv.Decision != "APPROVED" || rv.Mergeable != MergeableComputing || len(f.Calls) != 1 {
+		t.Fatalf("review = %+v calls %q", rv, f.Calls)
+	}
+}
+
+func TestFetchReviewState_GHMissingIsNotAvailable(t *testing.T) {
+	f := &FakeRunner{Results: map[string]FakeResult{reviewViewArgv: {Err: ErrNotAvailable}}}
+	if _, err := FetchReviewState(context.Background(), f, 42); !errors.Is(err, ErrNotAvailable) {
+		t.Fatalf("err = %v, want not available", err)
+	}
+}

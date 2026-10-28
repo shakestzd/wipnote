@@ -15,11 +15,22 @@ import (
 )
 
 func statusCmd() *cobra.Command {
-	return &cobra.Command{
+	var f statusAllFlags
+	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show work item status summary",
-		RunE:  runStatus,
+		Short: "Show work item status summary (--all: every registered project)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if f.all {
+				return runStatusAll(cmd.Context(), cmd.OutOrStdout(), f)
+			}
+			if f.json {
+				return fmt.Errorf("--json needs --all")
+			}
+			return runStatus(cmd, args)
+		},
 	}
+	addStatusAllFlags(cmd, &f)
+	return cmd
 }
 
 func runStatus(_ *cobra.Command, _ []string) error {

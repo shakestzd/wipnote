@@ -59,6 +59,12 @@ type Agent struct {
 	Kind          string
 	State         AgentState
 	CompletionSeq int
+	// Cwd is the pane's cwd, "used for labels and follow-cwd behavior", and
+	// ForegroundCwd the cwd of the foreground process controlling the pane,
+	// present only when herdr can resolve it. Both are documented on `agent
+	// list` in https://herdr.dev/docs/cli-reference/. Empty means unknown.
+	Cwd           string
+	ForegroundCwd string
 }
 
 // Proc is one foreground process of a pane.
