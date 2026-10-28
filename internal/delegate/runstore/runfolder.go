@@ -44,8 +44,16 @@ const (
 	FileJob = "job.json" // the argv and settings a pane worker runs
 )
 
+// Files an interactive worker's run folder holds beside the contract
+// (plan-28b4a7f6 slice 10): the worker's pane, name and harness, and the
+// brief the pane's boot passes to the launcher.
+const (
+	FileSession = "session.json" // internal/delegate/session.Info
+	FileBrief   = "brief.md"     // the brief plus the result preamble
+)
+
 // RunnerFiles lists the files beside the contract that WriteFile accepts.
-var RunnerFiles = []string{FileOut, FileJob}
+var RunnerFiles = []string{FileOut, FileJob, FileSession, FileBrief}
 
 // Hosts a run can name in its host file.
 const (

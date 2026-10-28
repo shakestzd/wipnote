@@ -36,11 +36,11 @@ withdrawn. One path now covers both:
 | `delegate run-pane` | available (slice 8), hidden, internal | The pane worker that `run` starts in its pane |
 | `delegate view` | available (slice 7) | Follow a run's log until it ends, then show the answer |
 | `delegate import-orch` | available (slice 18) | Copy orch's run history into the ledger once |
-| `delegate spawn` | planned (slice 10) | Start an interactive worker in the caller's workers tab |
-| `delegate boot` | planned (slice 10), internal | Runs in the worker's pane: reads the brief, starts the launcher |
-| `delegate stop` | planned (slice 10) | Verified stop of a worker |
-| `delegate list` | planned (slice 10) | List runs and worker readiness |
-| `delegate tree` | planned (slice 10) | Caller, runs, workers and sub-agents as a tree |
+| `delegate spawn` | available (slice 10) | Start an interactive worker in the caller's workers tab |
+| `delegate boot` | available (slice 10), hidden, internal | Runs in the worker's pane: reads the brief, starts the launcher |
+| `delegate stop` | available (slice 10) | Verified stop of a worker |
+| `delegate list` | available (slice 10) | List runs and worker readiness |
+| `delegate tree` | available (slice 10) | Caller, runs, workers and sub-agents as a tree |
 | `delegate send` | planned (slice 11) | Put a task in a worker's inbox, with a herdr hint |
 | `delegate wait` | planned (slice 11) | Block until a durable signal or the timeout |
 | `delegate result` | planned (slice 11) | Print the newest result file a worker wrote |
@@ -148,46 +148,65 @@ before anything is written.
 | 0 | Done. It prints the count imported, the count already present and each skip reason |
 | 1 | An error, such as an unknown event format. It names how many rows were imported before it stopped |
 
-### 2.5 Planned commands
+### 2.5 Interactive workers (available, slice 10)
+
+```
+wipnote delegate spawn NAME --harness claude|codex [--work-item ID] [--brief TEXT | --brief-file PATH|-]
+wipnote delegate stop NAME [--wait D]
+wipnote delegate list [--all] [--json]
+wipnote delegate tree [--all] [--json]
+```
+
+**spawn** needs herdr (`HERDR_ENV=1`). It places the worker in the caller's workers tab (the
+first worker creates the tab in the caller's workspace, later ones split it; cap 6; the caller's
+own tab is never split), waits until the new pane's shell is positively a bare shell, types one
+short line (`WIPNOTE_DELEGATE_RUN=<run> WIPNOTE_DELEGATE_CALLER=<sid> <wipnote> delegate boot
+--project-dir <dir> <run>`) and prints `{run, name, pane, harness, status}` with status
+`starting`. The brief is posted as the first inbox task and written to the run folder's
+`brief.md` after a result preamble that names the task's result file (decision R); it is never
+typed. Refused before anything is written: a bad NAME (`[a-z0-9-]`, 1 to 32, starting with a
+letter), a harness other than claude or codex, no work item (`--work-item` or the active claim),
+a NAME an open row holds while its pane lives (a gone pane's row is closed first, `end_reason=gone`),
+and "at cap" (6 live workers in the tab). A shell that does not settle in 2 s is never typed
+into: the row closes as gone.
+
+**boot** (hidden) runs in the pane. It reads `session.json` and `brief.md`, removes the inherited
+session env (`WIPNOTE_PARENT_SESSION`, `WIPNOTE_PARENT_EVENT`, `WIPNOTE_NESTING_DEPTH`, the
+session and agent ids, `WIPNOTE_PROJECT_DIR`, and stale delegate variables), and execs
+`wipnote claude --in-place --name NAME -- <brief>` or `wipnote codex --in-place -- <brief>`.
+
+**Bind.** A worker's SessionStart, UserPromptSubmit, Stop, SubagentStart and SubagentStop hooks
+append one line each to `events-<session>.ndjson` in the run folder when `WIPNOTE_DELEGATE_RUN`
+names a run folder. The hook takes no lock and fails open. The next `list` moves bound sessions
+(one more after each `/clear`) into the row's `worker_sessions`.
+
+**list** prints open runs (all with `--all`). An interactive run's state comes from one
+predicate (D2): `gone`, `blocked` (a folder-trust dialog, named by its labels; delegate presses no
+key on it), `starting` (no session bound), `question`, `working` (a prompt event with no stop
+after it), `done` (the turn ended and the newest task's result file exists), `idle_shell`,
+`idle_no_result`, or `ready`. Input-line text never makes a worker working (D8). `list` also
+renames the herdr agent to NAME and pins its terminal id once herdr lists an agent in the pane.
+
+**stop** records the pane's foreground pids and their start times, refuses to type when the
+input line may hold a draft (plain or mixed text, or a failed styled read; an all-grey
+suggestion reads as empty), types `/exit` (Claude) or `/quit` (Codex), waits until process-info
+positively shows the shell alone, closes the pane, then reports recorded pids still running with
+the same start time. It never signals. It prints `{run, name, pane_closed, tab_closed,
+survivors[], why}`; `why` always names the reason when the pane stays open. The workers tab
+closes after its last worker.
+
+| Exit | When |
+|---|---|
+| 0 | spawn, list and tree succeeded; stop closed the pane |
+| 1 | a refusal or error; stop left the pane open (the JSON still prints) |
+
+Planned on top: `--write` (slice 12), `--resume NAME` (slice 20), `--container` (slice 21),
+`--tools`, `--plugin`, `--mcp` (slice 27), one live worker per item (section 5, slice 16).
+
+### 2.6 Planned commands
 
 None of these exist yet. Flags come from the plan. Where the plan sets no exit code, the row says
 "not set in the plan"; that is open, and the plan has no question id for it.
-
-**`delegate spawn NAME --harness claude|codex`, planned (slice 10).** Starts an interactive worker
-under `wipnote claude` or `wipnote codex`. It returns within 3 s with status `starting` and prints
-`{run, name, pane, harness, status}`. It types one short boot line, never the brief. The brief goes by
-file in the run folder.
-
-| Flag | Meaning | Slice |
-|---|---|---|
-| `NAME` | `[a-z0-9-]`, 1 to 32 characters, unique among live runs | 10 |
-| `--harness claude\|codex` | The worker's harness | 10 |
-| `--work-item ID` | Required, or else the caller's active claim; refuses when neither exists | 10 |
-| `--write` | Codex `workspace-write` instead of read-only | 12 |
-| `--resume NAME` | Relaunch a stopped run's last session (`spawn NAME2 --resume NAME`) | 20 |
-| `--container` | Run the worker in the project's devcontainer | 21 |
-| `--tools`, `--plugin`, `--mcp` | Widen the lean profile by named items | 27 |
-
-Refusals: a 7th live worker ("at cap", reported before anything is created), a live NAME, no work
-item, a second live worker on the item (section 5). Slice 15 names a worker `<item-id>-<slug>` (32
-characters at most) "unless NAME is given". Whether NAME becomes optional is open; the plan has no
-question id for it. Exit codes: not set in the plan.
-
-**`delegate boot <run-id>`, planned (slice 10), internal.** Runs in the worker's pane. It reads the
-brief file and passes it to the launcher as argv. Exit codes: not set in the plan.
-
-**`delegate stop NAME`, planned (slice 10).** Records the worker's pids first, asks the agent to exit,
-waits until the pane shows a bare shell, closes the pane, then checks each recorded pid. It never
-signals or kills. It prints `{pane_closed, tab_closed, survivors[]}`; `pane_closed` false always
-names why (D5). The workers tab closes when its last worker stops. Exit codes: not set in the plan.
-
-**`delegate list`, planned (slice 10).** Lists runs with readiness: `starting`, `ready`, `working`,
-`question`, `idle_no_result`, `idle_shell`, `gone`. It renames and pins a late agent. Slice 25 groups
-rows as Working, Waiting on you, Ready for review, Landing, Idle and Resolved. Exit codes: not set in
-the plan.
-
-**`delegate tree [--json]`, planned (slice 10).** A text tree of caller, runs, workers and sub-agents,
-or JSON. Exit codes: not set in the plan.
 
 **`delegate send NAME <task>`, planned (slice 11).** Writes the inbox file first, with the result
 preamble (decision R), then sends a `herdr agent prompt` hint. A person's draft on the input line
@@ -246,7 +265,9 @@ harness's own ids, oldest first), `host` (`host` or `container`), `started`, `en
 **Run folder** (`.wipnote/delegate/runs/<run-id>/`, the feat-a1df60c2 contract): `raw.log`,
 `clean.log`, `clean.md`, `last.md`, `usage`, `start`, `end`, `exit` (its presence ends the run),
 `label`, `host`, `run.html`, and `events-<writer>.ndjson`. A one-shot run also uses `job.json` (what
-the pane worker runs) and, for ccx, `out.txt`.
+the pane worker runs) and, for ccx, `out.txt`. An interactive run also holds `session.json` (name,
+harness, pane, pinned terminal id, caller pane, cwd, place, first task id) and `brief.md`. A caller's
+workers tab and its worker panes are kept in `.wipnote/delegate/workers/<caller-pane>.json`.
 
 **Mailbox** (`.wipnote/delegate/mail/<name>/`): `inbox/` (written by the caller), `outbox/` (written by
 the worker; results are `<task-id>-result.json`, questions `<task-id>-q<n>.json`) and `ack/<msg-id>`
