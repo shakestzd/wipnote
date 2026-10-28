@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/delegationledger"
+	"github.com/shakestzd/wipnote/internal/delegate/codex"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/render"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
@@ -25,6 +26,7 @@ type Options struct {
 	NoPane        bool // force headless inside herdr
 	Cwd           string
 	Settings      Settings
+	Sandbox       SandboxOptions // codex exec's sandbox ladder (slice 12)
 	Store         *runstore.Store
 	Ledger        *delegationledger.Store
 	Herdr         herdr.Client // nil outside herdr
@@ -35,6 +37,8 @@ type Options struct {
 	Stdout    io.Writer
 	Stderr    io.Writer
 	Poll      time.Duration // pane wait; 1 s (the mod's) when zero
+
+	sandbox codex.Mode // the ladder's decision, set by Run
 }
 
 func (o Options) poll() time.Duration {
@@ -54,10 +58,13 @@ type Result struct {
 // Run classifies the argv, opens the ledger row and the run folder, runs the
 // tool in a herdr pane (inside herdr) or headless, prints the report, closes
 // and enriches the row and sweeps old runs. A refused argv returns an error
-// before anything is written. Exit is the tool's; 130 when its pane closed.
+// before anything is written, as is a codex exec the sandbox ladder refuses. Exit is the tool's; 130 when its pane closed.
 func Run(ctx context.Context, o Options) (Result, error) {
 	r, err := Classify(o.Argv)
 	if err != nil {
+		return Result{}, err
+	}
+	if o.sandbox, err = sandboxFor(ctx, o, r); err != nil {
 		return Result{}, err
 	}
 	rec, err := o.Ledger.Open(delegationledger.Record{
@@ -129,7 +136,7 @@ func buildJob(o Options, r Recipe, rf *runstore.RunFolder) Job {
 		home = codexHome()
 	}
 	argv := r.Command(CommandOptions{LastFile: filepath.Join(rf.Dir(), runstore.FileLastMD),
-		LeanProfile: o.Settings.leanProfile(), CodexHome: home})
+		LeanProfile: o.Settings.leanProfile(), CodexHome: home, Sandbox: o.sandbox})
 	own, _ := r.OwnLastFile()
 	return Job{Kind: r.Kind, Argv: argv, Cwd: o.Cwd, OwnLast: own, CcxRuns: ccxRunsDir(o.Settings.CcxRunsDir),
 		CcxWaitMS: o.Settings.ccxWait().Milliseconds(), ClosePane: o.Settings.ClosePane, CloseDelay: o.Settings.CloseDelay}
@@ -211,14 +218,6 @@ func closeRow(l *delegationledger.Store, rf *runstore.RunFolder, res Result) {
 	exit := res.Exit
 	_ = l.Close(res.RunID, delegationledger.CloseInfo{Ended: time.Now().UTC(), Exit: &exit, Reason: res.EndReason})
 	enrichRow(l, rf, res.RunID)
-}
-
-// enrichRow records the usage the run folder holds on the run's row.
-func enrichRow(l *delegationledger.Store, rf *runstore.RunFolder, runID string) {
-	info, _ := rf.Read()
-	if in, cached, out, ok := UsageCounts(info.Usage); ok {
-		_, _ = l.Enrich(runID, delegationledger.Enrichment{UsageInput: &in, UsageCached: &cached, UsageOutput: &out})
-	}
 }
 
 // sweep removes finished runs and ccx claims older than keepDays (the

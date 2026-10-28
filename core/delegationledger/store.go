@@ -148,6 +148,7 @@ type Enrichment struct {
 	UsageInput     *int
 	UsageCached    *int
 	UsageOutput    *int
+	UsageReasoning *int
 }
 
 // Enrich applies e to a run's row and reports whether the row changed.
@@ -172,7 +173,7 @@ func applyEnrichment(r *Record, e Enrichment) bool {
 	for _, u := range []struct {
 		dst *int
 		src *int
-	}{{&r.UsageInput, e.UsageInput}, {&r.UsageCached, e.UsageCached}, {&r.UsageOutput, e.UsageOutput}} {
+	}{{&r.UsageInput, e.UsageInput}, {&r.UsageCached, e.UsageCached}, {&r.UsageOutput, e.UsageOutput}, {&r.UsageReasoning, e.UsageReasoning}} {
 		if u.src != nil && *u.dst != *u.src {
 			*u.dst = *u.src
 			changed = true
