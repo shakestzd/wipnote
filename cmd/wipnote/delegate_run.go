@@ -55,7 +55,7 @@ Codex inside needs this host in dangerFullAccessHosts (bwrap fails there).`
 // delegateRunCmd is `wipnote delegate run [--label] [--work-item] [--no-pane]
 // -- <cmd>` (plan-28b4a7f6 slice 8): one codex exec or review, claude -p or
 // ccx task, in a herdr pane inside herdr, else headless, with the
-// codex-herdr-pane mod's report. The exit status is the tool's.
+// report the retired herdr pane mod printed. The exit status is the tool's.
 func delegateRunCmd() *cobra.Command {
 	var label, workItem string
 	var noPane, write, inContainer bool

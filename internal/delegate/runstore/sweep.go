@@ -8,7 +8,7 @@ import (
 )
 
 // DefaultSweepAge is how long a finished run folder is kept, as the
-// codex-herdr-pane mod's 7-day sweep.
+// retired herdr pane mod's 7-day sweep.
 const DefaultSweepAge = 7 * 24 * time.Hour
 
 // Sweep removes the run folders of finished runs whose end is older than
