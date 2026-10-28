@@ -24,8 +24,9 @@ func ClaimLine(workItem string) string {
 
 // checkLive refuses a spawn whose name, or whose work item, an open
 // interactive row holds while its pane lives (one worker per item, v1). A
-// row whose pane herdr says is gone goes through the worker-loss path first
-// and no longer counts. One-shot rows never count: they do not claim.
+// row whose pane herdr says is gone, or now holds another terminal, goes
+// through the worker-loss path first and no longer counts. It runs under
+// namesLock (claimName), so two spawns cannot both pass for one item. One-shot rows never count: they do not claim.
 func checkLive(ctx context.Context, d Deps, o SpawnOptions) error {
 	open, ok := d.Ledger.ReadOpen()
 	if !ok {
@@ -38,7 +39,7 @@ func checkLive(ctx context.Context, d Deps, o SpawnOptions) error {
 		}
 		rf, info, err := loadInfo(d.Store, r.ID)
 		if err == nil && info.Pane != "" {
-			if _, gerr := d.Herdr.Get(ctx, herdr.PaneID(info.Pane)); herdr.IsAbsent(gerr) {
+			if p, gerr := d.Herdr.Get(ctx, herdr.PaneID(info.Pane)); herdr.IsAbsent(gerr) || (gerr == nil && reused(info, p)) {
 				loseWorker(d, r, rf)
 				continue
 			}
