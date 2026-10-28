@@ -6,6 +6,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/provenance"
+	"github.com/shakestzd/wipnote/internal/delegate/detect"
 	"github.com/spf13/cobra"
 )
 
@@ -36,6 +37,9 @@ Usage in hooks.json:
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			hooks.CLIVersion = version
 			provenance.SetCLIVersion(version)
+			// The bare-delegation redirect needs delegate run's argv
+			// classifier, which core cannot import (plan-28b4a7f6 slice 9).
+			hooks.DelegateRedirect = detect.Redirect
 		},
 	}
 	cmd.PersistentFlags().StringVar(&hookHarnessOverride, "harness", "",
