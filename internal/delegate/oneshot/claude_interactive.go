@@ -139,7 +139,7 @@ func spawnWorker(ctx context.Context, o Options, plan claudePlan) (*worker, erro
 	so := session.SpawnOptions{
 		Harness: session.HarnessClaude, WorkItem: o.WorkItem, WorkTitle: o.WorkTitle, CallerSession: o.CallerSession,
 		CallerPane: o.HerdrEnv.CallerPane, Brief: plan.Prompt, Cwd: o.Cwd, Root: o.Root, BootLine: w.BootLine,
-		SessionID: sid, Transcript: TranscriptPath(firstNonEmpty(w.ClaudeDir, ClaudeDataDir()), dir, sid), WorkDir: dir,
+		SessionID: sid, Transcript: TranscriptPath(firstNonEmpty(w.ClaudeDir, ClaudeDataDir()), dir, sid), WorkDir: dir, ProjectDir: o.Root,
 		LaunchArgs: func(rf *runstore.RunFolder) ([]string, error) { return launchArgs(rf, o, plan, sid) },
 		Poll:       o.poll(),
 	}

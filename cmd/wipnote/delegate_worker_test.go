@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -61,20 +62,73 @@ func TestDelegateStatusLineCommand_Quoted(t *testing.T) {
 }
 
 // A delegate worker's launcher runs claude in the run's own dir
-// (--work-dir), not the project's main root (slice 22 review).
-func TestClaudeLaunchRoot_WorkDir(t *testing.T) {
-	dir := delegateRunProject(t)
-	wt := t.TempDir()
-	if got, err := claudeLaunchRoot(wt); err != nil || got != wt {
-		t.Fatalf("got %q err %v, want %s", got, err, wt)
+// (--work-dir) while the wipnote root stays the run store's project, so no
+// .wipnote is made under the work dir and the hooks find the run folder.
+func TestClaudeLaunchDirs_WorkDir(t *testing.T) {
+	dir := delegateRunProject(t) // --project-dir is this project
+	sub := filepath.Join(dir, "a", "b")
+	must(t, os.MkdirAll(sub, 0o755))
+	child, root, err := claudeLaunchDirs(sub)
+	if err != nil || child != sub || root != dir {
+		t.Fatalf("child %q root %q err %v", child, root, err)
 	}
-	if got, err := claudeLaunchRoot(""); err != nil || got != dir {
-		t.Fatalf("without --work-dir the project root: got %q err %v want %s", got, err, dir)
+	opts := LaunchOpts{ProjectRoot: child, WipnoteRoot: root}
+	if claudeEnvProjectDir(opts) != dir || launchMarkerRoot(opts) != dir {
+		t.Fatalf("env %q marker %q", claudeEnvProjectDir(opts), launchMarkerRoot(opts))
 	}
-	if _, err := claudeLaunchRoot(filepath.Join(wt, "missing")); err == nil {
+	writeLaunchMarker("test", launchMarkerRoot(opts))
+	if _, err := os.Stat(filepath.Join(sub, ".wipnote")); !os.IsNotExist(err) {
+		t.Fatalf("a .wipnote was made under the work dir: %v", err)
+	}
+	// The work dir is the project itself: no separate root.
+	if child, root, err := claudeLaunchDirs(dir); err != nil || child != dir || root != "" {
+		t.Fatalf("child %q root %q err %v", child, root, err)
+	}
+	// Without --work-dir the project root, as before.
+	if child, _, err := claudeLaunchDirs(""); err != nil || child != dir {
+		t.Fatalf("child %q err %v", child, err)
+	}
+	if _, _, err := claudeLaunchDirs(filepath.Join(dir, "missing")); err == nil {
 		t.Fatal("a missing work dir is refused")
 	}
 	if f := claudeCmd().Flags().Lookup("work-dir"); f == nil || !f.Hidden {
 		t.Fatal("claude has a hidden --work-dir flag")
+	}
+}
+
+// A monorepo: the project (.wipnote) sits below the git root. Without
+// --project-dir the root is the nearest .wipnote above the work dir, never
+// the git root and never the work dir.
+func TestClaudeLaunchDirs_MonorepoSubdir(t *testing.T) {
+	delegateRunProject(t)
+	projectDirFlag = ""
+	repo := t.TempDir()
+	cmd := exec.Command("git", "init", "-q")
+	cmd.Dir = repo
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v %s", err, out)
+	}
+	project := filepath.Join(repo, "services", "api")
+	sub := filepath.Join(project, "pkg")
+	must(t, os.MkdirAll(filepath.Join(project, ".wipnote"), 0o755))
+	must(t, os.MkdirAll(sub, 0o755))
+	child, root, err := claudeLaunchDirs(sub)
+	if err != nil || child != sub || root != project {
+		t.Fatalf("child %q root %q err %v, want root %s", child, root, err, project)
+	}
+	// No .wipnote anywhere above the work dir: refused, nothing made.
+	lone := t.TempDir()
+	if _, _, err := claudeLaunchDirs(lone); err == nil {
+		t.Fatal("a work dir with no project is refused")
+	}
+	if _, err := os.Stat(filepath.Join(lone, ".wipnote")); !os.IsNotExist(err) {
+		t.Fatal("a .wipnote was made")
+	}
+}
+
+func must(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
 	}
 }

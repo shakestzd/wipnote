@@ -122,7 +122,10 @@ func (wk *worker) judge(res session.WaitResult, ev eventView, v verdict, took ti
 		return wk.done(v)
 	case ev.failure != "":
 		v.reason, v.detail = ReasonStopFailure, "the turn ended on an API error: "+ev.failure
-	case ev.ended: // the worker's own turn ended and no result file was found above
+	case ev.ended && res.Outcome == session.OutcomeIdleNoResult:
+		// The worker's own turn ended, and the one readiness predicate
+		// says nothing else is owed: no question pending, no background
+		// shell, no dialog. Those keep the run waiting.
 		v.reason, v.detail = ReasonNoResult, "the turn ended without writing the result file"
 	case res.Outcome == session.OutcomeGone:
 		v.reason, v.detail = ReasonGone, goneDetail(res, ev)

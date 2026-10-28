@@ -77,3 +77,26 @@ func TestDelegateEnd_SessionEndOutsideWorker(t *testing.T) {
 		t.Fatalf("no events file outside a worker, got err %v", err)
 	}
 }
+
+// A worker that runs in a subdir of its project (the launcher's
+// --work-dir) gets WIPNOTE_PROJECT_DIR set to the project: its events land
+// in the project's run folder, and no .wipnote is made under the subdir.
+func TestDelegateEnd_SubdirWorkerWritesProjectRunFolder(t *testing.T) {
+	run := "dlg-0123456789ab"
+	project, dir := delegateEndProject(t, run)
+	sub := filepath.Join(project, "a", "b")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WIPNOTE_PROJECT_DIR", project) // the temp project, as the launcher sets it
+	t.Setenv(DelegateRunEnv, run)
+	if _, err := StopFailure(&CloudEvent{SessionID: "sid-one", CWD: sub, StopError: "overloaded"}); err != nil {
+		t.Fatal(err)
+	}
+	if lines := readDelegateLines(t, filepath.Join(dir, "events-sid-one.ndjson")); len(lines) != 1 || lines[0]["summary"] != "overloaded" {
+		t.Fatalf("lines %v", lines)
+	}
+	if _, err := os.Stat(filepath.Join(sub, ".wipnote")); !os.IsNotExist(err) {
+		t.Fatalf("a .wipnote under the subdir: %v", err)
+	}
+}

@@ -227,10 +227,7 @@ func launchClaude(opts LaunchOpts) error {
 	_ = computeLauncherMode(opts.WipnoteRoot, opts.PluginDir != "" && opts.Mode == "go", false)
 
 	// Write launch marker to the main project root, not the worktree.
-	markerRoot := opts.ProjectRoot
-	if opts.WipnoteRoot != "" {
-		markerRoot = opts.WipnoteRoot
-	}
+	markerRoot := launchMarkerRoot(opts)
 	writeLaunchMarker(opts.Mode, markerRoot)
 	launchHerdrLabel(markerRoot, opts.WorkItem)
 
@@ -404,6 +401,15 @@ func buildClaudeArgs(opts LaunchOpts, systemPromptFile string) []string {
 		claudeArgs = append(claudeArgs, "--append-system-prompt-file", systemPromptFile)
 	}
 	return append(claudeArgs, opts.ExtraArgs...)
+}
+
+// launchMarkerRoot is where the launch marker goes: the wipnote root, not
+// the dir claude runs in (a worktree, or a delegate worker's --work-dir).
+func launchMarkerRoot(opts LaunchOpts) string {
+	if opts.WipnoteRoot != "" {
+		return opts.WipnoteRoot
+	}
+	return opts.ProjectRoot
 }
 
 // claudeEnvProjectDir is the WIPNOTE_PROJECT_DIR exported to the Claude

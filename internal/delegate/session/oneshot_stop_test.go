@@ -179,3 +179,36 @@ func TestStop_NoTypeNeverTypes(t *testing.T) {
 		t.Fatalf("res %+v", res)
 	}
 }
+
+// Every Claude boot, a resume too, runs claude in the run's work dir with
+// the run store's project as the wipnote root (slice 22 review).
+func TestBootArgv_WorkDirOnResume(t *testing.T) {
+	info := Info{Name: "w1", Harness: HarnessClaude, WorkDir: "/r/wt", ProjectDir: "/r/main", ResumeSession: "sid-old"}
+	got := BootArgv("/bin/wipnote", info, "")
+	want := []string{"/bin/wipnote", "claude", "--in-place", "--resume", "sid-old", "--work-dir", "/r/wt", "--project-dir", "/r/main"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("argv %q want %q", got, want)
+	}
+	info.ResumeSession = ""
+	got = BootArgv("/bin/wipnote", info, "")
+	if !slices.Equal(got, []string{"/bin/wipnote", "claude", "--in-place", "--work-dir", "/r/wt", "--project-dir", "/r/main", "--name", "w1"}) {
+		t.Fatalf("argv %q", got)
+	}
+}
+
+func TestResume_KeepsWorkDir(t *testing.T) {
+	e := newEnv(t)
+	o := e.opts("w1")
+	o.WorkDir, o.ProjectDir = filepath.Join(e.dir, "wt"), e.dir
+	old := stoppedWorker(t, e, o, "sid-old")
+	_, info := resume(t, e, e.resumeOpts("w2"), "w1")
+	if info.WorkDir != o.WorkDir || info.ProjectDir != e.dir || info.ResumedFrom != old {
+		t.Fatalf("info %+v", info)
+	}
+	// A worker started without one resumes without one.
+	e2 := newEnv(t)
+	stoppedWorker(t, e2, e2.opts("w1"), "sid-old")
+	if _, info := resume(t, e2, e2.resumeOpts("w2"), "w1"); info.WorkDir != "" {
+		t.Fatalf("info %+v", info)
+	}
+}

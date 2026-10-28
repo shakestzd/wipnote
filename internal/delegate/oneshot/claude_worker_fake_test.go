@@ -31,6 +31,8 @@ type stubClaude struct {
 	styledErr                          bool    // the styled read of the input line fails
 	nested                             bool    // a nested claude in the worker writes its own failing events
 	clearNoAnswer                      bool    // /clear, then the successor session ends its turn with no answer
+	asks                               bool    // writes q1.json and ends its turn; answers later
+	bgShell                            bool    // ends its turn with a background shell running; answers later
 }
 
 // workerHerdr is an in-memory herdr whose panes run a stubClaude when the
@@ -288,8 +290,17 @@ func (f *workerHerdr) play(run string) {
 	f.finish(run, mb, info.Task)
 }
 
+// lateAnswer: the turn ends first (with a question pending or a shell
+// still running); the answer comes a while later, as a person's reply or
+// the shell's end would bring it.
+const lateAnswer = 300 * time.Millisecond
+
 func (f *workerHerdr) finish(run string, mb *runstore.Mailbox, task string) {
 	s := f.stub
+	if s.asks || s.bgShell {
+		f.endTurnWaiting(run, mb, task)
+		return
+	}
 	if !s.noAnswer {
 		_ = mb.WriteResult(task, runstore.Message{Body: "the answer"})
 	}
@@ -299,6 +310,37 @@ func (f *workerHerdr) finish(run string, mb *runstore.Mailbox, task string) {
 	case !s.noStop:
 		f.event(run, runstore.KindStop, "")
 	}
+}
+
+func (f *workerHerdr) endTurnWaiting(run string, mb *runstore.Mailbox, task string) {
+	if f.stub.asks {
+		_ = os.WriteFile(filepath.Join(mb.Dir(), "outbox", task+"-q1.json"), []byte(`{"body":"which one?","options":["a","b"]}`), 0o600)
+	}
+	if f.stub.bgShell {
+		f.toolEvent(run, runstore.KindToolStart)
+	}
+	f.event(run, runstore.KindStop, "")
+	time.Sleep(lateAnswer)
+	if f.stub.bgShell {
+		f.toolEvent(run, runstore.KindToolEnd)
+	}
+	f.event(run, runstore.KindPrompt, "")
+	_ = mb.WriteResult(task, runstore.Message{Body: "the answer"})
+	f.event(run, runstore.KindStop, "")
+}
+
+func (f *workerHerdr) toolEvent(run, kind string) {
+	rf, err := f.store.Run(run)
+	if err != nil {
+		return
+	}
+	info, _ := session.ReadInfo(rf)
+	w, err := rf.OpenEvents(info.SessionID)
+	if err != nil {
+		return
+	}
+	defer w.Close()
+	_ = w.Append(runstore.Event{Kind: kind, SID: info.SessionID, Tool: "Bash", ToolUseID: "toolu_bg"})
 }
 
 func (f *workerHerdr) transcript(path string, turns int) {

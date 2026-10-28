@@ -216,14 +216,13 @@ func launchClaudeContinue(extraArgs []string, resumeID string) error {
 }
 
 func launchClaudeDefault(extraArgs []string, resumeID, name, workItem, workDir string, inPlace bool) error {
-	projectRoot, err := claudeLaunchRoot(workDir)
+	// The canonical main repo root when CWD is a linked worktree (slice-3),
+	// or a delegate worker's project when it runs in its own --work-dir;
+	// "" when no override is needed.
+	projectRoot, wipnoteRoot, err := claudeLaunchDirs(workDir)
 	if err != nil {
 		return err
 	}
-
-	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
-	// canonicalProjectRoot returns "" for the main worktree (no override needed).
-	wipnoteRoot := canonicalProjectRoot(projectRoot)
 
 	lctx, err := resolveClaudeIntentIsolation(projectRoot, wipnoteRoot, resumeID, workItem, inPlace, false, extraArgs)
 	if err != nil {
@@ -260,20 +259,54 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem, workDir s
 	})
 }
 
-// claudeLaunchRoot is the dir a default launch runs claude in: --work-dir
-// when given (a delegate worker runs where its caller ran, a linked
-// worktree too), else the project root.
-func claudeLaunchRoot(workDir string) (string, error) {
+// claudeLaunchDirs are the dir a default launch runs claude in and its
+// wipnote root (WIPNOTE_PROJECT_DIR, the launch marker, the hooks' project;
+// "" when it is the same dir). Without --work-dir: the project root and its
+// canonical root, as before. With --work-dir (a delegate worker runs where
+// its caller ran, a linked worktree or a subdir too) the work dir decides
+// only where claude runs: the root is --project-dir's project (the run
+// store's), else the nearest folder above the work dir holding .wipnote/.
+// No .wipnote/ is ever made under the work dir.
+func claudeLaunchDirs(workDir string) (child, wipnoteRoot string, err error) {
 	if workDir == "" {
 		root, _ := resolveProjectRoot()
-		return root, nil
+		return root, canonicalProjectRoot(root), nil
 	}
-	abs, err := filepath.Abs(workDir)
-	if err != nil {
-		return "", err
+	if child, err = filepath.Abs(workDir); err != nil {
+		return "", "", err
 	}
-	if fi, err := os.Stat(abs); err != nil || !fi.IsDir() {
-		return "", fmt.Errorf("claude --work-dir %s: not a directory", workDir)
+	if fi, serr := os.Stat(child); serr != nil || !fi.IsDir() {
+		return "", "", fmt.Errorf("claude --work-dir %s: not a directory", workDir)
 	}
-	return abs, nil
+	root := ""
+	if wd, ferr := findWipnoteDir(); projectDirFlag != "" && ferr == nil && isDirPath(wd) {
+		root = filepath.Dir(wd)
+	}
+	if root == "" {
+		root = nearestWipnoteRoot(child)
+	}
+	switch root {
+	case "":
+		return "", "", fmt.Errorf("claude --work-dir %s: no .wipnote/ above it; pass --project-dir", workDir)
+	case child:
+		return child, canonicalProjectRoot(child), nil
+	}
+	return child, root, nil
+}
+
+// nearestWipnoteRoot is the nearest folder at or above dir holding .wipnote/.
+func nearestWipnoteRoot(dir string) string {
+	for d := dir; ; d = filepath.Dir(d) {
+		if isDirPath(filepath.Join(d, ".wipnote")) {
+			return d
+		}
+		if filepath.Dir(d) == d {
+			return ""
+		}
+	}
+}
+
+func isDirPath(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.IsDir()
 }

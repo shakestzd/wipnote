@@ -51,7 +51,11 @@ type Info struct {
 	Args []string `json:"args,omitempty"`
 	// WorkDir is where the launcher runs claude (--work-dir): the caller's
 	// own cwd, a linked worktree too, rather than the project's main root.
-	WorkDir    string `json:"work_dir,omitempty"`
+	WorkDir string `json:"work_dir,omitempty"`
+	// ProjectDir is the project the run store belongs to, passed to the
+	// launcher as --project-dir with WorkDir: the wipnote root (hooks, the
+	// launch marker) stays the run store's wherever claude runs.
+	ProjectDir string `json:"project_dir,omitempty"`
 	SessionID  string `json:"session_id,omitempty"`
 	Transcript string `json:"transcript,omitempty"`
 	Created    string `json:"created"`

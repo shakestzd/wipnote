@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 	"github.com/shakestzd/wipnote/internal/delegate/session"
@@ -148,5 +149,38 @@ func TestClaudeRun_FailureSignalsDespiteDraft(t *testing.T) {
 	w2 := newWorkerRun(t, stubClaude{styledErr: true}, "claude", "-p", "say the answer")
 	if res := w2.run(t); res.Exit != 0 || len(w2.f.signalled()) != 0 {
 		t.Fatalf("exit %d signals %v", res.Exit, w2.f.signalled())
+	}
+}
+
+// A turn that ends waiting on the caller (a q-file, as the preamble says)
+// or on a background shell is not a missing result: the run waits, says
+// so, and ends done when the answer comes. A turn that just ends with no
+// result file is still no_result (TestClaudeRun_ResultFromStopHook).
+func TestClaudeRun_WaitsOnQuestionAndBackgroundShell(t *testing.T) {
+	for _, stub := range []stubClaude{{asks: true}, {bgShell: true}} {
+		w := newWorkerRun(t, stub, "claude", "-p", "say the answer")
+		w.o.Worker.StartTimeout = 5 * time.Second
+		res := w.run(t)
+		if res.Exit != 0 || len(w.f.signalled()) != 0 || !strings.Contains(w.p.stdout.String(), "the answer") {
+			t.Fatalf("%+v: exit %d signals %v\nstdout %s\nstderr %s", stub, res.Exit, w.f.signalled(), w.p.stdout.String(), w.p.stderr.String())
+		}
+		if stub.asks && !strings.Contains(w.p.stderr.String(), "answer it in pane") {
+			t.Fatalf("the caller is told the worker asks: %s", w.p.stderr.String())
+		}
+	}
+}
+
+// The launcher gets the run store's project as its wipnote root with the
+// work dir, so the worker's hooks write into this run folder.
+func TestClaudeRun_ProjectDirPassed(t *testing.T) {
+	w := newWorkerRun(t, stubClaude{}, "claude", "-p", "say the answer")
+	sub := filepath.Join(w.p.dir, "sub")
+	must(t, os.MkdirAll(sub, 0o755))
+	w.o.Cwd = sub
+	w.run(t)
+	argv := w.f.launchArgv()
+	i, j := slices.Index(argv, "--work-dir"), slices.Index(argv, "--project-dir")
+	if i < 0 || argv[i+1] != sub || j < 0 || argv[j+1] != w.p.dir {
+		t.Fatalf("argv %q", argv)
 	}
 }
