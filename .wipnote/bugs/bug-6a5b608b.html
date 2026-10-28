@@ -10,20 +10,28 @@
 <body>
     <article id="bug-6a5b608b"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-28T06:51:44.736454"
-             data-updated="2026-10-28T06:57:01.147768" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+             data-updated="2026-10-28T11:52:17.011022" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Auto-maintenance fixture test fails on git 2.56: control no longer repacks</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="90a1ea35e66037ed202933e23377f34cdb5588ac.html" data-relationship="committed_in" data-since="2026-10-28T07:41:55">Merge pull request #285 from shakestzd/obs/maintgit</a></li>
+                    <li><a href="d8bc1f5414c8787d208dde5f42be8dbf5e2e12d2.html" data-relationship="committed_in" data-since="2026-10-28T06:55:23">Merge obs/maintgit: git 2.56 auto-maintenance test fix (bug-6a5b608b)</a></li>
+                    <li><a href="f5153acf74d1e17d392fe4c9b4d7c4cf53254e5b.html" data-relationship="committed_in" data-since="2026-10-28T06:54:56">test: detect git auto maintenance by its trace2 child start (bug-6a5b608b)</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -41,9 +49,9 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-bug-6a5b608b-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Reproduced on git 2.56 (CI image moved from 2.55); 2.43 passes</li>
-                <li data-completed="false" data-step-id="step-bug-6a5b608b-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Test now checks trace2 child_start of maintenance run --auto; mutant (both settings removed) fails on 2.43 and 2.56</li>
-                <li data-completed="false" data-step-id="step-bug-6a5b608b-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ PR 285 opened; ported into obs/resume (PR 284)</li>
+                <li data-completed="true" data-step-id="step-bug-6a5b608b-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Reproduced on git 2.56 (CI image moved from 2.55); 2.43 passes</li>
+                <li data-completed="true" data-step-id="step-bug-6a5b608b-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Test now checks trace2 child_start of maintenance run --auto; mutant (both settings removed) fails on 2.43 and 2.56</li>
+                <li data-completed="true" data-step-id="step-bug-6a5b608b-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ PR 285 opened; ported into obs/resume (PR 284)</li>
             </ol>
         </section>
 
