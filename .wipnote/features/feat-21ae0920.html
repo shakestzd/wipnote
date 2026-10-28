@@ -10,15 +10,15 @@
 <body>
     <article id="feat-21ae0920"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-28T21:55:28.168521"
-             data-updated="2026-10-28T22:51:49.470196" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
+             data-updated="2026-10-28T23:04:18.392414" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Claude one-shot runs as interactive workers</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -30,6 +30,21 @@
                     <li><a href="../features/feat-2ebbc708.html" data-relationship="blocked_by" data-since="2026-10-28T21:55:28.17419">feat-2ebbc708</a></li>
                     <li><a href="../features/feat-ee335139.html" data-relationship="blocked_by" data-since="2026-10-28T21:55:28.175451">feat-ee335139</a></li>
                     <li><a href="../features/feat-a786efa7.html" data-relationship="blocked_by" data-since="2026-10-28T21:55:28.176748">feat-a786efa7</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="82e4f29f08efc7ac4f28551b283ea1e250995a57.html" data-relationship="committed_in" data-since="2026-10-28T19:02:07">Merge pull request #301 from shakestzd/dlg/s22</a></li>
+                    <li><a href="75a8c96e438ad5cf929442fdda8fcb54426b91a8.html" data-relationship="committed_in" data-since="2026-10-28T22:58:48">feat-21ae0920: one-shot worker waits on asks and shells; launcher keeps the run&#39;s root</a></li>
+                    <li><a href="3f8eb3955b4b3eeef496ae5faae61daf43b9eeb0.html" data-relationship="committed_in" data-since="2026-10-28T22:51:49">wipnote: sync feat-21ae0920</a></li>
+                    <li><a href="50339cf017d1e0a659546b290b86af779d6650c0.html" data-relationship="committed_in" data-since="2026-10-28T22:43:45">feat-21ae0920: merge main (slice 23) into slice 22</a></li>
+                    <li><a href="247ae6dc248307cb4ecec86cc985a252b37f336f.html" data-relationship="committed_in" data-since="2026-10-28T22:43:09">feat-21ae0920: a Claude one-shot worker runs where its caller ran; never typed to unstarted</a></li>
+                    <li><a href="3d9fb2b47fce745abc4a2c850df4eb47df7e64ff.html" data-relationship="committed_in" data-since="2026-10-28T22:24:58">wipnote: sync feat-21ae0920</a></li>
+                    <li><a href="bab32d72e75763e147129a1e8add279578f2860c.html" data-relationship="committed_in" data-since="2026-10-28T22:23:57">feat-21ae0920: Claude one-shot runs as interactive workers inside herdr</a></li>
+                    <li><a href="ad2331ea380aafb668ff985e25f18691b377d24a.html" data-relationship="committed_in" data-since="2026-10-28T22:23:57">feat-21ae0920: session pieces for Claude one-shot workers</a></li>
+                    <li><a href="9e174325be7e5d341aee8ae381388352278dce3e.html" data-relationship="committed_in" data-since="2026-10-28T22:23:57">feat-21ae0920: record a delegate worker&#39;s StopFailure error and SessionEnd reason</a></li>
+                    <li><a href="19aa5f92b35d42411ce0d10c36f984ae971b5be6.html" data-relationship="committed_in" data-since="2026-10-28T21:55:29">plan(plan-28b4a7f6): promote slice-22 → feat-21ae0920</a></li>
                 </ul>
             </section>
             <section data-edge-type="implemented_in">
@@ -55,8 +70,8 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-feat-21ae0920-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Built on dlg/s22 (9e174325b..bab32d72e); PR #301 opened; adversarial review running</li>
-                <li data-completed="false" data-step-id="step-feat-21ae0920-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Review fixes 247ae6dc2 pushed; fix review found 3 regressions (question/background shell judged no_result, work-dir splits wipnote root, resume drops work-dir); fixing</li>
+                <li data-completed="true" data-step-id="step-feat-21ae0920-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Built on dlg/s22 (9e174325b..bab32d72e); PR #301 opened; adversarial review running</li>
+                <li data-completed="true" data-step-id="step-feat-21ae0920-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Review fixes 247ae6dc2 pushed; fix review found 3 regressions (question/background shell judged no_result, work-dir splits wipnote root, resume drops work-dir); fixing</li>
             </ol>
         </section>
 
