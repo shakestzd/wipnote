@@ -8,7 +8,7 @@ arch_paths() {
   case "$1" in
     H) echo "internal/delegate/herdr/commands.go internal/delegate/herdr/agent.go" ;;
     B1) echo "cmd/wipnote/claude.go" ;;
-    B2) echo "internal/orchlink/orchlink.go" ;;
+    B2) echo "internal/delegate/importorch/import.go" ;;
     B3) echo "plugin/hooks/hooks.json" ;;
     B4) echo "port/packages/codex-marketplace/**" ;;
     B5) echo "cmd/wipnote/codex_exec.go" ;;

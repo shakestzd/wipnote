@@ -243,6 +243,13 @@ No absolute host path, user name or home folder enters a ledger row. The writer 
 harness's own ids, oldest first), `host` (`host` or `container`), `started`, `ended`, `exit`,
 `end_reason` (`exit`, `stop`, `pane_closed`, `gone`, `imported`), usage counts and `resumed_from`.
 
+**Readers** (slice 13): `wipnote lineage <work-item>` and `wipnote feature show <id>` list the item's
+rows (`delegations[]` in `lineage --json`), and `wipnote lineage dlg-<id>` shows one run. Each row
+lists its workers' claim episodes, joined from `.wipnote/claims/` on worker session id; a worker
+episode that overlaps a caller episode on the same item is a co-claim named by the `dlg-` id. The
+read-only orch reader (`internal/orchlink`) and lineage's `orch_sessions` are gone: orch history
+arrives through `import-orch`.
+
 **Run folder** (`.wipnote/delegate/runs/<run-id>/`, the feat-a1df60c2 contract): `raw.log`,
 `clean.log`, `clean.md`, `last.md`, `usage`, `start`, `end`, `exit` (its presence ends the run),
 `label`, `host`, `run.html`, and `events-<writer>.ndjson`. A one-shot run also uses `job.json` (what
