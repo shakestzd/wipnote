@@ -65,7 +65,9 @@ var promptMarks = []string{">", "❯", "›"}
 
 // ParseInput finds the last prompt line of an ANSI screen and returns the
 // text after the prompt mark with each rune's dim flag. A box border ("│")
-// around the line is dropped.
+// around the line is dropped. Continuation lines below the prompt line are
+// part of the input until a blank line or a box rule ends it, so a draft
+// whose first line is empty still reads as a draft.
 func ParseInput(screen string) Input {
 	lines := strings.Split(strings.TrimRight(screen, "\n"), "\n")
 	for i := len(lines) - 1; i >= 0; i-- {
@@ -75,18 +77,44 @@ func ParseInput(screen string) Input {
 			mr := []rune(m)
 			if hasRunes(text, start, mr) {
 				from := start + len(mr)
-				end := len(text)
-				for end > from && (unicode.IsSpace(text[end-1]) || text[end-1] == '│') {
-					end--
-				}
-				if from < end && text[from] == ' ' {
+				if from < len(text) && text[from] == ' ' {
 					from++
 				}
-				return Input{Read: true, Text: string(text[from:end]), Dim: dim[from:end]}
+				in := Input{Read: true}
+				in.add(text, dim, from)
+				in.addContinuation(lines[i+1:])
+				return in
 			}
 		}
 	}
 	return Input{}
+}
+
+// add appends text[from:] without its trailing spaces and right border.
+func (in *Input) add(text []rune, dim []bool, from int) {
+	end := len(text)
+	for end > from && (unicode.IsSpace(text[end-1]) || text[end-1] == '│' || text[end-1] == '┃') {
+		end--
+	}
+	if from < end {
+		in.Text += string(text[from:end])
+		in.Dim = append(in.Dim, dim[from:end]...)
+	}
+}
+
+// addContinuation appends the input's continuation lines: those after the
+// prompt line up to the first blank line or box rule.
+func (in *Input) addContinuation(lines []string) {
+	for _, line := range lines {
+		text, dim := styledRunes(line)
+		from := skipFrame(text, 0)
+		if from >= len(text) || strings.ContainsRune("─━═╰╭└┌", text[from]) {
+			return
+		}
+		in.Text += "\n"
+		in.Dim = append(in.Dim, true)
+		in.add(text, dim, from)
+	}
 }
 
 func skipFrame(text []rune, i int) int {

@@ -101,7 +101,8 @@ func taskFacts(store *runstore.Store, name string) (pending, answered bool) {
 }
 
 // observe builds the Observation for one worker. Herdr is asked only
-// whether the pane lives, whether it holds the pinned terminal, and, while no
+// whether the pane lives, whether it holds the pinned terminal, once a
+// session is bound whether the harness still runs in it, and, while no
 // session is bound, for its screen (a trust dialog). It never decides that a
 // worker finished from the screen.
 func observe(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info) (Observation, eventFacts) {
@@ -120,12 +121,25 @@ func observe(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info) (Ob
 		o.PaneGone, o.GoneWhy = true, fmt.Sprintf("pane %s is gone", pane)
 	case err == nil && reused(info, p):
 		o.PaneGone, o.GoneWhy = true, fmt.Sprintf("pane %s now holds terminal %s, not %s", pane, p.TerminalID, info.TerminalID)
+	case err == nil && o.Bound:
+		o.Exited, o.GoneWhy = exited(ctx, d, pane)
 	case err == nil && !o.Bound:
 		if screen, rerr := d.Herdr.PaneRead(ctx, pane, screenLines); rerr == nil {
 			o.Dialog = TrustDialog(screen)
 		}
 	}
 	return o, f
+}
+
+// exited reports a bound worker whose harness has quit while its pane lives
+// on (a crash, or a person exited it): herdr positively sees the shell alone.
+// An unknown foreground is never an exit.
+func exited(ctx context.Context, d Deps, pane herdr.PaneID) (bool, string) {
+	pi, err := d.Herdr.Processes(ctx, pane)
+	if err != nil || !bareShell(pi) {
+		return false, ""
+	}
+	return true, fmt.Sprintf("the worker exited; pane %s holds only its shell", pane)
 }
 
 // adopt renames and pins a late agent (orch launch.adopt_late_agent): once
