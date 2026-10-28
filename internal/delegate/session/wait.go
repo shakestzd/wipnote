@@ -82,7 +82,10 @@ func Wait(ctx context.Context, d Deps, name string, o WaitOptions) (WaitResult, 
 	defer cancel()
 	for {
 		res, settled := waitOnce(look, d, row.ID, name)
-		if ctx.Err() == nil && look.Err() != nil {
+		if err := ctx.Err(); err != nil {
+			return res, err // the caller cancelled: never a timeout
+		}
+		if look.Err() != nil {
 			settled = false // the deadline cut the look short: it is a timeout
 		}
 		if settled {
