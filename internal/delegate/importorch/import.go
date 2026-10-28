@@ -12,8 +12,8 @@
 // a row. The dlg- id is a hash of orch's identity for the run, never of a
 // path, so a rerun finds every row and adds nothing.
 //
-// This reader is self-contained on purpose: slice 13 deletes
-// internal/orchlink, and the import must keep building after that.
+// This reader is self-contained on purpose: slice 13 deleted
+// internal/orchlink, and the import keeps building without it.
 package importorch
 
 import (
