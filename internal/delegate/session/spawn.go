@@ -113,6 +113,7 @@ func placeWorker(ctx context.Context, d Deps, o SpawnOptions, w *Workers) (Info,
 	if err != nil {
 		return Info{}, nil, lost, err
 	}
+	tabBefore := w.Tab
 	pane, err := place(ctx, d.Herdr, w, info.Run, o.Cwd)
 	if err != nil {
 		abandon(d, info.Run, rf, Info{})
@@ -120,8 +121,9 @@ func placeWorker(ctx context.Context, d Deps, o SpawnOptions, w *Workers) (Info,
 	}
 	p, err := d.Herdr.Get(ctx, pane)
 	if err != nil || p.TerminalID == "" {
+		closeNewPane(ctx, d, w, tabBefore, pane)
 		abandon(d, info.Run, rf, Info{})
-		return Info{}, nil, lost, fmt.Errorf("delegate: herdr cannot name the terminal of new pane %s (%v); it is left open and nothing was typed", pane, err)
+		return Info{}, nil, lost, fmt.Errorf("delegate: herdr cannot name the terminal of new pane %s (%v); it was closed and nothing was typed", pane, err)
 	}
 	placed := Info{Run: info.Run, Name: info.Name, Pane: string(pane), TerminalID: p.TerminalID}
 	saved, err := UpdateInfo(rf, func(i *Info) { i.Pane, i.TerminalID = placed.Pane, placed.TerminalID })
@@ -130,6 +132,18 @@ func placeWorker(ctx context.Context, d Deps, o SpawnOptions, w *Workers) (Info,
 		return Info{}, nil, lost, err
 	}
 	return saved, rf, lost, nil
+}
+
+// closeNewPane closes a pane this spawn just made, and the workers tab when
+// this spawn made that too (w.Tab is not the one it started with), when its
+// terminal cannot be pinned. The record is not saved on that error, so they
+// would be tracked nowhere. Both were made in this call under the caller's
+// lock and nothing was typed, so no pin check is needed.
+func closeNewPane(ctx context.Context, d Deps, w *Workers, tabBefore *herdr.WorkersTab, pane herdr.PaneID) {
+	_ = d.Herdr.Close(ctx, pane)
+	if w.Tab != nil && w.Tab != tabBefore {
+		_ = d.Herdr.TabClose(ctx, w.Tab.ID)
+	}
 }
 
 // prepareSpawn resolves the work item (Deps.ResolveWorkItem, so a resume's

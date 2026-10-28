@@ -212,3 +212,37 @@ func TestSpawn_StaleRowWithoutPaneIsLost(t *testing.T) {
 		}
 	}
 }
+
+// A spawn that cannot read its new pane's terminal closes that pane, and the
+// workers tab it created for it, so nothing is left open and tracked
+// nowhere; the row is abandoned and a retry spawns normally. The other side:
+// a failure on a split in an existing tab closes only the new pane.
+func TestSpawn_PinFailureClosesNewPaneAndTab(t *testing.T) {
+	e := newEnv(t)
+	e.herdr.getErr = map[herdr.PaneID]error{"w1:p11": errors.New("herdr: busy")}
+	if _, err := Spawn(context.Background(), e.deps, e.opts("w1")); err == nil {
+		t.Fatal("spawn succeeded without its pane's terminal")
+	}
+	calls := e.herdr.Calls()
+	if !hasCall(calls, "close w1:p11") || !hasCall(calls, "tab close w1:t2") || hasCall(calls, "run ") {
+		t.Fatalf("new pane or tab left, or something typed: %v", calls)
+	}
+	if rows, _ := e.deps.Ledger.ReadAll(); len(rows) != 1 || rows[0].IsOpen() {
+		t.Fatalf("rows %+v: want the attempt abandoned", rows)
+	}
+	s, err := Spawn(context.Background(), e.deps, e.opts("w1"))
+	if err != nil || !e.row(s.Run).IsOpen() || !hasPane(workerPanes(t, e), PaneOf(s)) {
+		t.Fatalf("retry: %+v %v", s, err)
+	}
+	// Other side: a split's failure closes the split only; the tab stays.
+	next := herdr.PaneID(fmt.Sprintf("w1:p%d", e.herdr.n+1))
+	e.herdr.getErr = map[herdr.PaneID]error{next: errors.New("herdr: busy")}
+	mark := len(e.herdr.Calls())
+	if _, err := Spawn(context.Background(), e.deps, e.opts("w2")); err == nil {
+		t.Fatal("split spawn succeeded without its pane's terminal")
+	}
+	after := e.herdr.Calls()[mark:]
+	if !hasCall(after, "close "+string(next)) || hasCall(after, "tab close") || !hasPane(workerPanes(t, e), PaneOf(s)) {
+		t.Fatalf("split failure: %v", after)
+	}
+}

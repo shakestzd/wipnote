@@ -45,6 +45,8 @@ type fakeHerdr struct {
 	// (unlocked) after a workers tab is created.
 	onEnter     func()
 	onTabCreate func()
+	// getErr fails the next Get of a pane once with its error.
+	getErr map[herdr.PaneID]error
 }
 
 type fpane struct {
@@ -153,6 +155,10 @@ func (f *fakeHerdr) Get(ctx context.Context, pane herdr.PaneID) (herdr.Pane, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if err := f.getErr[pane]; err != nil {
+		delete(f.getErr, pane)
+		return herdr.Pane{}, err
+	}
 	p := f.panes[pane]
 	if p == nil || p.gone {
 		return herdr.Pane{}, errAbsent
