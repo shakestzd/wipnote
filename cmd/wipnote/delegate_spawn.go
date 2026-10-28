@@ -11,6 +11,7 @@ import (
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 	"github.com/shakestzd/wipnote/internal/delegate/session"
@@ -79,6 +80,9 @@ func runDelegateSpawn(cmd *cobra.Command, name, harness, workItem, brief string)
 	if workItem == "" {
 		workItem = gate.ActiveWorkItemForGate(projectDir, caller, db.NormaliseAgentID(os.Getenv("WIPNOTE_AGENT_ID")))
 	}
+	if workItem, err = resolveSpawnWorkItem(wipnoteDir, workItem); err != nil {
+		return err
+	}
 	cwd, _ := os.Getwd()
 	exe, err := os.Executable()
 	if err != nil {
@@ -109,4 +113,18 @@ func delegateSessionDeps(wipnoteDir string) (session.Deps, herdr.Env, error) {
 		d.Herdr = herdr.New(env)
 	}
 	return d, env, nil
+}
+
+// resolveSpawnWorkItem turns a work-item id or unambiguous prefix into its
+// canonical id, so the one-worker-per-item check compares like with like. An
+// unknown or ambiguous id is refused; an empty one is left for Spawn to refuse.
+func resolveSpawnWorkItem(wipnoteDir, id string) (string, error) {
+	if id == "" {
+		return "", nil
+	}
+	full, err := workitem.ResolvePartialID(wipnoteDir, id)
+	if err != nil {
+		return "", fmt.Errorf("delegate spawn: work item %s: %w", id, err)
+	}
+	return full, nil
 }

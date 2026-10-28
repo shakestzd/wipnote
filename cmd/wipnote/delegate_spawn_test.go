@@ -34,7 +34,8 @@ func execDelegate(t *testing.T, args ...string) (string, error) {
 }
 
 func TestDelegateSpawn_Refusals(t *testing.T) {
-	delegateSessionProject(t)
+	dir := delegateSessionProject(t)
+	writeFeature(t, filepath.Join(dir, ".wipnote"), "feat-0a1b2c3d")
 	if _, err := execDelegate(t, "spawn", "w1", "--harness", "claude"); err == nil || !strings.Contains(err.Error(), "no work item") {
 		t.Fatalf("no work item: %v", err)
 	}
