@@ -30,9 +30,12 @@ type Runner interface {
 	Run(ctx context.Context, name string, args ...string) (stdout, stderr []byte, exitCode int, err error)
 }
 
-// ExecRunner is the os/exec Runner. A zero Timeout means DefaultTimeout.
+// ExecRunner is the os/exec Runner. A zero Timeout means DefaultTimeout. A
+// non-empty Dir runs the command there, so gh reads that folder's repository
+// (status --all reads every registered project from one process).
 type ExecRunner struct {
 	Timeout time.Duration
+	Dir     string
 }
 
 // Run implements Runner.
@@ -46,6 +49,7 @@ func (r ExecRunner) Run(ctx context.Context, name string, args ...string) ([]byt
 
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = r.Dir
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	cmd.WaitDelay = 2 * time.Second
 	err := cmd.Run()

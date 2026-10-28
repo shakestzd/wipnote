@@ -59,6 +59,10 @@ type Agent struct {
 	Kind          string
 	State         AgentState
 	CompletionSeq int
+	// Cwd is the agent's working folder when herdr reports one. UNVERIFIED:
+	// herdr's documented `agent list` fields do not name it; empty means
+	// unknown, and status --all then matches the agent by its work-item label.
+	Cwd string
 }
 
 // Proc is one foreground process of a pane.
