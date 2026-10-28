@@ -106,6 +106,9 @@ func refreshSlow(ctx context.Context, r Runner, s *Snapshot, now func() time.Tim
 	return nil
 }
 
+// CountChecks counts checks by bucket; skipping and cancel count as other.
+func CountChecks(checks []Check) Counts { return countChecks(checks) }
+
 func countChecks(checks []Check) Counts {
 	var c Counts
 	for _, ch := range checks {

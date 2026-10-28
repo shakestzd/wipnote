@@ -32,13 +32,16 @@ func initGateLedgerCommitSeam() {
 // run recorded by `wipnote check --gate` is readable by the `wipnote feature
 // complete` that follows, in a different process, with the queue still unflushed.
 //
-// Under the legacy "separate" policy the write is committed directly, matching
+// Under "none" nothing is committed or queued (bug-37c5cac2); under the
+// legacy "separate" policy the write is committed directly, matching
 // how work-item artifacts and the claim and sessions ledgers behave under that
 // same opt-in.
 func persistGateLedgerWrite(wipnoteDir, relPath, action string) {
 	msg := "wipnote: record " + action
-	switch workitemArtifactCommitPolicyForEnv() {
-	case workitemArtifactCommitPolicyDefer:
+	switch ledgerCommitActionForEnv(false) {
+	case ledgerCommitSkip:
+		return
+	case ledgerCommitQueue:
 		if err := enqueueGateLedgerCommitIntent(wipnoteDir, relPath, msg); err != nil && os.Getenv("WIPNOTE_DEBUG") == "1" {
 			fmt.Fprintf(stderr, "gate ledger commit defer: %v\n", err)
 		}

@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/shakestzd/wipnote/core/delegationledger"
 )
 
@@ -21,18 +18,8 @@ func initDelegationLedgerCommitSeam() {
 // the commit queue coalesces every write to the one file into a single pending
 // intent (AppendCoalescingByRelPath), so an import of many runs is one commit.
 // Only the git commit is deferred; the row is already on disk. Under the
-// legacy "separate" policy the write is committed directly.
+// legacy "separate" policy the write is committed directly; under "none" it is
+// neither committed nor queued (bug-37c5cac2).
 func persistDelegationLedgerWrite(wipnoteDir, relPath, action string) {
-	msg := "wipnote: record " + action
-	switch policy := workitemArtifactCommitPolicyForEnv(); {
-	case policy == workitemArtifactCommitPolicyDefer || (commitIntentLight.Load() && policy != workitemArtifactCommitPolicyNone):
-		err := enqueueLedgerCommitIntent(wipnoteDir, relPath, msg, "delegation", "delegations ledger commit defer")
-		if err != nil && os.Getenv("WIPNOTE_DEBUG") == "1" {
-			fmt.Fprintf(stderr, "delegations ledger commit defer: %v\n", err)
-		}
-	default:
-		if err := commitWipnotePath(wipnoteDir, relPath, msg); err != nil && os.Getenv("WIPNOTE_DEBUG") == "1" {
-			fmt.Fprintf(stderr, "delegations ledger commit: %v\n", err)
-		}
-	}
+	persistLedgerWrite(wipnoteDir, relPath, "wipnote: record "+action, "delegation", "delegations ledger commit")
 }

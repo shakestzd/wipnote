@@ -37,6 +37,15 @@ func provInitRepo(t *testing.T, root string) {
 	provGit(t, root, "init", "-q")
 	provGit(t, root, "config", "user.email", "t@t")
 	provGit(t, root, "config", "user.name", "t")
+	// Never start git's auto maintenance in the fixture (bug-a2ea88db). Every
+	// commit — provGit's and the production code's — runs `git maintenance run
+	// --auto`, which detaches; from git 2.54 its default geometric strategy
+	// repacks once two loose objects land in objects/17. That background repack
+	// writes .git/objects/pack after the test returns and races t.TempDir's
+	// RemoveAll ("objects/pack: directory not empty"). gc.auto=0 covers older
+	// git, whose auto maintenance is `gc --auto`.
+	provGit(t, root, "config", "maintenance.auto", "false")
+	provGit(t, root, "config", "gc.auto", "0")
 	if err := os.WriteFile(filepath.Join(root, "README"), []byte("x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

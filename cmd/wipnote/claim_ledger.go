@@ -35,24 +35,11 @@ func initClaimLedgerCommitSeam() {
 // SINGLE pending intent that commits the file's final state once, whenever
 // `wipnote commit-queue flush` next drains.
 //
-// Under the legacy "separate" policy the write is committed directly, matching
+// Under "none" nothing is committed or queued (bug-37c5cac2). Under the
+// legacy "separate" policy the write is committed directly, matching
 // how work-item artifacts behave under that same opt-in.
 func persistClaimLedgerWrite(wipnoteDir, relPath, action string) {
-	msg := "wipnote: record claim " + action
-	switch policy := workitemArtifactCommitPolicyForEnv(); {
-	case policy == workitemArtifactCommitPolicyDefer || (commitIntentLight.Load() && policy != workitemArtifactCommitPolicyNone):
-		if err := enqueueClaimLedgerCommitIntent(wipnoteDir, relPath, msg); err != nil && os.Getenv("WIPNOTE_DEBUG") == "1" {
-			fmt.Fprintf(stderr, "claim ledger commit defer: %v\n", err)
-		}
-	default:
-		if err := commitWipnotePath(wipnoteDir, relPath, msg); err != nil && os.Getenv("WIPNOTE_DEBUG") == "1" {
-			fmt.Fprintf(stderr, "claim ledger commit: %v\n", err)
-		}
-	}
-}
-
-func enqueueClaimLedgerCommitIntent(wipnoteDir, relPath, msg string) error {
-	return enqueueLedgerCommitIntent(wipnoteDir, relPath, msg, "claim", "claim ledger commit defer")
+	persistLedgerWrite(wipnoteDir, relPath, "wipnote: record claim "+action, "claim", "claim ledger commit")
 }
 
 // claimLedgerStore returns the store for the project containing wipnoteDir.
