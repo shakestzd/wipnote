@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>status --all and procsweep: Codex findings on PRs 279 and 281</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-715f360f"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-28T05:27:16.715108"
+             data-updated="2026-10-28T05:27:24.307881" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+
+        <header>
+            <h1>status --all and procsweep: Codex findings on PRs 279 and 281</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="../features/feat-715f1d4f.html" data-relationship="caused_by" data-since="2026-10-28T05:27:16.718342">feat-715f1d4f</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-28T05:27:24.307794">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-621f9064.html" data-relationship="part_of" data-since="2026-10-28T05:27:16.719083">trk-621f9064</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>From the Codex reviews of PRs 279 and 281: (1) procsweep env: with a recognised WIPNOTE_HARNESS stamp, try only that harness&#39;s native session keys, then WIPNOTE_SESSION_ID, so a nested session is not credited to the parent harness&#39;s inherited id (match hooks.ResolveSessionID). (2) statusall agents: match labelled panes to claims before the unlabelled harness fallback, so an unlabelled pane cannot take a labelled pane&#39;s claim. (3) statusall pr: resolve the checked-out branch by branch only, so a numeric branch name is not read as a PR number. (4) procsweep: one unreadable sessions ledger must not fail the sweep for every project.</p>
+        </section>
+    </article>
+</body>
+</html>
