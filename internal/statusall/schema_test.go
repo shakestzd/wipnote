@@ -10,8 +10,10 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/shakestzd/wipnote/internal/gitwatch"
+	"github.com/shakestzd/wipnote/internal/procsweep"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files")
@@ -34,9 +36,11 @@ func fullReport() Report {
 			Commit: "0123456", LogPath: "…/tasks/b1.output", LastLine: "FAIL", FirstError: "FAIL TestSomething",
 			WorkItem: "feat-11110002", Session: sessA, Harness: "claude", Line: "gate exit 1 at 11:55 on commit 0123456"}},
 		NeedsYou: []Need{{Kind: NeedBlockedAgent, What: "claude agent in pane w1:p2 is blocked", Since: "", WorkItem: "feat-11110002"},
-			{Kind: NeedFailedRun, What: "gate exit 1 at 11:55: FAIL TestSomething", Since: "2026-10-28T11:55:00Z", WorkItem: "feat-11110002"}},
-		Orphans: []any{},
-		Sources: map[string]string{"git": SourceOK, "gh": SourceOK, "herdr": SourceOK},
+			{Kind: NeedFailedRun, What: "gate exit 1 at 11:55: FAIL TestSomething", Since: "2026-10-28T11:55:00Z", WorkItem: "feat-11110002"},
+			{Kind: NeedOrphanProcess, What: "orphaned process 4242 — node ./server.js --port 3000; stop with: kill 4242", Since: "2026-10-28T09:30:00Z"}},
+		Orphans: []procsweep.Proc{{PID: 4242, Command: "node ./server.js --port 3000", SessionID: sessA, Project: "alpha",
+			StartedAt: time.Date(2026, 10, 28, 9, 30, 0, 0, time.UTC), Orphan: true, StopHint: "kill 4242"}},
+		Sources: map[string]string{"git": SourceOK, "gh": SourceOK, "herdr": SourceOK, "procs": SourceOK},
 		Errors:  []string{},
 	}}}
 }

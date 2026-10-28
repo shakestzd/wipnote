@@ -10,7 +10,10 @@
 // It never runs inside a hook.
 package statusall
 
-import "github.com/shakestzd/wipnote/internal/gitwatch"
+import (
+	"github.com/shakestzd/wipnote/internal/gitwatch"
+	"github.com/shakestzd/wipnote/internal/procsweep"
+)
 
 // Schema names the JSON shape. A breaking change bumps the suffix.
 const Schema = "wipnote.status-all/v1"
@@ -26,9 +29,10 @@ const (
 
 // Needs-you kinds.
 const (
-	NeedBlockedAgent = "blocked_agent"
-	NeedFailedRun    = "failed_run"
-	NeedLostRun      = "lost_run"
+	NeedBlockedAgent  = "blocked_agent"
+	NeedFailedRun     = "failed_run"
+	NeedLostRun       = "lost_run"
+	NeedOrphanProcess = "orphan_process"
 )
 
 // Report is the whole `status --all --json` document.
@@ -51,7 +55,7 @@ type Project struct {
 	Agents       []Agent           `json:"agents"`
 	Runs         []Run             `json:"runs"`
 	NeedsYou     []Need            `json:"needs_you"`
-	Orphans      []any             `json:"orphans"` // filled by slice 4 (feat-e6e3ef39)
+	Orphans      []procsweep.Proc  `json:"orphans"`
 	Sources      map[string]string `json:"sources"`
 	Errors       []string          `json:"errors"`
 }

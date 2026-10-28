@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/shakestzd/wipnote/internal/procsweep"
 )
 
 // Text limits: the text view is a glance; --json carries everything.
@@ -84,6 +86,7 @@ func writeProject(w io.Writer, p Project, shared map[string]string, now time.Tim
 	writePRLine(w, p.PR)
 	writeAgents(w, p.Agents)
 	writeRuns(w, p.Runs)
+	writeOrphans(w, p.Orphans)
 	for _, n := range p.NeedsYou {
 		line("NEEDS YOU", n.Kind+": "+n.What)(w)
 	}
@@ -170,6 +173,12 @@ func writeRuns(w io.Writer, runs []Run) {
 			return
 		}
 		line("run", cut(r.Line, textWidth+8))(w)
+	}
+}
+
+func writeOrphans(w io.Writer, orphans []procsweep.Proc) {
+	for _, o := range orphans {
+		line("orphan", fmt.Sprintf("%d %s · stop: %s", o.PID, cut(o.Command, textWidth), o.StopHint))(w)
 	}
 }
 
