@@ -10,20 +10,27 @@
 <body>
     <article id="bug-ba33b89f"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-28T12:01:56.089047"
-             data-updated="2026-10-28T12:04:52.128298" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+             data-updated="2026-10-28T14:56:15.711795" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>status --all can hang past --timeout on a stalled project disk</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="7f632c70e7ae7477e37f8753414fc4b82cdaa877.html" data-relationship="committed_in" data-since="2026-10-28T10:50:03">Merge pull request #286 from shakestzd/obs/resumeclose</a></li>
+                    <li><a href="412ac7be4cb464b137012f373b0e54fc96007f03.html" data-relationship="committed_in" data-since="2026-10-28T12:02:10">fix(statusall): bound the whole process sweep, not only its listing (bug-ba33b89f)</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -41,7 +48,7 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-bug-ba33b89f-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ TestCollect_StalledSweepReadIsBounded hung before fix; whole sweep bounded by ProcsTimeout&#43;1s; PR 286</li>
+                <li data-completed="true" data-step-id="step-bug-ba33b89f-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ TestCollect_StalledSweepReadIsBounded hung before fix; whole sweep bounded by ProcsTimeout&#43;1s; PR 286</li>
             </ol>
         </section>
 
