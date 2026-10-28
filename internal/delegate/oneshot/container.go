@@ -127,7 +127,7 @@ func executeContainer(ctx context.Context, rf *runstore.RunFolder, job Job) (Job
 	return inside, true
 }
 
-func checkContainer(o Options) error {
+func checkContainer(o Options, r Recipe) error {
 	if !o.Container {
 		return nil
 	}
@@ -139,6 +139,15 @@ func checkContainer(o Options) error {
 	}
 	if _, err := (container.Mapper{Root: o.Root, Remote: "/"}).Path(o.Cwd); err != nil {
 		return fmt.Errorf("delegate run --container: the working folder must be inside the project: %w", err)
+	}
+	if own, ok := r.OwnLastFile(); ok && own != "" {
+		if !filepath.IsAbs(own) {
+			own = filepath.Join(o.Cwd, own)
+		}
+		if _, err := (container.Mapper{Root: o.Root, Remote: "/"}).Path(own); err != nil {
+			// The host would read its own file there, not the tool's answer.
+			return fmt.Errorf("delegate run --container: codex's -o file is outside the project, so it is not in the container: %w", err)
+		}
 	}
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/internal/delegate/container"
 	"github.com/shakestzd/wipnote/internal/delegate/session"
 )
 
@@ -34,6 +35,9 @@ folder (state.json) for the orchestra band and tree.`,
 			if err != nil {
 				return err
 			}
+			// Container workers' files written after their run's last
+			// fold (a late SessionEnd) reach the host's ledgers here.
+			_, _ = container.FoldPending(wipnoteDir)
 			rows, err := session.List(cmd.Context(), d, all)
 			if err != nil {
 				return err

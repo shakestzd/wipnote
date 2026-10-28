@@ -17,7 +17,7 @@ import (
 func wire(tb testing.TB) {
 	tb.Helper()
 	prev := hooks.DelegateRedirect
-	hooks.DelegateRedirect = detect.Redirect
+	hooks.DelegateRedirect = detect.RedirectAt
 	tb.Cleanup(func() { hooks.DelegateRedirect = prev })
 }
 
@@ -93,9 +93,15 @@ func TestPreToolUse_NeverAllowsOrRewrites(t *testing.T) {
 	}
 }
 
+func bashIn(cmd, cwd string) *hooks.CloudEvent {
+	ev := bash("Bash", cmd)
+	ev.CWD = cwd
+	return ev
+}
+
 func TestPreToolUse_CcxTaskDeniedWithContainerForm(t *testing.T) {
 	wire(t)
-	res := hooks.DelegateRedirectResult(bash("Bash", `ccx task "fix the build"`))
+	res := hooks.DelegateRedirectResult(bashIn(`ccx task "fix the build"`, detect.DevcontainerProject(t, true)))
 	if res == nil || res.Decision != "block" {
 		t.Fatalf("bare ccx task: %+v, want a block", res)
 	}
@@ -104,30 +110,35 @@ func TestPreToolUse_CcxTaskDeniedWithContainerForm(t *testing.T) {
 	}
 }
 
-// TestPreToolUse_CcxTaskRedirectsToContainer (slice 21): a bare ccx task is
-// redirected to delegate run --container only, now that it exists, and the
-// form it names is one delegate run --container accepts as claude -p. The
-// other side: the reason no longer offers the exact-argv ccx form.
+// TestPreToolUse_CcxTaskRedirectsToContainer: through the hook, a bare ccx
+// task of plain words in a project with its own devcontainer gets the
+// --container form, which delegate run --container accepts as claude -p.
+// The other sides: a ccx flag, or no devcontainer, gets the exact form.
 func TestPreToolUse_CcxTaskRedirectsToContainer(t *testing.T) {
 	wire(t)
-	res := hooks.DelegateRedirectResult(bash("Bash", `ccx task "fix the build" --resume abc`))
+	inside := detect.DevcontainerProject(t, true)
+	res := hooks.DelegateRedirectResult(bashIn(`ccx task "fix the build"`, inside))
 	if res == nil || res.Decision != "block" {
 		t.Fatalf("bare ccx task: %+v, want a block", res)
-	}
-	if strings.Contains(res.Reason, "-- ccx task") || strings.Contains(res.Reason, "coming") {
-		t.Errorf("reason %q still offers the pre-container form", res.Reason)
 	}
 	_, line, ok := strings.Cut(res.Reason, "wipnote delegate run --container -- ")
 	if !ok {
 		t.Fatalf("reason %q names no --container form", res.Reason)
 	}
-	line, _, _ = strings.Cut(line, "\n")
-	if line != `"fix the build" --resume abc` {
-		t.Fatalf("--container form carries %q, want the task's own arguments", line)
+	if line, _, _ = strings.Cut(line, "\n"); line != `"fix the build"` {
+		t.Fatalf("--container form carries %q, want the task's own words", line)
 	}
-	r, err := oneshot.ClassifyContainer([]string{"fix the build", "--resume", "abc"})
-	if err != nil || r.Kind != oneshot.KindClaude {
-		t.Errorf("delegate run --container would take %q as %v, %v; want claude -p", line, r.Kind, err)
+	if r, err := oneshot.ClassifyContainer([]string{"fix the build"}); err != nil || r.Kind != oneshot.KindClaude {
+		t.Errorf("delegate run --container would take it as %v, %v; want claude -p", r.Kind, err)
+	}
+	for _, ev := range []*hooks.CloudEvent{
+		bashIn(`ccx task "fix the build" --resume abc`, inside),
+		bashIn(`ccx task "fix the build"`, detect.DevcontainerProject(t, false)),
+	} {
+		res := hooks.DelegateRedirectResult(ev)
+		if res == nil || !strings.Contains(res.Reason, "wipnote delegate run -- ccx task") || strings.Contains(res.Reason, "--container") {
+			t.Errorf("%q in %s: %+v, want only the exact form", ev.ToolInput["command"], ev.CWD, res)
+		}
 	}
 }
 

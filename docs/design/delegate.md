@@ -119,8 +119,9 @@ Planned changes to `run`:
   (slice 26). Outside herdr, `codex exec` stays. `codex review` and `ccx task` stay one-shot.
 - A bare `codex exec` or `claude -p` in the Bash tool is denied, and the reason holds the exact
   `wipnote delegate run -- <same argv>`. A bare `ccx task` gets the `--container` form
-  (`wipnote delegate run --container -- <task args>`); when `--container` would refuse the task's
-  arguments, the exact-argv form instead. This is a PreToolUse hook, not a command.
+  (`wipnote delegate run --container -- <task words>`) only when its arguments are plain task words
+  and the project has its own devcontainer (`.devcontainer/devcontainer.json` and the devcontainer
+  CLI); a ccx flag such as `--resume`, or no devcontainer, gets the exact-argv form instead. This is a PreToolUse hook, not a command.
   Chained commands, a command fed on stdin, `dev exec`, and anything else `delegate run` would
   refuse run as typed; a command that starts with `wipnote delegate` is never denied. Available
   (slice 9; q-intercept: deny-redirect; recogniser in `internal/delegate/detect`).
@@ -358,7 +359,13 @@ override or a docker command. There is no second-account gate.
   cleanup) and the end of a one-shot run first fold those files into the host's sessions ledger
   (`host=container`, the real harness, each run and its end, a resumed run's folder included), the
   family index and the gate ledger. The host records what it folded in the run folder's
-  `folded.json`, so nothing is folded twice.
+  `folded.json`, so nothing is folded twice. A file the worker writes after its row's last fold (a
+  late SessionEnd) is folded by the next `delegate list` or before a sweep, and a sweep keeps a run
+  folder until its files are folded.
+- **Claims inside:** a container worker's claim shards are its own, in `<run>/claims/`; a
+  completion that would close another session's shard leaves a pending close
+  (`claim-close-<id>.json`). The fold merges the shards and applies each pending close once, under
+  each shard's lock.
 - **Paths:** every task sent to a container worker (the brief and each `delegate send`) names its
   result and question files in the container's workspace folder; a send before the boot recorded
   that folder is refused.
