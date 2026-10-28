@@ -52,8 +52,16 @@ const (
 	FileBrief   = "brief.md"     // the brief plus the result preamble
 )
 
+// Files a container run holds (plan-28b4a7f6 slice 21): where it ran (the
+// place and the container's workspace folder) and devcontainer up's
+// progress.
+const (
+	FileContainer = "container.json"
+	FileUpLog     = "up.log"
+)
+
 // RunnerFiles lists the files beside the contract that WriteFile accepts.
-var RunnerFiles = []string{FileOut, FileJob, FileSession, FileBrief}
+var RunnerFiles = []string{FileOut, FileJob, FileSession, FileBrief, FileContainer, FileUpLog}
 
 // Hosts a run can name in its host file.
 const (

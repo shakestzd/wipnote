@@ -11,6 +11,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/internal/delegate/codex"
+	"github.com/shakestzd/wipnote/internal/delegate/container"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/render"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
@@ -24,13 +25,17 @@ type Options struct {
 	WorkTitle     string   // the work item's title, for the pane label
 	CallerSession string
 	NoPane        bool // force headless inside herdr
-	Cwd           string
-	Settings      Settings
-	Sandbox       SandboxOptions // codex exec's sandbox ladder (slice 12)
-	Store         *runstore.Store
-	Ledger        *delegationledger.Store
-	Herdr         herdr.Client // nil outside herdr
-	HerdrEnv      herdr.Env
+	// Container runs the tool in the project's own devcontainer (slice 21);
+	// Root is the project root, the --workspace-folder.
+	Container bool
+	Root      string
+	Cwd       string
+	Settings  Settings
+	Sandbox   SandboxOptions // codex exec's sandbox ladder (slice 12)
+	Store     *runstore.Store
+	Ledger    *delegationledger.Store
+	Herdr     herdr.Client // nil outside herdr
+	HerdrEnv  herdr.Env
 	// PaneLine is the shell line that runs the pane worker for a run id.
 	PaneLine  func(runID string) string
 	CodexHome string // where codex profiles live; CODEX_HOME or ~/.codex when empty
@@ -60,8 +65,11 @@ type Result struct {
 // and enriches the row and sweeps old runs. A refused argv returns an error
 // before anything is written, as is a codex exec the sandbox ladder refuses. Exit is the tool's; 130 when its pane closed.
 func Run(ctx context.Context, o Options) (Result, error) {
-	r, err := Classify(o.Argv)
+	r, err := classify(o)
 	if err != nil {
+		return Result{}, err
+	}
+	if err := checkContainer(o); err != nil {
 		return Result{}, err
 	}
 	if o.sandbox, err = sandboxFor(ctx, o, r); err != nil {
@@ -69,7 +77,7 @@ func Run(ctx context.Context, o Options) (Result, error) {
 	}
 	rec, err := o.Ledger.Open(delegationledger.Record{
 		Mode: delegationledger.ModeOneshot, Harness: string(r.Kind), Label: strings.TrimSpace(o.Label),
-		WorkItem: o.WorkItem, CallerSession: o.CallerSession, Host: ledgerHost(r),
+		WorkItem: o.WorkItem, CallerSession: o.CallerSession, Host: ledgerHost(o, r),
 	})
 	if err != nil {
 		return Result{}, err
@@ -84,13 +92,18 @@ func Run(ctx context.Context, o Options) (Result, error) {
 		return res, err
 	}
 	closeRow(o.Ledger, rf, res)
+	if o.Container {
+		// The tool's hooks inside wrote only their own files: fold them in.
+		_, _ = container.Fold(filepath.Dir(o.Store.Root()), rf.Dir())
+	}
 	sweep(o)
 	return res, nil
 }
 
-// ledgerHost: ccx means container Claude (decision C).
-func ledgerHost(r Recipe) string {
-	if r.Kind == KindCcx {
+// ledgerHost: ccx means container Claude (decision C), and --container runs
+// in the project's devcontainer.
+func ledgerHost(o Options, r Recipe) string {
+	if r.Kind == KindCcx || o.Container {
 		return "container"
 	}
 	return "host"
@@ -135,11 +148,19 @@ func buildJob(o Options, r Recipe, rf *runstore.RunFolder) Job {
 	if home == "" {
 		home = codexHome()
 	}
+	lean := o.Settings.leanProfile()
+	if o.Container {
+		lean = "" // the host's codex profiles are not the container's
+	}
 	argv := r.Command(CommandOptions{LastFile: filepath.Join(rf.Dir(), runstore.FileLastMD),
-		LeanProfile: o.Settings.leanProfile(), CodexHome: home, Sandbox: o.sandbox})
+		LeanProfile: lean, CodexHome: home, Sandbox: o.sandbox})
 	own, _ := r.OwnLastFile()
-	return Job{Kind: r.Kind, Argv: argv, Cwd: o.Cwd, OwnLast: own, CcxRuns: ccxRunsDir(o.Settings.CcxRunsDir),
+	job := Job{Kind: r.Kind, Argv: argv, Cwd: o.Cwd, OwnLast: own, CcxRuns: ccxRunsDir(o.Settings.CcxRunsDir),
 		CcxWaitMS: o.Settings.ccxWait().Milliseconds(), ClosePane: o.Settings.ClosePane, CloseDelay: o.Settings.CloseDelay}
+	if o.Container {
+		job.Container = &ContainerJob{Root: o.Root, Env: container.WorkerEnv(rf.ID(), o.CallerSession)}
+	}
+	return job
 }
 
 func codexHome() string {
