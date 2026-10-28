@@ -61,16 +61,16 @@ func Fold(wipnoteDir, runDir string) (Folded, error) {
 		return Folded{}, ErrFoldInside
 	}
 	var f Folded
-	if err := foldSessions(wipnoteDir, runDir, &f); err != nil {
-		return f, err
-	}
-	return f, foldGates(wipnoteDir, runDir, &f)
+	return f, foldLocked(wipnoteDir, runDir, &f)
 }
 
-// foldSessions reads the worker's session files, claim files and
+// foldLocked reads the worker's session files, claim files, gate runs and
 // folded.json under the fold lock, so a fold never works from a snapshot
-// another fold has already moved past, and folds them.
-func foldSessions(wipnoteDir, runDir string, f *Folded) error {
+// another fold has already moved past, and folds them. FoldedAt advances
+// only when every part succeeded, so a part that failed (a gate append
+// under a transient lock or IO error) leaves the folder unfolded and
+// FoldPending retries it; what did fold is recorded and not folded again.
+func foldLocked(wipnoteDir, runDir string, f *Folded) error {
 	path := filepath.Join(runDir, FoldedFile)
 	// One project-wide lock for every fold of sessions and claims: two folds
 	// of one run re-read folded.json under it, and two run folders of one
@@ -87,6 +87,9 @@ func foldSessions(wipnoteDir, runDir string, f *Folded) error {
 	ferr := foldSessionFiles(wipnoteDir, runDir, &st, f)
 	if ferr == nil {
 		ferr = foldClaims(wipnoteDir, runDir, &st, f)
+	}
+	if ferr == nil {
+		ferr = foldGates(wipnoteDir, runDir, f)
 	}
 	if ferr == nil && stale {
 		st.FoldedAt = start
@@ -275,6 +278,11 @@ func foldGates(wipnoteDir, runDir string, f *Folded) error {
 		if foldGateCheck != nil {
 			foldGateCheck()
 		}
+		if foldGateErr != nil {
+			if err := foldGateErr(); err != nil {
+				return err
+			}
+		}
 		_, added, err := store.AppendIfAbsent(r)
 		if err != nil {
 			return err
@@ -285,6 +293,10 @@ func foldGates(wipnoteDir, runDir string, f *Folded) error {
 	}
 	return nil
 }
+
+// foldGateErr is a test seam: a non-nil error it returns fails the gate
+// append, as a transient gate-ledger lock or IO error would.
+var foldGateErr func() error
 
 // foldGateCheck is a test seam: called just before a fold records a gate
 // run, where an unlocked check-then-append would let another fold in.

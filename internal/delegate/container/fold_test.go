@@ -239,25 +239,31 @@ func TestFold_ResumedRunInNewFolder(t *testing.T) {
 
 // TestFold_ConcurrentFoldsAppendGateOnce: two host folds of one run (the
 // pane worker's and the waiting caller's) must append the worker's gate
-// record once. The foldGateCheck seam runs a whole second fold at the point
+// record once. The foldGateCheck seam starts a whole second fold at the point
 // where the first has decided its record is missing and has not appended
-// yet. The other side: one fold alone appends it once.
+// yet; it waits on the fold lock. The other side: one fold alone appends it once.
 func TestFold_ConcurrentFoldsAppendGateOnce(t *testing.T) {
 	wipnoteDir, runDir := foldProject(t)
 	gate := workerWrites(t, wipnoteDir, "efefefef-0000-2222-3333-444444444444", time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC))
 	second := false
+	done := make(chan struct{})
 	foldGateCheck = func() {
 		if !second {
 			second = true
-			if _, err := Fold(wipnoteDir, runDir); err != nil {
-				t.Error(err)
-			}
+			go func() { // it waits for the fold lock the first fold holds
+				defer close(done)
+				if _, err := Fold(wipnoteDir, runDir); err != nil {
+					t.Error(err)
+				}
+			}()
+			time.Sleep(20 * time.Millisecond)
 		}
 	}
 	t.Cleanup(func() { foldGateCheck = nil })
 	if _, err := Fold(wipnoteDir, runDir); err != nil {
 		t.Fatal(err)
 	}
+	<-done
 	gates, _ := gateledger.NewStore(wipnoteDir).ReadAll()
 	n := 0
 	for _, g := range gates {
