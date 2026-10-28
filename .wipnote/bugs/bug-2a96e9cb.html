@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Resumed sessions are not recorded in the sessions ledger</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-2a96e9cb"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-28T06:28:49.234313"
+             data-updated="2026-10-28T06:29:06.230654" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+
+        <header>
+            <h1>Resumed sessions are not recorded in the sessions ledger</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="../features/feat-e6e3ef39.html" data-relationship="caused_by" data-since="2026-10-28T06:28:49.237797">feat-e6e3ef39</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-28T06:29:06.230547">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-621f9064.html" data-relationship="part_of" data-since="2026-10-28T06:28:49.238753">trk-621f9064</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>On claude --resume, sessionledger.Store.Open leaves the closed row alone and Close leaves an already-closed row untouched, so a resumed-then-exited session never records its second end. procsweep then treats processes started after the first end as live forever. Owner decision 2026-10-28: record each resume as a run on the session row (append-only events): a resume adds a run with its start, Close ends the latest run, lineage keeps the first start, and procsweep decides orphans from the latest run. Found by Codex review on PR 279.</p>
+        </section>
+    </article>
+</body>
+</html>
