@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sort"
 	"text/tabwriter"
 	"time"
 
@@ -35,12 +36,28 @@ func printOrphanProcesses(out io.Writer, res procsweep.Result, err error) bool {
 		fmt.Fprintf(out, "reconcile: process sweep skipped — %v\n", err)
 		return true
 	}
+	wrote := printProjectErrors(out, "reconcile", res)
 	orphans := res.Orphans()
 	for _, p := range orphans {
 		fmt.Fprintf(out, "reconcile: orphaned process %d — %s (session %s ended; project %s; started %s); stop with: %s\n",
 			p.PID, p.Command, p.SessionID, p.Project, procTime(p.StartedAt), p.StopHint)
 	}
-	return len(orphans) > 0
+	return wrote || len(orphans) > 0
+}
+
+// printProjectErrors writes one line per project whose sessions ledger the
+// sweep could not read (its processes went unattributed), sorted by project.
+// It reports whether it wrote anything.
+func printProjectErrors(out io.Writer, prefix string, res procsweep.Result) bool {
+	names := make([]string, 0, len(res.ProjectErrors))
+	for name := range res.ProjectErrors {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fmt.Fprintf(out, "%s: project %s skipped — %s\n", prefix, name, res.ProjectErrors[name])
+	}
+	return len(names) > 0
 }
 
 // printSessionProcesses is `reconcile --processes`: every live process that
@@ -50,6 +67,7 @@ func printSessionProcesses(out io.Writer, res procsweep.Result, err error) {
 		fmt.Fprintf(out, "processes: %v\n", err)
 		return
 	}
+	printProjectErrors(out, "processes", res)
 	orphans := len(res.Orphans())
 	fmt.Fprintf(out, "processes: %d from agent sessions (%d orphaned)\n", len(res.Procs), orphans)
 	if len(res.Procs) > 0 {

@@ -12,6 +12,7 @@ func TestPreToolUse_GuardOrder(t *testing.T) {
 	want := []string{
 		"wipnote-write",
 		"bash-cwd",
+		"delegate-redirect",
 		"plan-mode-bypass",
 		"orchestrator-research-advisory",
 		"orchestrator-strict",

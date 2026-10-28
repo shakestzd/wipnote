@@ -12,6 +12,7 @@ slice 3 (feat-715f1d4f). Code: `internal/statusall/`, `cmd/wipnote/status_all.go
 wipnote status --all            # compact text, newest activity first
 wipnote status --all --json     # the schema below
 wipnote status --all --no-gh    # skip every gh call (no PR or CI)
+wipnote status --all --no-procs # skip the process sweep (no orphans)
 wipnote status --all --timeout 10s --runs 3
 ```
 
@@ -20,6 +21,7 @@ wipnote status --all --timeout 10s --runs 3
 | `--all` | off | Read every registered project instead of the current one |
 | `--json` | off | Print the JSON document (needs `--all`) |
 | `--no-gh` | off | Do not call gh; `sources.gh` is `skipped` |
+| `--no-procs` | off | Do not sweep processes; `sources.procs` is `skipped` |
 | `--timeout` | 30s | Bound for the whole run |
 | `--runs` | 5 | Recent runs kept per project |
 
@@ -29,11 +31,14 @@ wipnote status --all --timeout 10s --runs 3
   writes no `.wipnote/` file, makes no commit, and does not touch the registry. The usual
   per-command session and registry bookkeeping is skipped for `status --all`.
 - **Never in a hook.** No hook calls it.
+- **Never signals.** Orphaned processes are reported with a stop command to copy; wipnote never
+  stops one (`internal/procsweep` holds no signal call, and a test enforces it).
 - **Bounded.** Projects are read by a pool of 4 workers. Every git call has a 5 s timeout, every gh
-  call 8 s, every herdr call 3 s, and the whole run stops at `--timeout`. A project still reading
+  call 8 s, every herdr call 3 s, the one process sweep 5 s, and the whole run stops at `--timeout`. A project still reading
   then is printed as `not read: the <timeout> time limit was reached`.
 - **Degrades per part.** A missing, signed-out or failing gh marks only `sources.gh`; herdr outside a
-  herdr pane, missing or failing marks only `sources.herdr`. A project whose folder or `.wipnote/`
+  herdr pane, missing or failing marks only `sources.herdr`; a sweep that fails or times out, or a
+  platform that cannot read process environments, marks only `sources.procs`. A project whose folder or `.wipnote/`
   cannot be read is an error row, and the rest still print.
 
 ## Where each part comes from
@@ -48,7 +53,7 @@ wipnote status --all --timeout 10s --runs 3
 | agents | herdr `agent list` (state), the claims and sessions ledgers (work item) |
 | runs | `core/runledger` (slice 1, feat-36658c22) |
 | needs you | blocked herdr agents and the runs above |
-| orphans | filled by slice 4 (feat-e6e3ef39); always `[]` until then |
+| orphans | `internal/procsweep`: one sweep per run over every readable project (feat-1ccfb342) |
 
 **Active plan.** A plan whose status is not `completed` and that has a slice not `done` or
 `superseded`. When several qualify: one with a slice whose feature is in progress wins, then
@@ -75,6 +80,14 @@ completed). `lost_run`: a run started in the last 24 h with no end whose session
 Not yet sourced: held runs (a guardrail hold waiting on the owner) and worker questions waiting for
 an answer. The plan's notes list both as needs-you entries; no ledger records them yet, so they are
 left out until one does.
+`orphan_process`: a live process that inherited the session id of a session that has ended
+(see Orphans).
+
+**Orphans.** One `procsweep.Sweep` per run lists the current user's processes and matches each to a
+session by the session id in its environment, never by parent pid. A process whose session has
+ended is an orphan and is listed under the project whose sessions ledger knows that session. A
+process of a live session is not shown. The command is trimmed by procsweep and host paths in it
+are made relative to the project or redacted.
 
 **Activity.** `last_activity` is the newest of the last commit, the runs, the agents' `since` and the
 in-progress items' update times; the registry's last-seen time when there is none.
@@ -104,12 +117,12 @@ Project:
 | `agents` | [Agent] | Live agents |
 | `runs` | [Run] | Recent runs, newest first |
 | `needs_you` | [Need] | What waits on the owner; blocked agents first |
-| `orphans` | [] | Filled by slice 4 (feat-e6e3ef39) |
-| `sources` | {string: string} | State of each part: `git`, `gh`, `herdr` |
+| `orphans` | [Orphan] | Orphaned processes, by pid |
+| `sources` | {string: string} | State of each part: `git`, `gh`, `herdr`, `procs` |
 | `errors` | [string] | Parts that could not be read; for an unreadable project, its only content |
 
 `sources` values: `ok`; `none` (gh: no PR for the branch, or no branch); `skipped` (gh with
-`--no-gh`); `not available: <reason>`.
+`--no-gh`, procs with `--no-procs`); `not available: <reason>`.
 
 Plan: `id`, `title`, `slice` (Slice or null), `done` (int), `total` (int).
 Slice: `num` (int), `title`, `feature_id` (string?), `status` (the slice's `execution_status`,
@@ -143,7 +156,11 @@ Run (the runledger record; see plan-56a4f0ad slice 1): `id`, `kind`, `descriptio
 `harness`, and `line` (the one-line summary, e.g. `gate exit 0 at 16:31 on commit abc1234`).
 Optional keys are left out when empty.
 
-Need: `kind` (`blocked_agent`, `failed_run`, `lost_run`), `what` (one line), `since` (RFC 3339?),
+Orphan (procsweep's Proc): `pid` (int), `command` (trimmed, no host paths), `session_id`, `project`
+(the registry name), `started_at` (RFC 3339; zero time when the platform did not report it),
+`orphan` (always true here), `stop_hint` (e.g. `kill 4242`; wipnote never runs it).
+
+Need: `kind` (`blocked_agent`, `failed_run`, `lost_run`, `orphan_process`), `what` (one line), `since` (RFC 3339?),
 `work_item` (string?).
 
 The golden file `internal/statusall/testdata/report.golden.json` is a full example; a test fails

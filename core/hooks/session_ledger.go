@@ -22,9 +22,14 @@ import (
 // (subagent_start.go); those ids are lineage bookkeeping, are never edge
 // targets, and one row each would bury the real sessions in stubs.
 //
-// COST: exactly one constant-time tail append per session — SessionStart fires
-// once, and Open is a no-op on the second call for the same id (resume,
-// replayed hook). It must never move onto a per-tool-call path.
+// COST: one constant-time tail append per session run. The first start appends
+// the row; a start on a row whose latest run has ended is a resume (`--resume`,
+// `--continue`, a Codex resume) and appends one run-start line (bug-2a96e9cb);
+// a start on an open row is a replayed hook and writes nothing. The resume is
+// decided from the ledger, not from the payload's `source`: a closed row can
+// only be started again by a new process, whatever source the harness sends,
+// and a SessionStart replayed for a run that is still open finds the row open.
+// It must never move onto a per-tool-call path.
 //
 // Best-effort and silent, like every other canonical-artifact write on this
 // hook: a session must not fail to start because history could not be written,

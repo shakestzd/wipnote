@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/sessionledger"
@@ -46,6 +48,9 @@ type Result struct {
 	// Unattributed counts processes carrying a session id that no given
 	// project's ledger knows (another project, or a session never recorded).
 	Unattributed int `json:"unattributed"`
+	// ProjectErrors maps a project name to why its sessions ledger could not
+	// be read. That project's sessions are skipped; the others still sweep.
+	ProjectErrors map[string]string `json:"project_errors,omitempty"`
 }
 
 // Orphans returns the processes whose session has ended.
@@ -66,16 +71,13 @@ func (r Result) Orphans() []Proc {
 // `status --all` share.
 func Sweep(ctx context.Context, projects []Project, opts Options) (Result, error) {
 	opts = opts.withDefaults()
-	sessions, err := loadSessions(projects)
-	if err != nil {
-		return Result{}, err
-	}
+	sessions, projectErrs := loadSessions(projects)
 	raws, err := listBounded(ctx, opts.Lister, opts.Timeout)
 	if err != nil {
 		return Result{}, err
 	}
 	skip := ancestry(raws, opts.Self)
-	var res Result
+	res := Result{ProjectErrors: projectErrs}
 	for _, rp := range raws {
 		if skip[rp.PID] {
 			continue
@@ -114,41 +116,62 @@ func (o Options) withDefaults() Options {
 
 type sessionState struct {
 	project string
-	endedAt time.Time // zero while the session is open
+	latest  sessionledger.Run // the session's latest run
 }
 
 // orphans reports whether a process started at start is a leftover of this
-// session's ended run. The ledger keeps a resumed session's row closed
-// (`--resume` reuses the id and Store.Open leaves an existing row alone), so
-// a process started after the recorded end, past endClockTolerance, belongs
-// to the resumed run and is live. An unknown (zero) start cannot be placed
-// relative to the end, so it keeps the plain rule: ended session → orphan.
+// session. It decides from the LATEST run, which the ledger records for every
+// resume (bug-2a96e9cb):
+//
+//   - latest run open: live, whenever the process started — a process left
+//     over from an earlier run shares the id of a running session;
+//   - latest run ended, start unknown (zero): it cannot be placed relative to
+//     the end, so the plain rule holds — orphan;
+//   - latest run ended, started at or before its end + endClockTolerance: a
+//     leftover of that run or an earlier one — orphan;
+//   - latest run ended, started after that: no recorded run covers it (a
+//     resume whose SessionStart has not been written yet), so it is not called
+//     an orphan.
 func (s sessionState) orphans(start time.Time) bool {
-	if s.endedAt.IsZero() {
+	if s.latest.IsOpen() {
 		return false
 	}
 	if start.IsZero() {
 		return true
 	}
-	return !start.After(s.endedAt.Add(endClockTolerance))
+	return !start.After(s.latest.EndedAt.Add(endClockTolerance))
 }
 
-// loadSessions indexes every project's ledger by session id. The first
-// project to know a session claims it.
-func loadSessions(projects []Project) (map[string]sessionState, error) {
+// loadSessions indexes every readable project's ledger by session id. The
+// first project to know a session claims it. A ledger that cannot be read
+// skips only its own project: the reason is returned by project name (nil
+// when every ledger read cleanly), so one bad ledger never hides the rest.
+func loadSessions(projects []Project) (map[string]sessionState, map[string]string) {
 	out := map[string]sessionState{}
+	var errs map[string]string
 	for _, p := range projects {
 		recs, err := sessionledger.NewStore(p.WipnoteDir).ReadAll()
 		if err != nil {
-			return nil, fmt.Errorf("procsweep: read sessions ledger for %s: %w", p.Name, err)
+			if errs == nil {
+				errs = map[string]string{}
+			}
+			errs[p.Name] = ledgerError(p, err)
+			continue
 		}
 		for _, r := range recs {
 			if _, seen := out[r.SessionID]; !seen {
-				out[r.SessionID] = sessionState{project: p.Name, endedAt: r.EndedAt}
+				out[r.SessionID] = sessionState{project: p.Name, latest: r.LatestRun()}
 			}
 		}
 	}
-	return out, nil
+	return out, errs
+}
+
+// ledgerError describes a ledger read failure without the host path: the
+// project root is stripped so the ledger shows as .wipnote/<file>.
+func ledgerError(p Project, err error) string {
+	root := filepath.Dir(p.WipnoteDir) + string(filepath.Separator)
+	return "read sessions ledger: " + strings.ReplaceAll(err.Error(), root, "")
 }
 
 // listBounded runs the lister under a deadline. A lister that ignores its

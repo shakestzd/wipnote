@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/shakestzd/wipnote/internal/procsweep"
 	"github.com/shakestzd/wipnote/internal/registry"
 	"github.com/shakestzd/wipnote/internal/statusall"
 )
@@ -70,7 +72,7 @@ func TestStatusAll_TextListsEveryProjectAndWritesNothing(t *testing.T) {
 	regBefore, _ := os.ReadFile(regPath)
 	treeBefore := statusAllTree(t, filepath.Join(good, ".wipnote"))
 
-	out, err := runStatusAllCmd(t, "--all", "--no-gh", "--project-dir", good)
+	out, err := runStatusAllCmd(t, "--all", "--no-gh", "--no-procs", "--project-dir", good)
 	if err != nil {
 		t.Fatalf("status --all: %v\n%s", err, out)
 	}
@@ -91,7 +93,7 @@ func TestStatusAll_JSONMatchesTheSchema(t *testing.T) {
 	good, _ := statusAllFixture(t)
 	isolateProjectDir(t, good)
 
-	out, err := runStatusAllCmd(t, "--all", "--json", "--no-gh")
+	out, err := runStatusAllCmd(t, "--all", "--json", "--no-gh", "--no-procs")
 	if err != nil {
 		t.Fatalf("status --all --json: %v\n%s", err, out)
 	}
@@ -126,4 +128,25 @@ func TestStatus_WithoutAllIsUnchanged(t *testing.T) {
 		t.Fatalf("status: %v", err)
 	}
 	_ = out // runStatus prints to the process stdout; it must simply not fail.
+}
+
+func TestStatusAll_NoProcsSkipsTheSweep(t *testing.T) {
+	good, _ := statusAllFixture(t)
+	isolateProjectDir(t, good)
+	calls := 0
+	orig := statusAllProcLister
+	statusAllProcLister = procsweep.ListerFunc(func(context.Context) ([]procsweep.RawProc, error) {
+		calls++
+		return nil, nil
+	})
+	t.Cleanup(func() { statusAllProcLister = orig })
+
+	out, err := runStatusAllCmd(t, "--all", "--no-gh", "--no-procs")
+	if err != nil || !strings.Contains(out, "procs: skipped") || calls != 0 {
+		t.Fatalf("--no-procs: err %v calls %d\n%s", err, calls, out)
+	}
+	out, err = runStatusAllCmd(t, "--all", "--no-gh")
+	if err != nil || strings.Contains(out, "procs: skipped") || calls != 1 {
+		t.Fatalf("default: err %v calls %d\n%s", err, calls, out)
+	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -131,7 +132,7 @@ func TestRepairIsIdempotent(t *testing.T) {
 		t.Fatalf("row count changed: %d then %d", len(first), len(second))
 	}
 	for i := range first {
-		if first[i] != second[i] {
+		if !reflect.DeepEqual(first[i], second[i]) {
 			t.Errorf("a repeated repair changed a row:\n  first:  %+v\n  second: %+v", first[i], second[i])
 		}
 	}

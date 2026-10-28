@@ -1,54 +1,52 @@
 package main
 
 import (
-	"crypto/sha1"
-	"fmt"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
-// blobsInLooseBucket17 returns n file contents whose git blob ids start with
-// "17". Git estimates the loose-object count from objects/17 alone, so two such
-// blobs are enough to cross a 256-object auto-maintenance threshold.
-func blobsInLooseBucket17(n int) []string {
-	var out []string
-	for i := 0; len(out) < n; i++ {
-		c := fmt.Sprintf("payload %d\n", i)
-		if h := sha1.Sum([]byte(fmt.Sprintf("blob %d\x00%s", len(c), c))); h[0] == 0x17 {
-			out = append(out, c)
-		}
-	}
-	return out
-}
-
-// forceEagerAutoMaintenance points git's global config at a file whose gc.auto
-// fires on two loose objects in objects/17 — the same trigger git >= 2.54's
-// default geometric-repack auto condition has — run in the foreground so the
-// resulting pack is observable deterministically.
-func forceEagerAutoMaintenance(t *testing.T) {
+// autoMaintenanceStarted commits one file in root with git's trace2 event log
+// on, and reports whether the commit started git's auto maintenance child
+// (`git maintenance run --auto`, or `git gc --auto` on older git). Asking
+// whether the child STARTED, not whether it packed anything, keeps the check
+// independent of each git version's repack heuristics (bug-6a5b608b: git 2.56
+// stopped packing under the gc.auto=1 trigger this test used to rely on).
+func autoMaintenanceStarted(t *testing.T, root string) bool {
 	t.Helper()
-	cfg := filepath.Join(t.TempDir(), "gitconfig")
-	body := "[gc]\n\tauto = 1\n\tautoDetach = false\n[maintenance]\n\tautoDetach = false\n"
-	if err := os.WriteFile(cfg, []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "probe"), []byte(root+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("GIT_CONFIG_GLOBAL", cfg)
-}
-
-// commitBucket17Blobs commits two blobs into objects/17 and reports how many
-// packfiles the commit's auto maintenance left behind.
-func commitBucket17Blobs(t *testing.T, root string) int {
-	t.Helper()
-	for i, c := range blobsInLooseBucket17(2) {
-		if err := os.WriteFile(filepath.Join(root, fmt.Sprintf("b17-%d", i)), []byte(c), 0o644); err != nil {
-			t.Fatal(err)
+	trace := filepath.Join(t.TempDir(), "trace2.json")
+	t.Setenv("GIT_TRACE2_EVENT", trace)
+	provGit(t, root, "add", "--all")
+	provGit(t, root, "commit", "-q", "-m", "probe")
+	data, err := os.ReadFile(trace)
+	if err != nil {
+		t.Fatalf("read trace2 log: %v", err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		var ev struct {
+			Event string   `json:"event"`
+			Argv  []string `json:"argv"`
+		}
+		if json.Unmarshal([]byte(line), &ev) != nil || ev.Event != "child_start" {
+			continue
+		}
+		if isAutoMaintenanceArgv(ev.Argv) {
+			return true
 		}
 	}
-	provGit(t, root, "add", "--all")
-	provGit(t, root, "commit", "-q", "-m", "bucket 17")
-	packs, _ := filepath.Glob(filepath.Join(root, ".git", "objects", "pack", "*.pack"))
-	return len(packs)
+	return false
+}
+
+// isAutoMaintenanceArgv matches `git maintenance run --auto` and `git gc --auto`.
+func isAutoMaintenanceArgv(argv []string) bool {
+	joined := " " + strings.Join(argv, " ") + " "
+	return strings.Contains(joined, " --auto ") &&
+		(strings.Contains(joined, " maintenance run ") || strings.Contains(joined, " gc "))
 }
 
 // bug-a2ea88db: after each commit git runs `maintenance run --auto`, which
@@ -56,19 +54,20 @@ func commitBucket17Blobs(t *testing.T, root string) int {
 // racing t.TempDir's RemoveAll ("objects/pack: directory not empty"). The
 // fixture repo must never start auto maintenance.
 func TestProvInitRepo_DisablesAutoMaintenance(t *testing.T) {
-	forceEagerAutoMaintenance(t)
+	// An empty global config, so the host's git settings decide neither side.
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "gitconfig"))
 
-	// Control: an ordinary repo under the same config does repack, so the
-	// fixture's zero below is not vacuous.
+	// Control: an ordinary repo does start auto maintenance on commit, so the
+	// fixture's "no" below is not vacuous.
 	plain := t.TempDir()
 	provGit(t, plain, "init", "-q")
-	if n := commitBucket17Blobs(t, plain); n == 0 {
-		t.Fatal("control repo ran no auto maintenance; the forcing config is not in effect")
+	if !autoMaintenanceStarted(t, plain) {
+		t.Fatal("control repo started no auto maintenance on commit; the probe is not observing it")
 	}
 
 	fixture := t.TempDir()
 	provInitRepo(t, fixture)
-	if n := commitBucket17Blobs(t, fixture); n != 0 {
-		t.Errorf("provInitRepo repo ran auto maintenance after a commit: %d pack(s) written", n)
+	if autoMaintenanceStarted(t, fixture) {
+		t.Error("provInitRepo repo started git auto maintenance on commit")
 	}
 }

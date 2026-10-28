@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/filelock"
@@ -83,12 +84,20 @@ func (s *Store) Get(sessionID string) (Record, bool, error) {
 	return Record{}, false, nil
 }
 
-// Open records the START of a session: one appended row with no end.
+// Open records the START of a session run.
 //
-// It is IDEMPOTENT, which is the property that keeps the ledger one-row-per-
-// session. SessionStart fires again on every --resume and --continue of the same
-// session id, and a replayed hook must not append a second row; Open therefore
-// writes NOTHING when a row for the id already exists.
+// The first Open for an id appends the session's row: run 1. An Open on a row
+// whose latest run has ENDED is a resume (`--resume`, `--continue`, a Codex
+// resume — the id is reused): it appends one run-start event line (runs.go)
+// with the incoming start, so a resumed-then-exited session records its second
+// end instead of staying closed at its first (bug-2a96e9cb). An Open on a row
+// whose latest run is OPEN is a replayed hook and writes nothing, which keeps
+// the ledger one-row-per-session. Both writes are constant-time tail appends.
+//
+// Only the start signal itself may call Open: the SessionStart hook, or a
+// command minting a new session. A late writer that merely sees a session id
+// in its environment uses Ensure, which never resumes — a leftover process
+// running a CLI command must not reopen the session it outlived.
 //
 // A harness that is the agent fallback identity is refused with
 // ErrAgentHarness rather than recorded. On an existing row, Open corrects a
@@ -96,12 +105,19 @@ func (s *Store) Get(sessionID string) (Record, bool, error) {
 // authoritative SessionStart write wins over an earlier late writer's guess
 // (bug-5333ea49).
 //
-// Returns whether a new row was written.
-func (s *Store) Open(r Record) (bool, error) {
+// Returns whether a new row or run was written.
+func (s *Store) Open(r Record) (bool, error) { return s.open(r, true) }
+
+// Ensure records a session's row when none exists, and otherwise only corrects
+// a guessed harness. It never starts a run: it is the late-writer path
+// (EnsureSession), whose caller cannot tell a live session from one it outlived.
+func (s *Store) Ensure(r Record) (bool, error) { return s.open(r, false) }
+
+func (s *Store) open(r Record, mayResume bool) (bool, error) {
 	if r.StartedAt.IsZero() {
 		r.StartedAt = time.Now().UTC()
 	}
-	r.EndedAt = time.Time{}
+	r.EndedAt, r.EndSource, r.Runs = time.Time{}, EndSourceUnknown, nil
 	r.ArchivePath = ""
 	r.Events = 0
 	if err := r.Validate(); err != nil {
@@ -119,9 +135,14 @@ func (s *Store) Open(r Record) (bool, error) {
 		return false, err
 	}
 	if _, found := findRecord(existing, r.SessionID); found >= 0 {
-		// Already recorded — a resume or a replayed hook, not a new session.
+		resumed := false
+		if mayResume && !existing[found].IsOpen() {
+			if resumed, err = s.resumeLocked(&existing[found], r.StartedAt); err != nil {
+				return false, err
+			}
+		}
 		// The one thing a start may still fix is a harness a late writer guessed.
-		return false, s.correctHarnessLocked(existing, found, r.Harness)
+		return resumed, s.correctHarnessLocked(existing, found, r.Harness)
 	}
 
 	if err := appendRowLocked(s.path, r); err != nil {
@@ -148,15 +169,17 @@ func (s *Store) correctHarnessLocked(records []Record, idx int, harness string) 
 	return nil
 }
 
-// Close records the END of a session, in place so one session stays one row.
+// Close records the END of a session's latest run.
 //
-// It is rarer than Open by construction (a session is opened before it can be
-// closed) and never fires more than once per session end, so paying the
-// serialize cost here keeps it off the frequent path.
+// Run 1's end is stamped in place on the session row, so one session stays one
+// row and an older reader sees it. It is rarer than Open by construction (a
+// session is opened before it can be closed) and never fires more than once
+// per session end, so paying the serialize cost here keeps it off the frequent
+// path. A resumed run's end is a run-end event line appended at the tail.
 //
-// An already-closed row is left untouched and reported as no change: the first
-// recorded end is the true one, and a later reconcile pass must not move it.
-// Returns ErrNoRow when the session predates the ledger.
+// A row whose latest run is already closed is left untouched and reported as
+// no change: the first recorded end is the true one, and a later reconcile pass
+// must not move it. Returns ErrNoRow when the session predates the ledger.
 func (s *Store) Close(sessionID string, endedAt time.Time) error {
 	if endedAt.IsZero() {
 		endedAt = time.Now().UTC()
@@ -173,15 +196,28 @@ func (s *Store) Close(sessionID string, endedAt time.Time) error {
 	if idx < 0 {
 		return ErrNoRow
 	}
-	if !records[idx].IsOpen() {
+	rec := records[idx]
+	if !rec.IsOpen() {
 		return nil
 	}
-	if endedAt.Before(records[idx].StartedAt) {
-		endedAt = records[idx].StartedAt
+	if start := rec.LatestRun().StartedAt; endedAt.Before(start) {
+		// On a resumed run an end before its start belongs to an earlier
+		// run (a late SessionEnd catch-up); closing the live run with it
+		// would turn its processes into orphans. Run 1 has no earlier run,
+		// so there it is clock skew and clamps.
+		if rec.resumed() {
+			return nil
+		}
+		endedAt = start
 	}
-	records[idx].EndedAt = endedAt
-	records[idx].EndSource = EndSourceLiveClose
-	if err := writeAllLocked(s.path, records); err != nil {
+	if rec.resumed() {
+		ev := runEvent{kind: runEventEnd, at: endedAt, src: EndSourceLiveClose}
+		err = ledgerFormat.AppendRow(s.path, marshalRunEvent(sessionID, ev))
+	} else {
+		records[idx].endLatest(endedAt, EndSourceLiveClose)
+		err = writeAllLocked(s.path, records)
+	}
+	if err != nil {
 		return err
 	}
 	s.notify("session end")
@@ -231,33 +267,57 @@ func (s *Store) Enrich(sessionID string, e Enrichment) (bool, error) {
 
 	_, idx := findRecord(records, sessionID)
 	if idx < 0 {
-		started := e.StartedAt
-		if started.IsZero() {
-			started = e.EndedAt
-		}
-		created := Record{
-			SessionID:   sessionID,
-			Harness:     e.Harness,
-			ProjectDir:  e.ProjectDir,
-			StartedAt:   started,
-			EndedAt:     e.EndedAt,
-			ArchivePath: e.ArchivePath,
-			Events:      e.Events,
-		}
-		if !created.IsOpen() {
-			created.EndSource = e.EndSource
-		}
-		if err := created.Validate(); err != nil {
-			return false, err
-		}
-		if err := appendRowLocked(s.path, created); err != nil {
-			return false, err
-		}
-		s.notify("session record")
-		return true, nil
+		return s.createFromEnrichmentLocked(sessionID, e)
 	}
 
 	before := records[idx]
+	merged := mergeEnrichment(before, e)
+	if reflect.DeepEqual(merged, before) {
+		return false, nil
+	}
+
+	records[idx] = merged
+	if err := writeAllLocked(s.path, records); err != nil {
+		return false, err
+	}
+	s.notify("session record")
+	return true, nil
+}
+
+// createFromEnrichmentLocked appends the row a backfill proves existed. The
+// start falls back to the end rather than being invented. Caller holds the lock.
+func (s *Store) createFromEnrichmentLocked(sessionID string, e Enrichment) (bool, error) {
+	started := e.StartedAt
+	if started.IsZero() {
+		started = e.EndedAt
+	}
+	created := Record{
+		SessionID:   sessionID,
+		Harness:     e.Harness,
+		ProjectDir:  e.ProjectDir,
+		StartedAt:   started,
+		EndedAt:     e.EndedAt,
+		ArchivePath: e.ArchivePath,
+		Events:      e.Events,
+	}
+	if !created.IsOpen() {
+		created.EndSource = e.EndSource
+	}
+	if err := created.Validate(); err != nil {
+		return false, err
+	}
+	if err := appendRowLocked(s.path, created); err != nil {
+		return false, err
+	}
+	s.notify("session record")
+	return true, nil
+}
+
+// mergeEnrichment fills before's unknown fields from e. An end lands on the
+// latest run only while it is open, and never when it precedes that run's
+// start: such an end describes an earlier run (a backfill from the first run's
+// events), and must not close the run a resume opened.
+func mergeEnrichment(before Record, e Enrichment) Record {
 	merged := before
 	if merged.Harness == "" {
 		merged.Harness = e.Harness
@@ -269,8 +329,13 @@ func (s *Store) Enrich(sessionID string, e Enrichment) (bool, error) {
 		merged.StartedAt = e.StartedAt
 	}
 	if merged.IsOpen() && !e.EndedAt.IsZero() {
-		merged.EndedAt = e.EndedAt
-		merged.EndSource = e.EndSource
+		end, start := e.EndedAt, merged.LatestRun().StartedAt
+		switch {
+		case !end.Before(start):
+			merged.endLatest(end, e.EndSource)
+		case !merged.resumed():
+			merged.endLatest(start, e.EndSource)
+		}
 	}
 	if merged.ArchivePath == "" {
 		merged.ArchivePath = e.ArchivePath
@@ -278,19 +343,7 @@ func (s *Store) Enrich(sessionID string, e Enrichment) (bool, error) {
 	if merged.Events == 0 && e.Events > 0 {
 		merged.Events = e.Events
 	}
-	if !merged.EndedAt.IsZero() && merged.EndedAt.Before(merged.StartedAt) {
-		merged.EndedAt = merged.StartedAt
-	}
-	if merged == before {
-		return false, nil
-	}
-
-	records[idx] = merged
-	if err := writeAllLocked(s.path, records); err != nil {
-		return false, err
-	}
-	s.notify("session record")
-	return true, nil
+	return merged
 }
 
 // Correction describes one proposed change to a row's end, whether it would be
@@ -329,7 +382,8 @@ func (c Correction) AttributionOnly() bool {
 }
 
 // Correct replaces a row's end when — and only when — the incoming source is
-// more trustworthy than the one already recorded.
+// more trustworthy than the one already recorded. On a resumed session it is
+// the LATEST run's end that is corrected.
 //
 // This is the deliberate counterpart to Enrich, not a loosening of it. Enrich
 // fills gaps and never moves a value that is already there, which is right for
@@ -370,9 +424,9 @@ func (s *Store) Correct(sessionID string, end time.Time, src EndSource, dryRun b
 	case end.IsZero():
 		c.Reason = "no end available from any source"
 		return c, nil
-	case end.Before(before.StartedAt):
-		// Never record an end before the start; that is corrupt whatever its
-		// provenance says.
+	case end.Before(before.LatestRun().StartedAt):
+		// Never record an end before the (latest run's) start; that is corrupt
+		// whatever its provenance says.
 		c.Reason = "candidate end precedes the recorded start"
 		return c, nil
 	case !src.OutranksRecorded(before.EndSource):
@@ -395,8 +449,7 @@ func (s *Store) Correct(sessionID string, end time.Time, src EndSource, dryRun b
 	}
 
 	attributionOnly := c.AttributionOnly()
-	records[idx].EndedAt = end
-	records[idx].EndSource = src
+	records[idx].endLatest(end, src)
 	if err := writeAllLocked(s.path, records); err != nil {
 		return Correction{}, err
 	}

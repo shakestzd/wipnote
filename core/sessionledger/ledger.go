@@ -36,12 +36,16 @@ const ledgerFooter = `</tbody>
 // mis-parsed.
 const rowSelector = `table[data-session-ledger] tbody tr[data-session-id]`
 
+// recordSelector picks session rows and run-event lines (runs.go) in one pass,
+// in document order, which is the order run events fold in.
+const recordSelector = rowSelector + ", " + runSelector
+
 // ledgerFormat is this ledger's document shape for the shared HTML codec.
 var ledgerFormat = htmlledger.Format{
 	Name:        "sessionledger",
 	Header:      ledgerHeader,
 	Footer:      ledgerFooter,
-	RowSelector: rowSelector,
+	RowSelector: recordSelector,
 	TempPattern: ".sessions-ledger-*.tmp",
 }
 
@@ -97,17 +101,11 @@ func marshalRow(r Record) []byte {
 // This matches the claim ledger's and the archive ledger's behaviour.
 func ReadFile(path string) ([]Record, error) {
 	fsprobe.Touch(fsprobe.OpRead, path)
-	var records []Record
-	err := ledgerFormat.ReadRows(path, func(row *goquery.Selection) {
-		if r, ok := parseRow(row); ok {
-			records = append(records, r)
-		}
-	})
-	if err != nil {
+	var c rowCollector
+	if err := ledgerFormat.ReadRows(path, c.add); err != nil {
 		return nil, err
 	}
-	sortRecords(records)
-	return records, nil
+	return c.result(), nil
 }
 
 func parseRow(row *goquery.Selection) (Record, bool) {
@@ -183,7 +181,7 @@ func writeAllLocked(path string, records []Record) error {
 	sortRecords(sorted)
 	rows := make([][]byte, 0, len(sorted))
 	for _, r := range sorted {
-		rows = append(rows, marshalRow(r))
+		rows = append(rows, marshalRecord(r))
 	}
 	return ledgerFormat.WriteAll(path, rows)
 }

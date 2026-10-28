@@ -92,3 +92,24 @@ func TestFetchPR(t *testing.T) {
 		t.Errorf("got %+v, want %+v", *pr, want)
 	}
 }
+
+// ResolveBranchPR never reads its argument as a PR number.
+func TestResolveBranchPR_DigitsAreABranch(t *testing.T) {
+	f := &FakeRunner{Results: map[string]FakeResult{
+		"gh pr list --head 123 --state all --limit 1 --json number": {Stdout: `[{"number":7}]`},
+	}}
+	n, err := ResolveBranchPR(context.Background(), f, "123")
+	if err != nil || n != 7 {
+		t.Fatalf("branch 123: got %d, %v; want PR 7 by head branch", n, err)
+	}
+}
+
+func TestResolveBranchPR_EmptyBranchIsNoPR(t *testing.T) {
+	f := &FakeRunner{}
+	if _, err := ResolveBranchPR(context.Background(), f, ""); !errors.Is(err, ErrNoPR) {
+		t.Fatalf("empty branch: want ErrNoPR, got %v", err)
+	}
+	if len(f.Calls) != 0 {
+		t.Errorf("an empty branch needs no gh call, got %q", f.Calls)
+	}
+}

@@ -176,8 +176,10 @@ func lastLine(text string) string {
 
 // joinLedger joins each herdr row to the ledger claim it is: the claim on
 // the same work item, or, for an unlabelled pane, the one claim of its
-// harness when it is the only unlabelled pane of that harness. Claims no pane
-// joined are listed after the panes.
+// harness when it is the only unlabelled pane of that harness. Every label
+// match is made before any harness fallback, so an unlabelled pane cannot
+// take a labelled pane's claim. Claims no pane joined are listed after the
+// panes.
 func joinLedger(rows, ledger []Agent) []Agent {
 	used := make([]bool, len(ledger))
 	unlabelled := map[string]int{}
@@ -186,19 +188,15 @@ func joinLedger(rows, ledger []Agent) []Agent {
 			unlabelled[r.Harness]++
 		}
 	}
-	for i := range rows {
-		j := matchClaim(rows[i], ledger, used, unlabelled[rows[i].Harness] == 1)
-		if j < 0 {
-			continue
-		}
-		used[j] = true
-		r, l := &rows[i], ledger[j]
-		r.Source, r.Session, r.Since = "herdr+ledger", l.Session, l.Since
-		if r.WorkItem == "" {
-			r.WorkItem, r.Title = l.WorkItem, l.Title
-		}
-		if r.LastLine == "" {
-			r.LastLine = l.LastLine
+	for _, labelled := range []bool{true, false} {
+		for i := range rows {
+			if (rows[i].WorkItem != "") != labelled {
+				continue
+			}
+			if j := matchClaim(rows[i], ledger, used, unlabelled[rows[i].Harness] == 1); j >= 0 {
+				used[j] = true
+				joinClaim(&rows[i], ledger[j])
+			}
 		}
 	}
 	for j, l := range ledger {
@@ -207,6 +205,17 @@ func joinLedger(rows, ledger []Agent) []Agent {
 		}
 	}
 	return rows
+}
+
+// joinClaim folds ledger claim l into herdr row r.
+func joinClaim(r *Agent, l Agent) {
+	r.Source, r.Session, r.Since = "herdr+ledger", l.Session, l.Since
+	if r.WorkItem == "" {
+		r.WorkItem, r.Title = l.WorkItem, l.Title
+	}
+	if r.LastLine == "" {
+		r.LastLine = l.LastLine
+	}
 }
 
 func matchClaim(r Agent, ledger []Agent, used []bool, onlyUnlabelled bool) int {

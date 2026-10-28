@@ -233,18 +233,13 @@ func TestProvenanceRoundTripsAndOldRowsStillParse(t *testing.T) {
 }
 
 // parseLedgerString parses ledger markup that is already in memory with the
-// same row selector and row parser ReadFile uses.
+// same selector and row collector ReadFile uses.
 func parseLedgerString(markup string) ([]Record, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(markup))
 	if err != nil {
 		return nil, fmt.Errorf("sessionledger: parse markup: %w", err)
 	}
-	var records []Record
-	doc.Find(rowSelector).Each(func(_ int, row *goquery.Selection) {
-		if r, ok := parseRow(row); ok {
-			records = append(records, r)
-		}
-	})
-	sortRecords(records)
-	return records, nil
+	var c rowCollector
+	doc.Find(recordSelector).Each(func(_ int, row *goquery.Selection) { c.add(row) })
+	return c.result(), nil
 }

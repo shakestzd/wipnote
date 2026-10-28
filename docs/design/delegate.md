@@ -46,7 +46,7 @@ withdrawn. One path now covers both:
 | `delegate result` | planned (slice 11) | Print the newest result file a worker wrote |
 | `delegate questions` | planned (slice 11) | List a worker's pending questions |
 | `delegate inbox` | planned (slice 11) | The worker's own read of its mailbox |
-| `delegate doctor` | planned (slice 12) | Preflight checks (Codex sandbox; container in slice 21; profile in slice 27) |
+| `delegate doctor` | available (slice 12) | Preflight checks (Codex sandbox; container in slice 21; profile in slice 27) |
 | `delegate answer` | planned (slice 17) | Answer a pending worker question by typing into its pane |
 
 Errors in every available command: wipnote prints the reason on stderr and exits 1. That includes a
@@ -55,7 +55,7 @@ bad flag, a wrong argument count and a refused input.
 ### 2.1 `wipnote delegate run` (available)
 
 ```
-wipnote delegate run [--label L] [--work-item ID] [--no-pane] -- <codex exec|codex review|claude -p|ccx task> ...
+wipnote delegate run [--label L] [--work-item ID] [--no-pane] [--write] -- <codex exec|codex review|claude -p|ccx task> ...
 ```
 
 Runs one tool call. It opens a ledger row, creates a run folder and runs the tool in a herdr pane when
@@ -97,10 +97,20 @@ Settings: the `delegate` object, merged per key from the user-level wipnote conf
 (true), `leanProfileName` (lean), `ccxRunsDir` (no default; read only from the user and local files;
 `CCX_RUNS_DIR` wins), `ccxWaitSeconds` (30) and `keepDays` (7).
 
+Codex sandbox (slice 12, decision S): `codex exec` always gets exactly one `--sandbox`:
+`read-only` by default, `workspace-write` with `--write`. The caller's own `--sandbox`/`-s`,
+`--full-auto` or bypass flag is read as the rung it asks for and replaced by that one flag.
+`danger-full-access` is passed, with a warning on stderr, only on a host listed in
+`delegate.codex.dangerFullAccessHosts` in `~/.wipnote/config.json` (the key is ignored, with a
+note, in the project and local files). Before the run, a bwrap probe (cached per host for ten
+minutes in `.wipnote/delegate/`, bounded to 5 s) runs on Linux; a definite bwrap failure refuses the
+run with the probe output, before any ledger row or run folder is written, unless the host opted in.
+A probe that times out does not refuse. `codex review` runs as given. The thread id from
+`thread.started` goes into the row's worker sessions, and the last `turn.completed` usage fills
+input, cached, output and reasoning.
+
 Planned changes to `run`:
 
-- `--write`: Codex runs with `--sandbox workspace-write` instead of the read-only default. Planned
-  (slice 12).
 - `--container`: the tool runs in the project's own devcontainer. Planned (slice 21).
 - `--tools`, `--plugin`, `--mcp`: widen the lean default profile by named items. Planned (slice 27).
 - Inside herdr, a Claude run becomes an interactive worker (spawn, send, wait, stop) with the same
@@ -108,8 +118,11 @@ Planned changes to `run`:
 - Inside herdr, a Codex run becomes an interactive TUI worker with the same report. Planned
   (slice 26). Outside herdr, `codex exec` stays. `codex review` and `ccx task` stay one-shot.
 - A bare `codex exec` or `claude -p` in the Bash tool is denied, and the reason holds the exact
-  `wipnote delegate run -- <same argv>`. A bare `ccx task` gets the `--container` form. This is a
-  PreToolUse hook, not a command. Planned (slice 9; q-intercept: deny-redirect).
+  `wipnote delegate run -- <same argv>`. A bare `ccx task` gets the `--container` form, and until
+  slice 21 ships `--container`, the exact-argv form too. This is a PreToolUse hook, not a command.
+  Chained commands, a command fed on stdin, `dev exec`, and anything else `delegate run` would
+  refuse run as typed; a command that starts with `wipnote delegate` is never denied. Available
+  (slice 9; q-intercept: deny-redirect; recogniser in `internal/delegate/detect`).
 
 ### 2.2 `wipnote delegate run-pane <run-id>` (available, hidden)
 
@@ -212,8 +225,11 @@ codes: not set in the plan.
 **`delegate inbox`, planned (slice 11).** Runs in the worker. It reads the worker's own mailbox, named
 by `WIPNOTE_DELEGATE_RUN`, including messages whose hint was lost. Exit codes: not set in the plan.
 
-**`delegate doctor`, planned (slice 12).** Pass or fail per check, with the exact stderr. Slice 12:
-the Codex sandbox probe. Slice 21: inside the container, Claude Code is logged in and the container
+**`delegate doctor`, available (slice 12).** Pass, warn, fail or skip per check, with the exact
+stderr. Slice 12: `codex` (on PATH, its version), `bwrap sandbox` (a fresh probe, which refreshes
+the cache `run` reads; skipped off Linux), `danger-full-access opt-in` (this host's name and
+whether it is listed), `sandbox ladder` (the `--sandbox` a worker gets by default and with
+`--write`) and `herdr`. Exits 1 when a check fails. Slice 21: inside the container, Claude Code is logged in and the container
 user's Claude config folder is writable. Slice 27: the effective profile, and anything it could not
 turn off. Exit codes: not set in the plan.
 
@@ -242,6 +258,13 @@ No absolute host path, user name or home folder enters a ledger row. The writer 
 `name`, `label`, `work_item`, `link` (`tag` or `sid`), `caller_session`, `worker_sessions` (the
 harness's own ids, oldest first), `host` (`host` or `container`), `started`, `ended`, `exit`,
 `end_reason` (`exit`, `stop`, `pane_closed`, `gone`, `imported`), usage counts and `resumed_from`.
+
+**Readers** (slice 13): `wipnote lineage <work-item>` and `wipnote feature show <id>` list the item's
+rows (`delegations[]` in `lineage --json`), and `wipnote lineage dlg-<id>` shows one run. Each row
+lists its workers' claim episodes, joined from `.wipnote/claims/` on worker session id; a worker
+episode that overlaps a caller episode on the same item is a co-claim named by the `dlg-` id. The
+read-only orch reader (`internal/orchlink`) and lineage's `orch_sessions` are gone: orch history
+arrives through `import-orch`.
 
 **Run folder** (`.wipnote/delegate/runs/<run-id>/`, the feat-a1df60c2 contract): `raw.log`,
 `clean.log`, `clean.md`, `last.md`, `usage`, `start`, `end`, `exit` (its presence ends the run),
