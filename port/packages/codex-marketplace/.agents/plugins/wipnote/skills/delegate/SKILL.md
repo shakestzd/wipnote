@@ -31,7 +31,7 @@ Delegate run:
 The form is:
 
 ```bash
-wipnote delegate run [--label L] [--work-item ID] [--no-pane] -- <tool argv>
+wipnote delegate run [--label L] [--work-item ID] [--no-pane] [--container] -- <tool argv>
 ```
 
 Examples:
@@ -41,6 +41,7 @@ wipnote delegate run --label "review auth" -- codex review --base main
 wipnote delegate run -- codex exec "Explain why TestFoo fails. Do not edit files."
 wipnote delegate run --work-item feat-1234abcd -- claude -p "Summarise the open TODOs in core/"
 wipnote delegate run -- ccx task "Run the slow integration tests and report failures"
+wipnote delegate run --container -- "Run the slow integration tests and report failures"
 ```
 
 | Flag | What it does |
@@ -48,6 +49,7 @@ wipnote delegate run -- ccx task "Run the slow integration tests and report fail
 | `--label L` | The pane title. It is the only label the ledger keeps. Without it, a title made from the prompt goes to the run folder only. |
 | `--work-item ID` | The work item of the ledger row. The default is your active claim. |
 | `--no-pane` | Run headless, also inside herdr. |
+| `--container` | Run the tool in the project's own devcontainer (`.devcontainer/devcontainer.json`). Words after `--` that are not a `claude` or `codex` argv are a task for `claude -p` inside. It is refused without the config or the devcontainer CLI, and for Codex unless this host opted in. `wipnote delegate doctor --container` checks the container. |
 
 Rules:
 
@@ -57,6 +59,7 @@ Rules:
 - `claude -p` must not set its own `--output-format` (only `stream-json` is accepted). The run adds `--output-format stream-json --verbose` itself.
 - For `codex exec`, the run adds `--json` and `--output-last-message` (unless you set `-o`), and `-p <leanProfileName>` (default `lean`) when you set no profile and that profile file exists in the Codex home. `codex review` and `ccx task` run as given.
 - Inside herdr (`HERDR_ENV=1`) the call runs in a herdr pane. Otherwise it runs headless.
+- A bare `ccx task` in the Bash tool is denied with the `--container` form: run that instead.
 - The command exits with the tool's exit status, or 130 when its pane was closed.
 - A long run blocks until it ends. Run the command in the background when the harness lets you, and read the report when it ends.
 
