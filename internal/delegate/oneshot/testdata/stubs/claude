@@ -3,4 +3,9 @@
 # prints STUB_STDOUT (a stream-json fixture).
 printf '%s\n' "$@" > "${STUB_ARGV:-/dev/null}"
 [ -n "${STUB_STDOUT:-}" ] && cat "$STUB_STDOUT"
+# As a container worker's hooks would: its own session file in its run folder.
+if [ -n "${STUB_OWN_SESSION:-}" ] && [ -n "${WIPNOTE_DELEGATE_RUN:-}" ]; then
+  printf '{"v":1,"session_id":"%s","harness":"claude","started_at":"2026-10-27T09:00:00Z","ended_at":"2026-10-27T10:00:00Z"}\n' \
+    "$STUB_OWN_SESSION_ID" > "$STUB_OWN_SESSION/$WIPNOTE_DELEGATE_RUN/session-$STUB_OWN_SESSION_ID.json"
+fi
 exit "${STUB_EXIT:-0}"

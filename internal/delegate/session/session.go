@@ -30,7 +30,9 @@
 package session
 
 import (
+	"context"
 	"errors"
+	"github.com/shakestzd/wipnote/internal/delegate/container"
 	"regexp"
 	"time"
 
@@ -89,7 +91,8 @@ type Deps struct {
 	// ProcStart reports a pid's start time, ok false when no such process
 	// runs. Nil uses ps (procs.go). Stop compares start times so a reused pid
 	// is not a survivor.
-	ProcStart func(pid int) (string, bool)
+	ProcStart     func(pid int) (string, bool)
+	ContainerPids func(ctx context.Context, root, run string) ([]container.Proc, error)
 }
 
 func (d Deps) now() time.Time {

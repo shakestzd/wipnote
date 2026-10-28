@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"os"
 	"path/filepath"
 	"sync"
@@ -88,6 +89,11 @@ func withFamilyFileLock(projectDir string, fn func() error) error {
 // index. Multiple sessions may share the same familyID (resumed continuations).
 // The write is atomic (temp+rename) so concurrent processes cannot corrupt it.
 func RegisterSessionFamily(projectDir, sessionID, familyID string) error {
+	if containerwrite.Active() {
+		// A container worker never writes the shared index; the host folds
+		// the entry in from the worker's own session file (slice 21).
+		return containerwrite.SetFamily(filepath.Join(projectDir, ".wipnote"), sessionID, familyID)
+	}
 	return withFamilyFileLock(projectDir, func() error {
 		idx := readFamilyIndexLocked(projectDir)
 		if idx.Families == nil {

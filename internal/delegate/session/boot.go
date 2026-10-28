@@ -42,10 +42,15 @@ func BootEnv(environ []string, runID, caller string) []string {
 // BootArgv is the launcher argv: wipnote claude or wipnote codex, in place
 // (the caller's cwd, no worktree chooser), with the brief as the first
 // prompt. No --settings: the launcher's plugin hooks are the worker's hooks
-// (q-settings). A Claude flag would go after "--" (Phase B).
+// (q-settings). A Claude flag would go after "--" (Phase B). A resumed worker
+// gets --resume <id> (both launchers take it) and no --name: the resumed
+// session keeps its own name (slice 20).
 func BootArgv(exe string, info Info, brief string) []string {
 	argv := []string{exe, info.Harness, "--in-place"}
-	if info.Harness == HarnessClaude {
+	switch {
+	case info.ResumeSession != "":
+		argv = append(argv, "--resume", info.ResumeSession)
+	case info.Harness == HarnessClaude:
 		argv = append(argv, "--name", info.Name)
 	}
 	if brief != "" {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/filelock"
+	"github.com/shakestzd/wipnote/internal/delegate/container"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/render"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
@@ -188,6 +189,9 @@ func RunPane(ctx context.Context, po PaneOptions) int {
 	done := make(chan int, 1)
 	go func() {
 		exit := Execute(ctx, rf, job)
+		if job.Container != nil { // fold the tool's own files before the close
+			_, _ = container.Fold(filepath.Dir(po.Store.Root()), rf.Dir())
+		}
 		closeOwnRow(ctx, po.Ledger, rf, exit)
 		done <- exit
 	}()

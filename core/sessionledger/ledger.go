@@ -78,6 +78,10 @@ func marshalRow(r Record) []byte {
 		eventsStr = strconv.Itoa(r.Events)
 	}
 	htmlledger.WriteAttr(&buf, "data-events", eventsStr)
+	if r.Host != "" {
+		// Only a non-host row carries it, so every existing row's bytes stay.
+		htmlledger.WriteAttr(&buf, "data-host", r.Host)
+	}
 	buf.WriteString(">")
 
 	htmlledger.WriteCell(&buf, "session-id", r.SessionID)
@@ -114,6 +118,7 @@ func parseRow(row *goquery.Selection) (Record, bool) {
 		Harness:     strings.TrimSpace(htmlledger.Attr(row, "data-harness")),
 		ProjectDir:  strings.TrimSpace(htmlledger.Attr(row, "data-project")),
 		ArchivePath: strings.TrimSpace(htmlledger.Attr(row, "data-archive")),
+		Host:        strings.TrimSpace(htmlledger.Attr(row, "data-host")),
 	}
 	started, err := ParseTime(htmlledger.Attr(row, "data-start"))
 	if err != nil {

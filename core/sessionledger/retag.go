@@ -1,6 +1,9 @@
 package sessionledger
 
-import "github.com/shakestzd/wipnote/core/filelock"
+import (
+	"github.com/shakestzd/wipnote/core/containerwrite"
+	"github.com/shakestzd/wipnote/core/filelock"
+)
 
 // HarnessRetag describes one proposed change to a row's harness tag, whether
 // it would be applied, and why. Like Correction, the dry-run and apply paths
@@ -50,6 +53,9 @@ func retagReason(old, inferred, next string) string {
 // a real harness. dryRun computes and returns the decision without writing.
 // Returns ErrNoRow when the ledger has no row for the session.
 func (s *Store) RetagHarness(sessionID, inferred string, dryRun bool) (HarnessRetag, error) {
+	if containerwrite.Active() {
+		return HarnessRetag{}, ErrContainerWorker
+	}
 	release := filelock.Guard(s.path)
 	defer release()
 

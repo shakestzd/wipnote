@@ -46,7 +46,7 @@ withdrawn. One path now covers both:
 | `delegate result` | available (slice 11) | Print the newest result file a worker wrote |
 | `delegate questions` | available (slice 11) | List a worker's pending questions |
 | `delegate inbox` | available (slice 11) | The worker's own read of its mailbox |
-| `delegate doctor` | available (slice 12) | Preflight checks (Codex sandbox; container in slice 21; profile in slice 27) |
+| `delegate doctor` | available (slices 12, 21) | Preflight checks (Codex sandbox; `--container`: the devcontainer; profile in slice 27) |
 | `delegate answer` | planned (slice 17) | Answer a pending worker question by typing into its pane |
 
 Errors in every available command: wipnote prints the reason on stderr and exits 1. That includes a
@@ -55,7 +55,7 @@ bad flag, a wrong argument count and a refused input.
 ### 2.1 `wipnote delegate run` (available)
 
 ```
-wipnote delegate run [--label L] [--work-item ID] [--no-pane] [--write] -- <codex exec|codex review|claude -p|ccx task> ...
+wipnote delegate run [--label L] [--work-item ID] [--no-pane] [--write] [--container] -- <codex exec|codex review|claude -p|ccx task> ...
 ```
 
 Runs one tool call. It opens a ledger row, creates a run folder and runs the tool in a herdr pane when
@@ -67,6 +67,7 @@ failure) and the run page. Then it closes and enriches the row and sweeps old ru
 | `--label L` | Pane title. It is the only label the ledger keeps (q-label: explicit only). Without it the title is `<id>: <title>` of the run's work item (cut to 48 runes), or one derived from the prompt when there is none; that title goes only to the run folder's `label` file |
 | `--work-item ID` | Work item for the row. Default: the caller's active claim |
 | `--no-pane` | Run headless even inside herdr |
+| `--container` | Run the tool in the project's own devcontainer (section 2.7) |
 | `--` | Everything after it is the tool's argv. wipnote parses no flag after the first argument |
 
 Accepted argv: `codex exec` (or `codex e`), `codex review`, `claude` with `-p` or `--print`, and
@@ -111,15 +112,15 @@ input, cached, output and reasoning.
 
 Planned changes to `run`:
 
-- `--container`: the tool runs in the project's own devcontainer. Planned (slice 21).
 - `--tools`, `--plugin`, `--mcp`: widen the lean default profile by named items. Planned (slice 27).
 - Inside herdr, a Claude run becomes an interactive worker (spawn, send, wait, stop) with the same
   report. Planned (slice 22). Outside herdr, `claude -p` stays (q-no-herdr).
 - Inside herdr, a Codex run becomes an interactive TUI worker with the same report. Planned
   (slice 26). Outside herdr, `codex exec` stays. `codex review` and `ccx task` stay one-shot.
 - A bare `codex exec` or `claude -p` in the Bash tool is denied, and the reason holds the exact
-  `wipnote delegate run -- <same argv>`. A bare `ccx task` gets the `--container` form, and until
-  slice 21 ships `--container`, the exact-argv form too. This is a PreToolUse hook, not a command.
+  `wipnote delegate run -- <same argv>`. A bare `ccx task` gets the `--container` form
+  (`wipnote delegate run --container -- <task args>`); when `--container` would refuse the task's
+  arguments, the exact-argv form instead. This is a PreToolUse hook, not a command.
   Chained commands, a command fed on stdin, `dev exec`, and anything else `delegate run` would
   refuse run as typed; a command that starts with `wipnote delegate` is never denied. Available
   (slice 9; q-intercept: deny-redirect; recogniser in `internal/delegate/detect`).
@@ -253,7 +254,16 @@ whole response. No launch flag that names a Codex session is documented; the cha
 in wipnote (mailbox, ledger) and in herdr (agent name); boot passes it no name flag. Revisit when a
 Codex doc names a session-title contract.
 
-Planned on top: `--write` (slice 12), `--resume NAME` (slice 20), `--container` (slice 21),
+`spawn --container` starts the worker in the project's devcontainer (section 2.7).
+
+`spawn NAME2 --resume NAME` (slice 20, `delegate-resume.md`) starts NAME2 on NAME's last harness
+session: `wipnote claude --in-place --resume <id>` or `wipnote codex --in-place --resume <id>`, in
+NAME's recorded cwd and place, with NAME's harness and work item unless given. The new row has
+`resumed_from` = NAME's run id; the old row stays closed. It refuses, before anything is written, a
+live NAME, a swept run folder, no recorded session id, a gone working folder, `--harness` or
+`--container` that disagree with the old run, a run already resumed, and a Codex resume with a brief.
+
+Planned on top: `--write` (slice 12),
 `--tools`, `--plugin`, `--mcp` (slice 27), one live worker per item (section 5, slice 16).
 
 ### 2.6 Mailbox verbs (available, slice 11)
@@ -312,18 +322,63 @@ Stop event records only that the turn ended.
 | 124 | wait: the timeout passed |
 | 1 | a refusal or error, including wait without `--timeout` |
 
-### 2.7 Planned commands
+### 2.7 Container workers (available, slice 21)
+
+`delegate run --container` and `delegate spawn --container` run the worker in the project's own
+devcontainer (decision C): `.devcontainer/devcontainer.json`, `devcontainer up --workspace-folder
+<root>`, then `devcontainer exec --workspace-folder <root>`. wipnote never names an image, a config
+override or a docker command. There is no second-account gate.
+
+- **Refusals, before anything is written:** no `.devcontainer/devcontainer.json` or no
+  `devcontainer` CLI (each names the fix), a working folder outside the project, `ccx task` under
+  `--container`, and Codex unless this host is in `delegate.codex.dangerFullAccessHosts` (bwrap fails
+  in containers, so slice 12's ladder refuses; opted in, `codex exec` and a Codex worker get
+  `--sandbox danger-full-access` with a warning). `codex review` is refused under `--container`.
+- **run:** an argv that is not `claude` or `codex` is a ccx task's arguments and runs as
+  `claude -p` (harness `claude-print`). The run (pane or headless) runs `devcontainer up`, writes
+  `container.json` (place, workspace folder) and `up.log`, then the tool through `devcontainer exec`
+  with run-folder paths and the cwd mapped into the container's workspace folder. The output comes
+  back through exec, so the logs and the answer are written on the host. The host's codex profiles
+  are not used inside.
+- **spawn:** returns `starting` at once with the same boot line. The boot, in the pane, runs
+  `devcontainer up` (minutes the first time) and execs `devcontainer exec --workspace-folder <root>
+  [--remote-env ...] wipnote claude|codex --in-place ...`, with the cwd and the brief's result path
+  mapped. `session.json` records `place=container`, the root and the workspace folder.
+- **Inside:** the worker carries `WIPNOTE_DELEGATE_PLACE=container`, `WIPNOTE_DELEGATE_RUN` and
+  `WIPNOTE_DELEGATE_CALLER`. Its hooks write only files it alone owns in its run folder, each replaced
+  by rename (`core/containerwrite`): `events-<session>.ndjson`, `session-<session>.json` (its
+  sessions-ledger row and family entry), `gate-<id>.json` (gate runs, which its own completion gate
+  also reads), and its own claim shard. It never writes the sessions, gate or delegations ledger,
+  the family index, `.active-session` or `.wipnote/.gitignore`.
+- **Fold:** every close of a container worker's row (stop, wait's or list's loss close, spawn's
+  cleanup) and the end of a one-shot run first fold those files into the host's sessions ledger
+  (`host=container`, the real harness, each run and its end, a resumed run's folder included), the
+  family index and the gate ledger. The host records what it folded in the run folder's
+  `folded.json`, so nothing is folded twice.
+- **Paths:** every task sent to a container worker (the brief and each `delegate send`) names its
+  result and question files in the container's workspace folder; a send before the boot recorded
+  that folder is refused.
+- **stop:** herdr sees only the host's `devcontainer exec`. stop also records the worker's processes
+  inside (found by its run id in `/proc`, through `devcontainer exec`) before it types anything, and
+  after the pane closes reports any still running with the same start as a survivor with
+  `where=container`. It never signals. A failed probe is named in `unchecked`.
+
+### 2.8 Planned commands
 
 None of these exist yet. Flags come from the plan. Where the plan sets no exit code, the row says
 "not set in the plan"; that is open, and the plan has no question id for it.
 
-**`delegate doctor`, available (slice 12).** Pass, warn, fail or skip per check, with the exact
+**`delegate doctor [--container]`, available (slices 12, 21).** Pass, warn, fail or skip per check, with the exact
 stderr. Slice 12: `codex` (on PATH, its version), `bwrap sandbox` (a fresh probe, which refreshes
 the cache `run` reads; skipped off Linux), `danger-full-access opt-in` (this host's name and
 whether it is listed), `sandbox ladder` (the `--sandbox` a worker gets by default and with
-`--write`) and `herdr`. Exits 1 when a check fails. Slice 21: inside the container, Claude Code is logged in and the container
-user's Claude config folder is writable. Slice 27: the effective profile, and anything it could not
-turn off. Exit codes: not set in the plan.
+`--write`) and `herdr`. Exits 1 when a check fails. With `--container` (slice 21; it starts the
+container): `devcontainer` (the config and the CLI), `devcontainer up`, `wipnote inside`, `hook inside`
+(a `wipnote hook user-prompt` fired inside as a worker of a probe run, whose events file must reach
+the host's `.wipnote/delegate/`; the probe folder is removed after), `claude config writable` (the
+container user's `~/.claude`; fix: chown the named volume) and `claude login` (`claude auth status`;
+fix: log in once inside with `/login`). Without `--container` it prints one skip line. Slice 27: the
+effective profile, and anything it could not turn off.
 
 **`delegate answer NAME <qid> <text|option>`, planned (slice 17).** Checks that the question is still
 pending and that the pane and terminal_id match. Then it types the answer with `herdr pane send-text`
@@ -360,7 +415,8 @@ arrives through `import-orch`.
 
 **Run folder** (`.wipnote/delegate/runs/<run-id>/`, the feat-a1df60c2 contract): `raw.log`,
 `clean.log`, `clean.md`, `last.md`, `usage`, `start`, `end`, `exit` (its presence ends the run),
-`label`, `host`, `run.html`, and `events-<writer>.ndjson`. A one-shot run also uses `job.json` (what
+`label`, `host`, `run.html`, and `events-<writer>.ndjson`. A container run also holds `container.json`,
+`up.log` and the worker's own `session-<id>.json` and `gate-<id>.json` (section 2.7). A one-shot run also uses `job.json` (what
 the pane worker runs) and, for ccx, `out.txt`. An interactive run also holds `session.json` (name,
 harness, pane, pinned terminal id, caller pane, cwd, place, first task id), `brief.md` and
 `state.json` (the state and group `list` last observed). A caller's

@@ -176,7 +176,7 @@ func addSessions(d Deps, runID string, sessions []string) {
 // open, and only then are the worker sessions' own episodes expired (each
 // worker session is its own claim root). The orchestrator's are untouched.
 func closeLost(d Deps, runID string, sessions []string) {
-	closed, err := d.Ledger.CloseIfOpen(runID, delegationledger.CloseInfo{Ended: d.now(), Reason: delegationledger.EndGone})
+	closed, err := closeWorkerRow(d, runID, delegationledger.EndGone)
 	if err != nil || !closed || d.Claims == nil {
 		return
 	}
