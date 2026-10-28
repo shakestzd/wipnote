@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 11
+    version: 13
 design:
     problem: |-
         ## Problem
@@ -213,7 +213,7 @@ slices:
           claim: herdr agent status values are idle, working, blocked, done and unknown; blocked maps to needs-you.
           accessed: "2026-10-27"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       questions:
         - id: q-feed
           text: Does the pane pull a command, or does wipnote write a status file?
@@ -275,7 +275,7 @@ slices:
           claim: Hooks see only the tool call; a process started inside a command (& or nohup) produces no hook event.
           accessed: "2026-10-27"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       questions:
         - id: q-orphans
           text: What happens to a process that outlives its session?
@@ -341,3 +341,13 @@ feedback:
           value: done
           created_at: "2026-10-28T02:38:46Z"
           updated_at: "2026-10-28T02:38:46Z"
+        - section: slice-3
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T05:19:24Z"
+          updated_at: "2026-10-28T05:19:24Z"
+        - section: slice-4
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T05:19:24Z"
+          updated_at: "2026-10-28T05:19:24Z"
