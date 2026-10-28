@@ -476,3 +476,32 @@ func TestWait_DeadlineBoundsHerdrCalls(t *testing.T) {
 		t.Fatalf("%+v", res)
 	}
 }
+
+// A harness that exited in a live pane is worker loss, acked task or not:
+// wait returns gone at once, closes the row as gone and expires only the
+// worker's claims (as for a lost pane).
+func TestWait_ExitedHarnessIsWorkerLoss(t *testing.T) {
+	for _, acked := range []bool{false, true} {
+		e := newEnv(t)
+		s := e.worker("w1", "brief")
+		e.claim("sid-1")
+		e.claim("sess-caller")
+		if acked {
+			e.startTurn(s, "sid-1")
+		}
+		if res := e.wait("w1", 40*time.Millisecond); res.Outcome != OutcomeTimeout || !e.row(s.Run).IsOpen() {
+			t.Fatalf("acked=%v live harness: %+v", acked, res)
+		}
+		e.herdr.pane(PaneOf(s)).fg = nil // only the shell is left
+		res := e.wait("w1", 5*time.Second)
+		if res.Outcome != OutcomeGone {
+			t.Fatalf("acked=%v: %+v", acked, res)
+		}
+		if r := e.row(s.Run); r.IsOpen() || r.EndReason != delegationledger.EndGone {
+			t.Fatalf("acked=%v row %+v", acked, r)
+		}
+		if e.openEpisodes("sid-1") != 0 || e.openEpisodes("sess-caller") != 1 {
+			t.Fatalf("acked=%v claims: worker %d orchestrator %d", acked, e.openEpisodes("sid-1"), e.openEpisodes("sess-caller"))
+		}
+	}
+}

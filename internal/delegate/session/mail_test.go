@@ -109,7 +109,7 @@ func TestSend_StoreFirstThenHint(t *testing.T) {
 	// Other side: a lost hint keeps the stored message, marked unhinted.
 	e.herdr.promptErr = errors.New("herdr: agent busy")
 	e.herdr.onPrompt = nil
-	e.event(s.Run, "sid-1", runstore.KindPrompt)
+	e.startTurn(s, "sid-1")
 	e.event(s.Run, "sid-1", runstore.KindStop)
 	lost := e.send("w1", "Second task.")
 	if lost.Hinted || lost.HintError == "" {
@@ -226,5 +226,50 @@ func TestInbox_ShowsLostHintMessages(t *testing.T) {
 	}
 	if _, err := Inbox(e.deps, "dlg-000000000000"); err == nil {
 		t.Fatal("unknown run read")
+	}
+}
+
+// A second send before the worker acked the first is refused, naming the
+// pending task; once acked, the next send is accepted.
+func TestSend_RefusesWhileNewestTaskUnacked(t *testing.T) {
+	e := newEnv(t)
+	s := e.worker("w1", "")
+	first := e.send("w1", "first")
+	_, err := Send(context.Background(), e.deps, "w1", "second")
+	if !errors.Is(err, ErrTaskUnacked) || !strings.Contains(err.Error(), first.Task) || !strings.Contains(err.Error(), "delegate inbox") {
+		t.Fatalf("err %v", err)
+	}
+	if msgs, _ := e.mailbox("w1").Read(runstore.Inbox); len(msgs) != 1 {
+		t.Fatalf("a refused send wrote: %+v", msgs)
+	}
+	e.startTurn(s, "sid-1")
+	e.event(s.Run, "sid-1", runstore.KindStop)
+	if _, err := Send(context.Background(), e.deps, "w1", "second"); err != nil {
+		t.Fatalf("send after the ack: %v", err)
+	}
+}
+
+// Concurrent sends to one idle worker: exactly one lands.
+func TestSend_ConcurrentSendsOnlyOneLands(t *testing.T) {
+	e := newEnv(t)
+	e.worker("w1", "")
+	const n = 8
+	errs := make(chan error, n)
+	for i := 0; i < n; i++ {
+		go func() {
+			_, err := Send(context.Background(), e.deps, "w1", "task")
+			errs <- err
+		}()
+	}
+	ok := 0
+	for i := 0; i < n; i++ {
+		if err := <-errs; err == nil {
+			ok++
+		} else if !errors.Is(err, ErrTaskUnacked) {
+			t.Fatalf("err %v", err)
+		}
+	}
+	if msgs, _ := e.mailbox("w1").Read(runstore.Inbox); ok != 1 || len(msgs) != 1 {
+		t.Fatalf("%d sends landed, inbox %d", ok, len(msgs))
 	}
 }

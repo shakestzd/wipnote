@@ -2,12 +2,20 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/shakestzd/wipnote/core/delegationledger"
+	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
+
+// ErrTaskUnacked refuses a send while the worker has not started its newest
+// task: its readiness still reflects the turn before, so a second task would
+// be acked in the first one's place.
+var ErrTaskUnacked = errors.New("delegate: the worker has not acked its newest task yet")
 
 // Sent is send's payload. Hinted is false when the herdr hint failed; the
 // task is in the inbox anyway (the store is authoritative, the hint has no
@@ -40,7 +48,7 @@ func Send(ctx context.Context, d Deps, name, text string) (Sent, error) {
 	if err := SendCheck(o, ReadInput(ctx, d.Herdr, herdr.PaneID(info.Pane))); err != nil {
 		return Sent{}, err
 	}
-	mb, msg, turn, err := postTask(d, info, text)
+	mb, msg, turn, err := postTaskOnce(d, info, text)
 	if err != nil {
 		return Sent{}, err
 	}
@@ -52,6 +60,26 @@ func Send(ctx context.Context, d Deps, name, text string) (Sent, error) {
 	sent.Hinted = true
 	_, _ = mb.MarkHinted(msg)
 	return sent, nil
+}
+
+// sendLock, in the worker's mailbox, makes the acked check and the post one
+// step, so two concurrent sends cannot both pass.
+const sendLock = "send.lock"
+
+// postTaskOnce posts the task only when the newest one is acked (or there is
+// none), under sendLock.
+func postTaskOnce(d Deps, info Info, text string) (*runstore.Mailbox, runstore.Message, int, error) {
+	mb, err := d.Store.Mailbox(info.Name)
+	if err != nil {
+		return nil, runstore.Message{}, 0, err
+	}
+	release := filelock.Guard(filepath.Join(mb.Dir(), sendLock))
+	defer release()
+	if t, ok := newestTask(d.Store, info.Name); ok && !t.acked {
+		return nil, runstore.Message{}, 0, fmt.Errorf("%w: task %s is pending; wait for the worker (delegate wait) or check delegate inbox in the worker",
+			ErrTaskUnacked, t.msg.ID)
+	}
+	return postTask(d, info, text)
 }
 
 // postTask writes the task to the inbox with the preamble naming its result

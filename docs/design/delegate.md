@@ -217,7 +217,8 @@ wipnote delegate inbox            # inside a worker
 ```
 
 **send** refuses, writing nothing, unless the readiness predicate accepts input and the input line
-holds no draft (the same `SendCheck` as slice 10; a grey suggestion reads as empty). It writes
+holds no draft (the same `SendCheck` as slice 10; a grey suggestion reads as empty), and while the
+newest inbox task is not acked yet (checked with the post under `mail/<name>/send.lock`). It writes
 `inbox/<seq>-<task>.json` first, with the result preamble (decision R) that also names the question
 file `outbox/<task>-q<n>.json`, then types the same text with `herdr agent prompt` as a hint and
 marks the message `hinted`. A failed hint keeps the task in the inbox (`hinted: false`,
@@ -225,7 +226,8 @@ marks the message `hinted`. A failed hint keeps the task in the inbox (`hinted: 
 
 **wait** needs `--timeout` and settles, in this order: a closed row (`stopped`, or `gone` for
 `end_reason=gone`) at once; a lost pane (`gone`: the row closes as gone only if still open, and only
-the worker sessions' own claim episodes are expired); the current task's result file (`done`, even
+the worker sessions' own claim episodes are expired; a harness that exited in a live pane counts
+the same); the current task's result file (`done`, even
 with silent hooks or a turn stuck at working, D1 and D1b); a pending ask (`asks`, with the rows of
 `questions`, D7); a folder-trust dialog (`blocked`, even before the first task is acked); then the
 predicate's `ready`, `idle_no_result` or `idle_shell`. While the newest task is not acked, the hook

@@ -134,13 +134,13 @@ func waitOnce(ctx context.Context, d Deps, runID, name string) (WaitResult, bool
 }
 
 // settle is wait's rule over the one readiness predicate. Durable signals
-// come first: a lost pane, then the current task's result file, which ends
+// come first: a lost pane or an exited harness, then the current task's result file, which ends
 // the wait even with silent hooks or a turn stuck at working (D1, D1b).
 // A folder-trust dialog is reported next. While the newest task is not yet
 // acked, the hook turn state belongs to an older turn and is rejected. Input-line text is never read (D8).
 func settle(d Deps, res WaitResult, o Observation, f eventFacts, unacked bool) (WaitResult, bool) {
 	switch {
-	case o.PaneGone:
+	case o.PaneGone || o.Exited: // a lost pane or an exited harness: worker loss
 		closeLost(d, res.Run, f.sessions)
 		res.Outcome, res.Detail = OutcomeGone, o.GoneWhy
 	case o.TaskAnswered:
