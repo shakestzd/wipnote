@@ -10,15 +10,15 @@
 <body>
     <article id="feat-715f1d4f"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-27T21:39:40.661477"
-             data-updated="2026-10-28T03:23:22.378086" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
+             data-updated="2026-10-28T05:19:16.097581" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>wipnote status --all for every project</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -28,6 +28,17 @@
                 <h3>Blocked By:</h3>
                 <ul>
                     <li><a href="../features/feat-36658c22.html" data-relationship="blocked_by">feat-36658c22</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="bb42d9fa907ec5d01edf7fc9530a19ebfe6741d9.html" data-relationship="committed_in" data-since="2026-10-28T01:19:03">Merge pull request #281 from shakestzd/obs/obs3</a></li>
+                    <li><a href="2370fdf1c52153e480f1b7c7748f3865f2dd2006.html" data-relationship="committed_in" data-since="2026-10-28T03:23:31">wipnote: sync feat-715f1d4f</a></li>
+                    <li><a href="436a437fa413dce56334cdc8a6e98390802bdedd.html" data-relationship="committed_in" data-since="2026-10-28T03:23:22">feat-715f1d4f: place herdr panes by foreground_cwd, then cwd, then label</a></li>
+                    <li><a href="d1b145aee92b3a6b54a81ba0fe8465ad10890b62.html" data-relationship="committed_in" data-since="2026-10-28T03:17:41">feat-715f1d4f: wipnote status --all for every registered project</a></li>
+                    <li><a href="f99ea9d772a2929f0e63873eddc3e88811579d29.html" data-relationship="committed_in" data-since="2026-10-28T03:17:41">feat-715f1d4f: building blocks for status --all in gitwatch and herdr</a></li>
+                    <li><a href="b233750980333833b7cbbd3d577e64a9997875d3.html" data-relationship="committed_in" data-since="2026-10-28T03:11:21">wipnote: sync feat-715f1d4f</a></li>
                 </ul>
             </section>
             <section data-edge-type="implemented_in">
@@ -53,11 +64,11 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-feat-715f1d4f-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Read spec and building blocks; design internal/statusall (collect per project, bounded pool, herdr/gh injected)</li>
-                <li data-completed="false" data-step-id="step-feat-715f1d4f-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Write statusall tests first (unreadable project, gh present/absent/hung, herdr blocked/idle/absent, ordering, runs needs, plan, golden schema); confirmed red</li>
-                <li data-completed="false" data-step-id="step-feat-715f1d4f-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Implement internal/statusall (pool &#43; deadline, plan/items/runs/ledgers/git/gh/herdr readers, needs_you, text &#43; JSON), doc docs/design/status-all.md and golden; tests green incl. -race</li>
-                <li data-completed="false" data-step-id="step-feat-715f1d4f-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Wire status --all/--json/--no-gh/--timeout/--runs into cmd status (prerun skipped: writes nothing); cmd tests red-&gt;green; gate green; committed f99ea9d77 &#43; d1b145aee on obs/obs3</li>
-                <li data-completed="false" data-step-id="step-feat-715f1d4f-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Place herdr panes by foreground_cwd, then cwd, then label (herdr CLI reference); fake shape updated; held runs / worker questions noted as not yet sourced; gate green</li>
+                <li data-completed="true" data-step-id="step-feat-715f1d4f-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Read spec and building blocks; design internal/statusall (collect per project, bounded pool, herdr/gh injected)</li>
+                <li data-completed="true" data-step-id="step-feat-715f1d4f-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Write statusall tests first (unreadable project, gh present/absent/hung, herdr blocked/idle/absent, ordering, runs needs, plan, golden schema); confirmed red</li>
+                <li data-completed="true" data-step-id="step-feat-715f1d4f-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Implement internal/statusall (pool &#43; deadline, plan/items/runs/ledgers/git/gh/herdr readers, needs_you, text &#43; JSON), doc docs/design/status-all.md and golden; tests green incl. -race</li>
+                <li data-completed="true" data-step-id="step-feat-715f1d4f-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Wire status --all/--json/--no-gh/--timeout/--runs into cmd status (prerun skipped: writes nothing); cmd tests red-&gt;green; gate green; committed f99ea9d77 &#43; d1b145aee on obs/obs3</li>
+                <li data-completed="true" data-step-id="step-feat-715f1d4f-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Place herdr panes by foreground_cwd, then cwd, then label (herdr CLI reference); fake shape updated; held runs / worker questions noted as not yet sourced; gate green</li>
             </ol>
         </section>
 
