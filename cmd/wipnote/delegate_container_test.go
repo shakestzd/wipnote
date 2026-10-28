@@ -6,8 +6,11 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"github.com/shakestzd/wipnote/core/delegationledger"
+	"github.com/shakestzd/wipnote/core/sessionledger"
 	"github.com/shakestzd/wipnote/internal/delegate/container/containertest"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 	"github.com/shakestzd/wipnote/internal/delegate/session"
@@ -182,5 +185,41 @@ func TestDoctor_ContainerChecks(t *testing.T) {
 	out, _ = runDoctorArgs(t)
 	if !strings.Contains(out, "skip  devcontainer:") || len(stub.Calls(t)) != before {
 		t.Errorf("doctor without --container:\n%s\ncalls %d -> %d", out, before, len(stub.Calls(t)))
+	}
+}
+
+// TestDelegateList_FoldsPendingContainerFolders: delegate list folds a
+// container run folder whose own files were written after its last fold
+// (here: never folded, its row already closed), so a late session record
+// still reaches the host's sessions ledger. The other side: with nothing
+// pending, list writes no sessions ledger.
+func TestDelegateList_FoldsPendingContainerFolders(t *testing.T) {
+	dir := delegateSessionProject(t)
+	wipnoteDir := filepath.Join(dir, ".wipnote")
+	if _, err := execDelegate(t, "list"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(wipnoteDir, sessionledger.FileName)); !os.IsNotExist(err) {
+		t.Fatalf("list with nothing pending wrote the sessions ledger (err %v)", err)
+	}
+	store, _ := runstore.New(dir)
+	run := delegationledger.NewRunID()
+	if _, err := store.CreateRun(run); err != nil {
+		t.Fatal(err)
+	}
+	sid := "c0c0c0c0-1111-2222-3333-444444444444"
+	t.Setenv(containerwrite.RunEnv, run)
+	t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+	s := sessionledger.NewStore(wipnoteDir)
+	_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: time.Now().UTC().Add(-time.Hour)})
+	_ = s.Close(sid, time.Now().UTC())
+	t.Setenv(containerwrite.PlaceEnv, "")
+	t.Setenv(containerwrite.RunEnv, "")
+	if _, err := execDelegate(t, "list"); err != nil {
+		t.Fatal(err)
+	}
+	row, ok, _ := sessionledger.NewStore(wipnoteDir).Get(sid)
+	if !ok || row.IsOpen() || row.Host != sessionledger.HostContainer {
+		t.Errorf("host row %+v (found %v): want the folded, ended container session", row, ok)
 	}
 }

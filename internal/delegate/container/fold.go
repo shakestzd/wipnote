@@ -44,6 +44,9 @@ type foldedState struct {
 	Sessions map[string]foldedSession `json:"sessions"`
 	// ClaimCloses are the worker's pending claim closes already applied.
 	ClaimCloses map[string]bool `json:"claim_closes,omitempty"`
+	// FoldedAt is when the last fold that found anything to fold began: an
+	// own file written after it is unfolded (Unfolded).
+	FoldedAt time.Time `json:"folded_at,omitzero"`
 }
 
 // Fold folds a container worker's own files in runDir into the host's
@@ -77,11 +80,16 @@ func foldSessions(wipnoteDir, runDir string, f *Folded) error {
 	}
 	release := filelock.Guard(filepath.Join(wipnoteDir, "delegate", foldLock))
 	defer release()
+	start := foldNow().UTC()
 	st := readFolded(path)
+	stale := unfoldedSince(runDir, st.FoldedAt)
 	before := fmt.Sprint(st)
 	ferr := foldSessionFiles(wipnoteDir, runDir, &st, f)
 	if ferr == nil {
 		ferr = foldClaims(wipnoteDir, runDir, &st, f)
+	}
+	if ferr == nil && stale {
+		st.FoldedAt = start
 	}
 	if fmt.Sprint(st) != before {
 		data, _ := json.MarshalIndent(st, "", "  ")

@@ -461,3 +461,53 @@ func TestFold_ClaimsReachHostShards(t *testing.T) {
 		t.Errorf("refold = %+v (%d -> %d episodes), want nothing", again, len(before), len(after))
 	}
 }
+
+// TestFoldPending_FoldsWritesAfterTheLastFold: a container worker's
+// SessionEnd that lands after the row's last fold (stop folded, then the
+// hook finished) leaves its folder unfolded; FoldPending, which the host
+// runs at list and before a sweep, folds it and closes the host's session
+// row. The other side: a folder whose own files are all older than its last
+// fold is not unfolded, and FoldPending leaves it.
+func TestFoldPending_FoldsWritesAfterTheLastFold(t *testing.T) {
+	wipnoteDir, runDir := foldProject(t)
+	sid := "dcdcdcdc-1111-2222-3333-444444444444"
+	clock := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	foldNow = func() time.Time { return clock }
+	t.Cleanup(func() { foldNow = time.Now })
+	inWorker := func(fn func(*sessionledger.Store), mtime time.Time) {
+		t.Setenv(containerwrite.RunEnv, foldRun)
+		t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+		fn(sessionledger.NewStore(wipnoteDir))
+		t.Setenv(containerwrite.PlaceEnv, "")
+		_ = os.Chtimes(filepath.Join(runDir, "session-"+sid+".json"), mtime, mtime)
+	}
+	inWorker(func(s *sessionledger.Store) {
+		_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: clock.Add(-time.Hour)})
+	}, clock.Add(-time.Minute))
+	if Unfolded(runDir) != true {
+		t.Fatal("a folder never folded is not unfolded")
+	}
+	if _, err := Fold(wipnoteDir, runDir); err != nil { // the stop's fold
+		t.Fatal(err)
+	}
+	if Unfolded(runDir) {
+		t.Error("a folder folded after its last write is unfolded")
+	}
+	if n, _ := FoldPending(wipnoteDir); n != 0 {
+		t.Errorf("FoldPending folded %d folders with nothing new", n)
+	}
+	inWorker(func(s *sessionledger.Store) { _ = s.Close(sid, clock.Add(time.Minute)) }, clock.Add(time.Minute)) // the late SessionEnd
+	if !Unfolded(runDir) {
+		t.Fatal("a write after the last fold is not unfolded")
+	}
+	clock = clock.Add(time.Hour)
+	if n, err := FoldPending(wipnoteDir); err != nil || n != 1 {
+		t.Fatalf("FoldPending = %d, %v; want the folder folded", n, err)
+	}
+	if row, _, _ := sessionledger.NewStore(wipnoteDir).Get(sid); row.IsOpen() {
+		t.Errorf("host row %+v still open after the late end was folded", row)
+	}
+	if Unfolded(runDir) {
+		t.Error("still unfolded after FoldPending")
+	}
+}

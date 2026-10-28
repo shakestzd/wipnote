@@ -247,6 +247,9 @@ func closeRow(l *delegationledger.Store, rf *runstore.RunFolder, res Result) {
 func sweep(o Options) {
 	keep := o.Settings.keepAge()
 	now := time.Now()
-	_, _ = o.Store.Sweep(now, keep)
+	// A container run's late own files are folded first; a folder still
+	// holding unfolded ones is kept.
+	_, _ = container.FoldPending(filepath.Dir(o.Store.Root()))
+	_, _ = o.Store.SweepExcept(now, keep, container.Unfolded)
 	sweepClaims(keep, now)
 }

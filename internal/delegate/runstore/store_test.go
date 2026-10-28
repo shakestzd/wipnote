@@ -334,3 +334,29 @@ func writeSampleRun(t *testing.T, s *runstore.Store) {
 		t.Fatal(err)
 	}
 }
+
+// TestSweepExcept_KeepsWhatKeepSays: a finished, old run folder that keep
+// names (a container run with unfolded files) is not removed; the same
+// folder without keep is.
+func TestSweepExcept_KeepsWhatKeepSays(t *testing.T) {
+	s, err := runstore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rf, err := s.CreateRun("dlg-0123456789ab")
+	if err != nil {
+		t.Fatal(err)
+	}
+	end := time.Now().Add(-30 * 24 * time.Hour)
+	if err := rf.Finish(0, end); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	removed, err := s.SweepExcept(now, time.Hour, func(dir string) bool { return dir == rf.Dir() })
+	if err != nil || len(removed) != 0 {
+		t.Fatalf("SweepExcept removed %v, %v; want the kept folder left", removed, err)
+	}
+	if removed, _ := s.Sweep(now, time.Hour); len(removed) != 1 {
+		t.Errorf("Sweep removed %v, want the folder", removed)
+	}
+}
