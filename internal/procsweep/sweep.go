@@ -13,6 +13,11 @@ import (
 // DefaultTimeout bounds one sweep when Options.Timeout is zero.
 const DefaultTimeout = 5 * time.Second
 
+// endClockTolerance absorbs skew between the ledger's recorded end and a
+// process start time: a process started up to this long after the end is
+// still treated as a leftover of the run that ended.
+const endClockTolerance = 2 * time.Second
+
 // Project is one project whose sessions ledger attributes processes.
 type Project struct {
 	// Name is the display name (a registry name or the folder's base name),
@@ -86,7 +91,7 @@ func Sweep(ctx context.Context, projects []Project, opts Options) (Result, error
 		}
 		res.Procs = append(res.Procs, Proc{
 			PID: rp.PID, Command: trimCommand(rp.Command), SessionID: id,
-			Project: s.project, StartedAt: rp.StartedAt, Orphan: s.ended,
+			Project: s.project, StartedAt: rp.StartedAt, Orphan: s.orphans(rp.StartedAt),
 			StopHint: stopHint(rp.PID),
 		})
 	}
@@ -109,7 +114,23 @@ func (o Options) withDefaults() Options {
 
 type sessionState struct {
 	project string
-	ended   bool
+	endedAt time.Time // zero while the session is open
+}
+
+// orphans reports whether a process started at start is a leftover of this
+// session's ended run. The ledger keeps a resumed session's row closed
+// (`--resume` reuses the id and Store.Open leaves an existing row alone), so
+// a process started after the recorded end, past endClockTolerance, belongs
+// to the resumed run and is live. An unknown (zero) start cannot be placed
+// relative to the end, so it keeps the plain rule: ended session → orphan.
+func (s sessionState) orphans(start time.Time) bool {
+	if s.endedAt.IsZero() {
+		return false
+	}
+	if start.IsZero() {
+		return true
+	}
+	return !start.After(s.endedAt.Add(endClockTolerance))
 }
 
 // loadSessions indexes every project's ledger by session id. The first
@@ -123,7 +144,7 @@ func loadSessions(projects []Project) (map[string]sessionState, error) {
 		}
 		for _, r := range recs {
 			if _, seen := out[r.SessionID]; !seen {
-				out[r.SessionID] = sessionState{project: p.Name, ended: !r.IsOpen()}
+				out[r.SessionID] = sessionState{project: p.Name, endedAt: r.EndedAt}
 			}
 		}
 	}

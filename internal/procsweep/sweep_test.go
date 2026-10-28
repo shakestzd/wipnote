@@ -154,3 +154,43 @@ func TestSweep_TimeBound(t *testing.T) {
 		t.Fatalf("sweep did not honour its time bound")
 	}
 }
+
+// endedAt is when tempProject's endedSession closed.
+var endedAt = time.Date(2026, 10, 27, 10, 0, 0, 0, time.UTC)
+
+func endedChildStartedAt(t *testing.T, start time.Time) Proc {
+	t.Helper()
+	rp := raw(300, "npm run dev", map[string]string{"CLAUDE_CODE_SESSION_ID": endedSession})
+	rp.StartedAt = start
+	p, ok := byPID(sweepOne(t, fakeTable(rp)), 300)
+	if !ok {
+		t.Fatal("ended session's child not found")
+	}
+	return p
+}
+
+func TestSweep_StartedBeforeEndIsOrphan(t *testing.T) {
+	if p := endedChildStartedAt(t, endedAt.Add(-time.Minute)); !p.Orphan {
+		t.Fatalf("a process from before the session ended is a leftover: %+v", p)
+	}
+}
+
+// claude --resume reuses the id but the ledger row stays closed, so a
+// process started after the recorded end belongs to the resumed run.
+func TestSweep_StartedAfterEndIsResumedNotOrphan(t *testing.T) {
+	if p := endedChildStartedAt(t, endedAt.Add(time.Minute)); p.Orphan {
+		t.Fatalf("a process started after the end belongs to a resumed session: %+v", p)
+	}
+}
+
+func TestSweep_StartedWithinToleranceIsOrphan(t *testing.T) {
+	if p := endedChildStartedAt(t, endedAt.Add(endClockTolerance-time.Millisecond)); !p.Orphan {
+		t.Fatalf("a start within the clock tolerance of the end is still a leftover: %+v", p)
+	}
+}
+
+func TestSweep_UnknownStartKeepsEndedRule(t *testing.T) {
+	if p := endedChildStartedAt(t, time.Time{}); !p.Orphan {
+		t.Fatalf("with no start time, an ended session's child stays an orphan: %+v", p)
+	}
+}
