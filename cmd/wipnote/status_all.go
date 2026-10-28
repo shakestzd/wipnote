@@ -12,6 +12,7 @@ import (
 
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/gitwatch"
+	"github.com/shakestzd/wipnote/internal/procsweep"
 	"github.com/shakestzd/wipnote/internal/registry"
 	"github.com/shakestzd/wipnote/internal/statusall"
 )
@@ -27,8 +28,11 @@ var statusAllGHRunner = func(dir string) gitwatch.Runner {
 	return gitwatch.ExecRunner{Timeout: statusAllGHTimeout, Dir: dir}
 }
 
+// statusAllProcLister lists processes for the orphan sweep. Tests swap it.
+var statusAllProcLister = procsweep.DefaultLister()
+
 type statusAllFlags struct {
-	all, json, noGH bool
+	all, json, noGH, noProcs bool
 	timeout         time.Duration
 	runs            int
 }
@@ -37,6 +41,7 @@ func addStatusAllFlags(cmd *cobra.Command, f *statusAllFlags) {
 	cmd.Flags().BoolVar(&f.all, "all", false, "Show every registered project (read-only; see docs/design/status-all.md)")
 	cmd.Flags().BoolVar(&f.json, "json", false, "With --all: print the JSON document")
 	cmd.Flags().BoolVar(&f.noGH, "no-gh", false, "With --all: skip every gh call (no PR or CI)")
+	cmd.Flags().BoolVar(&f.noProcs, "no-procs", false, "With --all: skip the process sweep (no orphans)")
 	cmd.Flags().DurationVar(&f.timeout, "timeout", statusall.DefaultDeadline, "With --all: bound for the whole run")
 	cmd.Flags().IntVar(&f.runs, "runs", statusall.DefaultRunsLimit, "With --all: recent runs kept per project")
 }
@@ -64,6 +69,9 @@ func runStatusAll(ctx context.Context, w io.Writer, f statusAllFlags) error {
 	o := statusall.Options{Entries: reg.List(), Deadline: f.timeout, RunsLimit: f.runs}
 	o.GH, o.GHReason = statusAllGH(f.noGH)
 	o.Herdr, o.HerdrReason = statusAllHerdr(os.Getenv)
+	if !f.noProcs {
+		o.Procs = statusAllProcLister
+	}
 	r := statusall.Collect(ctx, o)
 	if f.json {
 		return statusall.WriteJSON(w, r)
