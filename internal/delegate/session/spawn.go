@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/delegationledger"
+	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
@@ -55,9 +58,6 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 	if err := checkSpawn(d, o); err != nil {
 		return Spawned{}, err
 	}
-	if err := freeName(ctx, d, o.Name); err != nil {
-		return Spawned{}, err
-	}
 	var info Info
 	var rf *runstore.RunFolder
 	err := withWorkers(d.Store, string(o.CallerPane), func(w *Workers) error {
@@ -68,7 +68,7 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 			return err
 		}
 		var err error
-		if info, rf, err = openRun(d, o); err != nil {
+		if info, rf, err = claimName(ctx, d, o); err != nil {
 			return err
 		}
 		pane, err := place(ctx, d.Herdr, w, info.Run, o.Cwd)
@@ -107,6 +107,25 @@ func checkSpawn(d Deps, o SpawnOptions) error {
 		return errors.New("delegate: spawn has no boot line")
 	}
 	return nil
+}
+
+// namesLock is the project-wide lock that makes the name check and the
+// ledger open one step, so two spawns of one name (from any callers) cannot
+// both pass the check. It is held for the check and the open only, never
+// across placing or booting the pane.
+const namesLock = "names.lock"
+
+// claimName checks that name is free and opens the run, under namesLock.
+func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
+	if err := os.MkdirAll(d.Store.Root(), 0o700); err != nil {
+		return Info{}, nil, fmt.Errorf("delegate: run store: %w", err)
+	}
+	releaseNames := filelock.Guard(filepath.Join(d.Store.Root(), namesLock))
+	defer releaseNames()
+	if err := freeName(ctx, d, o.Name); err != nil {
+		return Info{}, nil, err
+	}
+	return openRun(d, o)
 }
 
 // freeName refuses a name an open interactive row holds while its pane
