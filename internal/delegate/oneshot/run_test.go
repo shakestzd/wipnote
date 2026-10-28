@@ -292,3 +292,37 @@ func TestRun_CcxWaitSetting(t *testing.T) {
 		}
 	}
 }
+
+// A run with a work item names its pane "<id>: <title>" (herdr.WorkLabel);
+// without one it keeps the derived label; an explicit --label always wins.
+// Only the explicit label enters the ledger.
+func TestRun_WorkItemPaneLabel(t *testing.T) {
+	cases := []struct {
+		name, label, item, title, want string
+	}{
+		{"work item", "", "feat-1", "Label the pane", "feat-1: Label the pane"},
+		{"no work item", "", "", "", "cdx: list the files"},
+		{"explicit label wins", "nightly review", "feat-1", "Label the pane", "nightly review"},
+		{"long title cut", "", "feat-1", strings.Repeat("long title ", 8), "feat-1: " + strings.Repeat("long title ", 4)[:39] + "…"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			p := newProject(t)
+			t.Setenv("STUB_STDOUT", fixture(t, "codex_exec.jsonl"))
+			f := newFake(t)
+			o := inHerdr(p.options("codex", "exec", "list the files"), f)
+			o.Settings.ClosePane = "never"
+			o.Label, o.WorkItem, o.WorkTitle = c.label, c.item, c.title
+			res := p.run(o)
+			if got := strings.Join(f.Calls(), "|"); !strings.HasSuffix(got, "|rename w1:p1 "+c.want) {
+				t.Fatalf("herdr calls %q, want the pane renamed %q", got, c.want)
+			}
+			if l := p.file(res.RunID, runstore.FileLabel); l != c.want {
+				t.Fatalf("label file %q, want %q", l, c.want)
+			}
+			if r := p.row(res.RunID); r.Label != c.label {
+				t.Fatalf("ledger label %q, want only the explicit %q", r.Label, c.label)
+			}
+		})
+	}
+}

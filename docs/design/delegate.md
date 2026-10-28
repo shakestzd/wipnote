@@ -64,7 +64,7 @@ failure) and the run page. Then it closes and enriches the row and sweeps old ru
 
 | Flag | Meaning |
 |---|---|
-| `--label L` | Pane title. It is the only label the ledger keeps (q-label: explicit only). A derived title goes only to the run folder's `label` file |
+| `--label L` | Pane title. It is the only label the ledger keeps (q-label: explicit only). Without it the title is `<id>: <title>` of the run's work item (cut to 48 runes), or one derived from the prompt when there is none; that title goes only to the run folder's `label` file |
 | `--work-item ID` | Work item for the row. Default: the caller's active claim |
 | `--no-pane` | Run headless even inside herdr |
 | `--` | Everything after it is the tool's argv. wipnote parses no flag after the first argument |

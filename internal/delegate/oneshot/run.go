@@ -20,6 +20,7 @@ type Options struct {
 	Argv          []string // the tool argv after --
 	Label         string   // explicit --label: the only label the ledger keeps
 	WorkItem      string   // the row's work item (the caller resolves the default)
+	WorkTitle     string   // the work item's title, for the pane label
 	CallerSession string
 	NoPane        bool // force headless inside herdr
 	Cwd           string
@@ -88,12 +89,21 @@ func ledgerHost(r Recipe) string {
 	return "host"
 }
 
-func runFolder(ctx context.Context, o Options, r Recipe, rf *runstore.RunFolder) (Result, error) {
-	label := strings.TrimSpace(o.Label)
-	if label == "" {
-		label = r.DerivedLabel()
+// paneLabel is the run's pane title: an explicit --label, else
+// "<id>: <title>" for a run with a work item, else the derived label. Only
+// the explicit label ever reaches the ledger.
+func paneLabel(o Options, r Recipe) string {
+	if label := strings.TrimSpace(o.Label); label != "" {
+		return label
 	}
-	_ = rf.WriteLabel(label)
+	if id := strings.TrimSpace(o.WorkItem); id != "" {
+		return herdr.WorkLabel(id, o.WorkTitle)
+	}
+	return r.DerivedLabel()
+}
+
+func runFolder(ctx context.Context, o Options, r Recipe, rf *runstore.RunFolder) (Result, error) {
+	_ = rf.WriteLabel(paneLabel(o, r))
 	job := buildJob(o, r, rf)
 	res := Result{RunID: rf.ID(), EndReason: delegationledger.EndExit}
 	exit, closed, err := dispatch(ctx, o, r, rf, job)

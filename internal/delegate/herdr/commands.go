@@ -112,8 +112,8 @@ func (c *CLI) Close(ctx context.Context, pane PaneID) error {
 	return c.call(ctx, nil, "pane", "close", string(pane))
 }
 
-// Rename sets a pane's title. Documented in the help listing as `pane
-// rename`; the positional `<pane> <title>` form is UNVERIFIED.
+// Rename sets a pane's title. Documented: herdr's CLI reference (0.9.5)
+// lists `pane rename <pane_id> <label>|--clear`; not run on a real herdr.
 func (c *CLI) Rename(ctx context.Context, pane PaneID, title string) error {
 	return c.call(ctx, nil, "pane", "rename", string(pane), title)
 }

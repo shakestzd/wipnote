@@ -91,6 +91,7 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name, workItem str
 		WipnoteRoot: lctx.wipnoteRoot,
 		Intent:      lctx.intentResult.intent,
 		ExtraEnv:    lctx.continueEnv,
+		WorkItem:    lctx.intentResult.workItem,
 	})
 }
 
@@ -252,5 +253,6 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 		WipnoteRoot:        lctx.wipnoteRoot,
 		Intent:             lctx.intentResult.intent,
 		ExtraEnv:           lctx.continueEnv,
+		WorkItem:           lctx.intentResult.workItem,
 	})
 }
