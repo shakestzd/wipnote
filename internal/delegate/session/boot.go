@@ -44,7 +44,8 @@ func BootEnv(environ []string, runID, caller string) []string {
 // prompt. No --settings: the launcher's plugin hooks are the worker's hooks
 // (q-settings). A Claude flag would go after "--" (Phase B). A resumed worker
 // gets --resume <id> (both launchers take it) and no --name: the resumed
-// session keeps its own name (slice 20).
+// session keeps its own name (slice 20). A one-shot run's Args follow the
+// brief (slice 22).
 func BootArgv(exe string, info Info, brief string) []string {
 	argv := []string{exe, info.Harness, "--in-place"}
 	switch {
@@ -53,10 +54,15 @@ func BootArgv(exe string, info Info, brief string) []string {
 	case info.Harness == HarnessClaude:
 		argv = append(argv, "--name", info.Name)
 	}
-	if brief != "" {
-		argv = append(argv, "--", brief)
+	if brief != "" || len(info.Args) > 0 {
+		argv = append(argv, "--")
 	}
-	return argv
+	if brief != "" {
+		argv = append(argv, brief)
+	}
+	// The prompt goes before the launch args: a variadic flag such as
+	// --mcp-config would read a later prompt as one of its values.
+	return append(argv, info.Args...)
 }
 
 // Preamble is put before the brief and every sent task (decision R): the worker writes its

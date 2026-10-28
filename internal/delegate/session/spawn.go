@@ -44,8 +44,14 @@ type SpawnOptions struct {
 	// ResumedFrom and ResumeSession are a resume's old run id and the
 	// harness session it continues (slice 20); Resume sets both.
 	ResumedFrom, ResumeSession string
-	ShellWait                  time.Duration // DefaultShellWait when zero
-	Poll                       time.Duration // DefaultPoll when zero
+	// LaunchArgs, when set, gives the harness flags boot adds after the
+	// brief, once the run folder exists (it may write files there); a
+	// Claude one-shot run's wrapper (slice 22). SessionID and Transcript are
+	// recorded with them in session.json.
+	LaunchArgs            func(rf *runstore.RunFolder) ([]string, error)
+	SessionID, Transcript string
+	ShellWait             time.Duration // DefaultShellWait when zero
+	Poll                  time.Duration // DefaultPoll when zero
 }
 
 // Spawned is spawn's payload: {run, name, pane, harness, status}.
@@ -224,7 +230,11 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	if o.Container {
 		info.Root = o.Root
 	}
+	info.SessionID, info.Transcript = o.SessionID, o.Transcript
 	rf, err := d.Store.CreateRun(row.ID)
+	if err == nil && o.LaunchArgs != nil {
+		info.Args, err = o.LaunchArgs(rf)
+	}
 	if err == nil {
 		err = writeRunFiles(d, rf, &info, o.Brief)
 	}

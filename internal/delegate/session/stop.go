@@ -18,6 +18,14 @@ const DefaultExitWait = 20 * time.Second
 type StopOptions struct {
 	ExitWait time.Duration // DefaultExitWait when zero
 	Poll     time.Duration // DefaultPoll when zero
+	// A Claude one-shot run's end (slice 22), which wipnote decides itself:
+	// Interrupt presses escape before the exit command, so a running turn
+	// ends first, and Exit closes the row as exit with that status instead
+	// of stop. Stop still never signals (D5): the one-shot run does that
+	// itself, to the pids WorkerProcs names, when the exit command did not
+	// end the agent.
+	Interrupt bool
+	Exit      *int
 }
 
 // Survivor is a recorded worker process still running after its pane closed.
@@ -40,6 +48,9 @@ type StopResult struct {
 	// Ended is the row's end reason as it stands after the stop: stop's own,
 	// or the one a concurrent close (list or wait saw the worker gone) wrote.
 	Ended string `json:"ended,omitempty"`
+	// ExitTyped: the exit command was typed and the agent did not exit in
+	// time (the pane stays open). Only then may a one-shot run signal it.
+	ExitTyped bool `json:"exit_typed,omitempty"`
 }
 
 type recorded struct {
@@ -74,9 +85,9 @@ func Stop(ctx context.Context, d Deps, name string, o StopOptions) (StopResult, 
 		return res, nil
 	}
 	inside := recordInside(ctx, d, info, &res)
-	procs, why := exitAgent(ctx, d, info, o)
+	procs, why, typed := endAgent(ctx, d, info, o)
 	if why != "" {
-		res.Why = why
+		res.Why, res.ExitTyped = why, typed
 		return res, nil
 	}
 	if !closeOwnPane(ctx, d.Herdr, info) {
@@ -86,7 +97,7 @@ func Stop(ctx context.Context, d Deps, name string, o StopOptions) (StopResult, 
 	res.PaneClosed = true
 	res.Survivors = survivors(d, info, procs)
 	checkInside(ctx, d, info, inside, &res)
-	endStop(ctx, d, r, rf, info, ob, &res)
+	endStop(ctx, d, r, rf, info, ob, &res, o.Exit)
 	return res, nil
 }
 
@@ -106,13 +117,20 @@ func survivors(d Deps, info Info, procs []recorded) []Survivor {
 
 // endStop ends a stopped worker's run: as stop, or as gone (its claims
 // expired) when its harness had already exited, as every loss does.
-func endStop(ctx context.Context, d Deps, r delegationledger.Record, rf *runstore.RunFolder, info Info, ob Observation, res *StopResult) {
+func endStop(ctx context.Context, d Deps, r delegationledger.Record, rf *runstore.RunFolder, info Info, ob Observation, res *StopResult, exit *int) {
 	reason := delegationledger.EndStop
 	if workerLost(ob) {
 		reason = delegationledger.EndGone
 	}
-	if finishStop(ctx, d, rf, info, res, reason) && workerLost(ob) {
-		res.Why = ob.GoneWhy + "; the pane was closed, and the run is closed as gone and its claims as expired"
+	if exit != nil {
+		// A one-shot run's own verdict, also when its signal is what ended
+		// the harness before this look.
+		reason = delegationledger.EndExit
+	}
+	if finishStop(ctx, d, rf, info, res, reason, exit) && workerLost(ob) {
+		if exit == nil {
+			res.Why = ob.GoneWhy + "; the pane was closed, and the run is closed as gone and its claims as expired"
+		}
 		expireWorkerClaims(d, r, rf)
 	}
 }
@@ -128,7 +146,7 @@ func stopUnreachable(ctx context.Context, d Deps, r delegationledger.Record, rf 
 		return
 	}
 	res.Why = ob.GoneWhy + " already; the run is closed as gone and its claims as expired"
-	if finishStop(ctx, d, rf, info, res, delegationledger.EndGone) {
+	if finishStop(ctx, d, rf, info, res, delegationledger.EndGone, nil) {
 		expireWorkerClaims(d, r, rf)
 	}
 }
@@ -136,29 +154,31 @@ func stopUnreachable(ctx context.Context, d Deps, r delegationledger.Record, rf 
 // exitAgent records the pids, asks the agent to exit and waits for a bare
 // shell. A non-empty why means the pane must stay open; nothing was typed
 // unless the why says so.
-func exitAgent(ctx context.Context, d Deps, info Info, o StopOptions) ([]recorded, string) {
+// typed reports that the exit command was typed (the why, if any, is then
+// that the agent did not exit in time).
+func exitAgent(ctx context.Context, d Deps, info Info, o StopOptions) (procs []recorded, why string, typed bool) {
 	pane := herdr.PaneID(info.Pane)
 	pi, err := d.Herdr.Processes(ctx, pane)
 	if err != nil {
-		return nil, fmt.Sprintf("herdr process-info failed for pane %s, so the worker's pids are unknown; nothing was typed: %v", pane, err)
+		return nil, fmt.Sprintf("herdr process-info failed for pane %s, so the worker's pids are unknown; nothing was typed: %v", pane, err), false
 	}
-	procs := record(d, pi)
+	procs = record(d, pi)
 	if bareShell(pi) {
-		return procs, ""
+		return procs, "", false
 	}
 	if !pi.Known {
-		return procs, fmt.Sprintf("herdr process-info for pane %s has no shell pid or process list (unknown is not a bare shell); nothing was typed", pane)
+		return procs, fmt.Sprintf("herdr process-info for pane %s has no shell pid or process list (unknown is not a bare shell); nothing was typed", pane), false
 	}
 	if in := ReadInput(ctx, d.Herdr, pane); in.Draft() {
-		return procs, "a draft may be on the worker's input line (" + in.why() + "); nothing was typed, so a person's text is not lost"
+		return procs, "a draft may be on the worker's input line (" + in.why() + "); nothing was typed, so a person's text is not lost", false
 	}
 	if err := d.Herdr.SendText(ctx, pane, exitCommand[info.Harness]); err != nil {
-		return procs, fmt.Sprintf("herdr would not type the exit command: %v", err)
+		return procs, fmt.Sprintf("herdr would not type the exit command: %v", err), false
 	}
 	if err := d.Herdr.SendKeys(ctx, pane, "enter"); err != nil {
-		return procs, fmt.Sprintf("herdr would not press enter after the exit command: %v", err)
+		return procs, fmt.Sprintf("herdr would not press enter after the exit command: %v", err), false
 	}
-	return procs, waitBareShell(ctx, d, pane, o)
+	return procs, waitBareShell(ctx, d, pane, o), true
 }
 
 func waitBareShell(ctx context.Context, d Deps, pane herdr.PaneID, o StopOptions) string {
@@ -214,7 +234,7 @@ func procNames(pi herdr.ProcessInfo) string {
 // is the run folder finished, so a concurrent close (a list or wait that saw
 // the worker gone) keeps its own end; res.Ended is the row's end as it
 // stands. It reports whether this call closed the row.
-func finishStop(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info, res *StopResult, reason string) bool {
+func finishStop(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info, res *StopResult, reason string, exit *int) bool {
 	_ = withWorkers(d.Store, info.CallerPane, func(w *Workers) error {
 		closed, err := release(ctx, d.Herdr, w, herdr.PaneID(info.Pane))
 		res.TabClosed = closed
@@ -223,12 +243,16 @@ func finishStop(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info, 
 		}
 		return nil
 	})
-	closed, err := closeWorkerRow(d, info.Run, reason)
+	closed, err := closeWorkerRowAs(d, info.Run, reason, exit)
 	if err != nil && res.Why == "" {
 		res.Why = "the delegations ledger could not close the run: " + err.Error()
 	}
 	if err == nil && closed && rf != nil {
-		_ = rf.Finish(exitOf(reason), d.now())
+		code := exitOf(reason)
+		if exit != nil {
+			code = *exit
+		}
+		_ = rf.Finish(code, d.now())
 	}
 	res.Ended = endedOf(d, info.Run)
 	return err == nil && closed

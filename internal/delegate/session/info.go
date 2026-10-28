@@ -45,7 +45,13 @@ type Info struct {
 	// harness session boot passes to --resume (slice 20).
 	ResumedFrom   string `json:"resumed_from,omitempty"`
 	ResumeSession string `json:"resume_session,omitempty"`
-	Created       string `json:"created"`
+	// Args are extra harness flags boot passes after the brief, and
+	// SessionID and Transcript the session id they fix and its transcript
+	// file: a Claude one-shot run's launch (slice 22).
+	Args       []string `json:"args,omitempty"`
+	SessionID  string   `json:"session_id,omitempty"`
+	Transcript string   `json:"transcript,omitempty"`
+	Created    string   `json:"created"`
 }
 
 // Pin is the herdr pin of the worker's agent (pane plus pinned terminal).
