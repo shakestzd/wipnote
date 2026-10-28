@@ -41,12 +41,12 @@ withdrawn. One path now covers both:
 | `delegate stop` | available (slice 10) | Verified stop of a worker |
 | `delegate list` | available (slice 10) | List runs and worker readiness |
 | `delegate tree` | available (slice 10) | Caller, runs, workers and sub-agents as a tree |
-| `delegate send` | planned (slice 11) | Put a task in a worker's inbox, with a herdr hint |
-| `delegate wait` | planned (slice 11) | Block until a durable signal or the timeout |
-| `delegate result` | planned (slice 11) | Print the newest result file a worker wrote |
-| `delegate questions` | planned (slice 11) | List a worker's pending questions |
-| `delegate inbox` | planned (slice 11) | The worker's own read of its mailbox |
-| `delegate doctor` | planned (slice 12) | Preflight checks (Codex sandbox; container in slice 21; profile in slice 27) |
+| `delegate send` | available (slice 11) | Put a task in a worker's inbox, with a herdr hint |
+| `delegate wait` | available (slice 11) | Block until a durable signal or the timeout |
+| `delegate result` | available (slice 11) | Print the newest result file a worker wrote |
+| `delegate questions` | available (slice 11) | List a worker's pending questions |
+| `delegate inbox` | available (slice 11) | The worker's own read of its mailbox |
+| `delegate doctor` | available (slice 12) | Preflight checks (Codex sandbox; container in slice 21; profile in slice 27) |
 | `delegate answer` | planned (slice 17) | Answer a pending worker question by typing into its pane |
 
 Errors in every available command: wipnote prints the reason on stderr and exits 1. That includes a
@@ -55,7 +55,7 @@ bad flag, a wrong argument count and a refused input.
 ### 2.1 `wipnote delegate run` (available)
 
 ```
-wipnote delegate run [--label L] [--work-item ID] [--no-pane] -- <codex exec|codex review|claude -p|ccx task> ...
+wipnote delegate run [--label L] [--work-item ID] [--no-pane] [--write] -- <codex exec|codex review|claude -p|ccx task> ...
 ```
 
 Runs one tool call. It opens a ledger row, creates a run folder and runs the tool in a herdr pane when
@@ -97,10 +97,20 @@ Settings: the `delegate` object, merged per key from the user-level wipnote conf
 (true), `leanProfileName` (lean), `ccxRunsDir` (no default; read only from the user and local files;
 `CCX_RUNS_DIR` wins), `ccxWaitSeconds` (30) and `keepDays` (7).
 
+Codex sandbox (slice 12, decision S): `codex exec` always gets exactly one `--sandbox`:
+`read-only` by default, `workspace-write` with `--write`. The caller's own `--sandbox`/`-s`,
+`--full-auto` or bypass flag is read as the rung it asks for and replaced by that one flag.
+`danger-full-access` is passed, with a warning on stderr, only on a host listed in
+`delegate.codex.dangerFullAccessHosts` in `~/.wipnote/config.json` (the key is ignored, with a
+note, in the project and local files). Before the run, a bwrap probe (cached per host for ten
+minutes in `.wipnote/delegate/`, bounded to 5 s) runs on Linux; a definite bwrap failure refuses the
+run with the probe output, before any ledger row or run folder is written, unless the host opted in.
+A probe that times out does not refuse. `codex review` runs as given. The thread id from
+`thread.started` goes into the row's worker sessions, and the last `turn.completed` usage fills
+input, cached, output and reasoning.
+
 Planned changes to `run`:
 
-- `--write`: Codex runs with `--sandbox workspace-write` instead of the read-only default. Planned
-  (slice 12).
 - `--container`: the tool runs in the project's own devcontainer. Planned (slice 21).
 - `--tools`, `--plugin`, `--mcp`: widen the lean default profile by named items. Planned (slice 27).
 - Inside herdr, a Claude run becomes an interactive worker (spawn, send, wait, stop) with the same
@@ -108,8 +118,11 @@ Planned changes to `run`:
 - Inside herdr, a Codex run becomes an interactive TUI worker with the same report. Planned
   (slice 26). Outside herdr, `codex exec` stays. `codex review` and `ccx task` stay one-shot.
 - A bare `codex exec` or `claude -p` in the Bash tool is denied, and the reason holds the exact
-  `wipnote delegate run -- <same argv>`. A bare `ccx task` gets the `--container` form. This is a
-  PreToolUse hook, not a command. Planned (slice 9; q-intercept: deny-redirect).
+  `wipnote delegate run -- <same argv>`. A bare `ccx task` gets the `--container` form, and until
+  slice 21 ships `--container`, the exact-argv form too. This is a PreToolUse hook, not a command.
+  Chained commands, a command fed on stdin, `dev exec`, and anything else `delegate run` would
+  refuse run as typed; a command that starts with `wipnote delegate` is never denied. Available
+  (slice 9; q-intercept: deny-redirect; recogniser in `internal/delegate/detect`).
 
 ### 2.2 `wipnote delegate run-pane <run-id>` (available, hidden)
 
@@ -151,7 +164,7 @@ before anything is written.
 ### 2.5 Interactive workers (available, slice 10)
 
 ```
-wipnote delegate spawn NAME --harness claude|codex [--work-item ID] [--brief TEXT | --brief-file PATH|-]
+wipnote delegate spawn [NAME] --harness claude|codex [--work-item ID] [--brief TEXT | --brief-file PATH|-]
 wipnote delegate stop NAME [--wait D]
 wipnote delegate list [--all] [--json]
 wipnote delegate tree [--all] [--json]
@@ -187,6 +200,24 @@ after it), `done` (the turn ended and the newest task's result file exists), `id
 `idle_no_result`, or `ready`. Input-line text never makes a worker working (D8). `list` also
 renames the herdr agent to NAME and pins its terminal id once herdr lists an agent in the pane.
 
+**Overview groups (slice 25).** list, tree, the orchestra band and `run.html` also name each run's
+Projects Overview group (decision P). `internal/delegate/session/groups.go` holds the one table:
+
+| Group | States |
+|-------|--------|
+| Working | `starting`, `working`, `idle_shell`, `running` (an open one-shot run) |
+| Waiting on you | `question`, `blocked`, `idle_no_result`, `gone` (incl. a run ended `gone`), `failed` (ended with a non-zero exit) |
+| Ready for review | `done` (the result file waits to be read); any idle or ended run with an open PR |
+| Landing | an idle or ended run whose PR is approved or queued |
+| Idle | `ready` |
+| Resolved | `ended` (exit 0, `stop`, `pane_closed`, `imported`); a merged PR |
+
+Working and Waiting on you win over a PR. Waiting on you matches the run and agent kinds of
+`status --all`'s needs_you (`blocked_agent`, `failed_run`, `lost_run`). The band runs no
+readiness predicate: `list` keeps each open worker's observed state in its run folder
+(`state.json`), and the band and tree read it until the ledger row closes. No PR source feeds a
+run yet, so the PR rows are mapped but not shown.
+
 **stop** records the pane's foreground pids and their start times, refuses to type when the
 input line may hold a draft (plain or mixed text, or a failed styled read; an all-grey
 suggestion reads as empty), types `/exit` (Claude) or `/quit` (Codex), waits until process-info
@@ -203,41 +234,96 @@ yield one worker.
 | 0 | spawn, list and tree succeeded; stop closed the pane |
 | 1 | a refusal or error; stop left the pane open (the JSON still prints) |
 
+**Names by work item (slice 15).** Without NAME, spawn names the worker `<item-id>-<slug of the
+item title>`, cut to 32 characters on a word boundary (`core/slug.WorkerName`). That one name is
+the mailbox name, the ledger `name`, the Claude session name (`--name`) and the herdr agent name
+`list` sets. A given NAME is kept as is. `wipnote claude` names a fresh launch for a work item the
+same way; with no item it keeps `<project>-<timestamp>`, and `--name`, `--resume` and `--continue`
+keep their names. A root Claude session that later claims an item (`<kind> start`) is renamed
+`<item-id> <title>` (cut to 48) on its next prompt, once, through the UserPromptSubmit hook's
+`hookSpecificOutput.sessionTitle` (code.claude.com/docs/en/hooks). The claim leaves a mark in
+`.wipnote/sessions/<sid>/`; the hook reads and removes it, and renames only while the session still
+holds that item. Subagents and delegate workers are never renamed by a claim.
+
+**Codex: recorded as unsupported (checked 2026-10-28).** learn.chatgpt.com/docs/hooks documents
+only `additionalContext` (and a block decision) as UserPromptSubmit and SessionStart output, with no
+title or name field, and the Codex emitter's field set is pinned because an unknown field drops the
+whole response. No launch flag that names a Codex session is documented; the changelog's `/title`
+(codex-cli 0.164.0) is a TUI command, not a launch or hook contract. So a Codex worker is named only
+in wipnote (mailbox, ledger) and in herdr (agent name); boot passes it no name flag. Revisit when a
+Codex doc names a session-title contract.
+
 Planned on top: `--write` (slice 12), `--resume NAME` (slice 20), `--container` (slice 21),
 `--tools`, `--plugin`, `--mcp` (slice 27). Slice 16 adds the claim rules of section 5: spawn
 also refuses a second live worker on the same work item, and list, stop and spawn close a lost
 worker's claim episodes as expired.
 
-### 2.6 Planned commands
+### 2.6 Mailbox verbs (available, slice 11)
+
+```
+wipnote delegate send NAME [TEXT | --file PATH|-]
+wipnote delegate wait NAME --timeout D
+wipnote delegate result NAME
+wipnote delegate questions NAME
+wipnote delegate inbox            # inside a worker
+```
+
+**send** refuses, writing nothing, unless the readiness predicate accepts input and the input line
+holds no draft (the same `SendCheck` as slice 10; a grey suggestion reads as empty), and while the
+newest inbox task is not acked yet. The whole decision (row still open, readiness, input line,
+ack) and the post run under `mail/<name>/send.lock`. It writes
+`inbox/<seq>-<task>.json` first, with the result preamble (decision R) that also names the question
+file `outbox/<task>-q<n>.json`, then types the same text with `herdr agent prompt` as a hint and
+marks the message `hinted`. A failed hint keeps the task in the inbox (`hinted: false`,
+`hint_error`). Prints `{run, name, task, turn, hinted, hint_error}`. `turn` counts the worker's tasks.
+
+**wait** needs `--timeout` and settles, in this order: a closed row (`stopped`, or `gone` for
+`end_reason=gone`) at once; a lost pane (`gone`: the row closes as gone only if still open, and only
+the worker sessions' own claim episodes are expired; a harness that exited in a live pane counts
+the same); the current task's result file (`done`, even
+with silent hooks or a turn stuck at working, D1 and D1b); a pending ask (`asks`, with the rows of
+`questions`, D7); a folder-trust dialog (`blocked`, even before the first task is acked); then the
+predicate's `ready`, `idle_no_result` or `idle_shell`. While the newest task is not acked, the hook
+turn state belongs to an older turn and never settles the wait; the ack is read before the events.
+Every herdr call is bounded by the wait's deadline, which still ends in `timeout` and exit 124.
+It polls at most twice a second, never reads the input line (D8) and writes no run state; its only
+writes are the two ledger ones under the ledger lock on a still-open row (a `/clear` session joins
+`worker_sessions`; the worker-loss close). Prints `{run, name, turn, outcome, task, detail, asks}`.
+
+**Run scoping.** A mailbox is keyed by worker name, so a later worker with the same name shares
+it. Every message carries `run`, and send, wait, list, result, questions, inbox and the worker's ack
+hook read only their own run's tasks (and the result and question files of those tasks).
+
+**result** prints the newest result file's body and the task it answers whatever the state
+(D3), or `"result": "none"`. **questions** prints the current session's pending AskUserQuestion
+and PermissionRequest calls and the newest task's unanswered question files as rows `{id, kind, task,
+tool, text, options}`; a question file is answered once an inbox message has `in_reply_to` set to
+its id (slice 17 writes it). `delegate view` of an interactive run prints each new set of pending
+asks. **inbox** reads the mailbox of the run named by `WIPNOTE_DELEGATE_RUN`; `lost: true` marks a
+task that was neither hinted nor acked.
+
+**Worker hooks** (in addition to the bind events): PreToolUse writes `tool_start`, or `question`
+for AskUserQuestion with a bounded summary of the questions and options; PostToolUse and
+PostToolUseFailure write `tool_end`; PermissionRequest writes `permission_request` when the prompt
+reaches the person; UserPromptSubmit, after its `prompt` event, acks the newest inbox task. The
+Stop event records only that the turn ended.
+
+| Exit | When |
+|---|---|
+| 0 | send, result, questions and inbox succeeded; wait settled |
+| 124 | wait: the timeout passed |
+| 1 | a refusal or error, including wait without `--timeout` |
+
+### 2.7 Planned commands
 
 None of these exist yet. Flags come from the plan. Where the plan sets no exit code, the row says
 "not set in the plan"; that is open, and the plan has no question id for it.
 
-**`delegate send NAME <task>`, planned (slice 11).** Writes the inbox file first, with the result
-preamble (decision R), then sends a `herdr agent prompt` hint. A person's draft on the input line
-blocks it (D8). Exit codes: not set in the plan.
-
-**`delegate wait NAME --timeout D`, planned (slice 11).** Blocks until a durable signal. `--timeout` is
-required. It prints `{run, turn, outcome}` with outcome `ready`, `done`, `asks`, `idle_no_result`,
-`idle_shell`, `timeout`, `gone` or `stopped`. It polls at most twice a second. It writes no run state.
-
-| Exit | When |
-|---|---|
-| 124 | The timeout passed |
-| other | Not set in the plan |
-
-**`delegate result NAME`, planned (slice 11).** Prints the newest result file's body and the task it
-answers, whatever the state (D3). Exit codes: not set in the plan.
-
-**`delegate questions NAME`, planned (slice 11).** Prints pending AskUserQuestion and
-PermissionRequest calls, and outbox question files, as JSON rows. Answered ones are dropped. Exit
-codes: not set in the plan.
-
-**`delegate inbox`, planned (slice 11).** Runs in the worker. It reads the worker's own mailbox, named
-by `WIPNOTE_DELEGATE_RUN`, including messages whose hint was lost. Exit codes: not set in the plan.
-
-**`delegate doctor`, planned (slice 12).** Pass or fail per check, with the exact stderr. Slice 12:
-the Codex sandbox probe. Slice 21: inside the container, Claude Code is logged in and the container
+**`delegate doctor`, available (slice 12).** Pass, warn, fail or skip per check, with the exact
+stderr. Slice 12: `codex` (on PATH, its version), `bwrap sandbox` (a fresh probe, which refreshes
+the cache `run` reads; skipped off Linux), `danger-full-access opt-in` (this host's name and
+whether it is listed), `sandbox ladder` (the `--sandbox` a worker gets by default and with
+`--write`) and `herdr`. Exits 1 when a check fails. Slice 21: inside the container, Claude Code is logged in and the container
 user's Claude config folder is writable. Slice 27: the effective profile, and anything it could not
 turn off. Exit codes: not set in the plan.
 
@@ -267,11 +353,19 @@ No absolute host path, user name or home folder enters a ledger row. The writer 
 harness's own ids, oldest first), `host` (`host` or `container`), `started`, `ended`, `exit`,
 `end_reason` (`exit`, `stop`, `pane_closed`, `gone`, `imported`), usage counts and `resumed_from`.
 
+**Readers** (slice 13): `wipnote lineage <work-item>` and `wipnote feature show <id>` list the item's
+rows (`delegations[]` in `lineage --json`), and `wipnote lineage dlg-<id>` shows one run. Each row
+lists its workers' claim episodes, joined from `.wipnote/claims/` on worker session id; a worker
+episode that overlaps a caller episode on the same item is a co-claim named by the `dlg-` id. The
+read-only orch reader (`internal/orchlink`) and lineage's `orch_sessions` are gone: orch history
+arrives through `import-orch`.
+
 **Run folder** (`.wipnote/delegate/runs/<run-id>/`, the feat-a1df60c2 contract): `raw.log`,
 `clean.log`, `clean.md`, `last.md`, `usage`, `start`, `end`, `exit` (its presence ends the run),
 `label`, `host`, `run.html`, and `events-<writer>.ndjson`. A one-shot run also uses `job.json` (what
 the pane worker runs) and, for ccx, `out.txt`. An interactive run also holds `session.json` (name,
-harness, pane, pinned terminal id, caller pane, cwd, place, first task id) and `brief.md`. A caller's
+harness, pane, pinned terminal id, caller pane, cwd, place, first task id), `brief.md` and
+`state.json` (the state and group `list` last observed). A caller's
 workers tab and its worker panes are kept in `.wipnote/delegate/workers/<caller-pane>.json`.
 
 **Mailbox** (`.wipnote/delegate/mail/<name>/`): `inbox/` (written by the caller), `outbox/` (written by
@@ -422,7 +516,7 @@ Claude Code 2.1.310, codex-cli 0.164.0).
 
 - Whether `spawn` NAME becomes optional when slice 15 derives `<item-id>-<slug>`. The plan has no
   question id for it.
-- Exit codes for every planned command except `wait`'s 124. The plan sets none and has no question
+- Exit codes for every planned command. The plan sets none and has no question
   id for them.
 - Slice 27's notes leave four facts to verify on the real CLIs: whether `--strict-mcp-config` also
   drops plugin-bundled MCP servers; whether `codex -c mcp_servers={}` replaces the table; whether the

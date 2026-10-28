@@ -18,9 +18,11 @@ type Row struct {
 	Detail   string   `json:"detail,omitempty"`
 	Sessions []string `json:"sessions,omitempty"`
 	Open     bool     `json:"open"`
+	Group    Group    `json:"group"`
 }
 
-// One-shot and ended runs carry these states.
+// One-shot and ended runs carry these states (and StateFailed, StateGone:
+// RunStateOf).
 const (
 	StateRunning State = "running"
 	StateEnded   State = "ended"
@@ -49,18 +51,26 @@ func List(ctx context.Context, d Deps, all bool) ([]Row, error) {
 func listRow(ctx context.Context, d Deps, r delegationledger.Record) Row {
 	row := Row{Run: r.ID, Mode: r.Mode, Name: r.Name, Harness: r.Harness, WorkItem: r.WorkItem,
 		Sessions: r.WorkerSessions, Open: r.IsOpen()}
-	switch {
-	case !r.IsOpen():
-		row.State, row.Detail = StateEnded, r.EndReason
-		return row
-	case r.Mode != delegationledger.ModeInteractive:
-		row.State = StateRunning
+	if !r.IsOpen() || r.Mode != delegationledger.ModeInteractive {
+		row.State = RunStateOf(r.IsOpen(), r.Exit, r.EndReason)
+		row.Group, _ = GroupOf(row.State)
+		if !r.IsOpen() {
+			row.Detail = r.EndReason
+		}
 		return row
 	}
+	workerRow(ctx, d, r, &row)
+	row.Group, _ = GroupOf(row.State)
+	return row
+}
+
+// workerRow observes an open interactive worker and keeps what it saw in
+// the run folder (writeObserved).
+func workerRow(ctx context.Context, d Deps, r delegationledger.Record, row *Row) {
 	rf, info, err := loadInfo(d.Store, r.ID)
 	if err != nil {
 		row.State, row.Detail = StateGone, err.Error()
-		return row
+		return
 	}
 	row.Pane = info.Pane
 	if adopt(ctx, d.Herdr, &info) {
@@ -69,6 +79,7 @@ func listRow(ctx context.Context, d Deps, r delegationledger.Record) Row {
 	o, f := observe(ctx, d, rf, info)
 	rd := Ready(o)
 	row.State, row.Detail = rd.State, rd.Detail
+	writeObserved(rf, rd)
 	if len(f.sessions) > 0 {
 		if _, err := d.Ledger.Enrich(r.ID, delegationledger.Enrichment{WorkerSessions: f.sessions}); err == nil {
 			row.Sessions = mergeSessions(r.WorkerSessions, f.sessions)
@@ -79,7 +90,6 @@ func listRow(ctx context.Context, d Deps, r delegationledger.Record) Row {
 		loseWorker(d, r, rf, info)
 		row.Open = false
 	}
-	return row
 }
 
 func mergeSessions(have, add []string) []string {

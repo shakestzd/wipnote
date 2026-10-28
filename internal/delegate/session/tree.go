@@ -23,6 +23,8 @@ type RunNode struct {
 	Harness  string       `json:"harness"`
 	WorkItem string       `json:"work_item,omitempty"`
 	Open     bool         `json:"open"`
+	State    State        `json:"state"`
+	Group    Group        `json:"group"`
 	Workers  []WorkerNode `json:"workers"`
 }
 
@@ -69,9 +71,12 @@ func Tree(d Deps, caller string) ([]CallerNode, error) {
 func runNode(store *runstore.Store, r delegationledger.Record) RunNode {
 	n := RunNode{Run: r.ID, Mode: r.Mode, Name: r.Name, Harness: r.Harness, WorkItem: r.WorkItem, Open: r.IsOpen(), Workers: []WorkerNode{}}
 	var evs []runstore.Event
-	if rf, err := store.Run(r.ID); err == nil {
+	rf, err := store.Run(r.ID)
+	if err == nil {
 		evs, _ = rf.ReadEvents()
 	}
+	n.State = treeState(rf, r)
+	n.Group, _ = GroupOf(n.State)
 	sessions := mergeSessions(r.WorkerSessions, factsOf(evs).sessions)
 	for _, sid := range sessions {
 		var own []runstore.Event
@@ -87,6 +92,21 @@ func runNode(store *runstore.Store, r delegationledger.Record) RunNode {
 		n.Workers = append(n.Workers, WorkerNode{Session: sid, SubAgents: subs})
 	}
 	return n
+}
+
+// treeState is a run's state without observing it: an open worker's is the
+// one list last kept in its folder (starting before any list), any other
+// run's comes from its ledger row.
+func treeState(rf *runstore.RunFolder, r delegationledger.Record) State {
+	if !r.IsOpen() || r.Mode != delegationledger.ModeInteractive {
+		return RunStateOf(r.IsOpen(), r.Exit, r.EndReason)
+	}
+	if rf != nil {
+		if o, ok := ReadObserved(rf); ok {
+			return o.State
+		}
+	}
+	return StateStarting
 }
 
 // RenderTree writes nodes as an indented text tree.
@@ -106,7 +126,7 @@ func RenderTree(w io.Writer, nodes []CallerNode) {
 			if r.Name != "" {
 				label = r.Name + " (" + r.Harness + ")"
 			}
-			fmt.Fprintf(w, "  run %s %s %s %s\n", r.Run, label, r.WorkItem, state)
+			fmt.Fprintf(w, "  run %s %s %s %s %s · %s\n", r.Run, label, r.WorkItem, state, r.State, r.Group.Label())
 			for _, wk := range r.Workers {
 				fmt.Fprintf(w, "    session %s\n", wk.Session)
 				for _, s := range wk.SubAgents {

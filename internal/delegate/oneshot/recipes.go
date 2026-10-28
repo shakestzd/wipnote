@@ -17,6 +17,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/shakestzd/wipnote/internal/delegate/codex"
 )
 
 // Kind is the delegated tool. Its value is the ledger's harness column.
@@ -157,14 +159,15 @@ func (r Recipe) Name() string {
 
 // CommandOptions shape the argv the run executes.
 type CommandOptions struct {
-	LastFile    string // the run folder's last.md
-	LeanProfile string // empty: off
-	CodexHome   string // where codex reads <profile>.config.toml
+	LastFile    string     // the run folder's last.md
+	LeanProfile string     // empty: off
+	CodexHome   string     // where codex reads <profile>.config.toml
+	Sandbox     codex.Mode // codex exec's --sandbox (slice 12); empty: as given
 }
 
 // Command is the argv the run executes. codex exec gets
 // --output-last-message, --json and the lean profile, each only when the
-// caller did not say so; claude gets --output-format stream-json and
+// caller did not say so, and the ladder's one --sandbox; claude gets --output-format stream-json and
 // --verbose (print mode refuses stream-json without it). review and ccx run
 // as given.
 func (r Recipe) Command(o CommandOptions) []string {
@@ -181,7 +184,11 @@ func (r Recipe) Command(o CommandOptions) []string {
 		if !slices.Contains(words, "--json") {
 			pre = append(pre, "--json")
 		}
-		return slices.Concat(r.Argv[:2], pre, r.Argv[2:])
+		rest := r.Argv[2:]
+		if o.Sandbox != "" {
+			rest = codex.WithSandbox(rest, o.Sandbox) // exactly one --sandbox
+		}
+		return slices.Concat(r.Argv[:2], pre, rest)
 	case KindClaude:
 		pre := []string{}
 		if _, ok := flagValue(ownWords(r.Argv[1:]), "--output-format"); !ok {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
@@ -67,12 +68,16 @@ func loseWorker(d Deps, r delegationledger.Record, rf *runstore.RunFolder, info 
 	closeLost(d, r, rf)
 }
 
-// closeLost closes the row as gone, finishes the run folder (so readers stop
-// waiting for an exit and the sweep can age it out), then closes as expired
-// the episodes of each of the worker's sessions, only that session's
-// (Deps.ExpireClaims).
+// closeLost closes the row as gone and, only when this call closed it,
+// finishes the run folder (so readers stop waiting for an exit and the sweep
+// can age it out) and closes as expired the episodes of each of the worker's
+// sessions, only that session's. A row someone else closed first (a stop
+// always wins) is left as it is. The orchestrator's episode is never touched.
 func closeLost(d Deps, r delegationledger.Record, rf *runstore.RunFolder) {
-	_, _ = d.Ledger.CloseIfOpen(r.ID, delegationledger.CloseInfo{Ended: d.now(), Reason: delegationledger.EndGone})
+	closed, err := d.Ledger.CloseIfOpen(r.ID, delegationledger.CloseInfo{Ended: d.now(), Reason: delegationledger.EndGone})
+	if err != nil || !closed {
+		return
+	}
 	if rf != nil {
 		_ = rf.Finish(1, d.now())
 	}
@@ -83,7 +88,7 @@ func closeLost(d Deps, r delegationledger.Record, rf *runstore.RunFolder) {
 // used: those in worker_sessions and those bound in events that no list has
 // moved into the ledger yet (the worker claims before that).
 func expireWorkerClaims(d Deps, r delegationledger.Record, rf *runstore.RunFolder) {
-	if d.ExpireClaims == nil {
+	if d.ExpireClaims == nil && d.Claims == nil {
 		return
 	}
 	sessions := r.WorkerSessions
@@ -93,6 +98,10 @@ func expireWorkerClaims(d Deps, r delegationledger.Record, rf *runstore.RunFolde
 		}
 	}
 	for _, sid := range sessions {
-		d.ExpireClaims(sid)
+		if d.ExpireClaims != nil {
+			d.ExpireClaims(sid)
+			continue
+		}
+		_, _ = d.Claims.CloseAllForSession(sid, sid, claimledger.OutcomeExpired, d.now())
 	}
 }

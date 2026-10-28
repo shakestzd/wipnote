@@ -30,9 +30,14 @@ func PreToolUse(event *CloudEvent) (*HookResult, error) {
 	st := &preToolState{event: event, ctx: ctx}
 	for _, g := range preToolUseGuards() {
 		if out := g.run(st); out != nil {
+			if out.err == nil && delegateToolAllowed(out.result) {
+				recordDelegateToolStart(event, ctx.ProjectDir, ctx.SessionID)
+			}
 			return out.result, out.err
 		}
 	}
+	// A denied call never runs, so only an allowed one opens a tool_start.
+	recordDelegateToolStart(event, ctx.ProjectDir, ctx.SessionID)
 	return st.recordAndAllow()
 }
 
@@ -73,6 +78,7 @@ func preToolUseGuards() []preToolGuard {
 	return []preToolGuard{
 		{"wipnote-write", guardWipnoteWrite},
 		{"bash-cwd", guardBashCwd},
+		{"delegate-redirect", guardDelegateRedirect},
 		{"plan-mode-bypass", guardPlanModeBypass},
 		{"orchestrator-research-advisory", guardOrchestratorResearchAdvisory},
 		{"orchestrator-strict", guardOrchestratorStrict},

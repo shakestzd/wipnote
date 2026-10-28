@@ -1,13 +1,13 @@
 package render
 
 // The run page's frame, styles and script, as the mod's runhtml.ts writes
-// them. Arguments: CSS, first tab, state colour, label, status, live parts,
+// them. Arguments: CSS, first tab, state colour, label, group tag, status, live parts,
 // answer, log path, script.
 const pageHTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Delegation Run</title><style>%s</style></head>
 <body data-first="%s" style="--state:var(%s)"><main>
-<header><h1>%s</h1><p>%s</p></header>
+<header><h1>%s</h1><p>%s%s</p></header>
 <div class="tabs"><button id="t-live" aria-pressed="false">Live</button><button id="t-answer" aria-pressed="false">Answer</button><button id="t-all">Open all</button></div>
 <div id="live">%s</div>
 <div id="answer" class="answer">%s</div>
@@ -22,6 +22,7 @@ const pageCSS = `:root{--bg:#fbfaf7;--fg:#1f1f1c;--muted:#6b6a64;--line:#e4e1d8;
 main{max-width:860px;margin:0 auto;padding:24px 16px 48px}
 header{border-left:4px solid var(--state);padding:4px 0 4px 14px;margin-bottom:20px}
 header h1{font-size:18px;margin:0 0 2px;overflow-wrap:anywhere}header p{margin:0;color:var(--muted);font-size:13px}
+.group{color:var(--state);font-weight:600}
 .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}.tabs button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:5px 12px;border-radius:6px;cursor:pointer}
 .tabs button[aria-pressed="true"]{border-color:var(--fg);font-weight:600}
 h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:18px 0 6px}

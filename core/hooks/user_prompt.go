@@ -46,6 +46,9 @@ func UserPrompt(event *CloudEvent) (*HookResult, error) {
 	} else {
 		result.Continue = true
 	}
+	if title := pendingSessionTitle(projectDir, sessionID, featureID); title != "" {
+		result.HookSpecificOutput = &HookSpecificOutput{SessionTitle: title}
+	}
 	return result, nil
 }
 
