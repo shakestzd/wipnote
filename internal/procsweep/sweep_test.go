@@ -175,11 +175,12 @@ func TestSweep_StartedBeforeEndIsOrphan(t *testing.T) {
 	}
 }
 
-// claude --resume reuses the id but the ledger row stays closed, so a
-// process started after the recorded end belongs to the resumed run.
-func TestSweep_StartedAfterEndIsResumedNotOrphan(t *testing.T) {
+// A process started after the latest recorded end is covered by no recorded
+// run (a resume whose SessionStart has not been written yet), so it is never
+// called an orphan.
+func TestSweep_StartedAfterLatestEndIsNotOrphan(t *testing.T) {
 	if p := endedChildStartedAt(t, endedAt.Add(time.Minute)); p.Orphan {
-		t.Fatalf("a process started after the end belongs to a resumed session: %+v", p)
+		t.Fatalf("a process started after the latest end is not a leftover of any recorded run: %+v", p)
 	}
 }
 
