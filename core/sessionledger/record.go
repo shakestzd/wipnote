@@ -31,7 +31,8 @@
 //
 //  1. Write rate. A claim shard absorbs one row per claim and one rewrite per
 //     release — many per session. This ledger takes exactly ONE row per session,
-//     written once at start.
+//     written once at start, plus one small run-event line per resume (see
+//     runs.go).
 //  2. Fragment addressability. Sharding a per-session record can only shard BY
 //     session, which degenerates to one single-row file per session — a
 //     git-tracked mirror of the gitignored sessions directory, with no table
@@ -171,11 +172,21 @@ type Record struct {
 	// never reach a canonical artifact.
 	ProjectDir string
 
+	// StartedAt is the FIRST start; a resume never moves it, so lineage and
+	// every reader that joins on the start keep the session's true origin.
 	StartedAt time.Time
-	EndedAt   time.Time
+	// EndedAt is the LATEST run's end, zero while the latest run is open, so a
+	// reader that knows only StartedAt/EndedAt sees a resumed session as open
+	// until its last run ends (bug-2a96e9cb).
+	EndedAt time.Time
 	// EndSource records which pass supplied EndedAt, so a later repair can
 	// replace a weakly-grounded end without guessing. Zero while the row is open.
 	EndSource EndSource
+	// Runs lists every process lifetime of a RESUMED session, first to latest.
+	// It is nil for a session that never resumed: that session is one implicit
+	// run, StartedAt..EndedAt, exactly as rows read before runs existed. Use
+	// RunList to read runs uniformly.
+	Runs []Run
 
 	// ArchivePath is the repo-relative path of the tarball holding this
 	// session's raw events, set when retention archives them. It is the bridge

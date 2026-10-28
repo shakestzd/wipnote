@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/sessionledger"
 )
 
@@ -154,5 +155,62 @@ func TestSessionLedgerCloseOfUnrecordedSessionIsSilent(t *testing.T) {
 	recordSessionLedgerClose(projectDir, ledgerTestSessionID, time.Now().UTC())
 	if recs := ledgerRows(t, projectDir); len(recs) != 0 {
 		t.Errorf("closing an unrecorded session created %d row(s); it must not invent history", len(recs))
+	}
+}
+
+// TestSessionStartResumeOfAClosedSessionAppendsARun is bug-2a96e9cb at the hook:
+// a session that ended and is resumed records a second run, so its second end
+// is recorded instead of the row staying closed at the first.
+func TestSessionStartResumeOfAClosedSessionAppendsARun(t *testing.T) {
+	projectDir := newLedgerHookProject(t)
+	database, err := openWipnoteTestDB(t, projectDir)
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	defer database.Close()
+
+	if _, err := SessionStart(&CloudEvent{SessionID: ledgerTestSessionID, CWD: projectDir, Source: "startup"}, projectDir); err != nil {
+		t.Fatalf("SessionStart: %v", err)
+	}
+	firstEnd := time.Now().UTC()
+	recordSessionLedgerClose(projectDir, ledgerTestSessionID, firstEnd)
+
+	if _, err := SessionStart(&CloudEvent{SessionID: ledgerTestSessionID, CWD: projectDir, Source: "resume"}, projectDir); err != nil {
+		t.Fatalf("SessionStart resume: %v", err)
+	}
+	recs := ledgerRows(t, projectDir)
+	if len(recs) != 1 || !recs[0].IsOpen() || len(recs[0].RunList()) != 2 {
+		t.Fatalf("after resume: %+v, want one open row with two runs", recs)
+	}
+
+	secondEnd := time.Now().UTC().Add(time.Second)
+	recordSessionLedgerClose(projectDir, ledgerTestSessionID, secondEnd)
+	rec := ledgerRows(t, projectDir)[0]
+	if !rec.EndedAt.Equal(secondEnd) {
+		t.Errorf("end = %v, want the resumed run's end %v", rec.EndedAt, secondEnd)
+	}
+	if runs := rec.RunList(); !runs[0].EndedAt.Equal(firstEnd) {
+		t.Errorf("first run end = %v, want %v", runs[0].EndedAt, firstEnd)
+	}
+}
+
+// TestLateWriterNeverReopensAClosedSession: a CLI command run by a process
+// that outlived its session must not record a resume.
+func TestLateWriterNeverReopensAClosedSession(t *testing.T) {
+	projectDir := newLedgerHookProject(t)
+	store := sessionledger.NewStore(filepath.Join(projectDir, ".wipnote"))
+	if _, err := store.Open(sessionledger.Record{SessionID: ledgerTestSessionID, Harness: "claude",
+		StartedAt: time.Now().UTC().Add(-time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	recordSessionLedgerClose(projectDir, ledgerTestSessionID, time.Now().UTC())
+
+	t.Setenv("WIPNOTE_SESSION_ID", ledgerTestSessionID)
+	t.Setenv("CLAUDECODE", "1")
+	if _, err := agent.EnsureSession(nil, projectDir); err != nil {
+		t.Fatalf("EnsureSession: %v", err)
+	}
+	if rec := ledgerRows(t, projectDir)[0]; rec.IsOpen() || len(rec.RunList()) != 1 {
+		t.Errorf("a late writer reopened the session: %+v", rec)
 	}
 }

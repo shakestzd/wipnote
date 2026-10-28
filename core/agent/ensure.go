@@ -50,6 +50,10 @@ func EnsureSessionWithTimeout(_ any, projectDir string, _ time.Duration) (string
 // that does not exist (bug-5333ea49). With no harness known (a plain shell or
 // a delegate script that resolved the session from .active-session) the row is
 // left out: SessionStart, which knows the harness, owns it.
+//
+// It writes through Store.Ensure, never Open: this caller cannot tell a live
+// session from one it outlived, so it must not record a resume of a closed
+// row (bug-2a96e9cb).
 func ensureLedgerRow(projectDir, sessionID string) error {
 	harness := DetectEnvHarness()
 	if harness == "" {
@@ -61,7 +65,7 @@ func ensureLedgerRow(projectDir, sessionID string) error {
 		ProjectDir: paths.NormalizeProjectDir(projectDir),
 		StartedAt:  time.Now().UTC(),
 	}
-	_, err := sessionledger.NewStore(filepath.Join(projectDir, ".wipnote")).Open(record)
+	_, err := sessionledger.NewStore(filepath.Join(projectDir, ".wipnote")).Ensure(record)
 	return err
 }
 
