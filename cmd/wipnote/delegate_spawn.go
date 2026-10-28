@@ -22,10 +22,10 @@ import (
 // (plan-28b4a7f6 slice 10): an interactive worker in the caller's workers
 // tab. It returns within seconds with status starting.
 func delegateSpawnCmd() *cobra.Command {
-	var harness, workItem, brief, briefFile string
+	var harness, workItem, brief, briefFile, resumeFrom string
 	var inContainer bool
 	cmd := &cobra.Command{
-		Use:   "spawn NAME --harness claude|codex [--work-item ID] [--brief TEXT | --brief-file PATH] [--container]",
+		Use:   "spawn NAME (--harness claude|codex | --resume OLD) [--work-item ID] [--brief TEXT | --brief-file PATH] [--container]",
 		Short: "Start an interactive Claude or Codex worker in the caller's herdr workers tab",
 		Long: `Starts an interactive worker under wipnote claude or wipnote codex in a split of
 the caller's workers tab (one tab per caller, at most 6 workers). spawn types one
@@ -42,14 +42,22 @@ work item defaults to the caller's active claim; spawn refuses without one.
 the pane runs devcontainer up, then devcontainer exec --workspace-folder <root>
 wipnote claude|codex. spawn still returns at once. It refuses without
 .devcontainer/devcontainer.json or the devcontainer CLI, and a Codex worker
-unless this host is in delegate.codex.dangerFullAccessHosts.`,
+unless this host is in delegate.codex.dangerFullAccessHosts.
+
+--resume OLD starts NAME on OLD's last harness session (wipnote claude
+--resume <id>, wipnote codex --resume <id>) in OLD's recorded folder and place
+(host or devcontainer), with the harness and work item of OLD's run unless
+given. The new run's ledger row has resumed_from set. It refuses while OLD is
+live, when OLD's run folder was swept, when no session id was recorded, when a
+run already resumed OLD, and a Codex resume with a brief.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			text, err := readBrief(brief, briefFile, cmd.InOrStdin())
 			if err != nil {
 				return err
 			}
-			return runDelegateSpawn(cmd, args[0], harness, workItem, text, inContainer)
+			return runDelegateSpawn(cmd, spawnArgs{name: args[0], harness: harness, workItem: workItem,
+				brief: text, container: inContainer, resume: resumeFrom})
 		},
 	}
 	cmd.Flags().StringVar(&harness, "harness", "", "claude or codex")
@@ -57,6 +65,7 @@ unless this host is in delegate.codex.dangerFullAccessHosts.`,
 	cmd.Flags().StringVar(&brief, "brief", "", "the worker's first task")
 	cmd.Flags().StringVar(&briefFile, "brief-file", "", "read the first task from a file (- for stdin)")
 	cmd.Flags().BoolVar(&inContainer, "container", false, "start the worker in the project's own devcontainer")
+	cmd.Flags().StringVar(&resumeFrom, "resume", "", "continue the stopped worker OLD's last session, in its folder and place")
 	return cmd
 }
 
@@ -74,7 +83,13 @@ func readBrief(text, file string, stdin io.Reader) (string, error) {
 	return text, nil
 }
 
-func runDelegateSpawn(cmd *cobra.Command, name, harness, workItem, brief string, inContainer bool) error {
+// spawnArgs is one spawn command's flags.
+type spawnArgs struct {
+	name, harness, workItem, brief, resume string
+	container                              bool
+}
+
+func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
@@ -85,26 +100,39 @@ func runDelegateSpawn(cmd *cobra.Command, name, harness, workItem, brief string,
 		return err
 	}
 	caller := hooks.EnvSessionID("")
-	if workItem == "" {
-		workItem = gate.ActiveWorkItemForGate(projectDir, caller, db.NormaliseAgentID(os.Getenv("WIPNOTE_AGENT_ID")))
+	if a.workItem == "" && a.resume == "" { // a resume defaults to the old run's item
+		a.workItem = gate.ActiveWorkItemForGate(projectDir, caller, db.NormaliseAgentID(os.Getenv("WIPNOTE_AGENT_ID")))
 	}
 	cwd, _ := os.Getwd()
 	exe, err := os.Executable()
 	if err != nil {
 		exe = "wipnote"
 	}
-	s, err := session.Spawn(cmd.Context(), d, session.SpawnOptions{
-		Name: name, Harness: harness, WorkItem: workItem, CallerSession: caller, CallerPane: env.CallerPane,
-		Brief: brief, Cwd: cwd, Container: inContainer, Root: projectDir, CodexOptIn: inContainer && hostOptedIn(projectDir),
-		BootLine: func(run string) string { return session.BootLine(exe, projectDir, run, caller) },
-	})
+	o := session.SpawnOptions{
+		Name: a.name, Harness: a.harness, WorkItem: a.workItem, CallerSession: caller, CallerPane: env.CallerPane,
+		Brief: a.brief, Cwd: cwd, Container: a.container, Root: projectDir,
+		CodexOptIn: (a.container || a.resume != "") && hostOptedIn(projectDir),
+		BootLine:   func(run string) string { return session.BootLine(exe, projectDir, run, caller) },
+	}
+	var s session.Spawned
+	if a.resume != "" {
+		s, err = session.Resume(cmd.Context(), d, o, a.resume)
+	} else {
+		s, err = session.Spawn(cmd.Context(), d, o)
+	}
 	if err != nil {
 		return err
 	}
-	if inContainer && harness == session.HarnessCodex {
+	if s.Harness == session.HarnessCodex && spawnedInContainer(d, s.Run) {
 		fmt.Fprintln(cmd.ErrOrStderr(), "wipnote: warning: the Codex worker runs with --sandbox danger-full-access inside the devcontainer (bwrap does not work there; this host opted in through delegate.codex.dangerFullAccessHosts)")
 	}
 	return writeJSON(cmd.OutOrStdout(), s)
+}
+
+// spawnedInContainer reports that run's ledger row is a container worker.
+func spawnedInContainer(d session.Deps, run string) bool {
+	r, ok, err := d.Ledger.Get(run)
+	return err == nil && ok && r.Host == session.PlaceContainer
 }
 
 // hostOptedIn: this host is in delegate.codex.dangerFullAccessHosts (the

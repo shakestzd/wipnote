@@ -36,8 +36,11 @@ type SpawnOptions struct {
 	Container  bool
 	Root       string
 	CodexOptIn bool
-	ShellWait  time.Duration // DefaultShellWait when zero
-	Poll       time.Duration // DefaultPoll when zero
+	// ResumedFrom and ResumeSession are a resume's old run id and the
+	// harness session it continues (slice 20); Resume sets both.
+	ResumedFrom, ResumeSession string
+	ShellWait                  time.Duration // DefaultShellWait when zero
+	Poll                       time.Duration // DefaultPoll when zero
 }
 
 // Spawned is spawn's payload: {run, name, pane, harness, status}.
@@ -123,6 +126,9 @@ func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.Run
 	if err := freeName(ctx, d, o.Name); err != nil {
 		return Info{}, nil, err
 	}
+	if err := checkResumedOnce(d, o.ResumedFrom); err != nil {
+		return Info{}, nil, err
+	}
 	return openRun(d, o)
 }
 
@@ -155,6 +161,7 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	row, err := d.Ledger.Open(delegationledger.Record{
 		Mode: delegationledger.ModeInteractive, Harness: o.Harness, Name: o.Name, WorkItem: o.WorkItem,
 		Link: "tag", CallerSession: o.CallerSession, Host: placeOf(o), Started: d.now(),
+		ResumedFrom: o.ResumedFrom,
 	})
 	if err != nil {
 		return Info{}, nil, err
@@ -162,6 +169,7 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	info := Info{
 		Run: row.ID, Name: o.Name, Harness: o.Harness, WorkItem: o.WorkItem, Caller: o.CallerSession,
 		CallerPane: string(o.CallerPane), Cwd: o.Cwd, Place: placeOf(o), Created: d.now().Format(time.RFC3339),
+		ResumedFrom: o.ResumedFrom, ResumeSession: o.ResumeSession,
 	}
 	if o.Container {
 		info.Root = o.Root

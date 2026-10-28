@@ -38,7 +38,11 @@ type Info struct {
 	// devcontainer up, set by the boot).
 	Root      string `json:"root,omitempty"`
 	Workspace string `json:"workspace_folder,omitempty"`
-	Created   string `json:"created"`
+	// ResumedFrom and ResumeSession: a resumed worker's old run and the
+	// harness session boot passes to --resume (slice 20).
+	ResumedFrom   string `json:"resumed_from,omitempty"`
+	ResumeSession string `json:"resume_session,omitempty"`
+	Created       string `json:"created"`
 }
 
 // Pin is the herdr pin of the worker's agent (pane plus pinned terminal).
