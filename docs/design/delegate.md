@@ -193,7 +193,10 @@ suggestion reads as empty), types `/exit` (Claude) or `/quit` (Codex), waits unt
 positively shows the shell alone, closes the pane, then reports recorded pids still running with
 the same start time. It never signals. It prints `{run, name, pane_closed, tab_closed,
 survivors[], why}`; `why` always names the reason when the pane stays open. The workers tab
-closes after its last worker.
+closes after its last worker. When a pinned worker's pane id now holds another terminal, stop types
+nothing and closes nothing, and the row closes as gone. The name check and the row open run under one
+project-wide lock (`.wipnote/delegate/names.lock`), so concurrent spawns of one name from any callers
+yield one worker.
 
 | Exit | When |
 |---|---|
