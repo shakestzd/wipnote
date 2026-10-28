@@ -1,6 +1,7 @@
 package gateledger
 
 import (
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"os"
 	"path/filepath"
 	"strings"
@@ -83,6 +84,9 @@ func (s *Store) Append(r Record) (Record, error) {
 	if err := r.Validate(); err != nil {
 		return Record{}, err
 	}
+	if containerwrite.Active() {
+		return r, appendOwn(s.wipnoteDir, r)
+	}
 
 	release := filelock.Guard(s.path)
 	defer release()
@@ -98,13 +102,10 @@ func (s *Store) Append(r Record) (Record, error) {
 // does not exist yet reads as empty rather than as an error.
 func (s *Store) ReadAll() ([]Record, error) {
 	recs, err := ReadFile(s.path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	return recs, nil
+	return withOwn(s.wipnoteDir, recs), nil
 }
 
 // LatestForSession returns the most recent gate run recorded by sessionID, or

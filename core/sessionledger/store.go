@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"github.com/shakestzd/wipnote/core/filelock"
 )
 
@@ -126,6 +127,9 @@ func (s *Store) open(r Record, mayResume bool) (bool, error) {
 	if isAgentFallback(r.Harness) {
 		return false, ErrAgentHarness
 	}
+	if containerwrite.Active() {
+		return s.openOwn(r)
+	}
 
 	release := filelock.Guard(s.path)
 	defer release()
@@ -183,6 +187,9 @@ func (s *Store) correctHarnessLocked(records []Record, idx int, harness string) 
 func (s *Store) Close(sessionID string, endedAt time.Time) error {
 	if endedAt.IsZero() {
 		endedAt = time.Now().UTC()
+	}
+	if containerwrite.Active() {
+		return containerwrite.CloseSession(s.wipnoteDir, sessionID, endedAt)
 	}
 
 	release := filelock.Guard(s.path)
@@ -256,6 +263,9 @@ type Enrichment struct {
 func (s *Store) Enrich(sessionID string, e Enrichment) (bool, error) {
 	if isAgentFallback(e.Harness) {
 		e.Harness = "" // an agent identity is not a harness: record it as unknown
+	}
+	if containerwrite.Active() {
+		return false, nil // the host enriches the folded row
 	}
 	release := filelock.Guard(s.path)
 	defer release()
@@ -399,6 +409,9 @@ func (c Correction) AttributionOnly() bool {
 // dryRun computes and returns the decision without writing, so the caller can
 // show exactly what would change.
 func (s *Store) Correct(sessionID string, end time.Time, src EndSource, dryRun bool) (Correction, error) {
+	if containerwrite.Active() {
+		return Correction{}, ErrContainerWorker
+	}
 	release := filelock.Guard(s.path)
 	defer release()
 

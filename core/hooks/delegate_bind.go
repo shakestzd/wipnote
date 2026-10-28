@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"encoding/json"
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -77,6 +78,12 @@ func RecordDelegateEvent(projectDir string, ev DelegateEvent) {
 	data = append(data, '\n')
 	if torn {
 		data = append([]byte("#torn\n"), data...)
+	}
+	if containerwrite.Active() {
+		// Across the mount only a rename is atomic (Phase B B7): the
+		// container worker replaces its own file whole (slice 21).
+		_ = containerwrite.AppendLine(path, data)
+		return
 	}
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
 	if err != nil {
