@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# A stand-in for bwrap in probe tests: STUB_BWRAP_OUT on stderr, exit
+# STUB_BWRAP_EXIT (0 when unset), after STUB_BWRAP_SLEEP seconds.
+[ -n "${STUB_BWRAP_SLEEP:-}" ] && sleep "$STUB_BWRAP_SLEEP"
+[ -n "${STUB_BWRAP_OUT:-}" ] && printf '%s\n' "$STUB_BWRAP_OUT" >&2
+exit "${STUB_BWRAP_EXIT:-0}"
