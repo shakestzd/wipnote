@@ -9,6 +9,8 @@ import (
 	"context"
 	"strings"
 	"time"
+
+	"github.com/shakestzd/wipnote/core/slug"
 )
 
 const (
@@ -22,14 +24,7 @@ const (
 // title's whitespace collapsed, cut to LabelWidth runes (the last one an
 // ellipsis when cut). An empty title gives the id alone.
 func WorkLabel(id, title string) string {
-	label := strings.TrimSpace(id)
-	if t := strings.Join(strings.Fields(title), " "); t != "" {
-		label += ": " + t
-	}
-	if rs := []rune(label); len(rs) > LabelWidth {
-		label = string(rs[:LabelWidth-1]) + "…"
-	}
-	return label
+	return slug.WorkTitle(id, ": ", title, LabelWidth)
 }
 
 // LabelCallerPane sets the caller's pane label through c. Outside herdr,

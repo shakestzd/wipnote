@@ -49,7 +49,7 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name, workItem str
 	resumeID = lctx.intentResult.resumeID
 
 	browse := lctx.intentResult.browse
-	sessionName := resolveSessionName(name, resumeID, continue_ || browse, projectRoot)
+	sessionName := resolveSessionName(name, resumeID, continue_ || browse, projectRoot, lctx.intentResult.workItem)
 
 	devHeadline := "Launching Claude Code with local plugin (--plugin-dir mode)"
 	if auto {
@@ -232,7 +232,7 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 	if err != nil {
 		return err
 	}
-	sessionName := resolveSessionName(name, resumeID, lctx.intentResult.browse, projectRoot)
+	sessionName := resolveSessionName(name, resumeID, lctx.intentResult.browse, projectRoot, lctx.intentResult.workItem)
 	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{
 		Headline:        fmt.Sprintf("Launching Claude Code (%s mode)...", lctx.intentResult.mode),
 		PluginSource:    pluginDir,
