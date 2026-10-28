@@ -76,7 +76,7 @@ func listRow(ctx context.Context, d Deps, r delegationledger.Record) Row {
 		}
 	}
 	if o.PaneGone {
-		loseWorker(d, r, rf)
+		loseWorker(d, r, rf, info)
 		row.Open = false
 	}
 	return row

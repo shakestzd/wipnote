@@ -11,6 +11,7 @@ import (
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
 
@@ -225,5 +226,125 @@ func TestStop_WorkerEpisodeAbandonedBySessionEnd(t *testing.T) {
 	}
 	if ep := episodeOf(t, claims, "sid-w1", "feat-0a1b2c3d"); ep.Outcome != claimledger.OutcomeAbandoned {
 		t.Fatalf("episode %+v", ep)
+	}
+}
+
+// workerPanes returns the panes in the caller's workers record.
+func workerPanes(t *testing.T, e *env) []herdr.PaneID {
+	t.Helper()
+	var ids []herdr.PaneID
+	if err := withWorkers(e.deps.Store, "w1:p1", func(w *Workers) error {
+		ids = w.paneIDs()
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return ids
+}
+
+func hasPane(ids []herdr.PaneID, p herdr.PaneID) bool {
+	for _, id := range ids {
+		if id == p {
+			return true
+		}
+	}
+	return false
+}
+
+// pin records the pane's current terminal as the worker's, as adopt does.
+func pin(t *testing.T, e *env, s Spawned) {
+	t.Helper()
+	rf := e.runFolder(s.Run)
+	info, err := ReadInfo(rf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info.TerminalID, info.Renamed = e.herdr.pane(PaneOf(s)).terminal, true
+	if err := WriteInfo(rf, info); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A lost worker's run folder finishes, so readers stop waiting for its exit
+// and the sweep can age it out.
+func TestPaneLoss_ListFinishesRunFolder(t *testing.T) {
+	e := newEnv(t)
+	s := e.spawn("w1")
+	// Other side: a live pane leaves the run unfinished.
+	if _, err := List(context.Background(), e.deps, false); err != nil {
+		t.Fatal(err)
+	}
+	if ri, _ := e.runFolder(s.Run).Read(); ri.Finished {
+		t.Fatalf("list finished a live worker's run: %+v", ri)
+	}
+	_ = e.herdr.Close(context.Background(), PaneOf(s))
+	if _, err := List(context.Background(), e.deps, false); err != nil {
+		t.Fatal(err)
+	}
+	if ri, _ := e.runFolder(s.Run).Read(); !ri.Finished || ri.End.IsZero() {
+		t.Fatalf("lost worker's run not finished: %+v", ri)
+	}
+}
+
+// A pinned pane that now holds another terminal leaves the caller's workers
+// record, and the reused terminal is not touched.
+func TestPaneLoss_ListForgetsReusedPane(t *testing.T) {
+	e := newEnv(t)
+	a := e.spawn("w1")
+	b := e.spawn("w2")
+	pin(t, e, a)
+	pin(t, e, b)
+	e.herdr.pane(PaneOf(a)).terminal = "term-someone-else"
+	mark := len(e.herdr.Calls())
+	if _, err := List(context.Background(), e.deps, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range e.herdr.Calls()[mark:] {
+		if strings.HasPrefix(c, "send-") || strings.HasPrefix(c, "close ") || strings.HasPrefix(c, "tab close") {
+			t.Fatalf("list touched a reused pane: %s", c)
+		}
+	}
+	panes := workerPanes(t, e)
+	if hasPane(panes, PaneOf(a)) {
+		t.Fatalf("reused pane %s still in the workers record %v", PaneOf(a), panes)
+	}
+	if r := e.row(a.Run); r.IsOpen() || r.EndReason != delegationledger.EndGone {
+		t.Fatalf("row %+v", r)
+	}
+	if ri, _ := e.runFolder(a.Run).Read(); !ri.Finished {
+		t.Fatalf("reused worker's run not finished: %+v", ri)
+	}
+	// Other side: the worker on its own terminal stays placed and open.
+	if !hasPane(panes, PaneOf(b)) || !e.row(b.Run).IsOpen() {
+		t.Fatalf("live worker %s dropped: %v", PaneOf(b), panes)
+	}
+}
+
+// The spawn path loses a reused worker the same way: its run leaves the
+// workers record (never split) and its run folder finishes.
+func TestSpawn_LosesReusedWorkerOnItem(t *testing.T) {
+	e := newEnv(t)
+	a := e.spawn("w1")
+	pin(t, e, a)
+	e.herdr.pane(PaneOf(a)).terminal = "term-someone-else"
+	o := e.opts("w2")
+	o.WorkItem = "feat-0a1b2c3d"
+	b, err := Spawn(context.Background(), e.deps, o)
+	if err != nil {
+		t.Fatalf("reused pane, spawn refused: %v", err)
+	}
+	if hasCall(e.herdr.Calls(), "split "+string(PaneOf(a))) {
+		t.Fatalf("spawn split the reused pane: %v", e.herdr.Calls())
+	}
+	panes := workerPanes(t, e)
+	if hasPane(panes, PaneOf(a)) || !hasPane(panes, PaneOf(b)) {
+		t.Fatalf("workers record %v, want only %s", panes, PaneOf(b))
+	}
+	if ri, _ := e.runFolder(a.Run).Read(); !ri.Finished {
+		t.Fatalf("lost run not finished: %+v", ri)
+	}
+	// Other side: the new worker's run is live.
+	if ri, _ := e.runFolder(b.Run).Read(); ri.Finished {
+		t.Fatalf("new run finished: %+v", ri)
 	}
 }

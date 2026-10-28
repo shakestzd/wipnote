@@ -24,14 +24,18 @@ func ClaimLine(workItem string) string {
 
 // checkLive refuses a spawn whose name, or whose work item, an open
 // interactive row holds while its pane lives (one worker per item, v1). A
-// row whose pane herdr says is gone, or now holds another terminal, goes
-// through the worker-loss path first and no longer counts. It runs under
-// namesLock (claimName), so two spawns cannot both pass for one item. One-shot rows never count: they do not claim.
-func checkLive(ctx context.Context, d Deps, o SpawnOptions) error {
+// row whose pane herdr says is gone, or now holds another terminal, is closed
+// as lost first and no longer counts; its info is returned so the spawn can
+// drop it from the workers record once no lock is held (checkLive runs under
+// the caller's workers lock and namesLock, so it must take neither). Running
+// under namesLock (claimName) means two spawns cannot both pass for one item.
+// One-shot rows never count: they do not claim.
+func checkLive(ctx context.Context, d Deps, o SpawnOptions) ([]Info, error) {
 	open, ok := d.Ledger.ReadOpen()
 	if !ok {
-		return errors.New("delegate: the delegations ledger cannot be read; nothing was spawned")
+		return nil, errors.New("delegate: the delegations ledger cannot be read; nothing was spawned")
 	}
+	var lost []Info
 	for _, r := range open.Interactive() {
 		sameName, sameItem := r.Name == o.Name, r.WorkItem == o.WorkItem
 		if !sameName && !sameItem {
@@ -40,25 +44,38 @@ func checkLive(ctx context.Context, d Deps, o SpawnOptions) error {
 		rf, info, err := loadInfo(d.Store, r.ID)
 		if err == nil && info.Pane != "" {
 			if p, gerr := d.Herdr.Get(ctx, herdr.PaneID(info.Pane)); herdr.IsAbsent(gerr) || (gerr == nil && reused(info, p)) {
-				loseWorker(d, r, rf)
+				closeLost(d, r, rf)
+				lost = append(lost, info)
 				continue
 			}
 		}
 		if sameName {
-			return fmt.Errorf("%w: %s is run %s", ErrLiveName, o.Name, r.ID)
+			return lost, fmt.Errorf("%w: %s is run %s", ErrLiveName, o.Name, r.ID)
 		}
-		return fmt.Errorf("%w: %s is held by worker %s (run %s); stop it first, one worker per item", ErrLiveWorker, o.WorkItem, r.Name, r.ID)
+		return lost, fmt.Errorf("%w: %s is held by worker %s (run %s); stop it first, one worker per item", ErrLiveWorker, o.WorkItem, r.Name, r.ID)
 	}
-	return nil
+	return lost, nil
 }
 
-// loseWorker is the worker-loss path: the pane is gone, so no worker process
-// is left under herdr and no SessionEnd will fire. The row closes as gone,
-// then each of the worker's sessions has its episodes closed as expired,
-// only that session's (Deps.ExpireClaims). The caller's episode is never
-// touched.
-func loseWorker(d Deps, r delegationledger.Record, rf *runstore.RunFolder) {
+// loseWorker is the worker-loss path: the pane is gone, or its id now holds
+// another terminal, so no worker process is left under herdr and no
+// SessionEnd will fire. Herdr is never touched: the run leaves the caller's
+// workers record (dropPane), then closeLost closes it. The caller's episode
+// is never touched.
+func loseWorker(d Deps, r delegationledger.Record, rf *runstore.RunFolder, info Info) {
+	dropPane(d, info)
+	closeLost(d, r, rf)
+}
+
+// closeLost closes the row as gone, finishes the run folder (so readers stop
+// waiting for an exit and the sweep can age it out), then closes as expired
+// the episodes of each of the worker's sessions, only that session's
+// (Deps.ExpireClaims).
+func closeLost(d Deps, r delegationledger.Record, rf *runstore.RunFolder) {
 	_, _ = d.Ledger.CloseIfOpen(r.ID, delegationledger.CloseInfo{Ended: d.now(), Reason: delegationledger.EndGone})
+	if rf != nil {
+		_ = rf.Finish(1, d.now())
+	}
 	expireWorkerClaims(d, r, rf)
 }
 

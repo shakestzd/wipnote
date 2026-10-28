@@ -52,6 +52,7 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 	}
 	var info Info
 	var rf *runstore.RunFolder
+	var lost []Info
 	err := withWorkers(d.Store, string(o.CallerPane), func(w *Workers) error {
 		if err := prune(ctx, d.Herdr, w); err != nil {
 			return err
@@ -60,7 +61,11 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 			return err
 		}
 		var err error
-		if info, rf, err = claimName(ctx, d, o); err != nil {
+		info, rf, lost, err = claimName(ctx, d, o)
+		for _, l := range lost {
+			w.dropRun(l.Run) // never split a lost worker's pane
+		}
+		if err != nil {
 			return err
 		}
 		pane, err := place(ctx, d.Herdr, w, info.Run, o.Cwd)
@@ -71,6 +76,9 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 		info.Pane = string(pane)
 		return WriteInfo(rf, info)
 	})
+	for _, l := range lost {
+		dropPane(d, l) // other callers' records, now no lock is held
+	}
 	if err != nil {
 		return Spawned{}, err
 	}
@@ -109,16 +117,19 @@ const namesLock = "names.lock"
 
 // claimName checks that the name and the work item are free (checkLive: one
 // live worker per item, slice 16) and opens the run, under namesLock.
-func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
+// It also returns the lost workers checkLive closed.
+func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.RunFolder, []Info, error) {
 	if err := os.MkdirAll(d.Store.Root(), 0o700); err != nil {
-		return Info{}, nil, fmt.Errorf("delegate: run store: %w", err)
+		return Info{}, nil, nil, fmt.Errorf("delegate: run store: %w", err)
 	}
 	releaseNames := filelock.Guard(filepath.Join(d.Store.Root(), namesLock))
 	defer releaseNames()
-	if err := checkLive(ctx, d, o); err != nil {
-		return Info{}, nil, err
+	lost, err := checkLive(ctx, d, o)
+	if err != nil {
+		return Info{}, nil, lost, err
 	}
-	return openRun(d, o)
+	info, rf, err := openRun(d, o)
+	return info, rf, lost, err
 }
 
 // openRun opens the ledger row, then the run folder with session.json, the

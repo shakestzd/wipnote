@@ -37,6 +37,17 @@ func (w Workers) paneIDs() []herdr.PaneID {
 	return ids
 }
 
+// dropRun removes run's pane from the record.
+func (w *Workers) dropRun(run string) {
+	var keep []WorkerPane
+	for _, p := range w.Panes {
+		if p.Run != run {
+			keep = append(keep, p)
+		}
+	}
+	w.Panes = keep
+}
+
 var unsafeKey = regexp.MustCompile(`[^A-Za-z0-9_.-]`)
 
 func workersPath(store *runstore.Store, callerPane string) string {
