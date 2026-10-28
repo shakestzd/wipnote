@@ -96,7 +96,7 @@ func observe(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info) (Ob
 	switch {
 	case herdr.IsAbsent(err):
 		o.PaneGone, o.GoneWhy = true, fmt.Sprintf("pane %s is gone", pane)
-	case err == nil && info.TerminalID != "" && p.TerminalID != "" && p.TerminalID != info.TerminalID:
+	case err == nil && reused(info, p):
 		o.PaneGone, o.GoneWhy = true, fmt.Sprintf("pane %s now holds terminal %s, not %s", pane, p.TerminalID, info.TerminalID)
 	case err == nil && !o.Bound:
 		if screen, rerr := d.Herdr.PaneRead(ctx, pane, screenLines); rerr == nil {
