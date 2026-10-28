@@ -48,11 +48,16 @@ var sessionEnvKeys = func() map[string]bool {
 var idToken = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 
 // SessionIDFromEnv returns the session id a process inherited, or "" when it
-// carries none. The launcher's harness stamp picks that harness's native
-// variables first; otherwise natives beat WIPNOTE_SESSION_ID.
+// carries none. It mirrors hooks.ResolveSessionID: a recognised launcher
+// harness stamp limits the lookup to that harness's native variables, then
+// WIPNOTE_SESSION_ID, so another harness's native inherited from a parent
+// shell never wins. With no or an unknown stamp, the full fallback order runs.
 func SessionIDFromEnv(env map[string]string) string {
+	order := fallbackOrder
 	h := strings.ToLower(strings.TrimSpace(env[harnessKey]))
-	order := append(append([]string{}, nativeKeys[h]...), fallbackOrder...)
+	if natives, ok := nativeKeys[h]; ok {
+		order = append(append([]string{}, natives...), "WIPNOTE_SESSION_ID")
+	}
 	for _, k := range order {
 		id := agent.NormaliseSessionID(strings.TrimSpace(env[k]))
 		if idToken.MatchString(id) {

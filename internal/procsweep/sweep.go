@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/sessionledger"
@@ -46,6 +48,9 @@ type Result struct {
 	// Unattributed counts processes carrying a session id that no given
 	// project's ledger knows (another project, or a session never recorded).
 	Unattributed int `json:"unattributed"`
+	// ProjectErrors maps a project name to why its sessions ledger could not
+	// be read. That project's sessions are skipped; the others still sweep.
+	ProjectErrors map[string]string `json:"project_errors,omitempty"`
 }
 
 // Orphans returns the processes whose session has ended.
@@ -66,16 +71,13 @@ func (r Result) Orphans() []Proc {
 // `status --all` share.
 func Sweep(ctx context.Context, projects []Project, opts Options) (Result, error) {
 	opts = opts.withDefaults()
-	sessions, err := loadSessions(projects)
-	if err != nil {
-		return Result{}, err
-	}
+	sessions, projectErrs := loadSessions(projects)
 	raws, err := listBounded(ctx, opts.Lister, opts.Timeout)
 	if err != nil {
 		return Result{}, err
 	}
 	skip := ancestry(raws, opts.Self)
-	var res Result
+	res := Result{ProjectErrors: projectErrs}
 	for _, rp := range raws {
 		if skip[rp.PID] {
 			continue
@@ -133,14 +135,21 @@ func (s sessionState) orphans(start time.Time) bool {
 	return !start.After(s.endedAt.Add(endClockTolerance))
 }
 
-// loadSessions indexes every project's ledger by session id. The first
-// project to know a session claims it.
-func loadSessions(projects []Project) (map[string]sessionState, error) {
+// loadSessions indexes every readable project's ledger by session id. The
+// first project to know a session claims it. A ledger that cannot be read
+// skips only its own project: the reason is returned by project name (nil
+// when every ledger read cleanly), so one bad ledger never hides the rest.
+func loadSessions(projects []Project) (map[string]sessionState, map[string]string) {
 	out := map[string]sessionState{}
+	var errs map[string]string
 	for _, p := range projects {
 		recs, err := sessionledger.NewStore(p.WipnoteDir).ReadAll()
 		if err != nil {
-			return nil, fmt.Errorf("procsweep: read sessions ledger for %s: %w", p.Name, err)
+			if errs == nil {
+				errs = map[string]string{}
+			}
+			errs[p.Name] = ledgerError(p, err)
+			continue
 		}
 		for _, r := range recs {
 			if _, seen := out[r.SessionID]; !seen {
@@ -148,7 +157,14 @@ func loadSessions(projects []Project) (map[string]sessionState, error) {
 			}
 		}
 	}
-	return out, nil
+	return out, errs
+}
+
+// ledgerError describes a ledger read failure without the host path: the
+// project root is stripped so the ledger shows as .wipnote/<file>.
+func ledgerError(p Project, err error) string {
+	root := filepath.Dir(p.WipnoteDir) + string(filepath.Separator)
+	return "read sessions ledger: " + strings.ReplaceAll(err.Error(), root, "")
 }
 
 // listBounded runs the lister under a deadline. A lister that ignores its

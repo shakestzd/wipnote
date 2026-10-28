@@ -31,7 +31,7 @@ func readPR(ctx context.Context, o Options, p *Project, dir string) {
 }
 
 func fetchPR(ctx context.Context, r gitwatch.Runner, branch string) (*PR, error) {
-	n, err := gitwatch.ResolvePR(ctx, r, branch)
+	n, err := gitwatch.ResolveBranchPR(ctx, r, branch)
 	if err != nil {
 		return nil, err
 	}

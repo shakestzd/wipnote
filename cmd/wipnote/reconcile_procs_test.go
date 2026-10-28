@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -103,6 +104,25 @@ func TestReconcileCmd_ProcessesSaysWhenEnvUnreadable(t *testing.T) {
 		out := runReconcile(t, args...)
 		if !strings.Contains(out, "process environment not readable on this platform") {
 			t.Fatalf("reconcile %v must say the platform cannot read environments:\n%s", args, out)
+		}
+	}
+}
+
+// An unreadable ledger no longer fails the sweep, so reconcile must still
+// say that it could not read it rather than reporting nothing.
+func TestReconcileCmd_ReportsUnreadableLedger(t *testing.T) {
+	root := reconcileTestRepo(t)
+	if err := os.MkdirAll(filepath.Join(root, ".wipnote", sessionledger.FileName), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	setReconcileLister(t, procsweep.ListerFunc(func(context.Context) ([]procsweep.RawProc, error) { return nil, nil }))
+	for _, args := range [][]string{nil, {"--processes"}} {
+		out := runReconcile(t, args...)
+		if !strings.Contains(out, "read sessions ledger") || !strings.Contains(out, filepath.Base(root)) {
+			t.Fatalf("reconcile %v must name the project whose ledger is unreadable:\n%s", args, out)
+		}
+		if strings.Contains(out, "nothing to reconcile") {
+			t.Fatalf("an unreadable ledger is not a clean reconcile:\n%s", out)
 		}
 	}
 }

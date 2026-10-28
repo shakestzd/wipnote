@@ -47,7 +47,7 @@ func ResolvePR(ctx context.Context, r Runner, arg string) (int, error) {
 		return strconv.Atoi(arg)
 	}
 	if arg != "" {
-		return firstListed(ctx, r, "--head", arg, "--state", "all")
+		return ResolveBranchPR(ctx, r, arg)
 	}
 	var cur prNumber
 	err := ghJSON(ctx, r, &cur, "pr", "view", "--json", "number")
@@ -58,6 +58,17 @@ func ResolvePR(ctx context.Context, r Runner, arg string) (int, error) {
 		return cur.Number, nil
 	}
 	return firstListed(ctx, r, "--author", "@me", "--state", "open")
+}
+
+// ResolveBranchPR is the PR whose head is branch, in any state. Unlike
+// ResolvePR it never reads an all-digits argument as a PR number, so callers
+// holding a branch name (one may be called "123") use it. An empty branch is
+// ErrNoPR.
+func ResolveBranchPR(ctx context.Context, r Runner, branch string) (int, error) {
+	if branch == "" {
+		return 0, ErrNoPR
+	}
+	return firstListed(ctx, r, "--head", branch, "--state", "all")
 }
 
 // firstListed runs gh pr list with filter and returns the first number.
