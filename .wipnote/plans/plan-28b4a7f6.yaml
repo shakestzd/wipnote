@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 76
+    version: 83
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -967,7 +967,7 @@ slices:
           claim: herdr agent start launches a known agent and cannot run a custom command; pane run takes a shell string.
           accessed: "2026-10-25"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       questions:
         - id: q-settings
           text: Does a native worker need orch's --settings hook file?
@@ -1082,7 +1082,7 @@ slices:
           claim: agent prompt gives no receipt, so the store, not the hint, is authoritative.
           accessed: "2026-10-25"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       questions:
         - id: q-settle
           text: What settles a wait?
@@ -1355,7 +1355,7 @@ slices:
           claim: UserPromptSubmit and SessionStart hook output can set sessionTitle, which renames the live session.
           accessed: "2026-10-25"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |
         **Trigger:** spawn builds the worker name; a claim in a live session marks a pending title.
         **State:** the pending title lives with the session; the user-prompt hook reads it once.
@@ -1404,7 +1404,7 @@ slices:
       comment: ""
       research_waiver: Extends the in-repo claim-episode model (core/claimledger, cmd/wipnote/claim_ledger.go). No external standard applies.
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       questions:
         - id: q-worker-family
           text: Do a caller's live workers count as its claim family?
@@ -1712,7 +1712,7 @@ slices:
           claim: devcontainer up and devcontainer exec take --workspace-folder; up prints JSON with outcome, containerId, remoteUser and remoteWorkspaceFolder.
           accessed: "2026-10-25"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       questions:
         - id: q-container-image
           text: Which container runs a --container worker?
@@ -1753,6 +1753,7 @@ slices:
             - cmd/wipnote/delegate_doctor.go
             - core/hooks/pretooluse_delegate.go
     - id: slic-cc13bcb1
+      feature_id: feat-21ae0920
       num: 22
       title: Claude one-shot runs as interactive workers
       what: 'Inside herdr a Claude delegate run is an interactive worker: spawn plus send plus wait plus stop. The worker is launched with the spike''s wrapper. Outside herdr slice 8''s claude -p path stays.'
@@ -1792,6 +1793,7 @@ slices:
           claim: The status line command receives cost.total_cost_usd and token totals.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-oneshot-harness
           text: After the spike, how do one-shot runs work per harness?
@@ -1901,7 +1903,7 @@ slices:
           claim: The Overview Threads tab groups threads as Ready for review, Waiting on you (needs a reply or approval, or failed), Working, Landing (PR approved or queued), Idle and Resolved.
           accessed: "2026-10-25"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |
         **Principle (owner 2026-10-25):** delegate plus herdr is a multi-harness Projects harness, so its states use the Overview groups.
         **Mapping owner:** slice 10's readiness predicate stays the single source of state (D2); this slice only maps states to groups.
@@ -2761,6 +2763,36 @@ feedback:
           updated_at: "2026-10-26T23:18:35Z"
         - section: slice-25
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-10-28T16:33:00Z"
-          updated_at: "2026-10-28T16:33:00Z"
+          updated_at: "2026-10-28T21:55:24Z"
+        - section: slice-10
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T21:55:18Z"
+          updated_at: "2026-10-28T21:55:18Z"
+        - section: slice-11
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T21:55:19Z"
+          updated_at: "2026-10-28T21:55:19Z"
+        - section: slice-15
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T21:55:20Z"
+          updated_at: "2026-10-28T21:55:20Z"
+        - section: slice-16
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T21:55:22Z"
+          updated_at: "2026-10-28T21:55:22Z"
+        - section: slice-21
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T21:55:23Z"
+          updated_at: "2026-10-28T21:55:23Z"
+        - section: slice-22
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-10-28T21:55:28Z"
+          updated_at: "2026-10-28T21:55:28Z"
