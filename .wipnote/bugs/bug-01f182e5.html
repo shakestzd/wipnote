@@ -10,20 +10,31 @@
 <body>
     <article id="bug-01f182e5"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-25T04:24:05.68595"
-             data-updated="2026-10-28T18:56:45.519953" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5[1m]" data-created-by-cli-version="0.81.0-70-g512d8bac0" data-change_kind="bugfix" data-created_in_session="363fe5de-1d4f-4290-a93b-813cb509008d">
+             data-updated="2026-10-28T19:07:30.49278" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5[1m]" data-created-by-cli-version="0.81.0-70-g512d8bac0" data-change_kind="bugfix" data-created_in_session="363fe5de-1d4f-4290-a93b-813cb509008d" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>claims reconcile/archive treat every other session as dead (1970 heartbeat)</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="faf860a02183d3103d9279b148a30b9b513dcb8b.html" data-relationship="committed_in" data-since="2026-10-28T14:40:28">Merge pull request #290 from shakestzd/fix/claimlive</a></li>
+                    <li><a href="ee294dd17c836ca5ea0e39f7aceb43e068bbe51c.html" data-relationship="committed_in" data-since="2026-10-28T16:22:13">wipnote: sync bug-01f182e5</a></li>
+                    <li><a href="4bd0a341d5aef718a40d8dfd6d92f49c7c3b0838.html" data-relationship="committed_in" data-since="2026-10-28T16:21:14">test(claims): pin archive and resumed-run liveness to the sessions ledger (bug-01f182e5)</a></li>
+                    <li><a href="72751e090b826e01fa00eee4688243489218520b.html" data-relationship="committed_in" data-since="2026-10-25T08:58:14">fix(claims): judge reconcile/archive liveness by the sessions ledger (feat-9c5ea68a)</a></li>
+                    <li><a href="2e45e8491974bebc97e9f884bc552e2bcc744e21.html" data-relationship="committed_in" data-since="2026-10-25T04:46:35">feat: merge Fix the correctness bugs the audit found (feat-9c5ea68a, bug-01f182e5)</a></li>
+                    <li><a href="16eb471d158e362e9edccce0f3b8212fb89f107d.html" data-relationship="committed_in" data-since="2026-10-25T04:03:26">fix(claims): reconcile/archive use sessions-ledger liveness, not 1970 heartbeats (feat-9c5ea68a, bug-01f182e5)</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -41,8 +52,8 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-bug-01f182e5-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Already fixed on main by 16eb471d1; added archive &#43; resumed-run tests (4bd0a341d), red against the old predicate</li>
-                <li data-completed="false" data-step-id="step-bug-01f182e5-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Merged PR #290 (tests) to main</li>
+                <li data-completed="true" data-step-id="step-bug-01f182e5-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Already fixed on main by 16eb471d1; added archive &#43; resumed-run tests (4bd0a341d), red against the old predicate</li>
+                <li data-completed="true" data-step-id="step-bug-01f182e5-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Merged PR #290 (tests) to main</li>
             </ol>
         </section>
 
