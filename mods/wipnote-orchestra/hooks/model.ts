@@ -386,6 +386,49 @@ export function limitSpans(limits: readonly Limit[], now: number, zone: string =
   return spans
 }
 
+/**
+ * Each delegate state's Projects Overview group, as internal/delegate/session/groups.go maps it
+ * (plan-28b4a7f6 slice 25): a worker's readiness states, then a run's running, ended and failed.
+ */
+const STATE_GROUPS: Record<string, string> = {
+  starting: 'working',
+  ready: 'idle',
+  working: 'working',
+  question: 'waiting_on_you',
+  done: 'ready_for_review',
+  idle_no_result: 'waiting_on_you',
+  idle_shell: 'working',
+  blocked: 'waiting_on_you',
+  gone: 'waiting_on_you',
+  running: 'working',
+  ended: 'resolved',
+  failed: 'waiting_on_you',
+}
+
+/** Each Overview group's display name, as Go labels it. */
+export const GROUP_LABELS: Record<string, string> = {
+  working: 'Working',
+  waiting_on_you: 'Waiting on you',
+  ready_for_review: 'Ready for review',
+  landing: 'Landing',
+  idle: 'Idle',
+  resolved: 'Resolved',
+}
+
+const GROUP_COLORS: Record<string, string> = {
+  working: '#5fd7ff',
+  waiting_on_you: '#ffaf00',
+  ready_for_review: '#af87ff',
+  landing: '#5fafff',
+  idle: '#8a8a8a',
+  resolved: '#5faf00',
+}
+
+/** A delegate state's Overview group; undefined for a state Go does not define. */
+export function groupOf(state: string): string | undefined {
+  return Object.hasOwn(STATE_GROUPS, state) ? STATE_GROUPS[state] : undefined
+}
+
 /** A delegate run's state as the band says it: live, or ended and how. */
 function runState(row: RunRow): [string, string] {
   if (row.state === 'live') return ['● live', '#5fd7ff']
@@ -393,13 +436,15 @@ function runState(row: RunRow): [string, string] {
   return row.exit === 0 ? ['✔ ended', '#5faf00'] : [`✘ ended exit ${row.exit}`, '#d70000']
 }
 
-/** One delegate run's row: its name or label, harness and mode, state, and the first line of its last.md. */
+/** One delegate run's row: its name or label, harness and mode, state, Overview group, and the first line of its last.md. */
 export function runSpans(row: RunRow): Span[] {
   const [state, color] = runState(row)
   const spans: Span[] = [{ text: '   ⇄ ', color: '#87afd7' }, { text: clip(row.title, 40), color: '#87afd7', bold: true }]
   const meta = [row.harness, row.mode].filter(Boolean).join(' · ')
   if (meta !== '') spans.push({ text: `  ${meta}`, dim: true })
   spans.push({ text: `  ${state}`, color })
+  const group = GROUP_LABELS[row.group]
+  if (group !== undefined) spans.push({ text: `  ${group}`, color: GROUP_COLORS[row.group], bold: true })
   if (row.answer !== '') spans.push({ text: `  ${row.answer}`, dim: true, italic: true })
   return spans
 }

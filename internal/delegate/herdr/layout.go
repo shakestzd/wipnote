@@ -8,7 +8,7 @@ import (
 
 // Two layouts share this file.
 //
-// One-shot runs keep the codex-herdr-pane tile (TileTarget): by n live
+// One-shot runs keep the retired herdr pane mod's tile (TileTarget): by n live
 // delegation panes of the caller, n=0 splits the caller's pane right, n=1
 // splits pane 1 down, n=2 pane 1 right, n=3 pane 2 right (a 2x2 grid beside
 // the caller), n>=4 the newest pane down; at the cap the run gets no pane.

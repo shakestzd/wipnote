@@ -16,6 +16,7 @@ func Stop(event *CloudEvent) (*HookResult, error) {
 		return &HookResult{Continue: true}, nil
 	}
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
+	recordDelegateHook(event, projectDir, sessionID, "stop")
 	// Denied calls in the turn just ended count as failed (feat-ddeaa0d1).
 	recordTranscriptFailuresFor(event, projectDir, sessionID)
 	// Background tasks that ended since the last turn (feat-36658c22).
@@ -64,10 +65,14 @@ func currentHarness() Harness {
 //   - For EVERYTHING ELSE it emits NO decision, so CC falls through to its
 //     normal interactive prompt. wipnote NEVER auto-DENIES.
 //
-// It records nothing (feat-174dc958).
+// It records no database row (feat-174dc958); inside a delegate worker a
+// prompt that reaches the person is a permission_request event (slice 11).
 func PermissionRequest(event *CloudEvent) (*HookResult, error) {
 	result := &HookResult{Continue: true}
 	applyPermissionAutoAllow(event, result)
+	if result.HookSpecificOutput == nil {
+		recordDelegatePermission(event) // the person sees this prompt
+	}
 	return result, nil
 }
 
@@ -136,5 +141,6 @@ func PostToolUseFailure(event *CloudEvent) (*HookResult, error) {
 	}
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
 	appendToolCompletion(projectDir, sessionID, toolCallEventID(sessionID, event.ToolUseID), "failed")
+	recordDelegateToolEnd(event, projectDir, sessionID)
 	return &HookResult{Continue: true}, nil
 }

@@ -75,6 +75,22 @@ func TestBuildPorts_NoDelegateSkillInAntigravity(t *testing.T) {
 	}
 }
 
+// The other side: without the exclusion list the same emit carries the
+// skill, so the list (not some other filter) is what keeps it out.
+func TestBuildPorts_AntigravityExclusionIsWhatDropsDelegate(t *testing.T) {
+	m, repoRoot := liveRepo(t)
+	saved := antigravityExcludedSkills
+	antigravityExcludedSkills = nil
+	t.Cleanup(func() { antigravityExcludedSkills = saved })
+	out := t.TempDir()
+	if err := (antigravityAdapter{}).Emit(m, repoRoot, out); err != nil {
+		t.Fatalf("emit antigravity: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "skills", delegateSkill, "SKILL.md")); err != nil {
+		t.Errorf("with no exclusions the delegate skill must ship: %v", err)
+	}
+}
+
 func assertDelegateSkillContent(t *testing.T, path string) {
 	t.Helper()
 	raw, err := os.ReadFile(path)
@@ -82,16 +98,31 @@ func assertDelegateSkillContent(t *testing.T, path string) {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	body := string(raw)
-	for _, want := range []string{
-		"name: delegate",
-		"wipnote delegate run",
-		"Release 2",
-		"run page",
-		"delegations-ledger.html",
-		"codex-herdr-pane",
-	} {
+	for _, want := range delegateSkillMustSay {
 		if !strings.Contains(body, want) {
 			t.Errorf("%s missing %q", path, want)
 		}
 	}
+	// The retired mod and the Release 1 preview wording are gone.
+	for _, gone := range []string{"codex-" + "herdr-pane", "(preview)", "do not exist yet"} {
+		if strings.Contains(body, gone) {
+			t.Errorf("%s still says %q", path, gone)
+		}
+	}
+}
+
+// delegateSkillMustSay: every delegate verb with its key flags, the claim
+// rules (slice 16) and where results live.
+var delegateSkillMustSay = []string{
+	"name: delegate",
+	"wipnote delegate run", "wipnote delegate spawn", "wipnote delegate send",
+	"wipnote delegate wait", "wipnote delegate result", "wipnote delegate questions",
+	"wipnote delegate inbox", "wipnote delegate stop", "wipnote delegate list",
+	"wipnote delegate tree", "wipnote delegate view", "wipnote delegate doctor",
+	"wipnote delegate import-orch",
+	"--container", "--resume OLD", "NAME is required with `--resume`",
+	"--timeout", "124",
+	"co-claim", "one live worker per item", "Stop the worker before you complete the item",
+	"run page", "delegations-ledger.html",
+	"Chained commands",
 }

@@ -2,6 +2,7 @@ package claimledger
 
 import (
 	"bytes"
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -156,6 +157,16 @@ func sortEpisodes(eps []Episode) {
 func appendRowLocked(path string, e Episode) error {
 	removeStaleTemps(filepath.Dir(path), time.Now())
 	return ledgerFormat.AppendRow(path, marshalRow(e))
+}
+
+// openRowLocked adds e to the shard at path. A container worker's shard is
+// its own file across the bind mount, where only a rename is atomic (Phase B
+// B7), so there it is rewritten whole; elsewhere the row is appended.
+func openRowLocked(path string, existing []Episode, e Episode) error {
+	if containerwrite.Active() {
+		return writeAllLocked(path, append(append([]Episode(nil), existing...), e))
+	}
+	return appendRowLocked(path, e)
 }
 
 // writeAllLocked rewrites path with exactly the given episodes, atomically via

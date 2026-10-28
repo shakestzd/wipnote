@@ -9,11 +9,12 @@ import (
 
 	"github.com/shakestzd/wipnote/internal/delegate/render"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
+	"github.com/shakestzd/wipnote/internal/delegate/session"
 	"github.com/spf13/cobra"
 )
 
 // delegateViewCmd is `wipnote delegate view <run-id>`: the plain Go viewer
-// that runs in a run's pane (it replaces the codex-herdr-pane mod's Textual
+// that runs in a run's pane (it replaces the retired herdr pane mod's Textual
 // viewer, owner decision q-viewer=go-plain). It follows the run's clean.md
 // until the exit file appears, then prints the status and the answer.
 func delegateViewCmd() *cobra.Command {
@@ -36,7 +37,28 @@ func delegateViewCmd() *cobra.Command {
 			}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			return render.View(ctx, rf, cmd.OutOrStdout(), render.ViewOptions{})
+			return render.View(ctx, rf, cmd.OutOrStdout(), render.ViewOptions{Asks: viewAsks(wipnoteDir, rf)})
 		},
+	}
+}
+
+// viewAsks lists an interactive run's pending asks for the view; nil for a
+// one-shot run (no session.json).
+func viewAsks(wipnoteDir string, rf *runstore.RunFolder) func() []string {
+	info, err := session.ReadInfo(rf)
+	if err != nil || info.Run == "" {
+		return nil
+	}
+	d, _, err := delegateSessionDeps(wipnoteDir)
+	if err != nil {
+		return nil
+	}
+	return func() []string {
+		qs, _ := session.RunQuestions(d, info.Run)
+		var out []string
+		for _, q := range qs {
+			out = append(out, fmt.Sprintf("%s %s: %s", q.Kind, q.ID, q.Text))
+		}
+		return out
 	}
 }

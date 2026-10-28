@@ -25,6 +25,10 @@ type SandboxOptions struct {
 // sandboxFor applies the ladder to a codex exec argv and prints a widening
 // warning. Other tools get no sandbox flag, and --write is refused for them.
 func sandboxFor(ctx context.Context, o Options, r Recipe) (codex.Mode, error) {
+	if o.Container && r.Kind == KindCodexReview {
+		_, err := containerCodex(o, r)
+		return "", err
+	}
 	if r.Kind != KindCodex {
 		if o.Sandbox.Write {
 			return "", fmt.Errorf("delegate run: --write applies to codex exec only, not %s", r.Name())
@@ -32,7 +36,12 @@ func sandboxFor(ctx context.Context, o Options, r Recipe) (codex.Mode, error) {
 		return "", nil
 	}
 	probe := codex.ProbeResult{Status: codex.ProbeUnknown}
-	if o.Sandbox.Preflight != nil {
+	if o.Container {
+		var err error
+		if probe, err = containerCodex(o, r); err != nil {
+			return "", err
+		}
+	} else if o.Sandbox.Preflight != nil {
 		probe = o.Sandbox.Preflight(ctx)
 	}
 	d, err := codex.Decide(codex.Request{Write: o.Sandbox.Write, Args: r.Argv[2:], Host: o.Sandbox.Host,

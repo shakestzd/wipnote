@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
+	"github.com/shakestzd/wipnote/internal/delegate/session"
 )
 
 // MDToHTML renders the Markdown subset; fences follow the pane's rule
@@ -67,7 +68,8 @@ func htmlBlock(lines []string, i int) (string, int) {
 // PageInput is what run.html shows.
 type PageInput struct {
 	Label   string
-	Status  string // "finished in 22s · input ..."
+	Status  string        // "finished in 22s · input ..."
+	Group   session.Group // the run's Overview group (slice 25)
 	OK      bool
 	Parts   []Part // clean.md, ParseRun(text, true)
 	Answer  string
@@ -108,8 +110,16 @@ func Page(p PageInput) string {
 	if p.OK {
 		state = "--ok"
 	}
-	return fmt.Sprintf(pageHTML, pageCSS, first, state, escHTML(runstore.Redact(p.Label)), escHTML(runstore.Redact(p.Status)),
-		liveHTML, answer, escHTML(p.LogPath), pageScript)
+	return fmt.Sprintf(pageHTML, pageCSS, first, state, escHTML(runstore.Redact(p.Label)), groupHTML(p.Group),
+		escHTML(runstore.Redact(p.Status)), liveHTML, answer, escHTML(p.LogPath), pageScript)
+}
+
+// groupHTML is the group's tag before the status line, or "" for no group.
+func groupHTML(g session.Group) string {
+	if g.Label() == "" {
+		return ""
+	}
+	return `<span class="group" data-group="` + escHTML(string(g)) + `">` + escHTML(g.Label()) + `</span> · `
 }
 
 // StatusInput is how far a run got.
@@ -164,8 +174,9 @@ func WritePage(rf *runstore.RunFolder) (string, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return "", err
 	}
+	group, _ := session.GroupOf(session.RunStateOf(!info.Finished, &info.Exit, ""))
 	page := Page(PageInput{
-		Label: info.Label, Status: Status(statusOf(info)), OK: info.Finished && info.Exit == 0,
+		Label: info.Label, Status: Status(statusOf(info)), OK: info.Finished && info.Exit == 0, Group: group,
 		Parts: ParseRun(string(md), true), Answer: firstRunes(trimSpace(string(last)), maxAnswer),
 		LogPath: filepath.Join(rf.Dir(), runstore.FileCleanMD),
 	})

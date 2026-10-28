@@ -1,6 +1,9 @@
 package detect
 
 import (
+	"github.com/shakestzd/wipnote/internal/delegate/container/containertest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -25,21 +28,51 @@ func TestRedirect_NamesTheSameArgv(t *testing.T) {
 	}
 }
 
-// TestRedirect_CcxTaskGetsContainerForm: ccx means container Claude, so a bare
-// ccx task is shown the --container form with the task's own arguments; until
-// --container ships the exact-argv form is named as the one that works now.
-func TestRedirect_CcxTaskGetsContainerForm(t *testing.T) {
-	got := Redirect(`ccx task "fix the build" --resume abc`)
-	for _, want := range []string{
-		"\n  wipnote delegate run --container -- \"fix the build\" --resume abc\n",
-		"\n  wipnote delegate run -- ccx task \"fix the build\" --resume abc\n",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("ccx reason %q\nwant it to hold %q", got, want)
+// devcontainerProject is a temp project (with .wipnote/) that has, when
+// withConfig, its own .devcontainer/devcontainer.json, and a stub
+// devcontainer CLI on PATH. It returns a folder inside the project.
+func devcontainerProject(t *testing.T, withConfig bool) string {
+	t.Helper()
+	root := t.TempDir()
+	for _, d := range []string{".wipnote", "sub"} {
+		if err := os.MkdirAll(filepath.Join(root, d), 0o755); err != nil {
+			t.Fatal(err)
 		}
 	}
-	if strings.Contains(got, "-- codex") || strings.Contains(got, "-- claude") {
-		t.Errorf("ccx reason names another tool: %q", got)
+	if withConfig {
+		if err := os.MkdirAll(filepath.Join(root, ".devcontainer"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, ".devcontainer", "devcontainer.json"), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	containertest.Install(t, root)
+	return filepath.Join(root, "sub")
+}
+
+// TestRedirect_CcxTaskGetsContainerForm: ccx means container Claude, so a bare
+// ccx task of plain task words is shown the --container form, but only in a
+// project whose own devcontainer --container can use. A project without one,
+// or a task that passes ccx's own flags (which claude -p would not take as
+// ccx meant them), is shown the exact `-- ccx task` form instead.
+func TestRedirect_CcxTaskGetsContainerForm(t *testing.T) {
+	inside := devcontainerProject(t, true)
+	got := RedirectAt(`ccx task "fix the build"`, inside)
+	if want := "\n  wipnote delegate run --container -- \"fix the build\"\n"; !strings.Contains(got, want) {
+		t.Errorf("ccx reason %q\nwant it to hold %q", got, want)
+	}
+	if strings.Contains(got, "-- ccx task") || strings.Contains(got, "-- codex") || strings.Contains(got, "-- claude") {
+		t.Errorf("ccx reason names another form: %q", got)
+	}
+	exact := map[string]string{
+		"a ccx flag":      RedirectAt(`ccx task "fix the build" --resume abc`, inside),
+		"no devcontainer": RedirectAt(`ccx task "fix the build"`, devcontainerProject(t, false)),
+	}
+	for name, got := range exact {
+		if !strings.Contains(got, "\n  wipnote delegate run -- ccx task \"fix the build\"") || strings.Contains(got, "--container") {
+			t.Errorf("%s: reason %q, want only the exact -- ccx task form", name, got)
+		}
 	}
 }
 

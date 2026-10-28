@@ -2,6 +2,7 @@ package claimledger
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"os"
 	"time"
 
@@ -29,6 +30,9 @@ type ReconcileResult struct {
 // forever. Readers treat an open episode as open-ended — correct while the
 // session is alive — and this pass supplies the missing end once it is not.
 func (s *Store) Reconcile(live LivePredicate, endedAt time.Time) (ReconcileResult, error) {
+	if containerwrite.Active() {
+		return ReconcileResult{}, ErrContainerWorker
+	}
 	var res ReconcileResult
 	shards, err := s.Shards()
 	if err != nil {
@@ -94,6 +98,9 @@ type ArchiveResult struct {
 // a live session between two claims; "not live" alone would archive a session
 // that just ended, whose shard is the one most likely to be read next.
 func (s *Store) CollectArchiveCandidates(cutoff time.Time, live LivePredicate) ([]ArchiveCandidate, error) {
+	if containerwrite.Active() {
+		return nil, ErrContainerWorker
+	}
 	shards, err := s.Shards()
 	if err != nil {
 		return nil, err
@@ -149,6 +156,9 @@ func (s *Store) CollectArchiveCandidates(cutoff time.Time, live LivePredicate) (
 // happen. Re-running is safe: a shard already merged is gone, and merging by
 // episode ID makes a partial previous run converge rather than duplicate.
 func (s *Store) Archive(cutoff time.Time, live LivePredicate, apply bool) (ArchiveResult, error) {
+	if containerwrite.Active() {
+		return ArchiveResult{}, ErrContainerWorker
+	}
 	var res ArchiveResult
 	candidates, err := s.CollectArchiveCandidates(cutoff, live)
 	if err != nil {

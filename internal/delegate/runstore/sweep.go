@@ -8,7 +8,7 @@ import (
 )
 
 // DefaultSweepAge is how long a finished run folder is kept, as the
-// codex-herdr-pane mod's 7-day sweep.
+// retired herdr pane mod's 7-day sweep.
 const DefaultSweepAge = 7 * 24 * time.Hour
 
 // Sweep removes the run folders of finished runs whose end is older than
@@ -19,6 +19,13 @@ const DefaultSweepAge = 7 * 24 * time.Hour
 // are left alone. Mailboxes are not swept. It never blocks on a lock, so a
 // caller may run it in the background.
 func (s *Store) Sweep(now time.Time, maxAge time.Duration) ([]string, error) {
+	return s.SweepExcept(now, maxAge, nil)
+}
+
+// SweepExcept is Sweep that also keeps every folder keep names, such as a
+// container run whose own files were written after its last fold (they must
+// reach the host's ledgers before the folder may go).
+func (s *Store) SweepExcept(now time.Time, maxAge time.Duration, keep func(runDir string) bool) ([]string, error) {
 	if maxAge <= 0 {
 		return nil, fmt.Errorf("runstore: sweep age must be positive, got %v", maxAge)
 	}
@@ -36,7 +43,7 @@ func (s *Store) Sweep(now time.Time, maxAge time.Duration) ([]string, error) {
 		}
 		rf := &RunFolder{id: e.Name(), dir: filepath.Join(s.root, runsDir, e.Name())}
 		ended, ok := rf.endedAt()
-		if !ok || now.Sub(ended) < maxAge {
+		if !ok || now.Sub(ended) < maxAge || (keep != nil && keep(rf.dir)) {
 			continue
 		}
 		if err := os.RemoveAll(rf.dir); err != nil {

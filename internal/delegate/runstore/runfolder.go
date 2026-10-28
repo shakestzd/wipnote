@@ -12,9 +12,9 @@ import (
 	"github.com/shakestzd/wipnote/core/filelock"
 )
 
-// Run-folder file names: the feat-a1df60c2 contract that the
-// codex-herdr-pane mod writes and its follower and viewer read. The mod
-// writes label with no newline and start, end, exit and host with one;
+// Run-folder file names: the feat-a1df60c2 contract that the retired
+// herdr pane mod wrote and its follower and viewer read. The mod
+// wrote label with no newline and start, end, exit and host with one;
 // readers trim.
 const (
 	FileRawLog   = "raw.log"   // harness output as captured
@@ -44,8 +44,28 @@ const (
 	FileJob = "job.json" // the argv and settings a pane worker runs
 )
 
+// Files an interactive worker's run folder holds beside the contract
+// (plan-28b4a7f6 slice 10): the worker's pane, name and harness, and the
+// brief the pane's boot passes to the launcher.
+const (
+	FileSession = "session.json" // internal/delegate/session.Info
+	FileBrief   = "brief.md"     // the brief plus the result preamble
+	// FileState is the worker's state as list last observed it, with its
+	// Overview group (slice 25), so the band and tree, which run no
+	// readiness predicate, show what list shows.
+	FileState = "state.json"
+)
+
+// Files a container run holds (plan-28b4a7f6 slice 21): where it ran (the
+// place and the container's workspace folder) and devcontainer up's
+// progress.
+const (
+	FileContainer = "container.json"
+	FileUpLog     = "up.log"
+)
+
 // RunnerFiles lists the files beside the contract that WriteFile accepts.
-var RunnerFiles = []string{FileOut, FileJob}
+var RunnerFiles = []string{FileOut, FileJob, FileSession, FileBrief, FileState, FileContainer, FileUpLog}
 
 // Hosts a run can name in its host file.
 const (

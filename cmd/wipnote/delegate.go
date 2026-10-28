@@ -13,6 +13,16 @@ func delegateCmd() *cobra.Command {
 	cmd.AddCommand(delegateViewCmd())
 	cmd.AddCommand(delegateRunCmd())
 	cmd.AddCommand(delegateRunPaneCmd())
+	cmd.AddCommand(delegateSpawnCmd())
+	cmd.AddCommand(delegateBootCmd())
+	cmd.AddCommand(delegateStopCmd())
+	cmd.AddCommand(delegateListCmd())
+	cmd.AddCommand(delegateTreeCmd())
+	cmd.AddCommand(delegateSendCmd())
+	cmd.AddCommand(delegateWaitCmd())
+	cmd.AddCommand(delegateResultCmd())
+	cmd.AddCommand(delegateQuestionsCmd())
+	cmd.AddCommand(delegateInboxCmd())
 	cmd.AddCommand(delegateDoctorCmd())
 	return cmd
 }

@@ -53,7 +53,7 @@ func TestResolveSessionName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := resolveSessionName(tt.sessionName, tt.resumeID, tt.continue_, fakeRoot)
+			got := resolveSessionName(tt.sessionName, tt.resumeID, tt.continue_, fakeRoot, "")
 			if tt.wantEmpty {
 				if got != "" {
 					t.Fatalf("resolveSessionName() = %q, want empty string", got)

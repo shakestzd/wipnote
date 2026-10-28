@@ -12,13 +12,14 @@ import (
 
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/filelock"
+	"github.com/shakestzd/wipnote/internal/delegate/container"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/render"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
 
 // paneRegistryDir holds, per caller pane, the caller's live one-shot panes
-// in creation order (the mod's $TMPDIR/codex-herdr-panes.<pane>), under the
+// in creation order (the retired mod kept this list in $TMPDIR), under the
 // run store so only this user writes there.
 const paneRegistryDir = "panes"
 
@@ -188,6 +189,9 @@ func RunPane(ctx context.Context, po PaneOptions) int {
 	done := make(chan int, 1)
 	go func() {
 		exit := Execute(ctx, rf, job)
+		if job.Container != nil { // fold the tool's own files before the close
+			_, _ = container.Fold(filepath.Dir(po.Store.Root()), rf.Dir())
+		}
 		closeOwnRow(ctx, po.Ledger, rf, exit)
 		done <- exit
 	}()

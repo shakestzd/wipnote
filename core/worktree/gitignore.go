@@ -1,6 +1,7 @@
 package worktree
 
 import (
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"os"
 	"path/filepath"
 	"strings"
@@ -94,7 +95,7 @@ const upgradeMarker = "# Added by wipnote: managed patterns missing from this fi
 // family-lock path both call it so all harnesses (Claude, Codex, Gemini)
 // receive the file on their first session after upgrading.
 func EnsureWipnoteGitignore(projectDir string) {
-	if projectDir == "" {
+	if projectDir == "" || containerwrite.Active() { // shared file: never from a container worker
 		return
 	}
 	dir := filepath.Join(projectDir, ".wipnote")

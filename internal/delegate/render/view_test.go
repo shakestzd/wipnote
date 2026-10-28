@@ -166,3 +166,36 @@ func TestView_StopsOnCancel(t *testing.T) {
 		t.Fatal("View ignored the cancelled context")
 	}
 }
+
+// TestView_ShowsPendingAsks: an interactive run's view prints each pending
+// ask once when it appears (D7), and prints nothing when there is none.
+func TestView_ShowsPendingAsks(t *testing.T) {
+	rf := newRun(t)
+	var mu sync.Mutex
+	asks := []string{}
+	out := &lockedBuffer{}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- View(ctx, rf, out, ViewOptions{Poll: 5 * time.Millisecond, Asks: func() []string {
+			mu.Lock()
+			defer mu.Unlock()
+			return append([]string(nil), asks...)
+		}})
+	}()
+	time.Sleep(30 * time.Millisecond)
+	if strings.Contains(out.String(), "pending") {
+		t.Fatalf("no ask, yet: %q", out.String())
+	}
+	mu.Lock()
+	asks = []string{"msg-0123456789abcdef-q1: Which branch?"}
+	mu.Unlock()
+	waitFor(t, "the ask", func() bool { return strings.Contains(out.String(), "Which branch?") })
+	time.Sleep(30 * time.Millisecond)
+	if strings.Count(out.String(), "Which branch?") != 1 {
+		t.Fatalf("ask printed more than once: %q", out.String())
+	}
+	cancel()
+	<-done
+}

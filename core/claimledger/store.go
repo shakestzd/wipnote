@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/fsprobe"
 )
@@ -64,7 +65,7 @@ func (s *Store) Dir() string { return s.dir }
 
 // ShardPath returns the ledger file for a root session.
 func (s *Store) ShardPath(rootSessionID string) string {
-	return filepath.Join(s.dir, shardPrefix+slugify(rootSessionID)+".html")
+	return filepath.Join(s.shardDir(), shardPrefix+slugify(rootSessionID)+".html")
 }
 
 // ArchivePath returns the compacted archive ledger path.
@@ -150,7 +151,7 @@ func (s *Store) Open(rootSessionID string, e Episode) (Episode, bool, error) {
 		return open, false, nil
 	}
 
-	if err := appendRowLocked(path, e); err != nil {
+	if err := openRowLocked(path, existing, e); err != nil {
 		return Episode{}, false, err
 	}
 	s.notify(path, "claim")
@@ -294,6 +295,9 @@ func (s *Store) CloseWorkItem(workItemID string, outcome Outcome, endedAt, start
 	if err != nil {
 		return 0, err
 	}
+	if containerwrite.Active() {
+		return s.closeWorkItemInside(paths, workItemID, outcome, endedAt, startedBy)
+	}
 	total := 0
 	var firstErr error
 	for _, path := range paths {
@@ -341,14 +345,41 @@ func closeWorkItemInShard(s *Store, path, workItemID string, outcome Outcome, en
 }
 
 // Shards returns the per-session shard paths, sorted, excluding the archive.
+// Inside a container worker they are its own shards plus the shared ones it
+// has none of its own for (read only).
 func (s *Store) Shards() ([]string, error) {
-	fsprobe.Touch(fsprobe.OpRead, s.dir)
-	entries, err := os.ReadDir(s.dir)
+	shared, err := shardsIn(s.dir)
+	if err != nil {
+		return nil, err
+	}
+	own, ok := ownDir(s.wipnoteDir)
+	if !ok {
+		return shared, nil
+	}
+	mine, err := shardsIn(own)
+	if err != nil {
+		return nil, err
+	}
+	have := map[string]bool{}
+	for _, p := range mine {
+		have[filepath.Base(p)] = true
+	}
+	for _, p := range shared {
+		if !have[filepath.Base(p)] {
+			mine = append(mine, p)
+		}
+	}
+	return mine, nil
+}
+
+func shardsIn(dir string) ([]string, error) {
+	fsprobe.Touch(fsprobe.OpRead, dir)
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("claimledger: read %s: %w", s.dir, err)
+		return nil, fmt.Errorf("claimledger: read %s: %w", dir, err)
 	}
 	var out []string
 	for _, e := range entries {
@@ -356,7 +387,7 @@ func (s *Store) Shards() ([]string, error) {
 		if e.IsDir() || !strings.HasSuffix(name, ".html") || !strings.HasPrefix(name, shardPrefix) {
 			continue
 		}
-		out = append(out, filepath.Join(s.dir, name))
+		out = append(out, filepath.Join(dir, name))
 	}
 	return out, nil
 }
@@ -461,7 +492,7 @@ func findOpen(eps []Episode, sessionID, agentID, workItemID string) (Episode, bo
 }
 
 func (s *Store) notify(path, action string) {
-	if OnCommit == nil {
+	if OnCommit == nil || containerwrite.Active() { // the host commits the folded shard
 		return
 	}
 	OnCommit(s.wipnoteDir, s.RelPath(path), action)
