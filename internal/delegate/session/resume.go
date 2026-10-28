@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 
 	"github.com/shakestzd/wipnote/core/delegationledger"
 )
@@ -39,6 +40,9 @@ func Resume(ctx context.Context, d Deps, o SpawnOptions, from string) (Spawned, 
 func resumeOptions(d Deps, o *SpawnOptions, from string) error {
 	old, err := lastRun(d, from)
 	if err != nil {
+		return err
+	}
+	if err := checkLaunched(d, old); err != nil {
 		return err
 	}
 	info, sid, err := resumeSource(d, old)
@@ -126,10 +130,27 @@ func matchResume(o SpawnOptions, old delegationledger.Record, info Info) error {
 	return nil
 }
 
-// checkResumedOnce refuses a second resume of one run, under namesLock: two
-// workers must never continue one session. Resume the newest run instead. An
-// attempt abandoned before launch does not count (neverLaunched).
-func checkResumedOnce(d Deps, from string) error {
+// checkLaunched refuses resuming from an attempt that was abandoned before
+// launch: it never ran, so it is no source of its own. It names the run it
+// was resuming, which is the one to resume.
+func checkLaunched(d Deps, old delegationledger.Record) error {
+	if old.ResumedFrom == "" || !neverLaunched(d, old) {
+		return nil
+	}
+	origin := old.ResumedFrom
+	if r, ok, err := d.Ledger.Get(origin); err == nil && ok {
+		origin = r.Name + " (run " + r.ID + ")"
+	}
+	return fmt.Errorf("%w: run %s (%s) was abandoned before its harness started; resume %s instead",
+		ErrCannotResume, old.ID, old.Name, origin)
+}
+
+// checkSessionFree refuses, under namesLock, a resume of session sid from
+// run from when a newer run, or any open one, already continues sid: one
+// harness session is continued by one run at a time, whatever the chain.
+// The source must be the session's newest holder. An attempt abandoned
+// before launch never counts (neverLaunched).
+func checkSessionFree(d Deps, from, sid string) error {
 	if from == "" {
 		return nil
 	}
@@ -137,12 +158,34 @@ func checkResumedOnce(d Deps, from string) error {
 	if err != nil {
 		return fmt.Errorf("%w: the delegations ledger cannot be read: %v", ErrCannotResume, err)
 	}
+	after := false
 	for _, r := range recs {
-		if r.ResumedFrom == from && !neverLaunched(d, r) {
-			return fmt.Errorf("%w: run %s was already resumed as run %s (%s); resume that one instead", ErrCannotResume, from, r.ID, r.Name)
+		if r.ID == from {
+			after = true
+			continue
+		}
+		if (!after && !r.IsOpen()) || r.Mode != delegationledger.ModeInteractive || neverLaunched(d, r) {
+			continue
+		}
+		if slices.Contains(runSessions(d, r), sid) {
+			return fmt.Errorf("%w: session %s is already continued by run %s (%s); resume that one instead", ErrCannotResume, sid, r.ID, r.Name)
 		}
 	}
 	return nil
+}
+
+// runSessions is every session a run holds or continues: the ledger's
+// worker_sessions, its bind events and its recorded resume_session.
+func runSessions(d Deps, r delegationledger.Record) []string {
+	out := r.WorkerSessions
+	if rf, info, err := loadInfo(d.Store, r.ID); err == nil {
+		evs, _ := rf.ReadEvents()
+		out = mergeSessions(out, factsOf(evs).sessions)
+		if info.ResumeSession != "" {
+			out = mergeSessions(out, []string{info.ResumeSession})
+		}
+	}
+	return out
 }
 
 // neverLaunched reports a resume attempt that spawn abandoned before the

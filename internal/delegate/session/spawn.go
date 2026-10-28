@@ -126,7 +126,7 @@ func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.Run
 	if err := freeName(ctx, d, o.Name); err != nil {
 		return Info{}, nil, err
 	}
-	if err := checkResumedOnce(d, o.ResumedFrom); err != nil {
+	if err := checkSessionFree(d, o.ResumedFrom, o.ResumeSession); err != nil {
 		return Info{}, nil, err
 	}
 	return openRun(d, o)

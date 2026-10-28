@@ -103,12 +103,17 @@ What this means for wipnote:
    - `--harness` or `--container` disagrees with the recorded run, or a container
      run belongs to another project root;
    - a Codex resume has a brief (section 1);
-   - another run already resumed NAME's run (checked again under the names lock).
-     An attempt that spawn abandoned before the harness started does not count:
-     its row closed with `end_reason=gone` and it never bound a session (none in
-     the ledger, no `session_start` in its run folder). A swept folder counts.
-     A resumed run stopped before its bind was seen resumes its recorded
-     `resume_session`.
+   - the session is already continued by another run (checked under the names
+     lock): any open run, or any run opened after NAME's, whose bound sessions or
+     recorded `resume_session` hold the id. The key is the harness session id,
+     not the chain, so two workers never continue one session. An attempt that
+     spawn abandoned before the harness started never counts: its row closed
+     with `end_reason=gone` and it never bound a session (none in the ledger, no
+     `session_start` in its run folder). A swept folder counts;
+   - NAME's run is itself such an abandoned attempt: it never ran, so it is no
+     source, and the refusal names the run it was resuming (resume that one).
+     A resumed run that launched but stopped before its bind was seen resumes
+     its recorded `resume_session`.
 2. Open the new row with `resumed_from` = the old run's `dlg-` id and the old run's
    harness and place. The old row stays closed. The work item defaults to the old
    row's (the context belongs to it); `--work-item` overrides.

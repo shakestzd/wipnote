@@ -297,3 +297,64 @@ func TestResume_NewerRunWithoutBindUsesRecordedSession(t *testing.T) {
 	stoppedWorker(t, e2, e2.opts("w1"))
 	refuseResume(t, e2, e2.resumeOpts("w2"), "w1", "session id")
 }
+
+// abandonedResume runs a resume of from as name whose shell never settles,
+// so spawn abandons it before the harness starts. It returns the run id.
+func abandonedResume(t *testing.T, e *env, name, from string) string {
+	t.Helper()
+	e.herdr.shellAfter = 1 << 20
+	defer func() { e.herdr.shellAfter = 0 }()
+	o := e.resumeOpts(name)
+	o.ShellWait = 30 * time.Millisecond
+	if _, err := Resume(context.Background(), e.deps, o, from); !errors.Is(err, ErrShellNotReady) {
+		t.Fatalf("abandoned attempt %s: %v, want ErrShellNotReady", name, err)
+	}
+	r, err := lastRun(e.deps, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r.ID
+}
+
+// TestResume_AbandonedAttemptIsNoSource: w1 -> w2 is abandoned before
+// launch; resuming w2 as w3 is refused and names w1, the run to resume.
+// Then w1 -> w4 works once, and w1 -> w5 is refused naming w4: one session,
+// one chain. Other side: the clean retry (w4) is allowed.
+func TestResume_AbandonedAttemptIsNoSource(t *testing.T) {
+	e := newEnv(t)
+	stoppedWorker(t, e, e.opts("w1"), "sid-a")
+	abandonedResume(t, e, "w2", "w1")
+	refuseResume(t, e, e.resumeOpts("w3"), "w2", "w1")
+	s4, info := resume(t, e, e.resumeOpts("w4"), "w1")
+	if info.ResumeSession != "sid-a" {
+		t.Fatalf("w4 resume_session %q", info.ResumeSession)
+	}
+	refuseResume(t, e, e.resumeOpts("w5"), "w1", s4.Run)
+}
+
+// TestResume_SessionIDIsUnique: a run that already continues the session
+// (here an open run left by an older build, resumed_from an abandoned
+// attempt, so outside w1's chain) blocks resuming w1, whatever the chain.
+// Other side: once that run is closed before launch it no longer counts.
+func TestResume_SessionIDIsUnique(t *testing.T) {
+	e := newEnv(t)
+	stoppedWorker(t, e, e.opts("w1"), "sid-a")
+	w2 := abandonedResume(t, e, "w2", "w1")
+	row, err := e.deps.Ledger.Open(delegationledger.Record{Mode: delegationledger.ModeInteractive, Harness: HarnessClaude,
+		Name: "w3", WorkItem: "feat-0a1b2c3d", Host: PlaceHost, Started: e.row(w2).Started, ResumedFrom: w2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rf, err := e.deps.Store.CreateRun(row.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteInfo(rf, Info{Run: row.ID, Name: "w3", Harness: HarnessClaude, Cwd: e.dir, Place: PlaceHost, ResumeSession: "sid-a"}); err != nil {
+		t.Fatal(err)
+	}
+	refuseResume(t, e, e.resumeOpts("w4"), "w1", row.ID)
+	if _, err := e.deps.Ledger.CloseIfOpen(row.ID, delegationledger.CloseInfo{Ended: e.row(row.ID).Started, Reason: delegationledger.EndGone}); err != nil {
+		t.Fatal(err)
+	}
+	resume(t, e, e.resumeOpts("w4"), "w1")
+}
