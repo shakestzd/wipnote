@@ -54,25 +54,29 @@ func Fold(wipnoteDir, runDir string) (Folded, error) {
 		return Folded{}, ErrFoldInside
 	}
 	var f Folded
-	sessions, err := containerwrite.ReadSessions(runDir)
-	if err != nil {
+	if err := foldSessions(wipnoteDir, runDir, &f); err != nil {
 		return f, err
-	}
-	if len(sessions) > 0 {
-		if err := foldSessions(wipnoteDir, runDir, sessions, &f); err != nil {
-			return f, err
-		}
 	}
 	return f, foldGates(wipnoteDir, runDir, &f)
 }
 
-func foldSessions(wipnoteDir, runDir string, sessions []containerwrite.Session, f *Folded) error {
+// foldSessions reads the worker's session files and folded.json under the
+// fold lock, so a fold never works from a snapshot another fold has
+// already moved past.
+func foldSessions(wipnoteDir, runDir string, f *Folded) error {
 	path := filepath.Join(runDir, FoldedFile)
 	// One project-wide lock for every session fold: two folds of one run
 	// re-read folded.json under it, and two run folders of one resumed
 	// session (an end and a resume) never interleave on the host's row.
+	if foldBeforeLock != nil {
+		foldBeforeLock()
+	}
 	release := filelock.Guard(filepath.Join(wipnoteDir, "delegate", foldLock))
 	defer release()
+	sessions, err := containerwrite.ReadSessions(runDir)
+	if err != nil || len(sessions) == 0 {
+		return err
+	}
 	st := foldedState{Sessions: map[string]foldedSession{}}
 	if data, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(data, &st)
@@ -107,6 +111,9 @@ func foldSessions(wipnoteDir, runDir string, sessions []containerwrite.Session, 
 func foldSession(wipnoteDir string, s containerwrite.Session, fs *foldedSession, f *Folded) error {
 	store := sessionledger.NewStore(wipnoteDir)
 	runs := s.RunList()
+	if len(runs) < fs.Runs {
+		return nil // an older snapshot than what was folded: nothing new
+	}
 	for i := fs.Runs; i < len(runs); i++ {
 		if i > 0 && !fs.Ended {
 			if err := closeRun(store, s.SessionID, runs[i-1], fs, f); err != nil {
@@ -197,3 +204,7 @@ func foldGates(wipnoteDir, runDir string, f *Folded) error {
 // foldGateCheck is a test seam: called just before a fold records a gate
 // run, where an unlocked check-then-append would let another fold in.
 var foldGateCheck func()
+
+// foldBeforeLock is a test seam: called just before a session fold takes the
+// project-wide fold lock, where another fold may run first.
+var foldBeforeLock func()

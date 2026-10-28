@@ -266,3 +266,60 @@ func TestFold_ConcurrentFoldsAppendGateOnce(t *testing.T) {
 		t.Errorf("gate %s recorded %d times (second fold ran: %v), want once", gate.ID, n, second)
 	}
 }
+
+// TestFold_SnapshotAfterFoldLock: a fold that loaded the worker's session
+// files, then waited for the fold lock while another fold folded a resumed
+// run, must not fold from its stale snapshot. The foldBeforeLock seam runs
+// the resume and a whole second fold at that point. The other side: the
+// first fold then finds nothing new, and the host row has both runs once.
+func TestFold_SnapshotAfterFoldLock(t *testing.T) {
+	wipnoteDir, runDir := foldProject(t)
+	sid := "f0f0f0f0-1111-2222-3333-444444444444"
+	t0 := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	inWorker := func(fn func(*sessionledger.Store)) {
+		t.Setenv(containerwrite.RunEnv, foldRun)
+		t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+		fn(sessionledger.NewStore(wipnoteDir))
+		t.Setenv(containerwrite.PlaceEnv, "")
+	}
+	inWorker(func(s *sessionledger.Store) {
+		_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: t0})
+		_ = s.Close(sid, t0.Add(time.Hour))
+	})
+	raced := false
+	foldBeforeLock = func() {
+		if raced {
+			return
+		}
+		raced = true
+		inWorker(func(s *sessionledger.Store) { // the resume, still running
+			_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: t0.Add(2 * time.Hour)})
+		})
+		if _, err := Fold(wipnoteDir, runDir); err != nil {
+			t.Error(err)
+		}
+	}
+	t.Cleanup(func() { foldBeforeLock = nil })
+	if _, err := Fold(wipnoteDir, runDir); err != nil {
+		t.Fatal(err)
+	}
+	row, _, _ := sessionledger.NewStore(wipnoteDir).Get(sid)
+	if runs := row.RunList(); !raced || len(runs) != 2 || !row.IsOpen() {
+		t.Errorf("host row runs %+v ended %v: want both runs once, the resume still open", runs, row.EndedAt)
+	}
+}
+
+// TestFoldSession_ShortSnapshotFoldsNothing: a snapshot with fewer runs
+// than folded.json records is nothing new: no panic, no write.
+func TestFoldSession_ShortSnapshotFoldsNothing(t *testing.T) {
+	wipnoteDir, _ := foldProject(t)
+	s := containerwrite.Session{SessionID: "f1f1f1f1-1111-2222-3333-444444444444", StartedAt: time.Now().UTC()}
+	fs := foldedSession{Runs: 2}
+	var f Folded
+	if err := foldSession(wipnoteDir, s, &fs, &f); err != nil || f != (Folded{}) || fs.Runs != 2 {
+		t.Errorf("short snapshot: %v, %+v, %+v; want nothing folded", err, f, fs)
+	}
+	if _, err := os.Stat(sessionledger.NewStore(wipnoteDir).Path()); !os.IsNotExist(err) {
+		t.Errorf("a short snapshot wrote the ledger (err %v)", err)
+	}
+}
