@@ -31,6 +31,16 @@ type fakeHerdr struct {
 	shellAfter int
 	// exitOnEnter: an enter after the exit command leaves a bare shell.
 	exitOnEnter bool
+	// prompts allows agent prompt (send's hint); without it Prompt panics,
+	// so a verb that must never prompt is caught. promptErr fails the hint;
+	// onPrompt runs before the prompt is logged.
+	prompts   bool
+	promptErr error
+	onPrompt  func(text string)
+	// onGet runs (unlocked) at the start of each Get, as a worker's hook
+	// racing a look would; getDelay makes Get slow, honouring ctx.
+	onGet    func()
+	getDelay time.Duration
 }
 
 type fpane struct {
@@ -122,7 +132,17 @@ func (f *fakeHerdr) Run(_ context.Context, pane herdr.PaneID, shell string) erro
 	return nil
 }
 
-func (f *fakeHerdr) Get(_ context.Context, pane herdr.PaneID) (herdr.Pane, error) {
+func (f *fakeHerdr) Get(ctx context.Context, pane herdr.PaneID) (herdr.Pane, error) {
+	if f.onGet != nil {
+		f.onGet()
+	}
+	if f.getDelay > 0 {
+		select {
+		case <-ctx.Done():
+			return herdr.Pane{}, ctx.Err()
+		case <-time.After(f.getDelay):
+		}
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	p := f.panes[pane]
@@ -222,7 +242,18 @@ func (f *fakeHerdr) SendKeys(_ context.Context, pane herdr.PaneID, key string) e
 	return nil
 }
 
-func (f *fakeHerdr) Prompt(context.Context, herdr.Pin, string) error { panic("Prompt not expected") }
+func (f *fakeHerdr) Prompt(_ context.Context, pin herdr.Pin, text string) error {
+	if !f.prompts {
+		panic("Prompt not expected")
+	}
+	if f.onPrompt != nil {
+		f.onPrompt(text)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.log("prompt %s %s", pin.Pane, text)
+	return f.promptErr
+}
 func (f *fakeHerdr) Read(context.Context, herdr.Pin, int) (string, error) {
 	panic("Read not expected")
 }

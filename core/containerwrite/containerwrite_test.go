@@ -191,3 +191,50 @@ func TestSession_ResumeAddsRun(t *testing.T) {
 		t.Errorf("runs %+v\nwant %+v (first start kept)", runs, want)
 	}
 }
+
+// TestSession_EnsureNeverResumes: Ensure (the late writer, which cannot tell
+// a live session from one it outlived) records run 1 of a new session and
+// otherwise only a missing harness: on an ended session it writes nothing.
+// The other side: Open after the end is a resume (TestSession_ResumeAddsRun).
+func TestSession_EnsureNeverResumes(t *testing.T) {
+	wipnoteDir, runDir := worker(t)
+	t0 := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	if err := EnsureSession(wipnoteDir, Session{SessionID: "sid-e", StartedAt: t0}); err != nil {
+		t.Fatal(err)
+	}
+	if err := CloseSession(wipnoteDir, "sid-e", t0.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(runDir, "session-sid-e.json")
+	before, _ := os.ReadFile(path)
+	if err := EnsureSession(wipnoteDir, Session{SessionID: "sid-e", StartedAt: t0.Add(2 * time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := os.ReadFile(path); string(after) != string(before) {
+		t.Errorf("Ensure on an ended session rewrote it:\n%s", after)
+	}
+	if err := EnsureSession(wipnoteDir, Session{SessionID: "sid-e", Harness: "codex", StartedAt: t0.Add(2 * time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := ReadSessions(runDir)
+	if len(got) != 1 || len(got[0].RunList()) != 1 || got[0].EndedAt.IsZero() || got[0].Harness != "codex" {
+		t.Errorf("sessions %+v: want one ended run and the harness filled in", got)
+	}
+}
+
+// TestSession_LateCloseOnResumedRunIsIgnored mirrors the sessions ledger: an
+// end before a resumed run's start belongs to an earlier run and changes
+// nothing; on run 1 it is clock skew and clamps to the start.
+func TestSession_LateCloseOnResumedRunIsIgnored(t *testing.T) {
+	wipnoteDir, runDir := worker(t)
+	t0 := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	_ = OpenSession(wipnoteDir, Session{SessionID: "sid-l", StartedAt: t0})
+	_ = CloseSession(wipnoteDir, "sid-l", t0.Add(-time.Minute))
+	_ = OpenSession(wipnoteDir, Session{SessionID: "sid-l", StartedAt: t0.Add(time.Hour)})
+	_ = CloseSession(wipnoteDir, "sid-l", t0.Add(30*time.Minute))
+	got, _ := ReadSessions(runDir)
+	runs := got[0].RunList()
+	if len(runs) != 2 || !runs[0].EndedAt.Equal(t0) || !runs[1].EndedAt.IsZero() {
+		t.Errorf("runs %+v: want run 1 clamped to its start and run 2 still open", runs)
+	}
+}

@@ -50,6 +50,10 @@ const (
 const (
 	FileSession = "session.json" // internal/delegate/session.Info
 	FileBrief   = "brief.md"     // the brief plus the result preamble
+	// FileState is the worker's state as list last observed it, with its
+	// Overview group (slice 25), so the band and tree, which run no
+	// readiness predicate, show what list shows.
+	FileState = "state.json"
 )
 
 // Files a container run holds (plan-28b4a7f6 slice 21): where it ran (the
@@ -61,7 +65,7 @@ const (
 )
 
 // RunnerFiles lists the files beside the contract that WriteFile accepts.
-var RunnerFiles = []string{FileOut, FileJob, FileSession, FileBrief, FileContainer, FileUpLog}
+var RunnerFiles = []string{FileOut, FileJob, FileSession, FileBrief, FileState, FileContainer, FileUpLog}
 
 // Hosts a run can name in its host file.
 const (

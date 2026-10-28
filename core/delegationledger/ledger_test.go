@@ -451,6 +451,30 @@ func TestLedger_OnCommitGetsRepoRelativePath(t *testing.T) {
 	}
 }
 
+// TestLedger_EnrichIfOpenNeverTouchesClosedRow: the late write a delegate
+// wait makes applies to an open row and changes nothing on a closed one.
+func TestLedger_EnrichIfOpenNeverTouchesClosedRow(t *testing.T) {
+	s := testStore(t)
+	open := mustOpen(t, s, interactiveRow("dlg-333333333333", "feat-a", t0))
+	shut := mustOpen(t, s, interactiveRow("dlg-444444444444", "feat-a", t0))
+	if _, err := s.CloseIfOpen(shut.ID, CloseInfo{Ended: t0.Add(time.Minute), Reason: EndStop}); err != nil {
+		t.Fatal(err)
+	}
+	add := Enrichment{WorkerSessions: []string{"sid-a"}}
+	if changed, err := s.EnrichIfOpen(open.ID, add); err != nil || !changed {
+		t.Fatalf("open row: %v %v", changed, err)
+	}
+	if changed, err := s.EnrichIfOpen(shut.ID, add); err != nil || changed {
+		t.Fatalf("closed row: %v %v", changed, err)
+	}
+	if got, _, _ := s.Get(shut.ID); len(got.WorkerSessions) != 0 || got.EndReason != EndStop {
+		t.Fatalf("closed row changed: %+v", got)
+	}
+	if got, _, _ := s.Get(open.ID); len(got.WorkerSessions) != 1 {
+		t.Fatalf("open row not enriched: %+v", got)
+	}
+}
+
 // TestLedger_ReasoningTokensRoundTrip pins the fourth usage column (Codex's
 // reasoning_output_tokens, slice 12): Enrich records it, it survives the
 // HTML, and an Enrich without it leaves it alone. A row written before the

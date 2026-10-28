@@ -44,7 +44,10 @@ func runWiShowWithFormat(id, format string) error {
 	default:
 		printNodeDetail(node)
 		// Background runs recorded for the item (feat-36658c22).
-		printLineageRuns(os.Stdout, loadLineageRuns(dir, node.ID, detectLineageKind(node.ID)))
+		kind := detectLineageKind(node.ID)
+		// Delegation runs from the ledger (plan-28b4a7f6 slice 13).
+		printLineageDelegations(os.Stdout, loadLineageDelegations(dir, node.ID, kind, implementedInNodes(node)))
+		printLineageRuns(os.Stdout, loadLineageRuns(dir, node.ID, kind))
 		return nil
 	}
 }

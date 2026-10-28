@@ -36,6 +36,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
@@ -83,6 +84,8 @@ type Deps struct {
 	Herdr  herdr.Client
 	Store  *runstore.Store
 	Ledger *delegationledger.Store
+	// Claims is the claim ledger; nil skips the worker-loss expiry (wait).
+	Claims *claimledger.Store
 	// Now is the clock; time.Now when nil.
 	Now func() time.Time
 	// ProcStart reports a pid's start time, ok false when no such process

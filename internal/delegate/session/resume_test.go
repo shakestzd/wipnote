@@ -66,7 +66,7 @@ type written struct {
 	rows, runs, calls int
 }
 
-func snapshot(t *testing.T, e *env) written {
+func resumeSnapshot(t *testing.T, e *env) written {
 	t.Helper()
 	rows, _ := e.deps.Ledger.ReadAll()
 	runs, _ := os.ReadDir(filepath.Join(e.deps.Store.Root(), "runs"))
@@ -75,12 +75,12 @@ func snapshot(t *testing.T, e *env) written {
 
 func refuseResume(t *testing.T, e *env, o SpawnOptions, from, want string) {
 	t.Helper()
-	before := snapshot(t, e)
+	before := resumeSnapshot(t, e)
 	_, err := Resume(context.Background(), e.deps, o, from)
 	if !errors.Is(err, ErrCannotResume) || !strings.Contains(err.Error(), want) {
 		t.Fatalf("resume %s from %s: %v, want ErrCannotResume naming %q", o.Name, from, err, want)
 	}
-	if after := snapshot(t, e); after != before {
+	if after := resumeSnapshot(t, e); after != before {
 		t.Fatalf("a refused resume wrote: before %+v after %+v", before, after)
 	}
 }

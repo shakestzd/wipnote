@@ -71,6 +71,11 @@ func (m *Mailbox) loadResult(task string) (Message, bool) {
 // NewestResult returns the most recently written readable result in outbox,
 // whatever task it answers; ok is false when there is none.
 func (m *Mailbox) NewestResult() (Message, bool, error) {
+	return m.NewestResultFor(nil)
+}
+
+// NewestResultFor is NewestResult over the tasks accept takes (all when nil).
+func (m *Mailbox) NewestResultFor(accept func(task string) bool) (Message, bool, error) {
 	entries, err := os.ReadDir(filepath.Join(m.dir, string(Outbox)))
 	if err != nil {
 		return Message{}, false, fmt.Errorf("runstore: read outbox: %w", err)
@@ -82,7 +87,7 @@ func (m *Mailbox) NewestResult() (Message, bool, error) {
 	var cands []cand
 	for _, e := range entries {
 		sub := resultFileRe.FindStringSubmatch(e.Name())
-		if sub == nil || !e.Type().IsRegular() {
+		if sub == nil || !e.Type().IsRegular() || (accept != nil && !accept(sub[1])) {
 			continue
 		}
 		if fi, err := e.Info(); err == nil {

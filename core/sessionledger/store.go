@@ -127,7 +127,7 @@ func (s *Store) open(r Record, mayResume bool) (bool, error) {
 		return false, ErrAgentHarness
 	}
 	if containerwrite.Active() {
-		return s.openOwn(r)
+		return s.openOwn(r, mayResume)
 	}
 
 	release := filelock.Guard(s.path)

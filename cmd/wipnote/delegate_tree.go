@@ -18,8 +18,12 @@ func delegateListCmd() *cobra.Command {
 		Short: "List delegation runs and worker readiness",
 		Long: `Lists the open runs (every run with --all). An interactive worker's state is
 one of starting, ready, working, question, done, idle_no_result, idle_shell,
-blocked (a folder-trust dialog, named) and gone. list also renames and pins a
-worker's herdr agent once it appears, and records bound sessions in the ledger.`,
+blocked (a folder-trust dialog, named) and gone; a one-shot or ended run's is
+running, ended, failed (a non-zero exit) or gone. GROUP is the state's Projects
+Overview group: Working, Waiting on you, Ready for review, Landing, Idle or
+Resolved. list also renames and pins a worker's herdr agent once it appears,
+records bound sessions in the ledger, and keeps each worker's state in its run
+folder (state.json) for the orchestra band and tree.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			wipnoteDir, err := findWipnoteDir()
@@ -54,9 +58,9 @@ func printRows(cmd *cobra.Command, rows []session.Row) error {
 		return err
 	}
 	tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "RUN\tNAME\tHARNESS\tWORK ITEM\tPANE\tSTATE\tDETAIL")
+	fmt.Fprintln(tw, "RUN\tNAME\tHARNESS\tWORK ITEM\tPANE\tGROUP\tSTATE\tDETAIL")
 	for _, r := range rows {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", r.Run, r.Name, r.Harness, r.WorkItem, r.Pane, r.State, r.Detail)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", r.Run, r.Name, r.Harness, r.WorkItem, r.Pane, r.Group.Label(), r.State, r.Detail)
 	}
 	return tw.Flush()
 }
@@ -69,7 +73,9 @@ func delegateTreeCmd() *cobra.Command {
 		Use:   "tree [--all] [--json]",
 		Short: "Show caller sessions, their runs, worker sessions and sub-agents",
 		Long: `Shows the current session's runs as a tree (every caller with --all, or when no
-session is known): caller, run, worker session (a /clear adds one), sub-agent.`,
+session is known): caller, run, worker session (a /clear adds one), sub-agent.
+Each run shows its state and Overview group; an open worker's state is the one
+the last list observed (tree itself asks herdr nothing).`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			wipnoteDir, err := findWipnoteDir()

@@ -161,7 +161,19 @@ func TestSpawn_RefusesWithoutWorkItem(t *testing.T) {
 	if _, err := Spawn(context.Background(), e.deps, o); !errors.Is(err, ErrNoWorkItem) {
 		t.Fatalf("err %v", err)
 	}
-	for _, bad := range []string{"", "W1", "-w", strings.Repeat("a", 33), "w_1"} {
+	// An empty NAME is derived from the work item (slice 15), so with no
+	// item the refusal is still "no work item", never a bad name.
+	o = e.opts("")
+	o.WorkItem = ""
+	if _, err := Spawn(context.Background(), e.deps, o); !errors.Is(err, ErrNoWorkItem) {
+		t.Fatalf("no name, no item: err %v", err)
+	}
+	o = e.opts("")
+	o.WorkItem = "0bad-item"
+	if _, err := Spawn(context.Background(), e.deps, o); !errors.Is(err, ErrBadName) {
+		t.Fatalf("derived name not starting with a letter: err %v", err)
+	}
+	for _, bad := range []string{"W1", "-w", strings.Repeat("a", 33), "w_1"} {
 		o := e.opts(bad)
 		if _, err := Spawn(context.Background(), e.deps, o); !errors.Is(err, ErrBadName) {
 			t.Fatalf("name %q: err %v", bad, err)
