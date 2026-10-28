@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/containerwrite"
@@ -138,6 +139,9 @@ func openRun(store *sessionledger.Store, wipnoteDir string, s containerwrite.Ses
 	if err != nil {
 		return err
 	}
+	if found && hasRun(row, run.StartedAt) {
+		return nil // already in the ledger (folded.json is only the fold's note)
+	}
 	rec := sessionledger.Record{SessionID: s.SessionID, Harness: s.Harness, StartedAt: run.StartedAt,
 		ProjectDir: paths.NormalizeProjectDir(filepath.Dir(wipnoteDir)), Host: sessionledger.HostContainer}
 	if _, err := store.Open(rec); err != nil {
@@ -157,6 +161,12 @@ func closeRun(store *sessionledger.Store, sid string, run containerwrite.Run, fs
 	if run.EndedAt.IsZero() {
 		return nil
 	}
+	if row, found, err := store.Get(sid); err != nil {
+		return err
+	} else if found && !row.IsOpen() {
+		fs.Ended = true // the ledger already holds the end
+		return nil
+	}
 	if err := store.Close(sid, run.EndedAt); err != nil {
 		return err
 	}
@@ -165,9 +175,21 @@ func closeRun(store *sessionledger.Store, sid string, run containerwrite.Run, fs
 	return nil
 }
 
+// foldFamily registers the session's family in the shared index when the
+// index lacks it or holds another. It runs under the fold lock.
 func foldFamily(wipnoteDir string, s containerwrite.Session, f *Folded) error {
 	project := filepath.Dir(wipnoteDir)
-	if s.Family == "" || agent.SessionFamilyFor(project, s.SessionID) == s.Family {
+	if s.Family == "" {
+		return nil
+	}
+	// The shared index is the record written here, so it is what is
+	// checked: SessionFamilyFor prefers the per-session state file, which
+	// the worker's own SessionStart wrote, and would hide a missing entry.
+	idx, err := agent.ReadSessionFamilyIndex(project)
+	if err != nil {
+		return err
+	}
+	if idx[s.SessionID] == s.Family {
 		return nil
 	}
 	if err := agent.RegisterSessionFamily(project, s.SessionID, s.Family); err != nil {
@@ -208,3 +230,13 @@ var foldGateCheck func()
 // foldBeforeLock is a test seam: called just before a session fold takes the
 // project-wide fold lock, where another fold may run first.
 var foldBeforeLock func()
+
+// hasRun reports whether the ledger row already holds a run started at.
+func hasRun(row sessionledger.Record, at time.Time) bool {
+	for _, r := range row.RunList() {
+		if r.StartedAt.Equal(at) {
+			return true
+		}
+	}
+	return false
+}

@@ -2,6 +2,7 @@ package container
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/containerwrite"
 	"github.com/shakestzd/wipnote/core/gateledger"
+	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/sessionledger"
 )
 
@@ -321,5 +323,89 @@ func TestFoldSession_ShortSnapshotFoldsNothing(t *testing.T) {
 	}
 	if _, err := os.Stat(sessionledger.NewStore(wipnoteDir).Path()); !os.IsNotExist(err) {
 		t.Errorf("a short snapshot wrote the ledger (err %v)", err)
+	}
+}
+
+// TestFold_FamilyReachesIndexAfterSessionStart: after a container worker's
+// real SessionStart (which also writes its per-session state file), the
+// fold registers the session's family in the shared index itself, which a
+// resume-last launch reads. The other side: a fold of an already
+// registered family writes nothing more.
+func TestFold_FamilyReachesIndexAfterSessionStart(t *testing.T) {
+	project := t.TempDir()
+	wipnoteDir := filepath.Join(project, ".wipnote")
+	runDir := filepath.Join(wipnoteDir, "delegate", "runs", foldRun)
+	if err := os.MkdirAll(runDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("git", "-C", project, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v %s", err, out)
+	}
+	for _, k := range []string{"CLAUDE_SESSION_ID", "WIPNOTE_PARENT_SESSION", "WIPNOTE_NESTING_DEPTH", "WIPNOTE_SESSION_ID",
+		"WIPNOTE_SESSION_FAMILY_ID", "CLAUDE_ENV_FILE"} {
+		t.Setenv(k, "")
+	}
+	t.Setenv("CLAUDE_PROJECT_DIR", project)
+	t.Setenv("WIPNOTE_HARNESS", "claude")
+	t.Setenv(containerwrite.RunEnv, foldRun)
+	t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+	sid := "fafafafa-1111-2222-3333-444444444444"
+	if _, err := hooks.SessionStart(&hooks.CloudEvent{SessionID: sid, CWD: project, HookEventName: "SessionStart", Source: "startup"}, project); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(containerwrite.PlaceEnv, "")
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	if _, err := Fold(wipnoteDir, runDir); err != nil {
+		t.Fatal(err)
+	}
+	idx, _ := agent.ReadSessionFamilyIndex(project)
+	if idx[sid] != sid {
+		t.Fatalf("family index %v: want %s -> %s", idx, sid, sid)
+	}
+	if got, _ := Fold(wipnoteDir, runDir); got.Families != 0 {
+		t.Errorf("refold registered the family again: %+v", got)
+	}
+}
+
+// TestFold_LostFoldedRecordAddsNoRun: folded.json is the fold's own note,
+// not the record; a fold whose note was lost (a crash after the ledger
+// write and before the note) must find the run in the sessions ledger itself
+// and not open it again as a resume. The other side: a real new run is
+// still folded.
+func TestFold_LostFoldedRecordAddsNoRun(t *testing.T) {
+	wipnoteDir, runDir := foldProject(t)
+	sid := "abab0000-1111-2222-3333-444444444444"
+	t0 := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	inWorker := func(fn func(*sessionledger.Store)) {
+		t.Setenv(containerwrite.RunEnv, foldRun)
+		t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+		fn(sessionledger.NewStore(wipnoteDir))
+		t.Setenv(containerwrite.PlaceEnv, "")
+	}
+	inWorker(func(s *sessionledger.Store) {
+		_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: t0})
+		_ = s.Close(sid, t0.Add(time.Hour))
+	})
+	if _, err := Fold(wipnoteDir, runDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(runDir, FoldedFile)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Fold(wipnoteDir, runDir); err != nil {
+		t.Fatal(err)
+	}
+	row, _, _ := sessionledger.NewStore(wipnoteDir).Get(sid)
+	if runs := row.RunList(); len(runs) != 1 || row.IsOpen() {
+		t.Fatalf("after a lost note: runs %+v open %v, want the one ended run", runs, row.IsOpen())
+	}
+	inWorker(func(s *sessionledger.Store) {
+		_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: t0.Add(2 * time.Hour)})
+	})
+	if _, err := Fold(wipnoteDir, runDir); err != nil {
+		t.Fatal(err)
+	}
+	if row, _, _ = sessionledger.NewStore(wipnoteDir).Get(sid); len(row.RunList()) != 2 || !row.IsOpen() {
+		t.Errorf("a real resume: runs %+v, want it folded", row.RunList())
 	}
 }
