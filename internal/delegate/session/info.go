@@ -8,8 +8,11 @@ import (
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
 
-// Place values: where the worker runs. Slice 21 adds container.
-const PlaceHost = "host"
+// Place values: where the worker runs.
+const (
+	PlaceHost      = "host"
+	PlaceContainer = "container"
+)
 
 // Info is a worker's run-folder record (session.json). It holds host-local
 // facts the ledger must not: the pane, the caller's pane and the cwd.
@@ -29,8 +32,13 @@ type Info struct {
 	Place      string `json:"place"`
 	// Task is the brief's task message id: its result file is
 	// mail/<name>/outbox/<task>-result.json. Empty without a brief.
-	Task    string `json:"task,omitempty"`
-	Created string `json:"created"`
+	Task string `json:"task,omitempty"`
+	// Root and Workspace are a container worker's project root (the
+	// --workspace-folder) and the container's workspace folder (from
+	// devcontainer up, set by the boot).
+	Root      string `json:"root,omitempty"`
+	Workspace string `json:"workspace_folder,omitempty"`
+	Created   string `json:"created"`
 }
 
 // Pin is the herdr pin of the worker's agent (pane plus pinned terminal).

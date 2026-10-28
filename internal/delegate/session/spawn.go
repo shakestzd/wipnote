@@ -29,9 +29,15 @@ type SpawnOptions struct {
 	Brief                   string
 	Cwd                     string
 	// BootLine builds the line typed into the pane for a run id.
-	BootLine  func(runID string) string
-	ShellWait time.Duration // DefaultShellWait when zero
-	Poll      time.Duration // DefaultPoll when zero
+	BootLine func(runID string) string
+	// Container starts the worker in the project's devcontainer (slice 21);
+	// Root is the project root. CodexOptIn: this host is in
+	// delegate.codex.dangerFullAccessHosts (Codex needs it inside).
+	Container  bool
+	Root       string
+	CodexOptIn bool
+	ShellWait  time.Duration // DefaultShellWait when zero
+	Poll       time.Duration // DefaultPoll when zero
 }
 
 // Spawned is spawn's payload: {run, name, pane, harness, status}.
@@ -98,7 +104,7 @@ func checkSpawn(d Deps, o SpawnOptions) error {
 	case o.BootLine == nil:
 		return errors.New("delegate: spawn has no boot line")
 	}
-	return nil
+	return checkContainerSpawn(o)
 }
 
 // namesLock is the project-wide lock that makes the name check and the
@@ -148,14 +154,17 @@ func freeName(ctx context.Context, d Deps, name string) error {
 func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	row, err := d.Ledger.Open(delegationledger.Record{
 		Mode: delegationledger.ModeInteractive, Harness: o.Harness, Name: o.Name, WorkItem: o.WorkItem,
-		Link: "tag", CallerSession: o.CallerSession, Host: PlaceHost, Started: d.now(),
+		Link: "tag", CallerSession: o.CallerSession, Host: placeOf(o), Started: d.now(),
 	})
 	if err != nil {
 		return Info{}, nil, err
 	}
 	info := Info{
 		Run: row.ID, Name: o.Name, Harness: o.Harness, WorkItem: o.WorkItem, Caller: o.CallerSession,
-		CallerPane: string(o.CallerPane), Cwd: o.Cwd, Place: PlaceHost, Created: d.now().Format(time.RFC3339),
+		CallerPane: string(o.CallerPane), Cwd: o.Cwd, Place: placeOf(o), Created: d.now().Format(time.RFC3339),
+	}
+	if o.Container {
+		info.Root = o.Root
 	}
 	rf, err := d.Store.CreateRun(row.ID)
 	if err == nil {

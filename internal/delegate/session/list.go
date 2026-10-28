@@ -61,6 +61,7 @@ func listRow(ctx context.Context, d Deps, r delegationledger.Record) Row {
 		return row
 	}
 	row.Pane = info.Pane
+	foldContainer(d, rf, info)
 	if adopt(ctx, d.Herdr, &info) {
 		_ = WriteInfo(rf, info)
 	}
