@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 89
+    version: 90
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -1793,7 +1793,7 @@ slices:
           claim: The status line command receives cost.total_cost_usd and token totals.
           accessed: "2026-10-25"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       questions:
         - id: q-oneshot-harness
           text: After the spike, how do one-shot runs work per harness?
@@ -2795,9 +2795,9 @@ feedback:
           updated_at: "2026-10-28T21:55:23Z"
         - section: slice-22
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-10-28T21:55:28Z"
-          updated_at: "2026-10-28T21:55:28Z"
+          updated_at: "2026-10-28T23:04:20Z"
         - section: slice-23
           action: set_execution_status
           value: done
