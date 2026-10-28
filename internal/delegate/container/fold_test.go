@@ -126,3 +126,45 @@ func TestFold_RefusedInsideAContainerWorker(t *testing.T) {
 		t.Error("Fold ran inside a container worker")
 	}
 }
+
+// TestFold_ResumedRunReachesHostLedger: a container worker that resumes a
+// session the host already folded as ended gets its new run folded in (a
+// second run, the session ended at the new end); folding the same finished
+// file again changes nothing.
+func TestFold_ResumedRunReachesHostLedger(t *testing.T) {
+	wipnoteDir, runDir := foldProject(t)
+	sid := "cdcdcdcd-1111-2222-3333-444444444444"
+	t0 := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	worker := func(fn func(*sessionledger.Store)) {
+		t.Setenv(containerwrite.RunEnv, foldRun)
+		t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+		fn(sessionledger.NewStore(wipnoteDir))
+		t.Setenv(containerwrite.PlaceEnv, "")
+	}
+	worker(func(s *sessionledger.Store) {
+		_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: t0})
+		_ = s.Close(sid, t0.Add(time.Hour))
+	})
+	if _, err := Fold(wipnoteDir, runDir); err != nil {
+		t.Fatal(err)
+	}
+	worker(func(s *sessionledger.Store) {
+		_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: t0.Add(2 * time.Hour)})
+		_ = s.Close(sid, t0.Add(3*time.Hour))
+	})
+	got, err := Fold(wipnoteDir, runDir)
+	if err != nil || got.Resumed != 1 || got.Ended != 1 {
+		t.Errorf("fold after the resume = %+v, %v; want one resumed run, ended", got, err)
+	}
+	row, _, _ := sessionledger.NewStore(wipnoteDir).Get(sid)
+	runs := row.RunList()
+	if len(runs) != 2 || !runs[1].StartedAt.Equal(t0.Add(2*time.Hour)) || !row.EndedAt.Equal(t0.Add(3*time.Hour)) {
+		t.Errorf("host row runs %+v ended %v: want the resumed run", runs, row.EndedAt)
+	}
+	before, _ := os.ReadFile(sessionledger.NewStore(wipnoteDir).Path())
+	again, _ := Fold(wipnoteDir, runDir)
+	after, _ := os.ReadFile(sessionledger.NewStore(wipnoteDir).Path())
+	if again != (Folded{}) || string(before) != string(after) {
+		t.Errorf("refold = %+v (ledger changed %v), want nothing", again, string(before) != string(after))
+	}
+}

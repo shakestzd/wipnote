@@ -105,7 +105,7 @@ func enterContainer(ctx context.Context, rf *runstore.RunFolder, job Job, l *run
 		return job, err
 	}
 	inside := job
-	inside.Argv = container.ExecArgv(c.Root, c.Env, container.InDir(cwd, up.RemoteWorkspaceFolder, m.Argv(job.Argv)))
+	inside.Argv = container.ExecArgv(c.Root, c.Env, container.InDir(cwd, up.RemoteWorkspaceFolder, m.Argv(job.Argv, filepath.Join(rf.Dir(), runstore.FileLastMD))))
 	return inside, nil
 }
 

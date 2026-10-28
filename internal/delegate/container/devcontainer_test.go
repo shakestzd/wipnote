@@ -91,9 +91,9 @@ func TestContainer_UpThenExec(t *testing.T) {
 func TestContainer_MapsPathsToRemoteWorkspace(t *testing.T) {
 	m := Mapper{Root: "/host/proj", Remote: "/workspaces/proj"}
 	cases := map[string]string{
-		"/host/proj":                             "/workspaces/proj",
+		"/host/proj":                            "/workspaces/proj",
 		"/host/proj/.wipnote/delegate/runs/r/x": "/workspaces/proj/.wipnote/delegate/runs/r/x",
-		"/host/proj/sub":                         "/workspaces/proj/sub",
+		"/host/proj/sub":                        "/workspaces/proj/sub",
 	}
 	for in, want := range cases {
 		if got, err := m.Path(in); err != nil || got != want {
@@ -157,5 +157,20 @@ func TestContainer_Pids(t *testing.T) {
 	}
 	if _, err := Pids(context.Background(), root, "not a run; rm -rf /"); err == nil {
 		t.Error("a bad run id was put in the probe")
+	}
+}
+
+// TestContainer_MapsPathsWithSpaces: a checkout whose path has a space still
+// gets its path arguments mapped (a lone path, a path flag's value, and
+// --flag=PATH), while prompt text that merely starts with a path is left as
+// given.
+func TestContainer_MapsPathsWithSpaces(t *testing.T) {
+	m := Mapper{Root: "/host/My Project", Remote: "/workspaces/My Project"}
+	argv := []string{"codex", "exec", "--output-last-message", "/host/My Project/.wipnote/l.md", "--cd=/host/My Project/sub",
+		"-C", "/host/My Project/sub dir", "/host/My Project/last.md", "fix /host/My Project/a.go now", "/host/My Project/README.md explain it"}
+	want := []string{"codex", "exec", "--output-last-message", "/workspaces/My Project/.wipnote/l.md", "--cd=/workspaces/My Project/sub",
+		"-C", "/workspaces/My Project/sub dir", "/workspaces/My Project/last.md", "fix /host/My Project/a.go now", "/host/My Project/README.md explain it"}
+	if got := m.Argv(argv, "/host/My Project/last.md"); !slices.Equal(got, want) {
+		t.Errorf("Argv = %q\nwant %q", got, want)
 	}
 }

@@ -3,6 +3,7 @@ package containerwrite
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -160,4 +161,33 @@ func names(entries []os.DirEntry) []string {
 		out = append(out, e.Name())
 	}
 	return out
+}
+
+// TestSession_ResumeAddsRun: a start after the session ended is a resume
+// (a second run with its own end); a start while a run is open is a replay
+// and adds nothing.
+func TestSession_ResumeAddsRun(t *testing.T) {
+	wipnoteDir, runDir := worker(t)
+	t0 := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(OpenSession(wipnoteDir, Session{SessionID: "sid-1", Harness: "claude", StartedAt: t0}))
+	must(OpenSession(wipnoteDir, Session{SessionID: "sid-1", StartedAt: t0.Add(time.Minute)}))
+	must(CloseSession(wipnoteDir, "sid-1", t0.Add(time.Hour)))
+	must(OpenSession(wipnoteDir, Session{SessionID: "sid-1", StartedAt: t0.Add(2 * time.Hour)}))
+	must(CloseSession(wipnoteDir, "sid-1", t0.Add(3*time.Hour)))
+	must(CloseSession(wipnoteDir, "sid-1", t0.Add(4*time.Hour)))
+	got, _ := ReadSessions(runDir)
+	if len(got) != 1 {
+		t.Fatalf("sessions %+v", got)
+	}
+	runs := got[0].RunList()
+	want := []Run{{StartedAt: t0, EndedAt: t0.Add(time.Hour)}, {StartedAt: t0.Add(2 * time.Hour), EndedAt: t0.Add(3 * time.Hour)}}
+	if !slices.Equal(runs, want) || !got[0].StartedAt.Equal(t0) {
+		t.Errorf("runs %+v\nwant %+v (first start kept)", runs, want)
+	}
 }

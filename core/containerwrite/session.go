@@ -15,12 +15,15 @@ const SessionVersion = 1
 
 // Session is a container worker's sessions-ledger row, kept in its own file
 // session-<id>.json until the host folds it into the sessions ledger.
+// StartedAt is the first start and EndedAt the latest run's end (zero while
+// it runs); Runs lists every run once the session has resumed.
 type Session struct {
 	V         int       `json:"v"`
 	SessionID string    `json:"session_id"`
 	Harness   string    `json:"harness,omitempty"`
 	StartedAt time.Time `json:"started_at"`
 	EndedAt   time.Time `json:"ended_at,omitzero"`
+	Runs      []Run     `json:"runs,omitempty"`
 	// Family is the session-family index entry (session id to family id).
 	Family string `json:"family,omitempty"`
 }
@@ -33,8 +36,35 @@ func sessionFile(sid string) (string, error) {
 	return name, nil
 }
 
-// OpenSession records the session's start. The first start and the first
-// real harness are kept; a replayed start changes nothing.
+// Run is one process lifetime of a session; EndedAt is zero while it runs.
+type Run struct {
+	StartedAt time.Time `json:"started_at"`
+	EndedAt   time.Time `json:"ended_at,omitzero"`
+}
+
+// RunList is the session's runs, first to latest: one run for a session
+// that never resumed, none before its first start.
+func (s Session) RunList() []Run {
+	if len(s.Runs) > 0 {
+		return append([]Run(nil), s.Runs...)
+	}
+	if s.StartedAt.IsZero() {
+		return nil
+	}
+	return []Run{{StartedAt: s.StartedAt, EndedAt: s.EndedAt}}
+}
+
+func (s *Session) setRuns(runs []Run) {
+	s.Runs, s.StartedAt, s.EndedAt = nil, runs[0].StartedAt, runs[len(runs)-1].EndedAt
+	if len(runs) > 1 {
+		s.Runs = runs
+	}
+}
+
+// OpenSession records a start. The first start opens run 1; a start after
+// the latest run ended is a resume and opens a new run, as the sessions
+// ledger's Open does; a start while a run is open is a replay. The first
+// real harness is kept.
 func OpenSession(wipnoteDir string, s Session) error {
 	name, err := sessionFile(s.SessionID)
 	if err != nil {
@@ -42,22 +72,24 @@ func OpenSession(wipnoteDir string, s Session) error {
 	}
 	var cur Session
 	return withOwnFile(wipnoteDir, name, &cur, func() bool {
-		changed := cur.SessionID == ""
-		if changed {
-			cur.SessionID = s.SessionID
-		}
-		if cur.StartedAt.IsZero() {
-			cur.StartedAt, changed = s.StartedAt.UTC(), true
+		runs, changed := cur.RunList(), cur.SessionID == ""
+		cur.SessionID, cur.V = s.SessionID, SessionVersion
+		if n := len(runs); n == 0 || !runs[n-1].EndedAt.IsZero() {
+			at := s.StartedAt.UTC()
+			if n > 0 && at.Before(runs[n-1].EndedAt) {
+				at = runs[n-1].EndedAt // runs never overlap
+			}
+			runs, changed = append(runs, Run{StartedAt: at}), true
+			cur.setRuns(runs)
 		}
 		if cur.Harness == "" && s.Harness != "" {
 			cur.Harness, changed = s.Harness, true
 		}
-		cur.V = SessionVersion
 		return changed
 	})
 }
 
-// CloseSession records the session's first end.
+// CloseSession records the end of the latest run, once.
 func CloseSession(wipnoteDir, sid string, ended time.Time) error {
 	name, err := sessionFile(sid)
 	if err != nil {
@@ -65,10 +97,18 @@ func CloseSession(wipnoteDir, sid string, ended time.Time) error {
 	}
 	var cur Session
 	return withOwnFile(wipnoteDir, name, &cur, func() bool {
-		if !cur.EndedAt.IsZero() {
+		runs := cur.RunList()
+		n := len(runs)
+		if n == 0 || !runs[n-1].EndedAt.IsZero() {
 			return false
 		}
-		cur.SessionID, cur.V, cur.EndedAt = sid, SessionVersion, ended.UTC()
+		end := ended.UTC()
+		if end.Before(runs[n-1].StartedAt) {
+			end = runs[n-1].StartedAt
+		}
+		runs[n-1].EndedAt = end
+		cur.SessionID, cur.V = sid, SessionVersion
+		cur.setRuns(runs)
 		return true
 	})
 }
