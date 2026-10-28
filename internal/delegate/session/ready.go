@@ -45,6 +45,7 @@ const (
 // (D8). The send and stop guards read the line separately (Input).
 type Observation struct {
 	PaneGone     bool
+	Exited       bool // the harness quit; the pane holds only its shell
 	GoneWhy      string
 	Dialog       string // a folder-trust dialog named by its labels, or ""
 	Bound        bool   // a session_start event from the worker's hook
@@ -64,7 +65,7 @@ type Readiness struct {
 // Ready is the one readiness predicate.
 func Ready(o Observation) Readiness {
 	switch {
-	case o.PaneGone:
+	case o.PaneGone || o.Exited:
 		return Readiness{StateGone, o.GoneWhy}
 	case o.Dialog != "":
 		return Readiness{StateBlocked, o.Dialog + "; delegate presses no key on it: answer it in the pane"}
