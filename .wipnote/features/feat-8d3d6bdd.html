@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-27T21:39:40.657677"
-             data-updated="2026-10-27T21:51:59.915553" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
+             data-updated="2026-10-28T02:20:27.892022" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
 
         <header>
             <h1>Label herdr panes with their work item</h1>
@@ -51,6 +51,7 @@
                 <li data-completed="false" data-step-id="step-feat-8d3d6bdd-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ herdr adapter: label.go adds WorkLabel (&lt;id&gt;: &lt;title&gt;, whitespace collapsed, cut to 48 runes with an ellipsis), LabelTimeout (1s) and LabelCallerPane (no call outside herdr, no caller pane or blank label). Tests in label_test.go with the scripted fake, red then green.</li>
                 <li data-completed="false" data-step-id="step-feat-8d3d6bdd-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ feature/bug/spike start labels the caller&#39;s herdr pane via pane rename (root or codex agent only; a subagent start leaves the pane alone). cmd TestMain clears HERDR_* and doubles as the fake herdr.</li>
                 <li data-completed="false" data-step-id="step-feat-8d3d6bdd-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ wipnote claude (dev/default) and wipnote codex (--feature/--track; --work-item goes through feature start) label the pane in a background goroutine so launch never waits. delegate run left unchanged: it already names its own pane with --label or the derived label.</li>
+                <li data-completed="false" data-step-id="step-feat-8d3d6bdd-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ delegate run panes: with a work item the pane title is &lt;id&gt;: &lt;title&gt; (herdr.WorkLabel); explicit --label wins; no work item keeps the derived label. Chosen in oneshot.paneLabel (internal/delegate/oneshot/run.go). Yolo launches and clearing labels on exit left out per owner decision.</li>
             </ol>
         </section>
 
