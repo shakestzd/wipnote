@@ -66,38 +66,22 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 	}
 	var info Info
 	var rf *runstore.RunFolder
-	var lost []Info
+	var lost []lostWorker
 	err := withWorkers(d.Store, string(o.CallerPane), func(w *Workers) error {
-		if err := prune(ctx, d.Herdr, w); err != nil {
-			return err
-		}
-		if err := checkCap(w); err != nil {
-			return err
-		}
 		var err error
-		info, rf, lost, err = claimName(ctx, d, o)
-		for _, l := range lost {
-			w.dropRun(l.Run) // never split a lost worker's pane
-		}
-		if err != nil {
-			return err
-		}
-		pane, err := place(ctx, d.Herdr, w, info.Run, o.Cwd)
-		if err != nil {
-			abandon(d, info.Run, rf, "")
-			return fmt.Errorf("delegate: no pane for %s: %w", o.Name, err)
-		}
-		info, err = UpdateInfo(rf, func(i *Info) { i.Pane = string(pane) })
+		info, rf, lost, err = placeWorker(ctx, d, o, w)
 		return err
 	})
-	for _, l := range lost {
-		dropPane(d, l) // other callers' records, now no lock is held
+	for _, l := range lost { // other callers' records, now no lock is held
+		if l.info.CallerPane != string(o.CallerPane) {
+			_ = withWorkers(d.Store, l.info.CallerPane, func(w *Workers) error { unplace(ctx, d, w, l.info, l.ob); return nil })
+		}
 	}
 	if err != nil {
 		return Spawned{}, err
 	}
 	if err := boot(ctx, d, o, info); err != nil {
-		abandon(d, info.Run, rf, herdr.PaneID(info.Pane))
+		abandon(d, info.Run, rf, info)
 		_ = withWorkers(d.Store, string(o.CallerPane), func(w *Workers) error {
 			_, err := release(ctx, d.Herdr, w, herdr.PaneID(info.Pane))
 			return err
@@ -105,6 +89,47 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 		return Spawned{}, err
 	}
 	return Spawned{Run: info.Run, Name: info.Name, Pane: info.Pane, Harness: info.Harness, Status: StatusStarting}, nil
+}
+
+// placeWorker runs under the caller's workers lock: lost workers are swept
+// out of the record first (sweepLost, so they hold no slot and are never
+// split), then the cap, the name and item checks, the row, the pane, and the
+// pane's terminal pinned with it in session.json. A failure after the row
+// opened abandons the run, closing a pane it got.
+func placeWorker(ctx context.Context, d Deps, o SpawnOptions, w *Workers) (Info, *runstore.RunFolder, []lostWorker, error) {
+	if err := prune(ctx, d.Herdr, w); err != nil {
+		return Info{}, nil, nil, err
+	}
+	sweepLost(ctx, d, w)
+	if err := checkCap(w); err != nil {
+		return Info{}, nil, nil, err
+	}
+	info, rf, lost, err := claimName(ctx, d, o)
+	for _, l := range lost {
+		if l.info.CallerPane == string(o.CallerPane) {
+			unplace(ctx, d, w, l.info, l.ob) // never split a lost worker's pane
+		}
+	}
+	if err != nil {
+		return Info{}, nil, lost, err
+	}
+	pane, err := place(ctx, d.Herdr, w, info.Run, o.Cwd)
+	if err != nil {
+		abandon(d, info.Run, rf, Info{})
+		return Info{}, nil, lost, fmt.Errorf("delegate: no pane for %s: %w", o.Name, err)
+	}
+	p, err := d.Herdr.Get(ctx, pane)
+	if err != nil || p.TerminalID == "" {
+		abandon(d, info.Run, rf, Info{})
+		return Info{}, nil, lost, fmt.Errorf("delegate: herdr cannot name the terminal of new pane %s (%v); it is left open and nothing was typed", pane, err)
+	}
+	placed := Info{Run: info.Run, Name: info.Name, Pane: string(pane), TerminalID: p.TerminalID}
+	saved, err := UpdateInfo(rf, func(i *Info) { i.Pane, i.TerminalID = placed.Pane, placed.TerminalID })
+	if err != nil {
+		abandon(d, info.Run, rf, placed)
+		return Info{}, nil, lost, err
+	}
+	return saved, rf, lost, nil
 }
 
 // prepareSpawn resolves the work item (Deps.ResolveWorkItem, so a resume's
@@ -149,7 +174,7 @@ const namesLock = "names.lock"
 // claimName checks that the name and the work item are free (checkLive: one
 // live worker per item, slice 16) and opens the run, under namesLock.
 // It also returns the lost workers checkLive closed.
-func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.RunFolder, []Info, error) {
+func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.RunFolder, []lostWorker, error) {
 	if err := os.MkdirAll(d.Store.Root(), 0o700); err != nil {
 		return Info{}, nil, nil, fmt.Errorf("delegate: run store: %w", err)
 	}
@@ -190,7 +215,7 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 		err = writeRunFiles(d, rf, &info, o.Brief)
 	}
 	if err != nil {
-		abandon(d, row.ID, rf, "")
+		abandon(d, row.ID, rf, Info{})
 		return Info{}, nil, err
 	}
 	return info, rf, nil
@@ -223,16 +248,16 @@ func writeRunFiles(d Deps, rf *runstore.RunFolder, info *Info, brief string) err
 	return WriteInfo(rf, *info)
 }
 
-// abandon closes a spawn that failed after its row was opened: the row ends
-// gone, the run folder is finished, and a pane it got is closed.
-func abandon(d Deps, run string, rf *runstore.RunFolder, pane herdr.PaneID) {
-	if pane != "" && d.Herdr != nil {
-		_ = d.Herdr.Close(context.Background(), pane)
-	}
-	if rf != nil {
+// abandon closes a spawn that failed after its row was opened: a pane it got
+// (placed: its pane and pinned terminal) is closed while it holds that
+// terminal, the row ends gone and, when this call closed it, the run folder
+// is finished.
+func abandon(d Deps, run string, rf *runstore.RunFolder, placed Info) {
+	closeOwnPane(context.Background(), d.Herdr, placed)
+	closed, err := closeWorkerRow(d, run, delegationledger.EndGone)
+	if err == nil && closed && rf != nil {
 		_ = rf.Finish(1, d.now())
 	}
-	_, _ = closeWorkerRow(d, run, delegationledger.EndGone)
 }
 
 // boot waits for the new pane's shell to settle, then types the boot line.
@@ -258,6 +283,9 @@ func boot(ctx context.Context, d Deps, o SpawnOptions, info Info) error {
 		if err := sleepCtx(ctx, poll); err != nil {
 			return err
 		}
+	}
+	if ok, why := ownPane(ctx, d.Herdr, info); !ok {
+		return fmt.Errorf("delegate: %s; the boot line was not typed", why)
 	}
 	if err := d.Herdr.Run(ctx, pane, o.BootLine(info.Run)); err != nil {
 		return fmt.Errorf("delegate: herdr would not run the boot line in %s: %w", pane, err)

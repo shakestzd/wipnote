@@ -41,6 +41,10 @@ type fakeHerdr struct {
 	// racing a look would; getDelay makes Get slow, honouring ctx.
 	onGet    func()
 	getDelay time.Duration
+	// onEnter runs (unlocked) after each enter key; onTabCreate runs
+	// (unlocked) after a workers tab is created.
+	onEnter     func()
+	onTabCreate func()
 }
 
 type fpane struct {
@@ -90,11 +94,15 @@ var errAbsent = &herdr.Error{Exit: 1, Code: "pane_not_found", Message: "gone"}
 
 func (f *fakeHerdr) TabCreate(_ context.Context, ws, label, cwd string) (herdr.TabID, herdr.PaneID, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	tab := herdr.TabID(fmt.Sprintf("%s:t%d", ws, len(f.tabs)+2))
 	f.tabs[tab] = true
 	p := f.newPane(tab)
 	f.log("tab create %s %s -> %s %s", ws, label, tab, p)
+	hook := f.onTabCreate
+	f.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
 	return tab, p, nil
 }
 
@@ -238,6 +246,11 @@ func (f *fakeHerdr) SendKeys(_ context.Context, pane herdr.PaneID, key string) e
 	}
 	if p != nil && key == "enter" {
 		p.pending = ""
+		if f.onEnter != nil {
+			f.mu.Unlock()
+			f.onEnter()
+			f.mu.Lock()
+		}
 	}
 	return nil
 }
@@ -423,4 +436,26 @@ func indexOfCall(calls []string, prefix string) int {
 		}
 	}
 	return -1
+}
+
+// readOnly reports a herdr call that only looks (a verb that observes its
+// workers makes these); every other call changes something.
+func readOnly(call string) bool {
+	for _, p := range []string{"process-info", "pane read", "agent list"} {
+		if strings.HasPrefix(call, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// changingCalls counts the calls that change something in herdr.
+func changingCalls(calls []string) int {
+	n := 0
+	for _, c := range calls {
+		if !readOnly(c) {
+			n++
+		}
+	}
+	return n
 }

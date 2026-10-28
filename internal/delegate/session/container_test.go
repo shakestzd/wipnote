@@ -315,14 +315,16 @@ func ownSessionFor(t *testing.T, e *env, run, sid string) {
 // worker's close folds nothing.
 func TestClose_FoldsContainerWorkerFirst(t *testing.T) {
 	paths := map[string]func(e *env, s Spawned){
-		"closeLostRun": func(e *env, s Spawned) { closeLostRun(e.deps, s.Run, []string{"sid-1"}) },
+		"closeLostRun": func(e *env, s Spawned) {
+			closeLostRun(context.Background(), e.deps, s.Run, []string{"sid-1"}, Observation{PaneGone: true})
+		},
 		"abandon": func(e *env, s Spawned) {
 			rf, _, _ := loadInfo(e.deps.Store, s.Run)
-			abandon(e.deps, s.Run, rf, "")
+			abandon(e.deps, s.Run, rf, Info{})
 		},
 		"loseWorker": func(e *env, s Spawned) {
 			rf, info, _ := loadInfo(e.deps.Store, s.Run)
-			loseWorker(e.deps, e.row(s.Run), rf, info)
+			loseWorker(context.Background(), e.deps, e.row(s.Run), rf, info, Observation{PaneGone: true})
 		},
 		"checkLive": func(e *env, s Spawned) {
 			e.herdr.pane(PaneOf(s)).gone = true
@@ -348,7 +350,7 @@ func TestClose_FoldsContainerWorkerFirst(t *testing.T) {
 	}
 	h := newEnv(t)
 	hs := h.worker("w1", "")
-	closeLostRun(h.deps, hs.Run, []string{"sid-1"})
+	closeLostRun(context.Background(), h.deps, hs.Run, []string{"sid-1"}, Observation{PaneGone: true})
 	if _, err := os.Stat(filepath.Join(h.dir, ".wipnote", sessionledger.FileName)); !os.IsNotExist(err) {
 		t.Errorf("a host worker's close wrote the sessions ledger (err %v)", err)
 	}
@@ -372,7 +374,7 @@ func TestInfo_BootAndAdoptRaceKeepsWorkspace(t *testing.T) {
 		e.herdr.prompts = true
 		e.herdr.pane(PaneOf(s)).styled = "> \n"
 		e.event(s.Run, "sid-1", runstore.KindSessionStart)
-		e.herdr.agents = []herdr.Agent{{Pane: PaneOf(s), TerminalID: "term-1"}}
+		e.herdr.agents = []herdr.Agent{{Pane: PaneOf(s), TerminalID: e.herdr.pane(PaneOf(s)).terminal}}
 		booted := false
 		infoLoaded = func(run string) {
 			if run == s.Run && !booted {
@@ -389,7 +391,7 @@ func TestInfo_BootAndAdoptRaceKeepsWorkspace(t *testing.T) {
 			_, _ = Send(context.Background(), e.deps, "w1", "x")
 		}
 		info, _ := ReadInfo(e.runFolder(s.Run))
-		if !booted || info.Workspace != remote || !info.Renamed || info.TerminalID != "term-1" {
+		if !booted || info.Workspace != remote || !info.Renamed || info.TerminalID != e.herdr.pane(PaneOf(s)).terminal {
 			t.Errorf("%s racing the boot: info %+v, want the workspace folder %s and the adoption both kept", verb, info, remote)
 		}
 		infoLoaded = nil

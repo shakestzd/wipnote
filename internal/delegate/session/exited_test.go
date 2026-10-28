@@ -49,7 +49,7 @@ func TestList_LiveOrUnknownForegroundIsNotGone(t *testing.T) {
 
 // An exited harness in a live pane is a worker loss for wait too: the run
 // leaves the caller's workers record, so it no longer takes a worker slot
-// (PR 292 review). The pane itself is left alone.
+// (PR 292 review). Only its own shell-only pane is closed.
 func TestWait_ExitedHarnessLeavesWorkersRecord(t *testing.T) {
 	e := newEnv(t)
 	a := e.worker("w1", "")
@@ -59,9 +59,9 @@ func TestWait_ExitedHarnessLeavesWorkersRecord(t *testing.T) {
 	if res := e.wait("w1", 5*time.Second); res.Outcome != OutcomeGone {
 		t.Fatalf("%+v", res)
 	}
-	for _, c := range e.herdr.Calls()[mark:] {
-		if strings.HasPrefix(c, "close ") || strings.HasPrefix(c, "tab close") || strings.HasPrefix(c, "send-") {
-			t.Fatalf("wait touched the pane: %s", c)
+	for _, c := range e.herdr.Calls()[mark:] { // its own shell pane is closed; nothing is typed
+		if strings.HasPrefix(c, "tab close") || strings.HasPrefix(c, "send-") || (strings.HasPrefix(c, "close ") && c != "close "+string(PaneOf(a))) {
+			t.Fatalf("wait touched more than the exited worker's shell pane: %s", c)
 		}
 	}
 	panes := workerPanes(t, e)
@@ -101,7 +101,7 @@ func TestWait_ExitedWorkersFreeTheirSlots(t *testing.T) {
 
 // list treats an exited harness in a live pane as a worker loss, as wait
 // does: the row closes gone, the worker's claims expire and its workers
-// entry is dropped (PR 292 review). The pane is not touched.
+// entry is dropped (PR 292 review). Only its own shell pane is closed.
 func TestList_ExitedHarnessIsWorkerLoss(t *testing.T) {
 	e := newEnv(t)
 	a := e.worker("w1", "")
@@ -114,9 +114,9 @@ func TestList_ExitedHarnessIsWorkerLoss(t *testing.T) {
 	if _, err := List(context.Background(), e.deps, false); err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range e.herdr.Calls()[mark:] {
-		if strings.HasPrefix(c, "close ") || strings.HasPrefix(c, "tab close") || strings.HasPrefix(c, "send-") {
-			t.Fatalf("list touched the pane: %s", c)
+	for _, c := range e.herdr.Calls()[mark:] { // its own shell pane is closed; nothing is typed
+		if strings.HasPrefix(c, "tab close") || strings.HasPrefix(c, "send-") || (strings.HasPrefix(c, "close ") && c != "close "+string(PaneOf(a))) {
+			t.Fatalf("list touched more than the exited worker's shell pane: %s", c)
 		}
 	}
 	if r := e.row(a.Run); r.IsOpen() || r.EndReason != delegationledger.EndGone {

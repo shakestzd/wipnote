@@ -80,6 +80,9 @@ func decideAndPost(ctx context.Context, d Deps, rf *runstore.RunFolder, info Inf
 	if err := SendCheck(o, ReadInput(ctx, d.Herdr, herdr.PaneID(info.Pane))); err != nil {
 		return runstore.Message{}, 0, err
 	}
+	if ok, why := ownPane(ctx, d.Herdr, info); !ok { // the hint types into the pane
+		return runstore.Message{}, 0, fmt.Errorf("delegate: %s; nothing was sent", why)
+	}
 	t, ok := newestTask(d.Store, info.Name, info.Run)
 	if ok && !t.acked {
 		return runstore.Message{}, 0, fmt.Errorf("%w: task %s is pending; wait for the worker (delegate wait) or check delegate inbox in the worker",

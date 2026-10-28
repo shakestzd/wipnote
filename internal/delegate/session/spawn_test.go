@@ -130,7 +130,7 @@ func TestSpawn_RefusesSeventhWorker(t *testing.T) {
 	rows, _ := e.deps.Ledger.ReadAll()
 	runsAfter, _ := os.ReadDir(filepath.Join(e.deps.Store.Root(), "runs"))
 	for _, c := range e.herdr.Calls()[before:] {
-		if !strings.HasPrefix(c, "process-info") {
+		if !readOnly(c) { // spawn observes its workers before the cap
 			t.Fatalf("at cap but herdr was asked to %q", c)
 		}
 	}

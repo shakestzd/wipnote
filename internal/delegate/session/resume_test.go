@@ -63,14 +63,14 @@ func resume(t *testing.T, e *env, o SpawnOptions, from string) (Spawned, Info) {
 
 // written is what a refused resume must leave unchanged.
 type written struct {
-	rows, runs, calls int
+	rows, runs, calls int // calls: those that change something in herdr
 }
 
 func resumeSnapshot(t *testing.T, e *env) written {
 	t.Helper()
 	rows, _ := e.deps.Ledger.ReadAll()
 	runs, _ := os.ReadDir(filepath.Join(e.deps.Store.Root(), "runs"))
-	return written{len(rows), len(runs), len(e.herdr.Calls())}
+	return written{len(rows), len(runs), changingCalls(e.herdr.Calls())}
 }
 
 func refuseResume(t *testing.T, e *env, o SpawnOptions, from, want string) {

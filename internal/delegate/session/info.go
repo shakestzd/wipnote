@@ -26,8 +26,9 @@ type Info struct {
 	Caller     string `json:"caller_session,omitempty"`
 	CallerPane string `json:"caller_pane,omitempty"`
 	Pane       string `json:"pane,omitempty"`
-	// TerminalID is pinned by the first list or wait that sees the harness
-	// (adopt a late agent); empty until then.
+	// TerminalID is the pane's terminal, pinned at spawn right after the
+	// pane is placed (an older run gets it when list adopts its agent). Every
+	// key typed and every close checks it (ownPane); empty means unknown.
 	TerminalID string `json:"terminal_id,omitempty"`
 	Renamed    bool   `json:"renamed,omitempty"`
 	Cwd        string `json:"cwd"`

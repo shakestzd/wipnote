@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/delegationledger"
@@ -32,20 +33,25 @@ func TaskPreamble(info Info, mailDir string) string {
 	return ClaimLine(info.WorkItem) + Preamble(info, mailDir)
 }
 
+// paneWindow bounds how long a spawn may take from opening its row to
+// recording its pane; an open row with no pane older than that is lost.
+const paneWindow = 5 * time.Minute
+
 // checkLive refuses a spawn whose name, or whose work item, an open
 // interactive row holds while its worker lives (one worker per item, v1). A
 // lost worker (workerLost: pane gone, pane reused, or harness exited) is
-// closed first and no longer counts; its info is returned so the spawn can
-// drop it from the workers record once no lock is held (checkLive runs under
-// the caller's workers lock and namesLock, so it must take neither). Running
+// closed first and no longer counts; it is returned so the spawn can unplace
+// it (checkLive runs under the caller's workers lock and namesLock, so it
+// must take neither). So is a row that never recorded a pane within
+// paneWindow (its spawn died before placing). Running
 // under namesLock (claimName) means two spawns cannot both pass for one item.
 // One-shot rows never count: they do not claim.
-func checkLive(ctx context.Context, d Deps, o SpawnOptions) ([]Info, error) {
+func checkLive(ctx context.Context, d Deps, o SpawnOptions) ([]lostWorker, error) {
 	open, ok := d.Ledger.ReadOpen()
 	if !ok {
 		return nil, errors.New("delegate: the delegations ledger cannot be read; nothing was spawned")
 	}
-	var lost []Info
+	var lost []lostWorker
 	for _, r := range open.Interactive() {
 		sameName, sameItem := r.Name == o.Name, r.WorkItem == o.WorkItem
 		if !sameName && !sameItem {
@@ -55,9 +61,12 @@ func checkLive(ctx context.Context, d Deps, o SpawnOptions) ([]Info, error) {
 		if err == nil && info.Pane != "" {
 			if ob, _ := observe(ctx, d, rf, info); workerLost(ob) {
 				closeLost(d, r, rf)
-				lost = append(lost, info)
+				lost = append(lost, lostWorker{info, ob})
 				continue
 			}
+		} else if d.now().Sub(r.Started) > paneWindow { // never placed: its spawn died
+			closeLost(d, r, rf)
+			continue
 		}
 		if sameName {
 			return lost, fmt.Errorf("%w: %s is run %s", ErrLiveName, o.Name, r.ID)
@@ -65,16 +74,6 @@ func checkLive(ctx context.Context, d Deps, o SpawnOptions) ([]Info, error) {
 		return lost, fmt.Errorf("%w: %s is held by worker %s (run %s); stop it first, one worker per item", ErrLiveWorker, o.WorkItem, r.Name, r.ID)
 	}
 	return lost, nil
-}
-
-// loseWorker is the worker-loss path: the pane is gone, or its id now holds
-// another terminal, so no worker process is left under herdr and no
-// SessionEnd will fire. Herdr is never touched: the run leaves the caller's
-// workers record (dropPane), then closeLost closes it. The caller's episode
-// is never touched.
-func loseWorker(d Deps, r delegationledger.Record, rf *runstore.RunFolder, info Info) {
-	dropPane(d, info)
-	closeLost(d, r, rf)
 }
 
 // closeLost closes the row as gone and, only when this call closed it,

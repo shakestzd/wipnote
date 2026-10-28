@@ -132,7 +132,7 @@ func waitOnce(ctx context.Context, d Deps, runID, name string) (WaitResult, bool
 	if hasTask {
 		res.Task, res.Turn = t.msg.ID, t.turn
 	}
-	return settle(d, res, o, f, hasTask && !t.acked)
+	return settle(ctx, d, res, o, f, hasTask && !t.acked)
 }
 
 // settle is wait's rule over the one readiness predicate. Durable signals
@@ -140,10 +140,10 @@ func waitOnce(ctx context.Context, d Deps, runID, name string) (WaitResult, bool
 // the wait even with silent hooks or a turn stuck at working (D1, D1b).
 // A folder-trust dialog is reported next. While the newest task is not yet
 // acked, the hook turn state belongs to an older turn and is rejected. Input-line text is never read (D8).
-func settle(d Deps, res WaitResult, o Observation, f eventFacts, unacked bool) (WaitResult, bool) {
+func settle(ctx context.Context, d Deps, res WaitResult, o Observation, f eventFacts, unacked bool) (WaitResult, bool) {
 	switch {
 	case workerLost(o):
-		closeLostRun(d, res.Run, f.sessions)
+		closeLostRun(ctx, d, res.Run, f.sessions, o)
 		res.Outcome, res.Detail = OutcomeGone, o.GoneWhy
 	case o.TaskAnswered:
 		res.Outcome = OutcomeDone
@@ -174,13 +174,14 @@ func addSessions(d Deps, runID string, sessions []string) {
 // closeLostRun is wait's worker-loss close: it reads the row, run folder and
 // session.json and hands them to loseWorker, adding the sessions this look
 // saw bound, so the run also leaves the caller's workers record (an exited
-// harness leaves its pane open, and prune keeps a pane that exists).
-func closeLostRun(d Deps, runID string, sessions []string) {
+// harness leaves its pane open, and prune keeps a pane that exists); ob is
+// what showed the loss.
+func closeLostRun(ctx context.Context, d Deps, runID string, sessions []string, ob Observation) {
 	r, ok, err := d.Ledger.Get(runID)
 	if err != nil || !ok {
 		return
 	}
 	r.WorkerSessions = mergeSessions(r.WorkerSessions, sessions)
 	rf, info, _ := loadInfo(d.Store, runID)
-	loseWorker(d, r, rf, info)
+	loseWorker(ctx, d, r, rf, info, ob)
 }

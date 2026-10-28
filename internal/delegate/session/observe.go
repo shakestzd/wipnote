@@ -185,8 +185,8 @@ func adopt(ctx context.Context, c herdr.Client, info *Info) bool {
 		return false
 	}
 	for _, a := range agents {
-		if a.Pane != herdr.PaneID(info.Pane) {
-			continue
+		if a.Pane != herdr.PaneID(info.Pane) || (info.TerminalID != "" && a.TerminalID != info.TerminalID) {
+			continue // another pane, or a terminal that is not the one pinned at spawn
 		}
 		pin := herdr.PinOf(a)
 		if err := c.AgentRename(ctx, pin, info.Name); err != nil {

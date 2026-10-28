@@ -95,7 +95,7 @@ func TestSpawn_RefusesSecondLiveWorkerOnItem(t *testing.T) {
 		t.Fatalf("refusal wrote a row: %+v", rows)
 	}
 	for _, c := range e.herdr.Calls()[before:] { // the live check observes, read-only
-		if !strings.HasPrefix(c, "process-info") && !strings.HasPrefix(c, "pane read") {
+		if !readOnly(c) {
 			t.Fatalf("refused, but herdr was asked to %q", c)
 		}
 	}

@@ -139,15 +139,16 @@ func TestList_RenamesAndPinsLateAgent(t *testing.T) {
 	if hasCall(e.herdr.Calls(), "agent rename") {
 		t.Fatal("renamed before the agent appeared")
 	}
-	e.herdr.agents = []herdr.Agent{{Pane: PaneOf(s), TerminalID: "term-x", Name: "claude", Kind: "claude"}}
+	term := e.herdr.pane(PaneOf(s)).terminal // the terminal pinned at spawn
+	e.herdr.agents = []herdr.Agent{{Pane: PaneOf(s), TerminalID: term, Name: "claude", Kind: "claude"}}
 	if _, err := List(context.Background(), e.deps, false); err != nil {
 		t.Fatal(err)
 	}
-	if !hasCall(e.herdr.Calls(), "agent rename "+s.Pane+" term-x w1") {
+	if !hasCall(e.herdr.Calls(), "agent rename "+s.Pane+" "+term+" w1") {
 		t.Fatalf("calls %v", e.herdr.Calls())
 	}
 	info, _ := ReadInfo(e.runFolder(s.Run))
-	if info.TerminalID != "term-x" || !info.Renamed {
+	if info.TerminalID != term || !info.Renamed {
 		t.Fatalf("not pinned: %+v", info)
 	}
 	before := strings.Count(strings.Join(e.herdr.Calls(), "\n"), "agent rename")

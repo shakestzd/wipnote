@@ -87,7 +87,7 @@ func workerRow(ctx context.Context, d Deps, r delegationledger.Record, row *Row)
 		}
 	}
 	if workerLost(o) {
-		loseWorker(d, r, rf, info)
+		loseWorker(ctx, d, r, rf, info, o)
 		row.Open = false
 	}
 }

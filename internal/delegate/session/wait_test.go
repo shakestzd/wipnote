@@ -266,7 +266,7 @@ func snapshot(t *testing.T, dir string) map[string]string {
 func TestWait_NeverWritesRunState(t *testing.T) {
 	e := newEnv(t)
 	s := e.worker("w1", "brief")
-	e.herdr.agents = append(e.herdr.agents, herdr.Agent{Pane: PaneOf(s), TerminalID: "term-x"}) // list would adopt
+	e.herdr.agents = append(e.herdr.agents, herdr.Agent{Pane: PaneOf(s), TerminalID: e.herdr.pane(PaneOf(s)).terminal}) // list would adopt
 	check := func(timeout time.Duration) {
 		t.Helper()
 		before := snapshot(t, e.deps.Store.Root())
@@ -316,7 +316,7 @@ func TestWait_LateLedgerWriteAfterStopLeavesRowClosed(t *testing.T) {
 	}
 	before := e.row(s.Run)
 	addSessions(e.deps, s.Run, []string{"sid-1", "sid-2"})
-	closeLostRun(e.deps, s.Run, []string{"sid-1", "sid-2"})
+	closeLostRun(context.Background(), e.deps, s.Run, []string{"sid-1", "sid-2"}, Observation{PaneGone: true})
 	after := e.row(s.Run)
 	if after.IsOpen() || after.EndReason != delegationledger.EndStop || !slices.Equal(after.WorkerSessions, before.WorkerSessions) {
 		t.Fatalf("a late wait write changed a stopped row: %+v -> %+v", before, after)
@@ -330,7 +330,7 @@ func TestWait_LedgerWriteOnOpenRowApplies(t *testing.T) {
 	if r := e.row(s.Run); !r.IsOpen() || !slices.Equal(r.WorkerSessions, []string{"sid-1", "sid-2"}) {
 		t.Fatalf("%+v", r)
 	}
-	closeLostRun(e.deps, s.Run, []string{"sid-1"})
+	closeLostRun(context.Background(), e.deps, s.Run, []string{"sid-1"}, Observation{PaneGone: true})
 	if r := e.row(s.Run); r.IsOpen() || r.EndReason != delegationledger.EndGone {
 		t.Fatalf("%+v", r)
 	}
