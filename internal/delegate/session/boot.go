@@ -52,6 +52,9 @@ func BootArgv(exe string, info Info, brief string) []string {
 	case info.ResumeSession != "":
 		argv = append(argv, "--resume", info.ResumeSession)
 	case info.Harness == HarnessClaude:
+		if info.WorkDir != "" {
+			argv = append(argv, "--work-dir", info.WorkDir)
+		}
 		argv = append(argv, "--name", info.Name)
 	}
 	if brief != "" || len(info.Args) > 0 {

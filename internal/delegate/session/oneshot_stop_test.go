@@ -145,3 +145,37 @@ func TestStop_ExitTypedOnlyWhenTyped(t *testing.T) {
 		t.Fatalf("%+v", res)
 	}
 }
+
+func TestBootArgv_WorkDir(t *testing.T) {
+	info := Info{Name: "w1", Harness: HarnessClaude, WorkDir: "/r/wt"}
+	got := BootArgv("/bin/wipnote", info, "b")
+	if !slices.Equal(got, []string{"/bin/wipnote", "claude", "--in-place", "--work-dir", "/r/wt", "--name", "w1", "--", "b"}) {
+		t.Fatalf("argv %q", got)
+	}
+	info.WorkDir = ""
+	if slices.Contains(BootArgv("/bin/wipnote", info, "b"), "--work-dir") {
+		t.Fatal("no work dir, no flag")
+	}
+}
+
+func TestStop_NoTypeNeverTypes(t *testing.T) {
+	e := newEnv(t)
+	e.herdr.exitOnEnter = true
+	s := runningWorker(t, e, "w1")
+	o := fastStop()
+	o.NoType = true
+	res, err := Stop(context.Background(), e.deps, "w1", o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasCall(e.herdr.Calls(), "send-") || res.PaneClosed || res.ExitTyped || res.Why == "" {
+		t.Fatalf("res %+v calls %v", res, e.herdr.Calls())
+	}
+	// At a bare shell a NoType stop closes the pane.
+	e.herdr.mu.Lock()
+	e.herdr.panes[PaneOf(s)].fg = nil
+	e.herdr.mu.Unlock()
+	if res, _ := Stop(context.Background(), e.deps, "w1", o); !res.PaneClosed {
+		t.Fatalf("res %+v", res)
+	}
+}

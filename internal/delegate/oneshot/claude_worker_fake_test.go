@@ -27,6 +27,10 @@ type stubClaude struct {
 	turns                              int     // assistant messages in the transcript
 	cost                               float64 // the status line's total cost
 	ignoreExit                         bool    // /exit does nothing; only a signal ends it
+	ignoreTerm                         bool    // SIGTERM does nothing either
+	styledErr                          bool    // the styled read of the input line fails
+	nested                             bool    // a nested claude in the worker writes its own failing events
+	clearNoAnswer                      bool    // /clear, then the successor session ends its turn with no answer
 }
 
 // workerHerdr is an in-memory herdr whose panes run a stubClaude when the
@@ -154,6 +158,9 @@ func (f *workerHerdr) PaneRead(context.Context, herdr.PaneID, int) (string, erro
 
 // PaneReadStyled: an empty Claude input line, never a draft.
 func (f *workerHerdr) PaneReadStyled(context.Context, herdr.PaneID, int) (string, error) {
+	if f.stub.styledErr {
+		return "", fmt.Errorf("styled read failed")
+	}
 	return "❯ \n", nil
 }
 
@@ -205,7 +212,7 @@ func (f *workerHerdr) signal(pid int) error {
 	f.signals = append(f.signals, pid)
 	var run string
 	for _, p := range f.panes {
-		if p.pid+1000 == pid && p.running {
+		if p.pid+1000 == pid && p.running && !f.stub.ignoreTerm {
 			p.running, run = false, p.run
 		}
 	}
@@ -266,6 +273,18 @@ func (f *workerHerdr) play(run string) {
 	mb, _ := f.store.Mailbox(info.Name)
 	_ = mb.Ack(info.Task)
 	f.transcript(info.Transcript, s.turns)
+	if s.nested { // e.g. a Bash call of wipnote claude -p, with the run env inherited
+		f.eventAs(run, "sid-nested", runstore.KindSessionStart, "")
+		f.eventAs(run, "sid-nested", runstore.KindPrompt, "")
+		f.eventAs(run, "sid-nested", runstore.KindError, "rate_limit")
+	}
+	if s.clearNoAnswer {
+		f.event(run, runstore.KindSessionEnd, "clear")
+		f.eventAs(run, "sid-after-clear", runstore.KindSessionStart, "")
+		f.eventAs(run, "sid-after-clear", runstore.KindPrompt, "")
+		f.eventAs(run, "sid-after-clear", runstore.KindStop, "")
+		return
+	}
 	f.finish(run, mb, info.Task)
 }
 
@@ -305,6 +324,15 @@ func (f *workerHerdr) event(run, kind, summary string) {
 	sid := info.SessionID
 	if sid == "" {
 		sid = "sid-stub"
+	}
+	f.eventAs(run, sid, kind, summary)
+}
+
+// eventAs appends one hook-style event as session sid.
+func (f *workerHerdr) eventAs(run, sid, kind, summary string) {
+	rf, err := f.store.Run(run)
+	if err != nil {
+		return
 	}
 	w, err := rf.OpenEvents(sid)
 	if err != nil {

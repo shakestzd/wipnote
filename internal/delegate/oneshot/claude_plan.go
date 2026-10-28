@@ -153,3 +153,37 @@ func (p claudePlan) missingPluginDir(cwd string) string {
 	}
 	return ""
 }
+
+// claudePathFlags take file or folder paths. The launch makes a relative
+// one absolute against the caller's cwd, so it names the same file wherever
+// the launcher starts claude. An --mcp-config value that is inline JSON is
+// not a path.
+var claudePathFlags = []string{"--plugin-dir", "--append-system-prompt-file", "--system-prompt-file", "--add-dir", "--mcp-config"}
+
+// absPaths returns args with the path flags' relative values made absolute.
+func absPaths(args []string, cwd string) []string {
+	out := slices.Clone(args)
+	for i := 0; i < len(out); i++ {
+		name, val, inline := strings.Cut(out[i], "=")
+		if !slices.Contains(claudePathFlags, name) {
+			continue
+		}
+		if inline {
+			out[i] = name + "=" + absPath(val, cwd)
+			continue
+		}
+		_, last := flagValues(name, out, i, false, "")
+		for j := i + 1; j <= last; j++ {
+			out[j] = absPath(out[j], cwd)
+		}
+		i = last
+	}
+	return out
+}
+
+func absPath(p, cwd string) string {
+	if p == "" || filepath.IsAbs(p) || strings.HasPrefix(strings.TrimSpace(p), "{") {
+		return p
+	}
+	return filepath.Join(cwd, p)
+}

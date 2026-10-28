@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -130,14 +129,17 @@ func spawnWorker(ctx context.Context, o Options, plan claudePlan) (*worker, erro
 	if sid == "" {
 		sid = newSessionID(w)
 	}
-	dir := workerDir(o.Cwd)
-	if err := preseedClaude(firstNonEmpty(w.ClaudeConfig, ClaudeConfigPath()), unique(dir, o.Cwd)...); err != nil {
+	// The worker runs where the caller ran, as the claude -p path does: a
+	// linked worktree stays the worktree (the launcher is told by
+	// --work-dir), and trust and the transcript are keyed on that dir.
+	dir := filepath.Clean(o.Cwd)
+	if err := preseedClaude(firstNonEmpty(w.ClaudeConfig, ClaudeConfigPath()), dir); err != nil {
 		fmt.Fprintf(o.Stderr, "wipnote: warning: workspace trust was not pre-seeded: %v\n", err)
 	}
 	so := session.SpawnOptions{
 		Harness: session.HarnessClaude, WorkItem: o.WorkItem, WorkTitle: o.WorkTitle, CallerSession: o.CallerSession,
 		CallerPane: o.HerdrEnv.CallerPane, Brief: plan.Prompt, Cwd: o.Cwd, Root: o.Root, BootLine: w.BootLine,
-		SessionID: sid, Transcript: TranscriptPath(firstNonEmpty(w.ClaudeDir, ClaudeDataDir()), dir, sid),
+		SessionID: sid, Transcript: TranscriptPath(firstNonEmpty(w.ClaudeDir, ClaudeDataDir()), dir, sid), WorkDir: dir,
 		LaunchArgs: func(rf *runstore.RunFolder) ([]string, error) { return launchArgs(rf, o, plan, sid) },
 		Poll:       o.poll(),
 	}
@@ -165,7 +167,7 @@ func launchArgs(rf *runstore.RunFolder, o Options, plan claudePlan, sid string) 
 	if err != nil {
 		return nil, err
 	}
-	args := withoutFlag(plan.Args, "--settings")
+	args := absPaths(withoutFlag(plan.Args, "--settings"), o.Cwd)
 	if plan.SessionID == "" {
 		args = append(args, "--session-id", sid)
 	}
@@ -199,14 +201,4 @@ func firstNonEmpty(a, b string) string {
 		return a
 	}
 	return b
-}
-
-func unique(dirs ...string) []string {
-	var out []string
-	for _, d := range dirs {
-		if d = filepath.Clean(d); !slices.Contains(out, d) {
-			out = append(out, d)
-		}
-	}
-	return out
 }

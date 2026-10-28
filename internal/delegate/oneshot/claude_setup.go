@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
 
@@ -41,51 +40,6 @@ var projectSlugRe = regexp.MustCompile(`[^A-Za-z0-9]`)
 // writes: <data>/projects/<work dir, each non-alphanumeric as ->/<sid>.jsonl.
 func TranscriptPath(claudeDir, workDir, sid string) string {
 	return filepath.Join(claudeDir, "projects", projectSlugRe.ReplaceAllString(workDir, "-"), sid+".jsonl")
-}
-
-// workerDir is the folder the worker's claude runs in: wipnote claude runs
-// it in the project root, the nearest folder above cwd holding .wipnote/.
-func workerDir(cwd string) string {
-	for d := cwd; ; d = filepath.Dir(d) {
-		if fi, err := os.Stat(filepath.Join(d, ".wipnote")); err == nil && fi.IsDir() {
-			return d
-		}
-		if filepath.Dir(d) == d {
-			return cwd
-		}
-	}
-}
-
-// preseedClaude marks onboarding done and each dir's workspace trust
-// accepted in the global config, so no dialog blocks the first prompt
-// (the spike saw the positional prompt dropped behind them). Every other key
-// is kept, and the file is written only when a key was missing, replaced by
-// rename. A config that cannot be parsed is left alone.
-func preseedClaude(path string, dirs ...string) error {
-	if real, err := filepath.EvalSymlinks(path); err == nil {
-		path = real
-	}
-	cfg := map[string]any{}
-	data, err := os.ReadFile(path)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	if len(data) > 0 {
-		if err := json.Unmarshal(data, &cfg); err != nil {
-			return fmt.Errorf("claude config %s: %w; nothing was changed", path, err)
-		}
-	}
-	if !seedKeys(cfg, dirs) {
-		return nil
-	}
-	out, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	return filelock.WriteFileAtomic(path, append(out, '\n'), 0o600)
 }
 
 // seedKeys sets the missing keys and reports whether any was missing.

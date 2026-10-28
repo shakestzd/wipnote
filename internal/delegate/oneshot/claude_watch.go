@@ -46,25 +46,45 @@ type eventView struct {
 	failure    string // the error event after the last prompt
 	sessionEnd string // the last session_end reason
 	prompted   bool
+	ended      bool
 }
 
-func viewEvents(evs []runstore.Event) eventView {
+// Only the worker's own session counts: the pinned --session-id, and the
+// session that follows it after /clear (its SessionEnd says "clear", then a
+// new session starts). Any other session writing into the run folder (a
+// nested claude run from a tool call inherits the run env) is ignored.
+func viewEvents(evs []runstore.Event, own string) eventView {
 	var v eventView
+	owned, cleared := map[string]bool{own: true}, false
 	for _, ev := range evs {
-		switch ev.Kind {
-		case runstore.KindSessionStart:
-			v.bound = true
-		case runstore.KindPrompt:
-			v.prompted, v.running, v.failure = true, true, ""
-		case runstore.KindStop:
-			v.running = false
-		case runstore.KindError:
-			v.running, v.failure = false, firstNonEmpty(ev.Summary, "unknown")
-		case runstore.KindSessionEnd:
-			v.sessionEnd = firstNonEmpty(ev.Summary, "unknown")
+		if !owned[ev.SID] {
+			if cleared && ev.Kind == runstore.KindSessionStart {
+				owned[ev.SID], cleared = true, false
+			} else {
+				continue
+			}
+		}
+		v.take(ev)
+		if ev.Kind == runstore.KindSessionEnd && ev.Summary == "clear" {
+			cleared = true
 		}
 	}
 	return v
+}
+
+func (v *eventView) take(ev runstore.Event) {
+	switch ev.Kind {
+	case runstore.KindSessionStart:
+		v.bound = true
+	case runstore.KindPrompt:
+		v.prompted, v.running, v.ended, v.failure = true, true, false, ""
+	case runstore.KindStop:
+		v.running, v.ended = false, v.prompted
+	case runstore.KindError:
+		v.running, v.failure = false, firstNonEmpty(ev.Summary, "unknown")
+	case runstore.KindSessionEnd:
+		v.sessionEnd = firstNonEmpty(ev.Summary, "unknown")
+	}
 }
 
 // watch waits on the worker (session.Wait, one poll at a time) until the
@@ -77,7 +97,7 @@ func (wk *worker) watch(ctx context.Context) verdict {
 	for {
 		res, err := session.Wait(ctx, wk.deps, wk.sp.Name, session.WaitOptions{Timeout: wk.o.poll(), Poll: wk.o.poll()})
 		evs, _ := wk.rf.ReadEvents()
-		ev := viewEvents(evs)
+		ev := viewEvents(evs, wk.info.SessionID)
 		base := verdict{exit: 1, bound: ev.bound, running: ev.running}
 		if ctx.Err() != nil {
 			base.exit, base.reason, base.cancelled = exitInterrupted, ReasonInterrupted, true
@@ -98,11 +118,11 @@ func (wk *worker) watch(ctx context.Context) verdict {
 // hooks and the wait say, then the bounds wipnote enforces.
 func (wk *worker) judge(res session.WaitResult, ev eventView, v verdict, took time.Duration, turns *turnCounter) (verdict, bool) {
 	switch {
-	case res.Outcome == session.OutcomeDone:
+	case res.Outcome == session.OutcomeDone || wk.answered():
 		return wk.done(v)
 	case ev.failure != "":
 		v.reason, v.detail = ReasonStopFailure, "the turn ended on an API error: "+ev.failure
-	case res.Outcome == session.OutcomeIdleNoResult:
+	case ev.ended: // the worker's own turn ended and no result file was found above
 		v.reason, v.detail = ReasonNoResult, "the turn ended without writing the result file"
 	case res.Outcome == session.OutcomeGone:
 		v.reason, v.detail = ReasonGone, goneDetail(res, ev)
@@ -112,6 +132,16 @@ func (wk *worker) judge(res session.WaitResult, ev eventView, v verdict, took ti
 		return wk.bounds(res, ev, v, took, turns)
 	}
 	return v, true
+}
+
+// answered reports that the brief's result file exists.
+func (wk *worker) answered() bool {
+	mb, err := wk.o.Store.Mailbox(wk.info.Name)
+	if err != nil {
+		return false
+	}
+	_, ok, _ := mb.Result(wk.info.Task)
+	return ok
 }
 
 func (wk *worker) done(v verdict) (verdict, bool) {

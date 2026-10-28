@@ -59,3 +59,22 @@ func TestDelegateStatusLineCommand_Quoted(t *testing.T) {
 		t.Fatalf("%s", got)
 	}
 }
+
+// A delegate worker's launcher runs claude in the run's own dir
+// (--work-dir), not the project's main root (slice 22 review).
+func TestClaudeLaunchRoot_WorkDir(t *testing.T) {
+	dir := delegateRunProject(t)
+	wt := t.TempDir()
+	if got, err := claudeLaunchRoot(wt); err != nil || got != wt {
+		t.Fatalf("got %q err %v, want %s", got, err, wt)
+	}
+	if got, err := claudeLaunchRoot(""); err != nil || got != dir {
+		t.Fatalf("without --work-dir the project root: got %q err %v want %s", got, err, dir)
+	}
+	if _, err := claudeLaunchRoot(filepath.Join(wt, "missing")); err == nil {
+		t.Fatal("a missing work dir is refused")
+	}
+	if f := claudeCmd().Flags().Lookup("work-dir"); f == nil || !f.Hidden {
+		t.Fatal("claude has a hidden --work-dir flag")
+	}
+}

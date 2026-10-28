@@ -24,8 +24,12 @@ type StopOptions struct {
 	// of stop. Stop still never signals (D5): the one-shot run does that
 	// itself, to the pids WorkerProcs names, when the exit command did not
 	// end the agent.
+	// NoType types nothing: the pane is closed only at a bare shell. For a
+	// worker whose session never started, where the pane may show a
+	// dialog that a typed Enter would answer.
 	Interrupt bool
 	Exit      *int
+	NoType    bool
 }
 
 // Survivor is a recorded worker process still running after its pane closed.
@@ -168,6 +172,9 @@ func exitAgent(ctx context.Context, d Deps, info Info, o StopOptions) (procs []r
 	}
 	if !pi.Known {
 		return procs, fmt.Sprintf("herdr process-info for pane %s has no shell pid or process list (unknown is not a bare shell); nothing was typed", pane), false
+	}
+	if o.NoType {
+		return procs, fmt.Sprintf("pane %s still runs %s and this stop types nothing; the pane stays open", pane, procNames(pi)), false
 	}
 	if in := ReadInput(ctx, d.Herdr, pane); in.Draft() {
 		return procs, "a draft may be on the worker's input line (" + in.why() + "); nothing was typed, so a person's text is not lost", false

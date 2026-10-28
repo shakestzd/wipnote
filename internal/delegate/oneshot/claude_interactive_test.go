@@ -288,7 +288,7 @@ func TestClaudeRun_PromptBeforeVariadicFlags(t *testing.T) {
 		got := w.f.launchArgv()
 		dash, mcp := slices.Index(got, "--"), slices.Index(got, "--mcp-config")
 		prompt := slices.IndexFunc(got, func(s string) bool { return strings.HasSuffix(strings.TrimSpace(s), "reply ok now") })
-		if dash < 0 || prompt != dash+1 || mcp < prompt || got[mcp+1] != "m.json" || slices.Contains(got, "-p") {
+		if dash < 0 || prompt != dash+1 || mcp < prompt || got[mcp+1] != filepath.Join(w.o.Cwd, "m.json") || slices.Contains(got, "-p") {
 			t.Fatalf("%q -> %q", argv, got)
 		}
 	}

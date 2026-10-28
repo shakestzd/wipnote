@@ -215,8 +215,11 @@ func launchClaudeContinue(extraArgs []string, resumeID string) error {
 	})
 }
 
-func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, inPlace bool) error {
-	projectRoot, _ := resolveProjectRoot()
+func launchClaudeDefault(extraArgs []string, resumeID, name, workItem, workDir string, inPlace bool) error {
+	projectRoot, err := claudeLaunchRoot(workDir)
+	if err != nil {
+		return err
+	}
 
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
 	// canonicalProjectRoot returns "" for the main worktree (no override needed).
@@ -255,4 +258,22 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 		ExtraEnv:           lctx.continueEnv,
 		WorkItem:           lctx.intentResult.workItem,
 	})
+}
+
+// claudeLaunchRoot is the dir a default launch runs claude in: --work-dir
+// when given (a delegate worker runs where its caller ran, a linked
+// worktree too), else the project root.
+func claudeLaunchRoot(workDir string) (string, error) {
+	if workDir == "" {
+		root, _ := resolveProjectRoot()
+		return root, nil
+	}
+	abs, err := filepath.Abs(workDir)
+	if err != nil {
+		return "", err
+	}
+	if fi, err := os.Stat(abs); err != nil || !fi.IsDir() {
+		return "", fmt.Errorf("claude --work-dir %s: not a directory", workDir)
+	}
+	return abs, nil
 }

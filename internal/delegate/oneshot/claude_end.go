@@ -14,9 +14,11 @@ import (
 
 // end ends the worker on wipnote's verdict: the exit command (escape first
 // when a turn may run), then SIGTERM to the pane's own processes when the
-// agent did not exit. A worker with no session gets no typed text: SIGTERM
-// only. A draft on the input line is left alone (default: a person's text
-// is never lost; the pane then stays open and the row is closed here).
+// agent did not exit. A worker with no session gets no typed text at all:
+// SIGTERM only, and its pane closes only at a bare shell. A possible draft
+// on the input line is never typed over; on a failure verdict the worker
+// is still signalled, on a done one it is left to the person (default),
+// and the row is closed here either way.
 func (wk *worker) end(ctx context.Context, v verdict) {
 	if v.cancelled { // the caller's context is done; the end still runs, bounded
 		var cancel context.CancelFunc
@@ -33,17 +35,26 @@ func (wk *worker) end(ctx context.Context, v verdict) {
 	if !v.bound {
 		wk.terminate(ctx)
 	}
-	so := session.StopOptions{ExitWait: wk.w.exitWait(), Poll: wk.o.poll(), Interrupt: v.running && v.bound, Exit: exit}
+	so := session.StopOptions{ExitWait: wk.w.exitWait(), Poll: wk.o.poll(), Interrupt: v.running && v.bound,
+		Exit: exit, NoType: !v.bound}
 	res, err := session.Stop(ctx, wk.deps, wk.sp.Name, so)
-	if err == nil && !res.PaneClosed && res.ExitTyped && wk.open() {
+	if err == nil && !res.PaneClosed && wk.open() && wk.mustSignal(v, res) {
 		wk.terminate(ctx)
-		so.Interrupt = false
+		so.Interrupt, so.NoType = false, true // after a signal nothing more is typed
 		res, err = session.Stop(ctx, wk.deps, wk.sp.Name, so)
 	}
 	if err != nil || res.Why != "" {
 		fmt.Fprintf(wk.o.Stderr, "wipnote: worker %s: %s\n", wk.sp.Name, firstNonEmpty(res.Why, fmt.Sprint(err)))
 	}
 	wk.closeRow(v, exit)
+}
+
+// mustSignal: the exit command was typed and ignored, or the verdict is a
+// failure (a possible draft only means nothing is typed), or the worker
+// never started. A done worker behind a possible draft is left to the
+// person.
+func (wk *worker) mustSignal(v verdict, res session.StopResult) bool {
+	return res.ExitTyped || v.exit != 0 || !v.bound
 }
 
 func (wk *worker) open() bool {
