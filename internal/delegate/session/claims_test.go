@@ -348,3 +348,54 @@ func TestSpawn_LosesReusedWorkerOnItem(t *testing.T) {
 		t.Fatalf("new run finished: %+v", ri)
 	}
 }
+
+// A worker spawned with no brief gets its first task through send, so the
+// sent task carries the claim of the worker's own item.
+func TestSend_NoBriefFirstTaskCarriesClaim(t *testing.T) {
+	e := newEnv(t)
+	e.worker("w1", "")
+	e.send("w1", "Count the files.")
+	msgs, _ := e.mailbox("w1").Read(runstore.Inbox)
+	if len(msgs) != 1 || !strings.HasPrefix(msgs[0].Body, ClaimLine("feat-0a1b2c3d")) {
+		t.Fatalf("first sent task lacks the claim: %+v", msgs)
+	}
+	// Other side: the claim names this worker's item and kind, not another's.
+	o := e.opts("b1")
+	o.WorkItem, o.Brief = "bug-0a1b2c3d", ""
+	b, err := Spawn(context.Background(), e.deps, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.herdr.pane(PaneOf(b)).styled = "> \n"
+	e.event(b.Run, "sid-b1", runstore.KindSessionStart)
+	e.send("b1", "Fix it.")
+	bm, _ := e.mailbox("b1").Read(runstore.Inbox)
+	if len(bm) != 1 || !strings.HasPrefix(bm[0].Body, ClaimLine("bug-0a1b2c3d")) || strings.Contains(bm[0].Body, "feat-0a1b2c3d") {
+		t.Fatalf("bug worker's task %q", bm[0].Body)
+	}
+}
+
+// After /clear the old session's SessionEnd closed its claim; the next sent
+// task carries the claim again, so the new session reclaims the item.
+func TestSend_AfterClosedClaimCarriesClaim(t *testing.T) {
+	e := newEnv(t)
+	claims := withClaims(e)
+	s := e.worker("w1", "Do the thing.")
+	claim(t, claims, "sid-1", "feat-0a1b2c3d")
+	e.startTurn(s, "sid-1")
+	e.event(s.Run, "sid-1", runstore.KindStop)
+	if _, err := hooks.CloseClaimEpisodesForSession(filepath.Join(e.dir, ".wipnote"), "sid-1", claimledger.OutcomeAbandoned); err != nil {
+		t.Fatal(err)
+	}
+	e.event(s.Run, "sid-2", runstore.KindSessionStart)
+	sent := e.send("w1", "Next task.")
+	msgs, _ := e.mailbox("w1").Read(runstore.Inbox)
+	last := msgs[len(msgs)-1]
+	if last.ID != sent.Task || !strings.HasPrefix(last.Body, ClaimLine("feat-0a1b2c3d")) {
+		t.Fatalf("task after a closed claim lacks the claim: %q", last.Body)
+	}
+	// Other side: the claim is said once, before the result preamble and task.
+	if n := strings.Count(last.Body, "wipnote feature start"); n != 1 || !strings.HasSuffix(strings.TrimSpace(last.Body), "Next task.") {
+		t.Fatalf("claim said %d times in %q", n, last.Body)
+	}
+}

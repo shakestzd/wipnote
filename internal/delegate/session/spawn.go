@@ -185,7 +185,7 @@ func writeRunFiles(d Deps, rf *runstore.RunFolder, info *Info, brief string) err
 			return err
 		}
 		info.Task = task.ID
-		if err := rf.WriteFile(runstore.FileBrief, []byte(ClaimLine(info.WorkItem)+Preamble(*info, mb.Dir())+brief+"\n")); err != nil {
+		if err := rf.WriteFile(runstore.FileBrief, []byte(TaskPreamble(*info, mb.Dir())+brief+"\n")); err != nil {
 			return err
 		}
 	}

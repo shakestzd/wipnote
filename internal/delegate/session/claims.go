@@ -18,9 +18,19 @@ import (
 // item, and closes a lost worker's episodes as expired. The family rule of
 // the claim gate lives with the gate (cmd/wipnote/claim_ledger_delegate.go).
 
-// ClaimLine is the brief's first line: the worker's own claim of its item.
+// ClaimLine is the first line of the brief and of every sent task: the
+// worker's own claim of its item. Every task says it, because a worker spawned
+// without a brief gets its first task by send, and a /clear ends the session
+// whose claim the old task made. Saying it again is harmless: a repeat start
+// by a session that holds the item renews its open episode.
 func ClaimLine(workItem string) string {
 	return fmt.Sprintf("First claim your work item: run `wipnote %s start %s`.\n", workitem.KindForID(workItem), workItem)
+}
+
+// TaskPreamble is what goes before a task's text, in the brief and in every
+// sent task: the claim, then the result preamble.
+func TaskPreamble(info Info, mailDir string) string {
+	return ClaimLine(info.WorkItem) + Preamble(info, mailDir)
 }
 
 // checkLive refuses a spawn whose name, or whose work item, an open
