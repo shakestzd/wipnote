@@ -273,3 +273,26 @@ func parseBaseRowsOnly(markup string) ([]Record, error) {
 	})
 	return records, nil
 }
+
+// TestStaleEndDoesNotCloseAResumedRun: an end note from run 1 that is caught
+// up only after the resume (SessionEnd catch-up) predates the live run's start.
+// It describes the earlier run, so Close must leave the resumed run open
+// instead of clamping it to the start and closing it.
+func TestStaleEndDoesNotCloseAResumedRun(t *testing.T) {
+	s := testStore(t)
+	resumedOnce(t, s)
+	if err := s.Close(sidA, runT1); err != nil {
+		t.Fatalf("stale close: %v", err)
+	}
+	rec := mustGet(t, s, sidA)
+	if !rec.IsOpen() {
+		t.Fatalf("stale end closed the resumed run: %+v", rec.RunList())
+	}
+	wantRuns(t, rec, Run{StartedAt: runT0, EndedAt: runT1}, Run{StartedAt: runT2})
+
+	// The resumed run's own end still closes it.
+	if err := s.Close(sidA, runT3); err != nil {
+		t.Fatalf("close run 2: %v", err)
+	}
+	wantRuns(t, mustGet(t, s, sidA), Run{StartedAt: runT0, EndedAt: runT1}, Run{StartedAt: runT2, EndedAt: runT3})
+}
