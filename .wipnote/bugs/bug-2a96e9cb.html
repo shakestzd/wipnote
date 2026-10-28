@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-28T06:28:49.234313"
-             data-updated="2026-10-28T06:29:06.230654" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+             data-updated="2026-10-28T06:47:07.647867" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
 
         <header>
             <h1>Resumed sessions are not recorded in the sessions ledger</h1>
@@ -43,6 +43,17 @@
                 </ul>
             </section>
         </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-2a96e9cb-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Design: one session row keeps run 1; each resume appends run-event lines (tr data-run-of, data-run-event=start|end) folded in document order; old ledgers read as one implicit run, older binaries ignore the events</li>
+                <li data-completed="false" data-step-id="step-bug-2a96e9cb-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Ledger: Store.Open on a closed row appends a run-start event (resume); on an open row it is a replay and writes nothing; Close ends the latest run; Enrich/Correct target the latest run; new Store.Ensure for late writers never resumes</li>
+                <li data-completed="false" data-step-id="step-bug-2a96e9cb-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ procsweep: orphan status decided from the latest run (live while open; orphan if started at or before latest end &#43; 2s; zero start stays orphan)</li>
+                <li data-completed="false" data-step-id="step-bug-2a96e9cb-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Committed b0b8ef750 (ledger runs, Store.Ensure, hook docs) and 6c3dba4e5 (procsweep latest-run rule) on obs/resume; gates green: root build/vet, darwin vet procsweep, go-test-streaming ./..., core go test ./...</li>
+                <li data-completed="false" data-step-id="step-bug-2a96e9cb-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Draft PR 284 opened from obs/resume; gates green locally</li>
+            </ol>
+        </section>
 
         <section data-content>
             <h3>Description</h3>
