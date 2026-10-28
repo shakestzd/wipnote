@@ -73,9 +73,9 @@ func workerRow(ctx context.Context, d Deps, r delegationledger.Record, row *Row)
 		return
 	}
 	row.Pane = info.Pane
-	if adopt(ctx, d.Herdr, &info) {
-		_ = WriteInfo(rf, info)
-	}
+	foldContainer(d, rf, info)
+	onInfoLoaded(info.Run)
+	adoptAndSave(ctx, d, rf, &info)
 	o, f := observe(ctx, d, rf, info)
 	rd := Ready(o)
 	row.State, row.Detail = rd.State, rd.Detail

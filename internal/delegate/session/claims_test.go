@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -397,5 +398,42 @@ func TestSend_AfterClosedClaimCarriesClaim(t *testing.T) {
 	// Other side: the claim is said once, before the result preamble and task.
 	if n := strings.Count(last.Body, "wipnote feature start"); n != 1 || !strings.HasSuffix(strings.TrimSpace(last.Body), "Next task.") {
 		t.Fatalf("claim said %d times in %q", n, last.Body)
+	}
+}
+
+// Spawn resolves the work item through Deps.ResolveWorkItem before the
+// one-worker-per-item check, and after a resume has defaulted it to the old
+// run's item.
+func TestSpawn_ResolvesWorkItemAfterResumeDefault(t *testing.T) {
+	e := newEnv(t)
+	stoppedWorker(t, e, e.opts("w1"), "sid-a")
+	var saw []string
+	e.deps.ResolveWorkItem = func(id string) (string, error) {
+		saw = append(saw, id)
+		if id == "feat-0a1b" {
+			return "feat-0a1b2c3d", nil
+		}
+		return id, nil
+	}
+	if _, info := resume(t, e, e.resumeOpts("w2"), "w1"); info.WorkItem != "feat-0a1b2c3d" ||
+		!slices.Contains(saw, "feat-0a1b2c3d") {
+		t.Fatalf("resume item %q, resolver saw %v: the old run's item was not resolved", info.WorkItem, saw)
+	}
+	// A prefix resolves before the live-worker check: w2 holds the item.
+	o := e.opts("w3")
+	o.WorkItem = "feat-0a1b"
+	if _, err := Spawn(context.Background(), e.deps, o); !errors.Is(err, ErrLiveWorker) {
+		t.Fatalf("prefix of a held item: err %v, want the live-worker refusal", err)
+	}
+	// Other side: a resolver refusal spawns nothing.
+	e.deps.ResolveWorkItem = func(id string) (string, error) { return "", errors.New("no such item") }
+	before, _ := e.deps.Ledger.ReadAll()
+	o = e.opts("w4")
+	o.WorkItem = "feat-ffff"
+	if _, err := Spawn(context.Background(), e.deps, o); err == nil || !strings.Contains(err.Error(), "no such item") {
+		t.Fatalf("err %v", err)
+	}
+	if after, _ := e.deps.Ledger.ReadAll(); len(after) != len(before) {
+		t.Fatal("a refused item wrote a row")
 	}
 }

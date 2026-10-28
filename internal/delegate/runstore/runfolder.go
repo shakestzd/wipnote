@@ -12,9 +12,9 @@ import (
 	"github.com/shakestzd/wipnote/core/filelock"
 )
 
-// Run-folder file names: the feat-a1df60c2 contract that the
-// codex-herdr-pane mod writes and its follower and viewer read. The mod
-// writes label with no newline and start, end, exit and host with one;
+// Run-folder file names: the feat-a1df60c2 contract that the retired
+// herdr pane mod wrote and its follower and viewer read. The mod
+// wrote label with no newline and start, end, exit and host with one;
 // readers trim.
 const (
 	FileRawLog   = "raw.log"   // harness output as captured
@@ -56,8 +56,16 @@ const (
 	FileState = "state.json"
 )
 
+// Files a container run holds (plan-28b4a7f6 slice 21): where it ran (the
+// place and the container's workspace folder) and devcontainer up's
+// progress.
+const (
+	FileContainer = "container.json"
+	FileUpLog     = "up.log"
+)
+
 // RunnerFiles lists the files beside the contract that WriteFile accepts.
-var RunnerFiles = []string{FileOut, FileJob, FileSession, FileBrief, FileState}
+var RunnerFiles = []string{FileOut, FileJob, FileSession, FileBrief, FileState, FileContainer, FileUpLog}
 
 // Hosts a run can name in its host file.
 const (

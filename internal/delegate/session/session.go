@@ -30,7 +30,9 @@
 package session
 
 import (
+	"context"
 	"errors"
+	"github.com/shakestzd/wipnote/internal/delegate/container"
 	"regexp"
 	"time"
 
@@ -90,11 +92,16 @@ type Deps struct {
 	// ProcStart reports a pid's start time, ok false when no such process
 	// runs. Nil uses ps (procs.go). Stop compares start times so a reused pid
 	// is not a survivor.
-	ProcStart func(pid int) (string, bool)
+	ProcStart     func(pid int) (string, bool)
+	ContainerPids func(ctx context.Context, root, run string) ([]container.Proc, error)
 	// ExpireClaims closes one worker session's open claim episodes as
 	// expired, and no other session's (slice 16). The worker-loss path calls
 	// it once the pane is gone; nil skips it.
 	ExpireClaims func(sessionID string)
+	// ResolveWorkItem turns a spawn's work-item id or prefix into the
+	// canonical id, after a resume's default and before the one-worker-per-
+	// item check (slice 16); nil keeps the id as given.
+	ResolveWorkItem func(id string) (string, error)
 }
 
 func (d Deps) now() time.Time {

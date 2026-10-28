@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,7 +87,7 @@ type ensuredActiveSession struct {
 // .wipnote/.active-session. Errors are silently ignored — this is a
 // best-effort propagation mechanism; hook handlers fall back gracefully.
 func writeEnsuredActiveSession(sessionID, projectDir, agentID string) {
-	if projectDir == "" {
+	if projectDir == "" || containerwrite.Active() { // shared file: never from a container worker
 		return
 	}
 	data := ensuredActiveSession{

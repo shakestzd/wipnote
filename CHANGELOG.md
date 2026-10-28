@@ -5,6 +5,26 @@ All notable changes to wipnote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.85.0] - Unreleased
+
+### Added
+- `wipnote delegate` is the one way to hand work to another harness. Every run is a row in `.wipnote/delegations-ledger.html` (feat-89cfa21c):
+  - `run`: one codex exec, codex review, claude -p or ccx task call, with its answer and a run page. `--write` gives `codex exec` a writable sandbox. `--container` runs the tool in the project's devcontainer.
+  - `spawn`: an interactive Claude or Codex worker in a herdr pane. NAME is optional (it comes from the work item). `--container` starts it in the devcontainer. `--resume OLD` continues a stopped worker and needs a NAME.
+  - `send`, `wait` (needs `--timeout`; a timeout exits 124), `result`, `questions`, `inbox` and `stop` for workers.
+  - `list`, `tree` and `view` to see runs. The wipnote-orchestra band shows them too, inside and outside herdr.
+  - `doctor` (and `doctor --container`) to check the host and the devcontainer.
+  - `import-orch` to copy orch's run history into the ledger.
+- The `delegate` skill now covers every verb and the claim rules: the worker co-claims its item, there is one live worker per item, and you stop the worker before you complete the item. It ships to Claude Code and Codex, not to Antigravity.
+- A bare `codex exec`, `codex review`, `claude -p` or `ccx task` in the Bash tool is denied with the `wipnote delegate run` form to use.
+- A one-time notice at `wipnote claude` launch tells a user who set options for the removed mod which `delegate` settings in `~/.wipnote/config.json` they map to. wipnote does not move them.
+
+### Removed
+- The `codex-herdr-pane` mod. `wipnote delegate run` does its job, `wipnote delegate view` replaces its viewer, and the wipnote-orchestra band replaces its Claude Code pane.
+
+### Known limits
+- Chained delegations skip the ledger until v2. A delegation in a pipe, after `;` or `&&`, fed on stdin or behind `dev exec` runs as typed and gets no ledger row.
+
 ## [Unreleased]
 
 ### Added

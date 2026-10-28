@@ -34,9 +34,18 @@ type SpawnOptions struct {
 	Brief                   string
 	Cwd                     string
 	// BootLine builds the line typed into the pane for a run id.
-	BootLine  func(runID string) string
-	ShellWait time.Duration // DefaultShellWait when zero
-	Poll      time.Duration // DefaultPoll when zero
+	BootLine func(runID string) string
+	// Container starts the worker in the project's devcontainer (slice 21);
+	// Root is the project root. CodexOptIn: this host is in
+	// delegate.codex.dangerFullAccessHosts (Codex needs it inside).
+	Container  bool
+	Root       string
+	CodexOptIn bool
+	// ResumedFrom and ResumeSession are a resume's old run id and the
+	// harness session it continues (slice 20); Resume sets both.
+	ResumedFrom, ResumeSession string
+	ShellWait                  time.Duration // DefaultShellWait when zero
+	Poll                       time.Duration // DefaultPoll when zero
 }
 
 // Spawned is spawn's payload: {run, name, pane, harness, status}.
@@ -52,10 +61,7 @@ type Spawned struct {
 // before anything is written: a bad name or harness, no work item, a live
 // name, a live worker on the item, and a full workers tab ("at cap").
 func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
-	if o.Name == "" {
-		o.Name = slug.WorkerName(o.WorkItem, o.WorkTitle)
-	}
-	if err := checkSpawn(d, o); err != nil {
+	if err := prepareSpawn(d, &o); err != nil {
 		return Spawned{}, err
 	}
 	var info Info
@@ -81,8 +87,8 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 			abandon(d, info.Run, rf, "")
 			return fmt.Errorf("delegate: no pane for %s: %w", o.Name, err)
 		}
-		info.Pane = string(pane)
-		return WriteInfo(rf, info)
+		info, err = UpdateInfo(rf, func(i *Info) { i.Pane = string(pane) })
+		return err
 	})
 	for _, l := range lost {
 		dropPane(d, l) // other callers' records, now no lock is held
@@ -101,6 +107,23 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 	return Spawned{Run: info.Run, Name: info.Name, Pane: info.Pane, Harness: info.Harness, Status: StatusStarting}, nil
 }
 
+// prepareSpawn resolves the work item (Deps.ResolveWorkItem, so a resume's
+// defaulted item is resolved too), names an unnamed worker after it, and
+// runs the refusals that need no lock.
+func prepareSpawn(d Deps, o *SpawnOptions) error {
+	if d.ResolveWorkItem != nil && o.WorkItem != "" {
+		id, err := d.ResolveWorkItem(o.WorkItem)
+		if err != nil {
+			return err
+		}
+		o.WorkItem = id
+	}
+	if o.Name == "" {
+		o.Name = slug.WorkerName(o.WorkItem, o.WorkTitle)
+	}
+	return checkSpawn(d, *o)
+}
+
 func checkSpawn(d Deps, o SpawnOptions) error {
 	switch {
 	case o.WorkItem == "":
@@ -114,7 +137,7 @@ func checkSpawn(d Deps, o SpawnOptions) error {
 	case o.BootLine == nil:
 		return errors.New("delegate: spawn has no boot line")
 	}
-	return nil
+	return checkContainerSpawn(o)
 }
 
 // namesLock is the project-wide lock that makes the name check and the
@@ -132,6 +155,9 @@ func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.Run
 	}
 	releaseNames := filelock.Guard(filepath.Join(d.Store.Root(), namesLock))
 	defer releaseNames()
+	if err := checkSessionFree(d, o.ResumedFrom, o.ResumeSession); err != nil {
+		return Info{}, nil, nil, err // the resume refusal names the run to resume instead
+	}
 	lost, err := checkLive(ctx, d, o)
 	if err != nil {
 		return Info{}, nil, lost, err
@@ -145,14 +171,19 @@ func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.Run
 func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	row, err := d.Ledger.Open(delegationledger.Record{
 		Mode: delegationledger.ModeInteractive, Harness: o.Harness, Name: o.Name, WorkItem: o.WorkItem,
-		Link: "tag", CallerSession: o.CallerSession, Host: PlaceHost, Started: d.now(),
+		Link: "tag", CallerSession: o.CallerSession, Host: placeOf(o), Started: d.now(),
+		ResumedFrom: o.ResumedFrom,
 	})
 	if err != nil {
 		return Info{}, nil, err
 	}
 	info := Info{
 		Run: row.ID, Name: o.Name, Harness: o.Harness, WorkItem: o.WorkItem, Caller: o.CallerSession,
-		CallerPane: string(o.CallerPane), Cwd: o.Cwd, Place: PlaceHost, Created: d.now().Format(time.RFC3339),
+		CallerPane: string(o.CallerPane), Cwd: o.Cwd, Place: placeOf(o), Created: d.now().Format(time.RFC3339),
+		ResumedFrom: o.ResumedFrom, ResumeSession: o.ResumeSession,
+	}
+	if o.Container {
+		info.Root = o.Root
 	}
 	rf, err := d.Store.CreateRun(row.ID)
 	if err == nil {
@@ -201,7 +232,7 @@ func abandon(d Deps, run string, rf *runstore.RunFolder, pane herdr.PaneID) {
 	if rf != nil {
 		_ = rf.Finish(1, d.now())
 	}
-	_, _ = d.Ledger.CloseIfOpen(run, delegationledger.CloseInfo{Ended: d.now(), Reason: delegationledger.EndGone})
+	_, _ = closeWorkerRow(d, run, delegationledger.EndGone)
 }
 
 // boot waits for the new pane's shell to settle, then types the boot line.

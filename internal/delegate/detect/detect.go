@@ -1,9 +1,9 @@
 // Package detect recognises a bare delegation in a Bash command: codex exec
 // (or e) and review, ccx task, and claude -p or --print, bare or behind
 // dev exec (plan-28b4a7f6 slice 9). It is the Go port of the recogniser in the
-// codex-herdr-pane mod (mods/codex-herdr-pane/hooks/tools.ts), whose tables
-// its tests repeat, and it backs the PreToolUse hook that redirects a bare
-// standalone delegation to `wipnote delegate run` (Redirect).
+// retired herdr pane mod (its hooks/tools.ts), whose tables its tests
+// repeat, and it backs the PreToolUse hook that redirects a bare standalone
+// delegation to `wipnote delegate run` (Redirect).
 //
 // The mod's patterns use lookarounds and backreferences, which RE2 lacks: a
 // trailing (?=\s|$) becomes a consumed (?:\s|$), the heredoc rule is a small
@@ -25,9 +25,6 @@ const (
 	Ccx    Tool = "ccx"
 	Claude Tool = "claude"
 )
-
-// Marker starts a command the mod already wrapped; it is never a delegation.
-const Marker = "# codex-herdr-pane"
 
 const (
 	// cmdPos is a command position: the start, or after ; & | ( or a newline,
@@ -66,9 +63,6 @@ func Blank(command string) string {
 // `claude -p "x" | sort -h` is still a run. A claude run that names its own
 // --output-format is left as asked.
 func Find(command string) Tool {
-	if strings.Contains(command, Marker) {
-		return None
-	}
 	text := Blank(command)
 	for _, t := range []struct {
 		tool Tool

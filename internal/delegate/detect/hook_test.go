@@ -1,6 +1,7 @@
 package detect_test
 
 import (
+	"github.com/shakestzd/wipnote/internal/delegate/oneshot"
 	"slices"
 	"strings"
 	"testing"
@@ -100,6 +101,33 @@ func TestPreToolUse_CcxTaskDeniedWithContainerForm(t *testing.T) {
 	}
 	if !strings.Contains(res.Reason, `wipnote delegate run --container -- "fix the build"`) {
 		t.Errorf("reason %q lacks the --container form", res.Reason)
+	}
+}
+
+// TestPreToolUse_CcxTaskRedirectsToContainer (slice 21): a bare ccx task is
+// redirected to delegate run --container only, now that it exists, and the
+// form it names is one delegate run --container accepts as claude -p. The
+// other side: the reason no longer offers the exact-argv ccx form.
+func TestPreToolUse_CcxTaskRedirectsToContainer(t *testing.T) {
+	wire(t)
+	res := hooks.DelegateRedirectResult(bash("Bash", `ccx task "fix the build" --resume abc`))
+	if res == nil || res.Decision != "block" {
+		t.Fatalf("bare ccx task: %+v, want a block", res)
+	}
+	if strings.Contains(res.Reason, "-- ccx task") || strings.Contains(res.Reason, "coming") {
+		t.Errorf("reason %q still offers the pre-container form", res.Reason)
+	}
+	_, line, ok := strings.Cut(res.Reason, "wipnote delegate run --container -- ")
+	if !ok {
+		t.Fatalf("reason %q names no --container form", res.Reason)
+	}
+	line, _, _ = strings.Cut(line, "\n")
+	if line != `"fix the build" --resume abc` {
+		t.Fatalf("--container form carries %q, want the task's own arguments", line)
+	}
+	r, err := oneshot.ClassifyContainer([]string{"fix the build", "--resume", "abc"})
+	if err != nil || r.Kind != oneshot.KindClaude {
+		t.Errorf("delegate run --container would take %q as %v, %v; want claude -p", line, r.Kind, err)
 	}
 }
 

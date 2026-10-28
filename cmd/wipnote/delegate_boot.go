@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 
@@ -30,11 +32,15 @@ func delegateBootCmd() *cobra.Command {
 		Hidden: true,
 		Args:   cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			argv, env, err := delegateBootPlan(args[0])
+			argv, env, err := delegateBootPlan(cmd.Context(), args[0])
 			if err != nil {
 				return err
 			}
-			if err := delegateBootExec(argv[0], argv, env); err != nil {
+			argv0, err := exec.LookPath(argv[0]) // an absolute path is returned as it is
+			if err != nil {
+				return fmt.Errorf("delegate boot: %w", err)
+			}
+			if err := delegateBootExec(argv0, argv, env); err != nil {
 				return fmt.Errorf("delegate boot: exec %s: %w", argv[0], err)
 			}
 			return nil
@@ -42,7 +48,7 @@ func delegateBootCmd() *cobra.Command {
 	}
 }
 
-func delegateBootPlan(runID string) ([]string, []string, error) {
+func delegateBootPlan(ctx context.Context, runID string) ([]string, []string, error) {
 	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return nil, nil, err
@@ -63,6 +69,9 @@ func delegateBootPlan(runID string) ([]string, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	if info.Place == session.PlaceContainer {
+		return containerBootPlan(ctx, store, info)
+	}
 	brief, _, _ := rf.ReadFrom(runstore.FileBrief, 0) // no brief: a bare launch
 	if info.Cwd != "" {
 		_ = os.Chdir(info.Cwd)
@@ -73,4 +82,18 @@ func delegateBootPlan(runID string) ([]string, []string, error) {
 	}
 	argv := session.BootArgv(exe, info, string(brief))
 	return argv, session.BootEnv(os.Environ(), runID, os.Getenv(session.CallerEnv)), nil
+}
+
+// containerBootPlan is a container worker's boot (plan-28b4a7f6 slice 21):
+// devcontainer up runs here, in the pane, with its progress shown, then
+// boot execs devcontainer exec --workspace-folder <root> wipnote claude|codex.
+func containerBootPlan(ctx context.Context, store *runstore.Store, info session.Info) ([]string, []string, error) {
+	fmt.Fprintln(os.Stderr, "wipnote: starting the project's devcontainer (devcontainer up)...")
+	caller := os.Getenv(session.CallerEnv)
+	argv, err := session.ContainerBoot(ctx, store, info.Run, caller, os.Stderr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("delegate boot: %w", err)
+	}
+	_ = os.Chdir(info.Root)
+	return argv, session.BootEnv(os.Environ(), info.Run, caller), nil
 }

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -61,7 +63,7 @@ func TestResolveModsDirFallsBackToTheSharedTrees(t *testing.T) {
 	t.Setenv("WIPNOTE_MODS_DIR", "")
 	home := isolateModsLookup(t)
 	shared := filepath.Join(home, ".local", "share", "wipnote", "mods")
-	writeMod(t, shared, "codex-herdr-pane")
+	writeMod(t, shared, "wipnote-orchestra")
 	stale := filepath.Join(t.TempDir(), "plugin") // no mods/ beside it
 	if got := resolveModsDir(stale); got != shared {
 		t.Errorf("got %q, want the shared tree %q", got, shared)
@@ -74,7 +76,7 @@ func TestResolveModsDirFallsBackToTheSharedTrees(t *testing.T) {
 func TestResolveModsDirOverrideAndOptOut(t *testing.T) {
 	isolateModsLookup(t)
 	share := t.TempDir()
-	writeMod(t, filepath.Join(share, "mods"), "codex-herdr-pane")
+	writeMod(t, filepath.Join(share, "mods"), "wipnote-orchestra")
 	plugin := filepath.Join(share, "plugin")
 	other := t.TempDir()
 	writeMod(t, other, "mine")
@@ -182,8 +184,6 @@ func TestMirrorModsTreeCopiesTrackedRuntimeFilesOnly(t *testing.T) {
 		t.Fatalf("%s holds no mod after the mirror", dst)
 	}
 	for _, want := range []string{
-		filepath.Join("codex-herdr-pane", "hooks", "hooks.json"),
-		filepath.Join("codex-herdr-pane", "viewer", "codex.jq"),
 		filepath.Join("wipnote-orchestra", "hooks", "register.tsx"),
 	} {
 		if _, err := os.Stat(filepath.Join(dst, want)); err != nil {
@@ -227,6 +227,63 @@ func TestIsModTestFile(t *testing.T) {
 	} {
 		if got := isModTestFile(rel); got != want {
 			t.Errorf("isModTestFile(%q) = %v, want %v", rel, got, want)
+		}
+	}
+}
+
+// TestMods_NoCodexHerdrPane: the retired mod is gone from mods/, and no file
+// outside the exempt paths names it. Exempt: work items (.wipnote/), design
+// records (docs/design/), CLAUDE.md (the owner edits it) and the CHANGELOG
+// history. The mod's settings notice spells the name in parts.
+func TestMods_NoCodexHerdrPane(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "mods", retiredPaneMod)); !os.IsNotExist(err) {
+		t.Errorf("mods/%s must be deleted (stat err %v)", retiredPaneMod, err)
+	}
+	out, err := exec.Command("git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	if err != nil {
+		t.Skipf("git ls-files: %v", err)
+	}
+	for _, rel := range bytes.Split(out, []byte{0}) {
+		name := string(rel)
+		if name == "" || retiredModExempt(name) {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil {
+			continue // tracked but deleted in the working tree
+		}
+		if bytes.Contains(data, []byte(retiredPaneMod)) {
+			t.Errorf("%s names %s", name, retiredPaneMod)
+		}
+	}
+}
+
+func retiredModExempt(rel string) bool {
+	for _, prefix := range []string{".wipnote/", "docs/design/"} {
+		if strings.HasPrefix(rel, prefix) {
+			return true
+		}
+	}
+	return rel == "CLAUDE.md" || rel == "CHANGELOG.md"
+}
+
+// The guard itself sees a file that names the mod: a two-sided check.
+func TestRetiredModExempt(t *testing.T) {
+	for rel, want := range map[string]bool{
+		".wipnote/features/feat-1.html":    true,
+		"docs/design/delegate.md":          true,
+		"CLAUDE.md":                        true,
+		"CHANGELOG.md":                     true,
+		"plugin/skills/delegate/SKILL.md":  false,
+		"docs/guide.md":                    false,
+		"mods/wipnote-orchestra/README.md": false,
+	} {
+		if got := retiredModExempt(rel); got != want {
+			t.Errorf("retiredModExempt(%q) = %v, want %v", rel, got, want)
 		}
 	}
 }

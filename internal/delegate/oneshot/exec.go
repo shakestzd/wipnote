@@ -32,6 +32,8 @@ type Job struct {
 	Registry   string   `json:"registry,omitempty"` // tile registry the pane is listed in
 	ClosePane  string   `json:"close_pane,omitempty"`
 	CloseDelay int      `json:"close_delay,omitempty"`
+	// Container runs the job in the project's devcontainer (slice 21).
+	Container *ContainerJob `json:"container,omitempty"`
 }
 
 func writeJob(rf *runstore.RunFolder, j Job) error {
@@ -62,6 +64,14 @@ func Execute(ctx context.Context, rf *runstore.RunFolder, job Job) int {
 	_ = rf.WriteStart(time.Now())
 	_ = rf.WriteFile(runstore.FileCleanMD, nil)
 	_ = rf.WriteFile(runstore.FileCleanLog, nil)
+	if job.Container != nil {
+		inside, ok := executeContainer(ctx, rf, job)
+		if !ok {
+			_ = rf.Finish(1, time.Now())
+			return 1
+		}
+		job = inside
+	}
 	var exit int
 	switch job.Kind {
 	case KindCcx:

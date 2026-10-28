@@ -1,9 +1,10 @@
 // Package render turns a delegated run's raw output into the run-folder
 // files of the feat-a1df60c2 contract (plan-28b4a7f6 slice 7): clean.log,
 // clean.md, last.md, the usage line and run.html. It is the Go port of the
-// codex-herdr-pane mod's viewer filters (viewer/codex.jq, stream.jq, md.jq,
-// clean.awk, joinfence.awk) and of its run page (hooks/runhtml.ts,
-// hooks/livedoc.ts); testdata/gen.sh pins the outputs to the mod's.
+// retired herdr pane mod's viewer filters (codex.jq, stream.jq, md.jq,
+// clean.awk, joinfence.awk) and of its run page (runhtml.ts, livedoc.ts).
+// The golden files in testdata/ were written by that mod's jq and awk
+// pipeline before the mod was removed; they stay as the reference.
 //
 // Everything is a pure function over bytes or a line-at-a-time filter with
 // a little state, except View, which follows a live run folder.

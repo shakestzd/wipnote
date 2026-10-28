@@ -84,7 +84,7 @@ func loseWorker(d Deps, r delegationledger.Record, rf *runstore.RunFolder, info 
 // sessions, only that session's. A row someone else closed first (a stop
 // always wins) is left as it is. The orchestrator's episode is never touched.
 func closeLost(d Deps, r delegationledger.Record, rf *runstore.RunFolder) {
-	closed, err := d.Ledger.CloseIfOpen(r.ID, delegationledger.CloseInfo{Ended: d.now(), Reason: delegationledger.EndGone})
+	closed, err := closeWorkerRow(d, r.ID, delegationledger.EndGone)
 	if err != nil || !closed {
 		return
 	}

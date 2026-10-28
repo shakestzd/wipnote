@@ -18,7 +18,7 @@ var assignRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 // "" to let the command run as typed (q-intercept: deny-redirect). The reason
 // names the exact `wipnote delegate run -- <same argv>`, so the retry is the
 // same call and passes the normal permission checks; a bare ccx task is shown
-// the --container form instead (decision C).
+// the --container form instead (decision C, slice 21).
 //
 // It redirects only what delegate run takes: a command delegate run would
 // refuse (chained, fed on stdin, behind dev exec, another --output-format)
@@ -65,15 +65,11 @@ const reasonText = `wipnote: a bare %s call skips the delegations ledger, the ru
 
 wipnote delegate run takes the tool's argv unchanged after --.`
 
-const ccxReasonText = `wipnote: a bare ccx task skips the delegations ledger, the run folder and the herdr pane. ccx is container Claude, which wipnote delegate runs as:
+const ccxReasonText = `wipnote: a bare ccx task skips the delegations ledger, the run folder and the herdr pane. ccx is container Claude, which wipnote delegate runs in the project's own devcontainer:
 
   %s
 
---container is coming and this wipnote does not have it yet. Until it does, run:
-
-  %s
-
-wipnote delegate run takes the tool's argv unchanged after --.`
+wipnote delegate run --container takes the task's arguments unchanged after -- and runs them as claude -p there.`
 
 // reason builds the deny text. words start at the tool; what comes before it
 // (VAR=value words) stays in front of wipnote.
@@ -85,10 +81,15 @@ func reason(command string, words []word, r oneshot.Recipe) string {
 	if r.Kind != oneshot.KindCcx {
 		return fmt.Sprintf(reasonText, r.Name(), same)
 	}
-	args := ""
-	if len(words) > 2 {
-		args = cmd[words[2].start:]
+	if len(words) < 3 || classifyErr(words[2:]) != nil {
+		// --container would refuse these arguments: name the form that runs.
+		return fmt.Sprintf(reasonText, r.Name(), same)
 	}
-	container := strings.TrimRight(env+"wipnote delegate run --container -- "+args, " ")
-	return fmt.Sprintf(ccxReasonText, container, same)
+	container := env + "wipnote delegate run --container -- " + cmd[words[2].start:]
+	return fmt.Sprintf(ccxReasonText, container)
+}
+
+func classifyErr(words []word) error {
+	_, err := oneshot.ClassifyContainer(texts(words))
+	return err
 }

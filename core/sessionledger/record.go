@@ -172,6 +172,11 @@ type Record struct {
 	// never reach a canonical artifact.
 	ProjectDir string
 
+	// Host is where the session ran: "container" for a delegate worker in
+	// the project's devcontainer, whose row the host folds in from the
+	// worker's own file (plan-28b4a7f6 slice 21). Empty means the host.
+	Host string
+
 	// StartedAt is the FIRST start; a resume never moves it, so lineage and
 	// every reader that joins on the start keep the session's true origin.
 	StartedAt time.Time

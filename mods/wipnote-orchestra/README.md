@@ -100,7 +100,7 @@ and is not committed.
 
 It is not yet part of the generated plugin tree; shipping mods needs `build-ports` support.
 The mod stays at `mods/wipnote-orchestra`, and it is tracked and shipped as part of the
-`wipnote delegate` feature: its run rows replace the codex-herdr-pane mod's Claude Code run pane.
+`wipnote delegate` feature: its run rows replace the Claude Code run pane of the herdr pane mod, which was removed in 0.85.0.
 
 ## Settings
 

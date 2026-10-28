@@ -26,17 +26,15 @@ func TestRedirect_NamesTheSameArgv(t *testing.T) {
 }
 
 // TestRedirect_CcxTaskGetsContainerForm: ccx means container Claude, so a bare
-// ccx task is shown the --container form with the task's own arguments; until
-// --container ships the exact-argv form is named as the one that works now.
+// ccx task is shown the --container form with the task's own arguments, and
+// only that form now that --container exists (slice 21).
 func TestRedirect_CcxTaskGetsContainerForm(t *testing.T) {
 	got := Redirect(`ccx task "fix the build" --resume abc`)
-	for _, want := range []string{
-		"\n  wipnote delegate run --container -- \"fix the build\" --resume abc\n",
-		"\n  wipnote delegate run -- ccx task \"fix the build\" --resume abc\n",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("ccx reason %q\nwant it to hold %q", got, want)
-		}
+	if want := "\n  wipnote delegate run --container -- \"fix the build\" --resume abc\n"; !strings.Contains(got, want) {
+		t.Errorf("ccx reason %q\nwant it to hold %q", got, want)
+	}
+	if strings.Contains(got, "-- ccx task") {
+		t.Errorf("ccx reason still offers the exact-argv form: %q", got)
 	}
 	if strings.Contains(got, "-- codex") || strings.Contains(got, "-- claude") {
 		t.Errorf("ccx reason names another tool: %q", got)

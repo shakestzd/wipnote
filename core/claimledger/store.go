@@ -150,7 +150,7 @@ func (s *Store) Open(rootSessionID string, e Episode) (Episode, bool, error) {
 		return open, false, nil
 	}
 
-	if err := appendRowLocked(path, e); err != nil {
+	if err := openRowLocked(path, existing, e); err != nil {
 		return Episode{}, false, err
 	}
 	s.notify(path, "claim")

@@ -22,8 +22,9 @@ type StopOptions struct {
 
 // Survivor is a recorded worker process still running after its pane closed.
 type Survivor struct {
-	PID  int    `json:"pid"`
-	Name string `json:"name"`
+	PID   int    `json:"pid"`
+	Name  string `json:"name"`
+	Where string `json:"where,omitempty"`
 }
 
 // StopResult is stop's payload (D5): what it closed and, when the pane
@@ -35,6 +36,7 @@ type StopResult struct {
 	TabClosed  bool       `json:"tab_closed"`
 	Survivors  []Survivor `json:"survivors"`
 	Why        string     `json:"why,omitempty"`
+	Unchecked  string     `json:"unchecked,omitempty"`
 }
 
 type recorded struct {
@@ -73,6 +75,7 @@ func Stop(ctx context.Context, d Deps, name string, o StopOptions) (StopResult, 
 		loseWorker(d, r, rf, info)
 		return res, nil
 	}
+	inside := recordInside(ctx, d, info, &res)
 	procs, why := exitAgent(ctx, d, info, o)
 	if why != "" {
 		res.Why = why
@@ -85,9 +88,13 @@ func Stop(ctx context.Context, d Deps, name string, o StopOptions) (StopResult, 
 	res.PaneClosed = true
 	for _, p := range procs {
 		if start, ok := d.procStart(p.PID); ok && start == p.start {
+			if info.Place == PlaceContainer {
+				p.Where = PlaceHost
+			}
 			res.Survivors = append(res.Survivors, p.Survivor)
 		}
 	}
+	checkInside(ctx, d, info, inside, &res)
 	finishStop(ctx, d, rf, info, &res, delegationledger.EndStop)
 	return res, nil
 }
@@ -179,7 +186,7 @@ func finishStop(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info, 
 		}
 		return nil
 	})
-	_, _ = d.Ledger.CloseIfOpen(info.Run, delegationledger.CloseInfo{Ended: d.now(), Reason: reason})
+	_, _ = closeWorkerRow(d, info.Run, reason)
 	_ = rf.Finish(0, d.now())
 }
 
