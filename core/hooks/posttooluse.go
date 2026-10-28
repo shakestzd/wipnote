@@ -66,6 +66,7 @@ func postToolUseRecord(event *CloudEvent, ctx *toolUseContext) {
 	}
 	eventID := toolCallEventIDOrRandom(ctx.SessionID, event.ToolUseID)
 	appendToolCompletion(ctx.ProjectDir, ctx.SessionID, toolCallEventID(ctx.SessionID, event.ToolUseID), status)
+	recordDelegateToolEnd(event, ctx.ProjectDir, ctx.SessionID)
 	// A background task's start (Claude) or a Codex shell call's end (feat-36658c22).
 	recordRunFromPostToolUse(event, ctx)
 

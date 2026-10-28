@@ -22,8 +22,8 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// golden reads a testdata file written by testdata/gen.sh (the mod's jq and
-// awk pipeline).
+// golden reads a testdata file written by the retired herdr pane mod's jq
+// and awk pipeline (kept as the reference since the mod was removed).
 func golden(t *testing.T, path string) string {
 	t.Helper()
 	b, err := os.ReadFile(path)

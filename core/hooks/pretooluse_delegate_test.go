@@ -14,7 +14,11 @@ import (
 func stubRedirect(t *testing.T, fn func(string) string) {
 	t.Helper()
 	prev := DelegateRedirect
-	DelegateRedirect = fn
+	if fn == nil {
+		DelegateRedirect = nil
+	} else {
+		DelegateRedirect = func(c, _ string) string { return fn(c) }
+	}
 	t.Cleanup(func() { DelegateRedirect = prev })
 }
 

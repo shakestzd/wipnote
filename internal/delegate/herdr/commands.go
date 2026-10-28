@@ -186,3 +186,12 @@ func (c *CLI) SendText(ctx context.Context, pane PaneID, text string) error {
 func (c *CLI) SendKeys(ctx context.Context, pane PaneID, key string) error {
 	return c.call(ctx, nil, "pane", "send-keys", string(pane), key)
 }
+
+// PaneReadStyled reads a pane's recent output with its SGR styling, so a
+// dim or grey next-prompt suggestion can be told from a typed draft (D8).
+// UNVERIFIED: `pane read <pane> --source recent --lines N --format ansi` is
+// Phase B check D8a/D8b; a usage error (exit 2) means the form is wrong, and
+// callers then treat the input line as a possible draft.
+func (c *CLI) PaneReadStyled(ctx context.Context, pane PaneID, lines int) (string, error) {
+	return c.readText(ctx, "pane", "read", string(pane), "--source", "recent", "--lines", strconv.Itoa(lines), "--format", "ansi")
+}

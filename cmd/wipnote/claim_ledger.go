@@ -223,9 +223,48 @@ func sessionsLedgerNotEnded(wipnoteDir string) func(sessionID string) bool {
 // with claimLedgerLivePredicate: refusing costs a --force, while letting two
 // live sessions both claim the item silently splits its attribution.
 //
-// ok is false when either ledger could not be read. Callers must treat that as
+// FAMILY RULE (plan-28b4a7f6 slice 16): the caller's own session or root,
+// and its delegate family from the delegations ledger (delegationFamily), are
+// not foreign. The delegations ledger is read only when there is a candidate.
+//
+// ok is false when any ledger could not be read. Callers must treat that as
 // "cannot verify" and fail open, per arch:unhydrated-table-guards-fail-open.
 func liveForeignClaims(wipnoteDir, workItemID, callerSessionID string) (live []claimledger.Episode, ok bool) {
+	candidates, ok := openForeignEpisodes(wipnoteDir, workItemID, callerSessionID)
+	if !ok || len(candidates) == 0 {
+		return nil, ok
+	}
+	family, ok := delegationFamily(wipnoteDir, callerSessionID, os.Getenv(delegateRunEnv))
+	if !ok {
+		return nil, false
+	}
+	sessions, err := sessionledger.NewStore(wipnoteDir).ReadAll()
+	if err != nil {
+		return nil, false
+	}
+	ended := make(map[string]bool, len(sessions))
+	for _, r := range sessions {
+		ended[r.SessionID] = !r.IsOpen()
+	}
+	for _, e := range candidates {
+		if family[e.SessionID] || family[e.RootSessionID] {
+			continue // a co-claim within one delegation, not a collision
+		}
+		root := e.RootSessionID
+		if root == "" {
+			root = e.SessionID
+		}
+		if !ended[root] {
+			live = append(live, e)
+		}
+	}
+	return live, true
+}
+
+// openForeignEpisodes returns the open episodes on workItemID not held by the
+// caller's own session or root. ok is false when the claim ledger cannot be
+// read.
+func openForeignEpisodes(wipnoteDir, workItemID, callerSessionID string) ([]claimledger.Episode, bool) {
 	episodes, err := claimledger.NewStore(wipnoteDir).ReadAll()
 	if err != nil {
 		return nil, false
@@ -240,28 +279,7 @@ func liveForeignClaims(wipnoteDir, workItemID, callerSessionID string) (live []c
 		}
 		candidates = append(candidates, e)
 	}
-	if len(candidates) == 0 {
-		return nil, true
-	}
-
-	sessions, err := sessionledger.NewStore(wipnoteDir).ReadAll()
-	if err != nil {
-		return nil, false
-	}
-	ended := make(map[string]bool, len(sessions))
-	for _, r := range sessions {
-		ended[r.SessionID] = !r.IsOpen()
-	}
-	for _, e := range candidates {
-		root := e.RootSessionID
-		if root == "" {
-			root = e.SessionID
-		}
-		if !ended[root] {
-			live = append(live, e)
-		}
-	}
-	return live, true
+	return candidates, true
 }
 
 // checkLiveCollisionGate refuses to start workItemID while another live

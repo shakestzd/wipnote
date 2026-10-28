@@ -1,6 +1,8 @@
 package hooks
 
 import (
+	"os"
+
 	"github.com/google/uuid"
 	"github.com/shakestzd/wipnote/core/paths"
 )
@@ -15,6 +17,7 @@ func SubagentStart(event *CloudEvent) (*HookResult, error) {
 		return &HookResult{Continue: true}, nil
 	}
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
+	recordDelegateHook(event, projectDir, sessionID, "subagent_start")
 	agentType := event.AgentType
 	if agentType == "" {
 		agentType = "general-purpose"
@@ -35,6 +38,9 @@ func SubagentStart(event *CloudEvent) (*HookResult, error) {
 // here, but there is no use-case to keep a subagent running.
 func SubagentStop(event *CloudEvent) (*HookResult, error) {
 	sessionID := resolveSessionIDWithHarness(event)
+	if sessionID != "" && event.AgentID != "" && os.Getenv(DelegateRunEnv) != "" {
+		recordDelegateHook(event, ResolveProjectDir(event.CWD, event.SessionID), sessionID, "subagent_stop")
+	}
 	if sessionID != "" && event.AgentTranscriptPath != "" && event.Harness == HarnessClaude {
 		projectDir := ResolveProjectDir(event.CWD, event.SessionID)
 		recordClaudeTranscriptFailures(event, projectDir, sessionID, event.AgentTranscriptPath)

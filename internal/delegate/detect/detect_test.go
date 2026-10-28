@@ -2,9 +2,10 @@ package detect
 
 import "testing"
 
-// The recogniser tables below are the codex-herdr-pane mod's, case for case
-// (mods/codex-herdr-pane/hooks/register.test.ts and claude.test.ts), so the Go
-// port keeps the mod's behaviour until slice 14 removes the mod.
+// The recogniser tables below are the retired herdr pane mod's, case for case
+// (its hooks/register.test.ts and claude.test.ts), so the Go port keeps the
+// mod's behaviour. The mod's "already wrapped" marker is gone with the mod:
+// nothing wraps a command any more, so a comment no longer hides a run.
 
 // TestDetect_ModCases ports the mod's "recognises" and "standalone" tables.
 func TestDetect_ModCases(t *testing.T) {
@@ -20,6 +21,8 @@ func TestDetect_ModCases(t *testing.T) {
 			`codex review --base main`,
 			`x=$(codex exec "q")`,
 			`a; codex exec "q"`,
+			"# a comment\ncodex exec \"q\"",
+			"# codex-" + "herdr-pane\ncodex exec \"the old marker hides nothing\"",
 		}},
 		{"codex no", None, []string{
 			`codex "interactive prompt"`,
@@ -33,14 +36,13 @@ func TestDetect_ModCases(t *testing.T) {
 			`git log --grep="codex exec"`,
 			"cat <<EOF\ncodex exec hidden\nEOF",
 			`ls codex-exec-notes.md`,
-			Marker + "\ncodex exec \"already wrapped\"",
-			Marker + "\nexec bash '/tmp/codex-herdr-run.a1.sh'",
 		}},
 		{"ccx yes", Ccx, []string{
 			`ccx task "x"`,
 			`~/tools/claude-container/ccx task "x"`,
 			`ccx task "x" --resume abc`,
 			`cd repo && /opt/bin/ccx task "x"`,
+			"# a comment\nccx task \"x\"",
 		}},
 		{"ccx no", None, []string{
 			`ccx status`, `ccx up`, `ccx down`, `ccx login`,
@@ -48,7 +50,6 @@ func TestDetect_ModCases(t *testing.T) {
 			"cat <<EOF\nccx task hidden\nEOF",
 			`ccx task --help`,
 			`ls ccx-task-notes.md`,
-			Marker + "\nccx task \"already wrapped\"",
 		}},
 		{"claude yes", Claude, []string{
 			`claude -p "say ok" --allowedTools Read`, `claude --print "x"`, `cd r && claude --model opus -p "x"`,
@@ -58,7 +59,7 @@ func TestDetect_ModCases(t *testing.T) {
 		{"claude no", None, []string{
 			`claude`, `claude "fix it"`, `claude --version`, `claude -p --version`, `claude -p "x" -h`, `claude --help`,
 			`claude mcp list -p`, `claude plugin install -p x`, `dev exec -d svc claude`, `echo "claude -p x"`, `echo 'a; claude -p b'`,
-			"cat <<EOF\nclaude -p hidden\nEOF", `wipnote claude -p x`, `claude-p x`, Marker + "\nclaude -p \"already wrapped\"",
+			"cat <<EOF\nclaude -p hidden\nEOF", `wipnote claude -p x`, `claude-p x`,
 			`/usr/local/bin/claude -p "x"`, `~/.local/bin/claude -p "x"`,
 			`claude -p "x" --output-format json`, `claude -p --output-format=text "x"`, "claude \\\n  -p \"x\" --output-format json",
 			"cd x && claude\nmkdir -p out", "claude --resume abc\nls -p",

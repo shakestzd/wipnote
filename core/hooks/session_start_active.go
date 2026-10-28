@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"encoding/json"
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,7 +38,7 @@ type ActiveSessionData struct {
 // a torn/empty file, and concurrent writers cannot corrupt each other
 // (bug-d2d3fb3f: parallel agents stomped .active-session).
 func WriteActiveSessionForHarness(sessionID, projectDir, harness string) {
-	if projectDir == "" {
+	if projectDir == "" || containerwrite.Active() { // shared file: never from a container worker
 		return
 	}
 	data := ActiveSessionData{

@@ -1,7 +1,11 @@
 package detect
 
 import (
+	"os"
+	"path/filepath"
+
 	"fmt"
+	"github.com/shakestzd/wipnote/internal/delegate/container"
 	"regexp"
 	"strings"
 
@@ -18,13 +22,18 @@ var assignRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 // "" to let the command run as typed (q-intercept: deny-redirect). The reason
 // names the exact `wipnote delegate run -- <same argv>`, so the retry is the
 // same call and passes the normal permission checks; a bare ccx task is shown
-// the --container form instead (decision C).
+// the --container form instead (decision C, slice 21).
 //
 // It redirects only what delegate run takes: a command delegate run would
 // refuse (chained, fed on stdin, behind dev exec, another --output-format)
 // runs as typed. A command that starts with wipnote delegate is never
 // redirected, so the retry cannot loop.
-func Redirect(command string) string {
+func Redirect(command string) string { return RedirectAt(command, "") }
+
+// RedirectAt is Redirect for a command run in cwd (the hook event's; the
+// process's when empty). cwd decides, for a ccx task, whether the project
+// has a devcontainer --container can use.
+func RedirectAt(command, cwd string) string {
 	if !mentionsTool(command) || delegateRunRe.MatchString(command) {
 		return ""
 	}
@@ -42,7 +51,7 @@ func Redirect(command string) string {
 	if err != nil {
 		return ""
 	}
-	return reason(command, words, r)
+	return reason(command, words, r, cwd)
 }
 
 // mentionsTool is the fast path: a command that names no delegated tool is
@@ -65,19 +74,15 @@ const reasonText = `wipnote: a bare %s call skips the delegations ledger, the ru
 
 wipnote delegate run takes the tool's argv unchanged after --.`
 
-const ccxReasonText = `wipnote: a bare ccx task skips the delegations ledger, the run folder and the herdr pane. ccx is container Claude, which wipnote delegate runs as:
+const ccxReasonText = `wipnote: a bare ccx task skips the delegations ledger, the run folder and the herdr pane. ccx is container Claude, which wipnote delegate runs in the project's own devcontainer:
 
   %s
 
---container is coming and this wipnote does not have it yet. Until it does, run:
-
-  %s
-
-wipnote delegate run takes the tool's argv unchanged after --.`
+wipnote delegate run --container takes the task's arguments unchanged after -- and runs them as claude -p there.`
 
 // reason builds the deny text. words start at the tool; what comes before it
 // (VAR=value words) stays in front of wipnote.
-func reason(command string, words []word, r oneshot.Recipe) string {
+func reason(command string, words []word, r oneshot.Recipe, cwd string) string {
 	cmd := strings.TrimRight(command, " \t\r\n")
 	at := words[0].start
 	env := strings.TrimLeft(cmd[:at], " \t\r\n")
@@ -85,10 +90,47 @@ func reason(command string, words []word, r oneshot.Recipe) string {
 	if r.Kind != oneshot.KindCcx {
 		return fmt.Sprintf(reasonText, r.Name(), same)
 	}
-	args := ""
-	if len(words) > 2 {
-		args = cmd[words[2].start:]
+	if !containerForm(words[2:], cwd) {
+		// --container would not run this as ccx meant it: name the form
+		// that does.
+		return fmt.Sprintf(reasonText, r.Name(), same)
 	}
-	container := strings.TrimRight(env+"wipnote delegate run --container -- "+args, " ")
-	return fmt.Sprintf(ccxReasonText, container, same)
+	container := env + "wipnote delegate run --container -- " + cmd[words[2].start:]
+	return fmt.Sprintf(ccxReasonText, container)
+}
+
+// containerForm reports whether a ccx task's arguments can be offered as
+// `delegate run --container`: plain task words only (a ccx flag such as
+// --resume means something to ccx, not to claude -p), that --container
+// accepts, in a project whose own devcontainer it can use.
+func containerForm(args []word, cwd string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	for _, w := range args {
+		if strings.HasPrefix(w.text, "-") {
+			return false
+		}
+	}
+	if _, err := oneshot.ClassifyContainer(texts(args)); err != nil {
+		return false
+	}
+	root := projectRoot(cwd)
+	return root != "" && container.Check(root) == nil
+}
+
+// projectRoot is the folder holding .wipnote/ at or above cwd, or "".
+func projectRoot(cwd string) string {
+	if cwd == "" {
+		cwd, _ = os.Getwd()
+	}
+	for dir := filepath.Clean(cwd); dir != "" && filepath.IsAbs(dir); dir = filepath.Dir(dir) {
+		if fi, err := os.Stat(filepath.Join(dir, ".wipnote")); err == nil && fi.IsDir() {
+			return dir
+		}
+		if dir == filepath.Dir(dir) {
+			break
+		}
+	}
+	return ""
 }

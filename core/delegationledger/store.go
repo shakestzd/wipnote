@@ -3,6 +3,7 @@ package delegationledger
 import (
 	"errors"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"os"
 	"path/filepath"
 	"slices"
@@ -81,6 +82,9 @@ func (s *Store) Open(r Record) (Record, error) {
 	}
 	if err := r.Validate(); err != nil {
 		return Record{}, err
+	}
+	if containerwrite.Active() {
+		return Record{}, ErrContainerWorker
 	}
 
 	release := filelock.Guard(s.path)
@@ -162,6 +166,18 @@ func (s *Store) Enrich(runID string, e Enrichment) (bool, error) {
 	return changed, err
 }
 
+// EnrichIfOpen is Enrich that changes nothing once the row is closed,
+// decided under the ledger lock, so a late write (delegate wait adding a
+// /clear session) never touches a stopped row: a stop always wins (orch F-1).
+func (s *Store) EnrichIfOpen(runID string, e Enrichment) (bool, error) {
+	changed := false
+	err := s.update(runID, "delegation enrich", func(r *Record) bool {
+		changed = r.IsOpen() && applyEnrichment(r, e)
+		return changed
+	})
+	return changed, err
+}
+
 func applyEnrichment(r *Record, e Enrichment) bool {
 	changed := false
 	for _, sid := range e.WorkerSessions {
@@ -186,6 +202,9 @@ func applyEnrichment(r *Record, e Enrichment) bool {
 // changed the row; an unchanged row is not rewritten. The mutated row is
 // validated before anything is written.
 func (s *Store) update(runID, action string, mutate func(*Record) bool) error {
+	if containerwrite.Active() {
+		return ErrContainerWorker
+	}
 	release := filelock.Guard(s.path)
 	defer release()
 
@@ -212,6 +231,10 @@ func (s *Store) update(runID, action string, mutate func(*Record) bool) error {
 	s.notify(action)
 	return nil
 }
+
+// ErrContainerWorker refuses a write from inside a container worker: it
+// writes only its own files, never the shared ledger (plan-28b4a7f6 slice 21).
+var ErrContainerWorker = errors.New("delegationledger: a container worker does not write the shared delegations ledger")
 
 // OpenRuns is one read of the ledger's open rows, for the claim gate and the
 // delegate verbs. One read answers both questions they ask.
@@ -240,6 +263,17 @@ func (o OpenRuns) InteractiveForItem(workItem string) []Record {
 	var out []Record
 	for _, r := range o.rows {
 		if r.Mode == ModeInteractive && workItem != "" && r.WorkItem == workItem {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// Interactive returns the open interactive rows, ordered by start.
+func (o OpenRuns) Interactive() []Record {
+	var out []Record
+	for _, r := range o.rows {
+		if r.Mode == ModeInteractive {
 			out = append(out, r)
 		}
 	}

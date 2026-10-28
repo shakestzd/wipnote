@@ -303,6 +303,13 @@ func TestLedger_OpenInteractiveRowsForItem(t *testing.T) {
 	if got := runs.InteractiveForItem("feat-none"); len(got) != 0 {
 		t.Errorf("InteractiveForItem(feat-none) = %v, want none", got)
 	}
+	ids = nil
+	for _, r := range runs.Interactive() { // every item; never one-shot or closed rows
+		ids = append(ids, r.ID)
+	}
+	if want := []string{"dlg-a00000000001", "dlg-a00000000005", "dlg-a00000000002"}; !reflect.DeepEqual(ids, want) {
+		t.Errorf("Interactive() = %v, want %v", ids, want)
+	}
 
 	if _, ok := testStore(t).ReadOpen(); !ok {
 		t.Errorf("missing ledger reported unreadable")
@@ -441,6 +448,30 @@ func TestLedger_OnCommitGetsRepoRelativePath(t *testing.T) {
 	want := []string{".wipnote/delegations-ledger.html|delegation open", ".wipnote/delegations-ledger.html|delegation close"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("OnCommit calls = %v, want %v", got, want)
+	}
+}
+
+// TestLedger_EnrichIfOpenNeverTouchesClosedRow: the late write a delegate
+// wait makes applies to an open row and changes nothing on a closed one.
+func TestLedger_EnrichIfOpenNeverTouchesClosedRow(t *testing.T) {
+	s := testStore(t)
+	open := mustOpen(t, s, interactiveRow("dlg-333333333333", "feat-a", t0))
+	shut := mustOpen(t, s, interactiveRow("dlg-444444444444", "feat-a", t0))
+	if _, err := s.CloseIfOpen(shut.ID, CloseInfo{Ended: t0.Add(time.Minute), Reason: EndStop}); err != nil {
+		t.Fatal(err)
+	}
+	add := Enrichment{WorkerSessions: []string{"sid-a"}}
+	if changed, err := s.EnrichIfOpen(open.ID, add); err != nil || !changed {
+		t.Fatalf("open row: %v %v", changed, err)
+	}
+	if changed, err := s.EnrichIfOpen(shut.ID, add); err != nil || changed {
+		t.Fatalf("closed row: %v %v", changed, err)
+	}
+	if got, _, _ := s.Get(shut.ID); len(got.WorkerSessions) != 0 || got.EndReason != EndStop {
+		t.Fatalf("closed row changed: %+v", got)
+	}
+	if got, _, _ := s.Get(open.ID); len(got.WorkerSessions) != 1 {
+		t.Fatalf("open row not enriched: %+v", got)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
+	"github.com/shakestzd/wipnote/internal/delegate/session"
 )
 
 // orchestraFixture is the wipnote-orchestra mod's test fixture (plan-28b4a7f6
@@ -32,8 +33,8 @@ const fixtureRoot = "/project"
 // WIPNOTE_UPDATE_FIXTURES=1 rewrites it.
 func TestOrchestraFixture(t *testing.T) {
 	project := t.TempDir()
-	writeFixtureRuns(t, project)
-	got := serializeFixture(t, project)
+	groups := writeFixtureRuns(t, project)
+	got := serializeFixture(t, project, groups)
 	if os.Getenv("WIPNOTE_UPDATE_FIXTURES") == "1" {
 		if err := os.WriteFile(orchestraFixture, []byte(got), 0o644); err != nil {
 			t.Fatal(err)
@@ -82,8 +83,10 @@ func fixtureRuns(t *testing.T) []fixtureRun {
 	}
 }
 
-// writeFixtureRuns writes every run through runstore, render and the ledger.
-func writeFixtureRuns(t *testing.T, project string) {
+// writeFixtureRuns writes every run through runstore, render and the ledger,
+// then lists them as `wipnote delegate list --all` does (which keeps each
+// open worker's observed state in its folder) and returns each run's group.
+func writeFixtureRuns(t *testing.T, project string) map[string]session.Group {
 	t.Helper()
 	store, err := runstore.New(project)
 	if err != nil {
@@ -123,6 +126,21 @@ func writeFixtureRuns(t *testing.T, project string) {
 	if err := os.WriteFile(filepath.Join(noise, runstore.FileLabel), []byte("noise"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	return listGroups(t, store, ledger)
+}
+
+// listGroups is each ledger run's group as list reports it (no herdr: files only).
+func listGroups(t *testing.T, store *runstore.Store, ledger *delegationledger.Store) map[string]session.Group {
+	t.Helper()
+	rows, err := session.List(t.Context(), session.Deps{Store: store, Ledger: ledger}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	groups := map[string]session.Group{}
+	for _, r := range rows {
+		groups[r.Run] = r.Group
+	}
+	return groups
 }
 
 func writeFixtureFolder(t *testing.T, store *runstore.Store, r fixtureRun, at func(int) time.Time) {
@@ -151,8 +169,11 @@ func writeFixtureFolder(t *testing.T, store *runstore.Store, r fixtureRun, at fu
 	if r.events {
 		w, err := rf.OpenEvents("caller")
 		must(err)
-		must(w.Append(runstore.Event{TS: at(r.start).Format(time.RFC3339), Kind: runstore.KindSessionStart}))
+		must(w.Append(runstore.Event{TS: at(r.start).Format(time.RFC3339), Kind: runstore.KindSessionStart, SID: "sid-" + r.rec.Name}))
+		must(w.Append(runstore.Event{TS: at(r.start + 5).Format(time.RFC3339), Kind: runstore.KindQuestion, SID: "sid-" + r.rec.Name}))
 		must(w.Close())
+		must(session.WriteInfo(rf, session.Info{Run: r.rec.ID, Name: r.rec.Name, Harness: r.rec.Harness, WorkItem: r.rec.WorkItem,
+			Place: session.PlaceHost, Created: at(r.start).Format(time.RFC3339)}))
 	}
 	if r.ended != 0 && !r.noExit {
 		must(rf.Finish(r.exit, at(r.ended)))
@@ -163,7 +184,7 @@ func writeFixtureFolder(t *testing.T, store *runstore.Store, r fixtureRun, at fu
 
 // serializeFixture renders every file under the project's .wipnote/ as a
 // TypeScript module, the temp folder written as fixtureRoot.
-func serializeFixture(t *testing.T, project string) string {
+func serializeFixture(t *testing.T, project string, groups map[string]session.Group) string {
 	t.Helper()
 	files := map[string]string{}
 	err := filepath.WalkDir(filepath.Join(project, ".wipnote"), func(path string, d fs.DirEntry, err error) error {
@@ -198,7 +219,15 @@ func serializeFixture(t *testing.T, project string) string {
 	for _, k := range keys {
 		b.WriteString("  " + jsonOf(t, k) + ": " + jsonOf(t, files[k]) + ",\n")
 	}
-	b.WriteString("}\n")
+	b.WriteString("}\n\n")
+	b.WriteString("/** Each ledger run's Overview group as `wipnote delegate list --all` reports it. */\n")
+	b.WriteString("export const GROUPS: Record<string, string> = " + jsonOf(t, groups) + "\n\n")
+	labels := map[session.Group]string{}
+	for _, g := range session.Groups {
+		labels[g] = g.Label()
+	}
+	b.WriteString("/** Each Overview group's display name, as Go labels it. */\n")
+	b.WriteString("export const GROUP_LABELS: Record<string, string> = " + jsonOf(t, labels) + "\n")
 	return b.String()
 }
 

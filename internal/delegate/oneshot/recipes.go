@@ -1,7 +1,7 @@
 // Package oneshot is `wipnote delegate run` (plan-28b4a7f6 slice 8): one
 // delegated tool call (codex exec or review, claude -p, ccx task) run in a
 // herdr pane when the caller is inside herdr, else headless, with the
-// codex-herdr-pane mod's run folder and report.
+// run folder and report of the retired herdr pane mod.
 //
 // The mod generated a shell wrapper and a pane script for every call. Here Go
 // runs the tool's argv directly: there is no generated script, no shim and no

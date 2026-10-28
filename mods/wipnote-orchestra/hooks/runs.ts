@@ -1,6 +1,7 @@
 import type { EngineInterface } from 'claude-code'
 
 import type { RunRow } from '../types'
+import { groupOf } from './model'
 
 /**
  * Delegate runs (wipnote delegate, plan-28b4a7f6): the run folders under
@@ -91,9 +92,26 @@ export type FolderFacts = {
   /** The exit file's code (an unreadable one reads as 1, as Go reads it); undefined while there is none. */
   exit?: number
   answer: string
+  /** The worker's state from state.json, as `wipnote delegate list` last observed it. */
+  observed?: string
 }
 
 const unixMs = (text: string) => (/^\d+$/.test(text.trim()) && Number(text) > 0 ? Number(text.trim()) * 1000 : undefined)
+
+/**
+ * A run's state as Go's list and tree name it (session.RunStateOf and treeState): an open
+ * worker's observed state (starting when it has none Go knows), running for any other open run,
+ * and once ended gone, failed for a non-zero exit, else ended.
+ */
+export function statusOf(ended: boolean, exit: number | undefined, facts: FolderFacts, ledger?: LedgerRow): string {
+  if (!ended && ledger?.mode === 'interactive') {
+    const observed = facts.observed ?? ''
+    return groupOf(observed) !== undefined ? observed : 'starting'
+  }
+  if (!ended) return 'running'
+  if (ledger?.endReason === 'gone') return 'gone'
+  return exit !== undefined && exit !== 0 ? 'failed' : 'ended'
+}
 
 /** The band's row for one run: its folder's files, and its ledger row when there is one. */
 export function rowOf(id: string, facts: FolderFacts, ledger?: LedgerRow): RunRow {
@@ -101,6 +119,7 @@ export function rowOf(id: string, facts: FolderFacts, ledger?: LedgerRow): RunRo
   const exit = facts.exit ?? ledger?.exit
   const reason = facts.exit === undefined && ledger?.endReason !== 'exit' ? ledger?.endReason : undefined
   const endedAt = facts.endedAt ?? ledger?.endedAt
+  const status = statusOf(ended, exit, facts, ledger)
   return {
     id,
     title: ledger?.name || ledger?.label || facts.label || id,
@@ -109,6 +128,8 @@ export function rowOf(id: string, facts: FolderFacts, ledger?: LedgerRow): RunRo
     state: ended ? 'ended' : 'live',
     ...(ended && exit !== undefined ? { exit } : {}),
     ...(ended && reason ? { reason } : {}),
+    status,
+    group: groupOf(status) ?? '',
     ...(facts.startedAt !== undefined ? { startedAt: facts.startedAt } : {}),
     ...(ended && endedAt !== undefined ? { endedAt } : {}),
     answer: facts.answer,
@@ -125,19 +146,32 @@ export function visibleRuns(rows: readonly RunRow[], now: number): RunRow[] {
   return [...live, ...ended]
 }
 
-/** Reads one run folder: label, start, end, exit and the first line of last.md, from plain files only. */
+/** The state named in a worker's state.json, or undefined when it has none or cannot be read. */
+export function observedState(json: string): string | undefined {
+  try {
+    const state = (JSON.parse(json) as { state?: unknown }).state
+    return typeof state === 'string' && state !== '' ? state : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Reads one run folder: label, start, end, exit, the first line of last.md and the observed state, from plain files only. */
 export async function readFolder($: EngineInterface, dir: string): Promise<FolderFacts> {
   const entries = await $.fs.list(dir)
   const files = new Map(entries.filter(one => one.kind === 'file' && !one.isLink).map(one => [one.name, one]))
   const read = (name: string) => (files.has(name) ? $.fs.read(`${dir}/${name}`).then(String).catch(() => '') : Promise.resolve(''))
-  const [label = '', start = '', end = '', exit = '', last = ''] = await Promise.all(['label', 'start', 'end', 'exit', 'last.md'].map(read))
+  const names = ['label', 'start', 'end', 'exit', 'last.md', 'state.json']
+  const [label = '', start = '', end = '', exit = '', last = '', state = ''] = await Promise.all(names.map(read))
   const code = exit.trim()
+  const observed = observedState(state)
   return {
     label: label.trim().split('\n')[0] ?? '',
     startedAt: unixMs(start),
     endedAt: unixMs(end) ?? (files.has('exit') ? files.get('exit')?.mtimeMs || undefined : undefined),
     exit: files.has('exit') ? (/^-?\d+$/.test(code) ? Number(code) : 1) : undefined,
     answer: firstLine(last),
+    ...(observed !== undefined ? { observed } : {}),
   }
 }
 

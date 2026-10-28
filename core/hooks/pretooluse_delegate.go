@@ -6,7 +6,10 @@ package hooks
 // internal/delegate/detect.Redirect: the recogniser reuses `wipnote delegate
 // run`'s argv classifier, which lives in the root module that core cannot
 // import. Nil turns the redirect off.
-var DelegateRedirect func(command string) string
+//
+// cwd is the event's working folder: the recogniser checks there whether a
+// project has the devcontainer a ccx task's --container form needs.
+var DelegateRedirect func(command, cwd string) string
 
 // guardDelegateRedirect denies a bare delegation so it is re-issued through
 // `wipnote delegate run` and gets a ledger row, a run folder and a pane.
@@ -37,7 +40,7 @@ func DelegateRedirectResult(event *CloudEvent) (res *HookResult) {
 			res = nil
 		}
 	}()
-	if reason := fn(cmd); reason != "" {
+	if reason := fn(cmd, event.CWD); reason != "" {
 		return &HookResult{Decision: "block", Reason: reason}
 	}
 	return nil

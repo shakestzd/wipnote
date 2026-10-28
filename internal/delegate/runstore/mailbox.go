@@ -50,8 +50,12 @@ var (
 // Message is one mailbox file, <seq>-<id>.json. The worker's result is
 // outbox/<task-id>-result.json, with id <task-id>-result.
 type Message struct {
-	V         int    `json:"v"`
-	ID        string `json:"id"`
+	V  int    `json:"v"`
+	ID string `json:"id"`
+	// Run is the run the message belongs to. A mailbox is keyed by worker
+	// name, so a later run with the same name shares it; readers keep only
+	// their own run's messages.
+	Run       string `json:"run,omitempty"`
 	From      string `json:"from"`
 	To        string `json:"to"`
 	Type      string `json:"type"`
@@ -175,18 +179,31 @@ func (m *Mailbox) Read(folder Folder) ([]Message, error) {
 
 // load parses one plain message file; ok is false for anything else.
 func (m *Mailbox) load(folder Folder, name string) (Message, bool) {
+	var msg Message
+	ok := m.loadJSON(folder, name, &msg)
+	return msg, ok
+}
+
+// loadJSON parses one plain, size-bounded file of folder into v.
+func (m *Mailbox) loadJSON(folder Folder, name string, v any) bool {
 	path := filepath.Join(m.dir, string(folder), name)
 	fi, err := os.Lstat(path)
 	if err != nil || !fi.Mode().IsRegular() || fi.Size() > maxMsgBytes {
-		return Message{}, false
+		return false
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return Message{}, false
+		return false
 	}
-	var msg Message
-	if err := json.Unmarshal(data, &msg); err != nil {
-		return Message{}, false
+	return json.Unmarshal(data, v) == nil
+}
+
+// MarkHinted rewrites inbox message msg with hinted set, once its herdr hint
+// was submitted. The caller is the inbox's only writer.
+func (m *Mailbox) MarkHinted(msg Message) (Message, error) {
+	if !ValidMsgID(msg.ID) || msg.Seq < 1 {
+		return Message{}, fmt.Errorf("runstore: invalid message id %q or seq %d", msg.ID, msg.Seq)
 	}
-	return msg, true
+	msg.Hinted = true
+	return msg, m.writeJSON(Inbox, fmt.Sprintf("%06d-%s.json", msg.Seq, msg.ID), msg)
 }

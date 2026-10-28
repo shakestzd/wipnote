@@ -15,6 +15,9 @@ import (
 // ViewOptions tunes View.
 type ViewOptions struct {
 	Poll time.Duration // how often the run folder is read; 400ms when zero
+	// Asks, when set, lists an interactive run's pending asks (hook asks
+	// and outbox q-files, D7); each new set is printed once.
+	Asks func() []string
 }
 
 // tailAnswer is how much of clean.log stands in for a missing answer.
@@ -46,6 +49,7 @@ func View(ctx context.Context, rf *runstore.RunFolder, w io.Writer, opts ViewOpt
 			return err
 		}
 		v.step(info.Finished)
+		v.asks(opts.Asks)
 		if info.Finished {
 			return v.finish(info)
 		}
@@ -61,8 +65,25 @@ type viewer struct {
 	rf  *runstore.RunFolder
 	w   io.Writer
 	src string // the file followed
+	ask string // the asks last printed
 	off int64
 	doc docReader
+}
+
+// asks prints the pending asks when they changed.
+func (v *viewer) asks(list func() []string) {
+	if list == nil {
+		return
+	}
+	cur := list()
+	key := strings.Join(cur, "\n")
+	if key == v.ask {
+		return
+	}
+	v.ask = key
+	for _, a := range cur {
+		fmt.Fprintf(v.w, "[pending] %s\n", a)
+	}
 }
 
 // step prints what is new; final takes a trailing partial line too.
