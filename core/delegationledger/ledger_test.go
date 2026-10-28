@@ -303,6 +303,13 @@ func TestLedger_OpenInteractiveRowsForItem(t *testing.T) {
 	if got := runs.InteractiveForItem("feat-none"); len(got) != 0 {
 		t.Errorf("InteractiveForItem(feat-none) = %v, want none", got)
 	}
+	ids = nil
+	for _, r := range runs.Interactive() { // every item; never one-shot or closed rows
+		ids = append(ids, r.ID)
+	}
+	if want := []string{"dlg-a00000000001", "dlg-a00000000005", "dlg-a00000000002"}; !reflect.DeepEqual(ids, want) {
+		t.Errorf("Interactive() = %v, want %v", ids, want)
+	}
 
 	if _, ok := testStore(t).ReadOpen(); !ok {
 		t.Errorf("missing ledger reported unreadable")

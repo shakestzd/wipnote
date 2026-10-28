@@ -245,6 +245,17 @@ func (o OpenRuns) InteractiveForItem(workItem string) []Record {
 	return out
 }
 
+// Interactive returns the open interactive rows, ordered by start.
+func (o OpenRuns) Interactive() []Record {
+	var out []Record
+	for _, r := range o.rows {
+		if r.Mode == ModeInteractive {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // ByRunID returns the open row for runID.
 func (o OpenRuns) ByRunID(runID string) (Record, bool) {
 	if i := indexOf(o.rows, runID); i >= 0 {

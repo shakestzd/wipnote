@@ -50,6 +50,10 @@ func SessionStart(event *CloudEvent, projectDir string) (*HookResult, error) {
 		sessionID = uuid.New().String()
 	}
 
+	// A delegate worker's bind event (plan-28b4a7f6 slice 10): one small
+	// append, fail-open, before anything slow.
+	recordDelegateHook(event, projectDir, sessionID, "session_start")
+
 	now := time.Now().UTC()
 	shortID := sessionID[:minSessionLen(sessionID)]
 
