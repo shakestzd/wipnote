@@ -27,7 +27,7 @@ func UserPrompt(event *CloudEvent) (*HookResult, error) {
 
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
 	// Background tasks that ended while the agent waited (feat-36658c22).
-	syncTranscriptRunsFor(event, projectDir, sessionID)
+	syncTranscriptRunsFor(event, projectDir, sessionID, runPromptPass)
 	// The open claim in the canonical claim ledger is the active work item.
 	featureID := canonicalActiveWorkItem(projectDir, sessionID)
 

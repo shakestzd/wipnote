@@ -46,6 +46,8 @@ func SessionEnd(event *CloudEvent, projectDir string) (*HookResult, error) {
 	// any unmatched start aborted. The pass reads a bounded transcript tail and
 	// never waits on a lock, so it costs milliseconds.
 	recordTranscriptFailuresFor(event, projectDir, sessionID)
+	// Codex starts that never reported back are not runs (feat-36658c22).
+	pruneCodexPendingRuns(projectDir, sessionID)
 
 	// 1. The durable end note, before anything that can be slow. If the harness
 	// cancels this hook at any later point, catch-up finishes from the note.

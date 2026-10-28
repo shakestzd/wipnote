@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSummarizeText(t *testing.T) {
@@ -16,6 +17,11 @@ func TestSummarizeText(t *testing.T) {
 		{"panic", "starting\npanic: boom\n", "panic: boom", "panic: boom"},
 		{"clean run", "ok  core 0.1s\n0 errors found\nPASS\n\n", "PASS", ""},
 		{"empty", "", "", ""},
+		{"error mid-line", "step 1\nbuild: error: linker failed\n", "build: error: linker failed", "build: error: linker failed"},
+		{"traceback", "run\nTraceback (most recent call last):\n", "Traceback (most recent call last):", "Traceback (most recent call last):"},
+		{"missing tool", "sh: jq: command not found\n", "sh: jq: command not found", "sh: jq: command not found"},
+		{"colon but not file:line", "time: 12:30 done\nnote.v2: fine\n", "note.v2: fine", ""},
+		{"errors word without colon", "no errors\nerror handling ok\n", "error handling ok", ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -39,6 +45,20 @@ func TestSummarizeFile_KeepsFirstErrorAndLastLine(t *testing.T) {
 	}
 	if l, f := SummarizeFile(filepath.Join(t.TempDir(), "missing")); l != "" || f != "" {
 		t.Error("missing file must summarise to nothing")
+	}
+}
+
+// A large clean log must summarise fast: the hooks summarise every output
+// file a notification names, on the prompt path.
+func TestSummarizeFile_FastOnLargeCleanLog(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "big.output")
+	os.WriteFile(path, []byte(strings.Repeat("ok  github.com/x/y/pkg 0.123s\n", 40000)), 0o644)
+	start := time.Now()
+	for i := 0; i < 10; i++ {
+		SummarizeFile(path)
+	}
+	if per := time.Since(start) / 10; per > 15*time.Millisecond {
+		t.Errorf("SummarizeFile on a 1MB clean log took %v, want under 15ms", per)
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 // rewritten or wrapped: the start is read from the PostToolUse payload of the
 // call that launched the task (Claude Code) or from PreToolUse (Codex), and
 // the end from the transcript's task-notification (runs_transcript.go) or
-// Codex's late PostToolUse. Every write is one small append to the session's
+// Codex's late PostToolUse (runs_codex.go). Every write is one small append to the session's
 // run shard: no SQLite, no network, no transcript scan.
 
 var (
@@ -23,6 +23,9 @@ var (
 	monitorStartedPattern = regexp.MustCompile(`Monitor started \(task ([A-Za-z0-9_-]+)`)
 )
 
+// runClock is the time source for run events; tests pin it.
+var runClock = time.Now
+
 // runLaunch is what a Claude tool call started, if anything.
 type runLaunch struct {
 	kind   string
@@ -31,25 +34,17 @@ type runLaunch struct {
 }
 
 // recordRunFromPostToolUse is the PostToolUse half: a Claude launch becomes a
-// start (and, for a foreground subagent, an end); a Codex shell call ends.
+// start (and, for a foreground subagent, an end); a slow Codex shell call is
+// promoted to the ledger (runs_codex.go).
 func recordRunFromPostToolUse(event *CloudEvent, ctx *toolUseContext) {
 	switch event.Harness {
 	case HarnessClaude:
 		recordClaudeRunLaunch(event, ctx)
 	case HarnessCodex:
 		if event.ToolName == "Bash" {
-			recordCodexRunEnd(event, ctx)
+			finishCodexRun(event, ctx)
 		}
 	}
-}
-
-// recordRunFromPreToolUse is the PreToolUse half: only a Codex shell call
-// starts here, since its PostToolUse arrives when the command finishes.
-func recordRunFromPreToolUse(event *CloudEvent, ctx *toolUseContext) {
-	if event.Harness != HarnessCodex || event.ToolName != "Bash" {
-		return
-	}
-	appendRunEvent(ctx.ProjectDir, newRunStart(event, ctx, runledger.KindShell, "", time.Now().UTC()))
 }
 
 func recordClaudeRunLaunch(event *CloudEvent, ctx *toolUseContext) {
@@ -57,7 +52,7 @@ func recordClaudeRunLaunch(event *CloudEvent, ctx *toolUseContext) {
 	if !ok {
 		return
 	}
-	now := time.Now().UTC()
+	now := runClock().UTC()
 	start := now
 	if launch.sync {
 		start = now.Add(-event.DurationMS.Duration())
@@ -91,18 +86,6 @@ func classifyClaudeLaunch(event *CloudEvent) (runLaunch, bool) {
 		return runLaunch{kind: runledger.KindMonitor, taskID: id}, true
 	}
 	return runLaunch{}, false
-}
-
-func recordCodexRunEnd(event *CloudEvent, ctx *toolUseContext) {
-	start := newRunStart(event, ctx, runledger.KindShell, "", time.Now().UTC())
-	status := runledger.StatusCompleted
-	if !isSuccess(event.ToolResult) {
-		status = runledger.StatusFailed
-	}
-	end := runEndFor(start, time.Now().UTC(), status)
-	last, first := runledger.SummarizeText(summarizeToolOutput(event.ToolResult))
-	end.LastLine, end.FirstError = runledger.Clean(last, ctx.ProjectDir), runledger.Clean(first, ctx.ProjectDir)
-	appendRunEvent(ctx.ProjectDir, end)
 }
 
 // newRunStart builds the start event for the call in event.

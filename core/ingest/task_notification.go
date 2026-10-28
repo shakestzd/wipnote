@@ -34,6 +34,9 @@ type TaskNotification struct {
 	Description string // the quoted name in the summary
 	Exit        *int   // from "(exit code N)"; nil when the summary has none
 	At          time.Time
+	// LineEnd is the offset in the parsed buffer just past this line's
+	// newline, so a caller can stop after any notification and resume there.
+	LineEnd int
 }
 
 // taskNotificationMark is the substring every candidate line holds, so most
@@ -50,18 +53,26 @@ var (
 // task-notification, or that carry no task id or status (remote-notification
 // batches, interim monitor events), are skipped.
 func ParseTaskNotifications(buf []byte) []TaskNotification {
+	return ParseTaskNotificationsN(buf, -1)
+}
+
+// ParseTaskNotificationsN is ParseTaskNotifications that stops after max
+// notifications (max < 0 means no limit), so a bounded caller never decodes
+// lines it will not use.
+func ParseTaskNotificationsN(buf []byte, max int) []TaskNotification {
 	var out []TaskNotification
-	for len(buf) > 0 {
-		line := buf
-		if nl := bytes.IndexByte(buf, '\n'); nl >= 0 {
-			line, buf = buf[:nl], buf[nl+1:]
-		} else {
-			buf = nil
+	for pos := 0; pos < len(buf) && (max < 0 || len(out) < max); {
+		end := len(buf)
+		if nl := bytes.IndexByte(buf[pos:], '\n'); nl >= 0 {
+			end = pos + nl + 1
 		}
+		line := bytes.TrimSuffix(buf[pos:end], []byte("\n"))
+		pos = end
 		if !bytes.Contains(line, taskNotificationMark) {
 			continue
 		}
 		if n, ok := parseNotificationLine(line); ok {
+			n.LineEnd = end
 			out = append(out, n)
 		}
 	}

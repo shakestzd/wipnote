@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -217,30 +218,6 @@ func TestRuns_SyncSubagentRecordsStartAndEnd(t *testing.T) {
 	}
 }
 
-func TestRuns_CodexShellStartsAtPreAndEndsAtPost(t *testing.T) {
-	projectDir, wipnoteDir := runsProject(t)
-	pre := &CloudEvent{SessionID: runsSession, CWD: projectDir, ToolName: "Bash", ToolUseID: "exec-1",
-		ToolInput: map[string]any{"command": "go test ./..."}, Harness: HarnessCodex}
-	if _, err := PreToolUse(pre); err != nil {
-		t.Fatal(err)
-	}
-	if recs := runRecords(t, wipnoteDir, false); len(recs) != 1 || recs[0].Status != runledger.StatusRunning {
-		t.Fatalf("after pre: %+v, want one running run", recs)
-	}
-	post := *pre
-	post.ToolResult = map[string]any{"output": "ok  core\nerror: vet found issues\nFAIL\n"}
-	if _, err := PostToolUse(&post); err != nil {
-		t.Fatal(err)
-	}
-	recs := runRecords(t, wipnoteDir, false)
-	if len(recs) != 1 || recs[0].EndedAt.IsZero() || recs[0].Status == runledger.StatusRunning {
-		t.Fatalf("after post: %+v, want the run ended", recs)
-	}
-	if recs[0].FirstError != "error: vet found issues" || recs[0].LastLine != "FAIL" {
-		t.Errorf("summary = %q / %q", recs[0].FirstError, recs[0].LastLine)
-	}
-}
-
 func TestRuns_HooksWriteNoDatabase(t *testing.T) {
 	projectDir, wipnoteDir := runsProject(t)
 	PostToolUseRecord(backgroundBash(projectDir, "toolu_D", "bd", "gate"))
@@ -253,4 +230,52 @@ func TestRuns_HooksWriteNoDatabase(t *testing.T) {
 		}
 		return nil
 	})
+}
+
+func savedRunOffset(projectDir string) int64 {
+	return readRunOffset(filepath.Join(projectDir, ".wipnote", "sessions", runsSession, runOffsetFile))
+}
+
+// UserPromptSubmit is synchronous: one pass reads at most the prompt cap;
+// Stop may read up to its larger cap.
+func TestRuns_PromptPassReadsAtMostItsCap(t *testing.T) {
+	projectDir, _ := runsProject(t)
+	transcript := filepath.Join(t.TempDir(), "s.jsonl")
+	line := `{"type":"assistant","message":{"content":"` + strings.Repeat("x", 1000) + `"}}` + "\n"
+	appendFile(t, transcript, strings.Repeat(line, int(2*runPromptChunkBytes)/len(line)+10))
+
+	UserPrompt(&CloudEvent{SessionID: runsSession, CWD: projectDir, TranscriptPath: transcript, Prompt: "go", Harness: HarnessClaude})
+	first := savedRunOffset(projectDir)
+	if first <= 0 || first > runPromptChunkBytes {
+		t.Fatalf("prompt pass offset %d, want in (0, %d]", first, runPromptChunkBytes)
+	}
+	Stop(&CloudEvent{SessionID: runsSession, CWD: projectDir, TranscriptPath: transcript, Harness: HarnessClaude})
+	if got := savedRunOffset(projectDir) - first; got <= runPromptChunkBytes || got > runStopChunkBytes {
+		t.Fatalf("stop pass read %d bytes, want more than the prompt cap and at most %d", got, runStopChunkBytes)
+	}
+}
+
+// A window full of notifications costs one output-file read each, so the
+// prompt pass also caps ends; the rest are picked up by later passes, none
+// lost and none twice.
+func TestRuns_PromptPassCapsEndsAndResumes(t *testing.T) {
+	projectDir, wipnoteDir := runsProject(t)
+	transcript := filepath.Join(t.TempDir(), "s.jsonl")
+	const total = 20
+	for i := 0; i < total; i++ {
+		id := fmt.Sprintf("b%02d", i)
+		appendFile(t, transcript, notificationLine(id, "toolu_"+id, "/none/"+id, "completed", `Background command "x" completed (exit code 0)`))
+	}
+	prompt := &CloudEvent{SessionID: runsSession, CWD: projectDir, TranscriptPath: transcript, Prompt: "go", Harness: HarnessClaude}
+	UserPrompt(prompt)
+	if n := len(runRecords(t, wipnoteDir, false)); n != runPromptMaxEnds {
+		t.Fatalf("first prompt pass recorded %d ends, want %d", n, runPromptMaxEnds)
+	}
+	for i := 0; i < total; i++ {
+		UserPrompt(prompt)
+	}
+	events, _ := runledger.NewStore(wipnoteDir).ReadAll()
+	if len(events) != total || len(runRecords(t, wipnoteDir, false)) != total {
+		t.Fatalf("after catching up: %d events, want %d distinct ends", len(events), total)
+	}
 }

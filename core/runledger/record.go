@@ -8,9 +8,10 @@
 // PostToolUse payload of the call that launched the task (task id, output
 // file), and its end from the <task-notification> Claude Code writes to the
 // session transcript, which the Stop and UserPromptSubmit hooks read from a
-// saved offset. A Codex shell call starts at PreToolUse and ends at its late
-// PostToolUse. `wipnote run` is an optional wrapper for scripts run outside a
-// harness.
+// saved offset. A Codex shell call is a run only when it is slow: its start
+// waits in a gitignored scratch file from PreToolUse, and its late PostToolUse
+// promotes it when it ran at least the threshold (core/hooks/runs_codex.go).
+// `wipnote run` is an optional wrapper for scripts run outside a harness.
 //
 // # Storage: an append-only event log, one shard per writer
 //

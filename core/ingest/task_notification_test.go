@@ -127,3 +127,37 @@ func TestReadTranscriptChunk_BoundedAndRecoversFromTruncation(t *testing.T) {
 		t.Fatalf("after over-long line = %q", buf)
 	}
 }
+
+// LineEnd lets a caller stop after any notification and resume exactly at
+// the next line.
+func TestParseTaskNotifications_LineEndPointsPastTheLine(t *testing.T) {
+	buf := readFixture(t)
+	got := ParseTaskNotifications(buf)
+	prev := 0
+	for _, n := range got {
+		if n.LineEnd <= prev || n.LineEnd > len(buf) || buf[n.LineEnd-1] != '\n' {
+			t.Fatalf("LineEnd %d for %s is not a line end after %d", n.LineEnd, n.TaskID, prev)
+		}
+		if !strings.Contains(string(buf[prev:n.LineEnd]), "<task-id>"+n.TaskID+"</task-id>") {
+			t.Errorf("line ending at %d does not hold task %s", n.LineEnd, n.TaskID)
+		}
+		prev = n.LineEnd
+	}
+	if rest := ParseTaskNotifications(buf[got[0].LineEnd:]); len(rest) != len(got)-1 {
+		t.Errorf("resuming after the first notification found %d, want %d", len(rest), len(got)-1)
+	}
+}
+
+// A bounded caller parses no further than the notifications it will use.
+func TestParseTaskNotificationsN_StopsAtLimit(t *testing.T) {
+	buf := readFixture(t)
+	if got := ParseTaskNotificationsN(buf, 2); len(got) != 2 || got[1].Kind != "subagent" {
+		t.Fatalf("limit 2 = %+v", got)
+	}
+	if got := ParseTaskNotificationsN(buf, 100); len(got) != 3 {
+		t.Fatalf("limit above count = %d, want 3", len(got))
+	}
+	if got := ParseTaskNotificationsN(buf, 0); len(got) != 0 {
+		t.Fatalf("limit 0 = %d, want 0", len(got))
+	}
+}

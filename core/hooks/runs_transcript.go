@@ -17,42 +17,67 @@ import (
 // runTranscriptChunkBytes per pass, and append one end event per
 // notification. The offset lives in the gitignored session folder.
 
-// runTranscriptChunkBytes bounds one pass. A long backlog (a resumed session
-// with no saved offset) is caught up over several turns.
-var runTranscriptChunkBytes int64 = 4 << 20
+// runPass bounds one pass: bytes of transcript read, and ends processed
+// (each end may read its output file). A long backlog (a resumed session with
+// no saved offset) is caught up over several turns. UserPromptSubmit is
+// synchronous, so its pass is much smaller than Stop's. Measured on a 10MB
+// transcript with a notification every 100 lines and 256KB output files
+// (BenchmarkSyncTranscriptRuns_FirstRead): about 70ms for a 4MB pass, about
+// 10ms for a 512KB pass.
+type runPass struct {
+	bytes int64
+	ends  int
+}
+
+var (
+	runStopChunkBytes   int64 = 4 << 20
+	runPromptChunkBytes int64 = 512 << 10
+	runPromptMaxEnds          = 8
+
+	runStopPass   = runPass{bytes: runStopChunkBytes, ends: 1 << 20}
+	runPromptPass = runPass{bytes: runPromptChunkBytes, ends: runPromptMaxEnds}
+)
 
 const runOffsetFile = ".runs-transcript-offset"
 
-// syncTranscriptRunsFor runs the pass for a Claude hook event.
-func syncTranscriptRunsFor(event *CloudEvent, projectDir, sessionID string) {
+// syncTranscriptRunsFor runs one bounded pass for a Claude hook event.
+func syncTranscriptRunsFor(event *CloudEvent, projectDir, sessionID string, pass runPass) {
 	if event == nil || event.Harness != HarnessClaude || event.TranscriptPath == "" {
 		return
 	}
-	SyncTranscriptRuns(projectDir, sessionID, event.TranscriptPath)
+	syncTranscriptRuns(projectDir, sessionID, event.TranscriptPath, pass)
 }
 
 // SyncTranscriptRuns appends an end event for every task-notification written
 // to the transcript since the last pass and returns how many it appended. It
 // is also the on-demand reader for commands that want ends up to date.
 func SyncTranscriptRuns(projectDir, sessionID, transcriptPath string) int {
+	return syncTranscriptRuns(projectDir, sessionID, transcriptPath, runStopPass)
+}
+
+func syncTranscriptRuns(projectDir, sessionID, transcriptPath string, pass runPass) int {
 	if projectDir == "" || sessionID == "" || transcriptPath == "" {
 		return 0
 	}
 	offsetPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID, runOffsetFile)
 	offset := readRunOffset(offsetPath)
-	buf, next, err := ingest.ReadTranscriptChunk(transcriptPath, offset, runTranscriptChunkBytes)
+	buf, next, err := ingest.ReadTranscriptChunk(transcriptPath, offset, pass.bytes)
 	if err != nil {
 		return 0
 	}
-	n := 0
-	for _, note := range ingest.ParseTaskNotifications(buf) {
+	notes := ingest.ParseTaskNotificationsN(buf, pass.ends)
+	if len(notes) == pass.ends && pass.ends > 0 {
+		// Stop after the last end this pass may process; the next pass
+		// resumes at the following line. buf ends at next.
+		next = next - int64(len(buf)) + int64(notes[len(notes)-1].LineEnd)
+	}
+	for _, note := range notes {
 		appendRunEvent(projectDir, notificationEnd(projectDir, sessionID, note))
-		n++
 	}
 	if next != offset {
 		writeRunOffset(offsetPath, next)
 	}
-	return n
+	return len(notes)
 }
 
 // notificationEnd turns one notification into an end event. The output file
