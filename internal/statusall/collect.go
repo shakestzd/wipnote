@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/gitwatch"
+	"github.com/shakestzd/wipnote/internal/procsweep"
 	"github.com/shakestzd/wipnote/internal/registry"
 )
 
@@ -48,6 +50,11 @@ type Options struct {
 	// Herdr lists agents; nil marks herdr HerdrReason (e.g. not available).
 	Herdr       HerdrSource
 	HerdrReason string
+	// Procs lists processes for the one orphan sweep of the run; nil skips
+	// the sweep and ProcsReason is reported instead.
+	Procs        procsweep.Lister
+	ProcsReason  string
+	ProcsTimeout time.Duration // the sweep's own bound
 }
 
 func (o Options) withDefaults() Options {
@@ -69,6 +76,12 @@ func (o Options) withDefaults() Options {
 	if o.GHReason == "" {
 		o.GHReason = SourceSkipped
 	}
+	if o.ProcsReason == "" {
+		o.ProcsReason = SourceSkipped
+	}
+	if o.ProcsTimeout <= 0 {
+		o.ProcsTimeout = procsweep.DefaultTimeout
+	}
 	if o.HerdrReason == "" {
 		o.HerdrReason = SourceNotAvailable
 	}
@@ -82,10 +95,10 @@ func Collect(ctx context.Context, o Options) Report {
 	o = o.withDefaults()
 	ctx, cancel := context.WithTimeout(ctx, o.Deadline)
 	defer cancel()
-	hs := listHerdr(ctx, o)
+	hs, ps := gatherShared(ctx, o)
 	placed := placeByCwd(ctx, o.Entries, &hs)
 	work := func(ctx context.Context, i int) Project {
-		return collectProject(ctx, o, o.Entries[i], hs, placed[i])
+		return collectProject(ctx, o, o.Entries[i], hs, ps, placed[i])
 	}
 	late := func(i int) Project {
 		p := newProject(o.Entries[i])
@@ -96,6 +109,19 @@ func Collect(ctx context.Context, o Options) Report {
 	rows := runPool(ctx, len(o.Entries), o.Workers, o.Deadline+lateGrace, work, late)
 	sortByActivity(rows)
 	return Report{Schema: Schema, GeneratedAt: stamp(o.Now()), Projects: rows}
+}
+
+// gatherShared runs the reads every project shares, the herdr listing and
+// the process sweep, at the same time: each once per run.
+func gatherShared(ctx context.Context, o Options) (herdrState, procsState) {
+	var hs herdrState
+	var ps procsState
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() { defer wg.Done(); hs = listHerdr(ctx, o) }()
+	go func() { defer wg.Done(); ps = sweepProcs(ctx, o) }()
+	wg.Wait()
+	return hs, ps
 }
 
 type result struct {
@@ -182,7 +208,7 @@ func newProject(e registry.Entry) Project {
 	return Project{
 		Name: e.Name, ID: e.ID,
 		InProgress: []Item{}, Agents: []Agent{}, Runs: []Run{}, NeedsYou: []Need{},
-		Orphans: []any{}, Sources: map[string]string{}, Errors: []string{},
+		Orphans: []procsweep.Proc{}, Sources: map[string]string{}, Errors: []string{},
 	}
 }
 

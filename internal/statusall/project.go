@@ -28,7 +28,7 @@ type local struct {
 
 // collectProject reads one project. Unreadable parts become errors on the
 // row; an unreadable project is a row with only its error.
-func collectProject(ctx context.Context, o Options, e registry.Entry, hs herdrState, placed []int) Project {
+func collectProject(ctx context.Context, o Options, e registry.Entry, hs herdrState, ps procsState, placed []int) Project {
 	p := newProject(e)
 	if err := readable(e.ProjectDir); err != nil {
 		p.Errors = append(p.Errors, "cannot read project: "+err.Error())
@@ -44,6 +44,8 @@ func collectProject(ctx context.Context, o Options, e registry.Entry, hs herdrSt
 	p.Agents = projectAgents(ctx, &p, hs, placed, lc)
 	p.Sources["herdr"] = hs.state
 	p.NeedsYou = needs(p.Agents, lc.runs, o.Now(), o.Window, o.Loc)
+	p.Orphans, p.Sources["procs"] = projectOrphans(ps, e), ps.state
+	p.NeedsYou = append(p.NeedsYou, orphanNeeds(p.Orphans)...)
 	p.LastActivity = stamp(lastActivity(&p, lc, e))
 	return p
 }

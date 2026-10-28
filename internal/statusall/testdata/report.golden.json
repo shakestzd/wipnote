@@ -94,13 +94,29 @@
           "what": "gate exit 1 at 11:55: FAIL TestSomething",
           "since": "2026-10-28T11:55:00Z",
           "work_item": "feat-11110002"
+        },
+        {
+          "kind": "orphan_process",
+          "what": "orphaned process 4242 — node ./server.js --port 3000; stop with: kill 4242",
+          "since": "2026-10-28T09:30:00Z"
         }
       ],
-      "orphans": [],
+      "orphans": [
+        {
+          "pid": 4242,
+          "command": "node ./server.js --port 3000",
+          "session_id": "11111111-1111-4111-8111-111111111111",
+          "project": "alpha",
+          "started_at": "2026-10-28T09:30:00Z",
+          "orphan": true,
+          "stop_hint": "kill 4242"
+        }
+      ],
       "sources": {
         "gh": "ok",
         "git": "ok",
-        "herdr": "ok"
+        "herdr": "ok",
+        "procs": "ok"
       },
       "errors": []
     }

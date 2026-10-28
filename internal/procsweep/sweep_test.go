@@ -3,6 +3,7 @@ package procsweep
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -193,5 +194,42 @@ func TestSweep_StartedWithinToleranceIsOrphan(t *testing.T) {
 func TestSweep_UnknownStartKeepsEndedRule(t *testing.T) {
 	if p := endedChildStartedAt(t, time.Time{}); !p.Orphan {
 		t.Fatalf("with no start time, an ended session's child stays an orphan: %+v", p)
+	}
+}
+
+// unreadableProject is a project whose sessions ledger path is a directory,
+// so reading it fails.
+func unreadableProject(t *testing.T, name string) Project {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), ".wipnote")
+	if err := os.MkdirAll(filepath.Join(dir, sessionledger.FileName), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return Project{Name: name, WipnoteDir: dir}
+}
+
+func TestSweep_BadLedgerFailsOnlyItsProject(t *testing.T) {
+	projects := []Project{unreadableProject(t, "broken"), tempProject(t, "healthy")}
+	l := fakeTable(raw(400, "nohup worker", map[string]string{"CLAUDE_CODE_SESSION_ID": endedSession}))
+	res, err := Sweep(context.Background(), projects, Options{Lister: l, Self: -1})
+	if err != nil {
+		t.Fatalf("one bad ledger must not fail the sweep: %v", err)
+	}
+	orphans := res.Orphans()
+	if len(orphans) != 1 || orphans[0].PID != 400 || orphans[0].Project != "healthy" {
+		t.Fatalf("healthy project's orphan must still be found, got %+v", res)
+	}
+	msg, ok := res.ProjectErrors["broken"]
+	if !ok || msg == "" || len(res.ProjectErrors) != 1 {
+		t.Fatalf("want one error naming project %q, got %v", "broken", res.ProjectErrors)
+	}
+	if strings.Contains(msg, projects[0].WipnoteDir) {
+		t.Fatalf("project error must not carry a host path: %q", msg)
+	}
+}
+
+func TestSweep_HealthyLedgersRecordNoProjectErrors(t *testing.T) {
+	if res := sweepOne(t, fakeTable()); len(res.ProjectErrors) != 0 {
+		t.Fatalf("no ledger failed, want no project errors, got %v", res.ProjectErrors)
 	}
 }
