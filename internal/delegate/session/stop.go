@@ -62,17 +62,9 @@ func Stop(ctx context.Context, d Deps, name string, o StopOptions) (StopResult, 
 		return res, ErrNotInHerdr
 	}
 	pane := herdr.PaneID(info.Pane)
-	p, err := d.Herdr.Get(ctx, pane)
-	if herdr.IsAbsent(err) {
-		res.Why = fmt.Sprintf("pane %s was already gone; the run is closed as gone and its claims as expired", pane)
-		finishStop(ctx, d, rf, info, &res, delegationledger.EndGone)
-		expireWorkerClaims(d, r, rf)
-		return res, nil
-	}
-	if err == nil && reused(info, p) {
-		res.Why = fmt.Sprintf("pane %s now holds terminal %s, not the worker's %s; nothing was typed or closed, and the run is closed as gone and its claims as expired",
-			pane, p.TerminalID, info.TerminalID)
-		loseWorker(d, r, rf, info)
+	ob, _ := observe(ctx, d, rf, info)
+	if workerLost(ob) && ob.PaneGone {
+		stopUnreachable(ctx, d, r, rf, info, ob, &res)
 		return res, nil
 	}
 	inside := recordInside(ctx, d, info, &res)
@@ -95,8 +87,28 @@ func Stop(ctx context.Context, d Deps, name string, o StopOptions) (StopResult, 
 		}
 	}
 	checkInside(ctx, d, info, inside, &res)
+	if workerLost(ob) { // an exited harness: its shell-only pane is closed, the run ends as a loss
+		res.Why = ob.GoneWhy + "; the pane was closed, and the run is closed as gone and its claims as expired"
+		finishStop(ctx, d, rf, info, &res, delegationledger.EndGone)
+		expireWorkerClaims(d, r, rf)
+		return res, nil
+	}
 	finishStop(ctx, d, rf, info, &res, delegationledger.EndStop)
 	return res, nil
+}
+
+// stopUnreachable is stop of a lost worker whose pane is not its own any
+// more: gone, or its id given to another terminal. Nothing is typed or
+// closed in herdr; the run is closed as gone and its claims as expired.
+func stopUnreachable(ctx context.Context, d Deps, r delegationledger.Record, rf *runstore.RunFolder, info Info, ob Observation, res *StopResult) {
+	if ob.Reused {
+		res.Why = ob.GoneWhy + " (the worker's pinned terminal); nothing was typed or closed, and the run is closed as gone and its claims as expired"
+		loseWorker(d, r, rf, info)
+		return
+	}
+	res.Why = ob.GoneWhy + " already; the run is closed as gone and its claims as expired"
+	finishStop(ctx, d, rf, info, res, delegationledger.EndGone)
+	expireWorkerClaims(d, r, rf)
 }
 
 // exitAgent records the pids, asks the agent to exit and waits for a bare

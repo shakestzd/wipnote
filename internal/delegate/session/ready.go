@@ -44,7 +44,8 @@ const (
 // grey next-prompt suggestion on the line can never make a worker working
 // (D8). The send and stop guards read the line separately (Input).
 type Observation struct {
-	PaneGone     bool
+	PaneGone     bool // the pane is absent, or (Reused) holds another terminal
+	Reused       bool // the pane id now holds another terminal, not the worker's
 	Exited       bool // the harness quit; the pane holds only its shell
 	GoneWhy      string
 	Dialog       string // a folder-trust dialog named by its labels, or ""
@@ -62,10 +63,17 @@ type Readiness struct {
 	Detail string `json:"detail,omitempty"`
 }
 
+// workerLost is the one worker-loss predicate: the pane is gone, its id now
+// holds another terminal, or the harness exited and left only its shell. No
+// worker process is left under herdr then, and no SessionEnd will fire, so
+// every verb that observes one (list, wait, spawn's live check, stop) closes
+// it as lost through loseWorker or, for stop, finishes it as gone.
+func workerLost(o Observation) bool { return o.PaneGone || o.Exited }
+
 // Ready is the one readiness predicate.
 func Ready(o Observation) Readiness {
 	switch {
-	case o.PaneGone || o.Exited:
+	case workerLost(o):
 		return Readiness{StateGone, o.GoneWhy}
 	case o.Dialog != "":
 		return Readiness{StateBlocked, o.Dialog + "; delegate presses no key on it: answer it in the pane"}

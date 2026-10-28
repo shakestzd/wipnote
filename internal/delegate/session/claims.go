@@ -8,7 +8,6 @@ import (
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/workitem"
-	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
 
@@ -34,9 +33,9 @@ func TaskPreamble(info Info, mailDir string) string {
 }
 
 // checkLive refuses a spawn whose name, or whose work item, an open
-// interactive row holds while its pane lives (one worker per item, v1). A
-// row whose pane herdr says is gone, or now holds another terminal, is closed
-// as lost first and no longer counts; its info is returned so the spawn can
+// interactive row holds while its worker lives (one worker per item, v1). A
+// lost worker (workerLost: pane gone, pane reused, or harness exited) is
+// closed first and no longer counts; its info is returned so the spawn can
 // drop it from the workers record once no lock is held (checkLive runs under
 // the caller's workers lock and namesLock, so it must take neither). Running
 // under namesLock (claimName) means two spawns cannot both pass for one item.
@@ -54,7 +53,7 @@ func checkLive(ctx context.Context, d Deps, o SpawnOptions) ([]Info, error) {
 		}
 		rf, info, err := loadInfo(d.Store, r.ID)
 		if err == nil && info.Pane != "" {
-			if p, gerr := d.Herdr.Get(ctx, herdr.PaneID(info.Pane)); herdr.IsAbsent(gerr) || (gerr == nil && reused(info, p)) {
+			if ob, _ := observe(ctx, d, rf, info); workerLost(ob) {
 				closeLost(d, r, rf)
 				lost = append(lost, info)
 				continue

@@ -142,7 +142,7 @@ func waitOnce(ctx context.Context, d Deps, runID, name string) (WaitResult, bool
 // acked, the hook turn state belongs to an older turn and is rejected. Input-line text is never read (D8).
 func settle(d Deps, res WaitResult, o Observation, f eventFacts, unacked bool) (WaitResult, bool) {
 	switch {
-	case o.PaneGone || o.Exited: // a lost pane or an exited harness: worker loss
+	case workerLost(o):
 		closeLostRun(d, res.Run, f.sessions)
 		res.Outcome, res.Detail = OutcomeGone, o.GoneWhy
 	case o.TaskAnswered:

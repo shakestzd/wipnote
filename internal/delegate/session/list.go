@@ -86,7 +86,7 @@ func workerRow(ctx context.Context, d Deps, r delegationledger.Record, row *Row)
 			r.WorkerSessions = row.Sessions
 		}
 	}
-	if o.PaneGone {
+	if workerLost(o) {
 		loseWorker(d, r, rf, info)
 		row.Open = false
 	}
