@@ -151,7 +151,7 @@ before anything is written.
 ### 2.5 Interactive workers (available, slice 10)
 
 ```
-wipnote delegate spawn NAME --harness claude|codex [--work-item ID] [--brief TEXT | --brief-file PATH|-]
+wipnote delegate spawn [NAME] --harness claude|codex [--work-item ID] [--brief TEXT | --brief-file PATH|-]
 wipnote delegate stop NAME [--wait D]
 wipnote delegate list [--all] [--json]
 wipnote delegate tree [--all] [--json]
@@ -199,6 +199,25 @@ closes after its last worker.
 |---|---|
 | 0 | spawn, list and tree succeeded; stop closed the pane |
 | 1 | a refusal or error; stop left the pane open (the JSON still prints) |
+
+**Names by work item (slice 15).** Without NAME, spawn names the worker `<item-id>-<slug of the
+item title>`, cut to 32 characters on a word boundary (`core/slug.WorkerName`). That one name is
+the mailbox name, the ledger `name`, the Claude session name (`--name`) and the herdr agent name
+`list` sets. A given NAME is kept as is. `wipnote claude` names a fresh launch for a work item the
+same way; with no item it keeps `<project>-<timestamp>`, and `--name`, `--resume` and `--continue`
+keep their names. A root Claude session that later claims an item (`<kind> start`) is renamed
+`<item-id> <title>` (cut to 48) on its next prompt, once, through the UserPromptSubmit hook's
+`hookSpecificOutput.sessionTitle` (code.claude.com/docs/en/hooks). The claim leaves a mark in
+`.wipnote/sessions/<sid>/`; the hook reads and removes it, and renames only while the session still
+holds that item. Subagents and delegate workers are never renamed by a claim.
+
+**Codex: recorded as unsupported (checked 2026-10-28).** learn.chatgpt.com/docs/hooks documents
+only `additionalContext` (and a block decision) as UserPromptSubmit and SessionStart output, with no
+title or name field, and the Codex emitter's field set is pinned because an unknown field drops the
+whole response. No launch flag that names a Codex session is documented; the changelog's `/title`
+(codex-cli 0.164.0) is a TUI command, not a launch or hook contract. So a Codex worker is named only
+in wipnote (mailbox, ledger) and in herdr (agent name); boot passes it no name flag. Revisit when a
+Codex doc names a session-title contract.
 
 Planned on top: `--write` (slice 12), `--resume NAME` (slice 20), `--container` (slice 21),
 `--tools`, `--plugin`, `--mcp` (slice 27), one live worker per item (section 5, slice 16).
