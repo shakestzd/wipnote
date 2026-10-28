@@ -164,3 +164,14 @@ func recordDelegateHook(event *CloudEvent, projectDir, sessionID, kind string) {
 		delegateAckNewestTask(projectDir) // after the prompt event: no gap reads as an older turn
 	}
 }
+
+// recordDelegateEnd records how a worker's turn or session ended (slice 22):
+// StopFailure writes error with the API error, SessionEnd writes
+// session_end with the end reason. A one-shot worker run reads them to fail
+// with a named reason; the answer itself stays the result file (decision R).
+func recordDelegateEnd(event *CloudEvent, projectDir, sessionID, kind, summary string) {
+	if event == nil || os.Getenv(DelegateRunEnv) == "" || isSubagentEvent(event) {
+		return
+	}
+	RecordDelegateEvent(projectDir, DelegateEvent{Kind: kind, SID: sessionID, Summary: summary})
+}

@@ -54,6 +54,7 @@ func StopFailure(event *CloudEvent) (*HookResult, error) {
 	}
 	summary := fmt.Sprintf("Turn ended on API error: %s", errType)
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
+	recordDelegateEnd(event, projectDir, sessionID, "error", errType)
 	featureID := canonicalActiveWorkItem(projectDir, sessionID)
 	now := time.Now().UTC()
 	AppendEventToSessionHTML(projectDir, sessionID, SessionEvent{
