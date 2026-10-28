@@ -54,16 +54,19 @@ func BootArgv(exe string, info Info, brief string) []string {
 	return argv
 }
 
-// Preamble is put before the brief (decision R): the worker writes its
+// Preamble is put before the brief and every sent task (decision R): the worker writes its
 // answer to the task's result file, which is what wait and result read.
 func Preamble(info Info, mailDir string) string {
 	result := filepath.Join(mailDir, "outbox", info.Task+"-result.json")
+	question := filepath.Join(mailDir, "outbox", info.Task+"-q1.json")
 	return fmt.Sprintf(`You are the wipnote delegate worker %q (run %s, work item %s).
 When you finish the task below, write your final answer as JSON {"body": "<your answer>"}
 to %s : write a temporary file in the same folder first, then rename it to that name.
 Then end your turn and wait for the next task.
+If you need an answer from your caller first, write {"body": "<question>", "options": ["..."]}
+the same way to %s (q2, q3 for later ones) and end your turn; the answer is typed to you.
 
 ---
 
-`, info.Name, info.Run, info.WorkItem, result)
+`, info.Name, info.Run, info.WorkItem, result, question)
 }

@@ -41,11 +41,11 @@ withdrawn. One path now covers both:
 | `delegate stop` | available (slice 10) | Verified stop of a worker |
 | `delegate list` | available (slice 10) | List runs and worker readiness |
 | `delegate tree` | available (slice 10) | Caller, runs, workers and sub-agents as a tree |
-| `delegate send` | planned (slice 11) | Put a task in a worker's inbox, with a herdr hint |
-| `delegate wait` | planned (slice 11) | Block until a durable signal or the timeout |
-| `delegate result` | planned (slice 11) | Print the newest result file a worker wrote |
-| `delegate questions` | planned (slice 11) | List a worker's pending questions |
-| `delegate inbox` | planned (slice 11) | The worker's own read of its mailbox |
+| `delegate send` | available (slice 11) | Put a task in a worker's inbox, with a herdr hint |
+| `delegate wait` | available (slice 11) | Block until a durable signal or the timeout |
+| `delegate result` | available (slice 11) | Print the newest result file a worker wrote |
+| `delegate questions` | available (slice 11) | List a worker's pending questions |
+| `delegate inbox` | available (slice 11) | The worker's own read of its mailbox |
 | `delegate doctor` | available (slice 12) | Preflight checks (Codex sandbox; container in slice 21; profile in slice 27) |
 | `delegate answer` | planned (slice 17) | Answer a pending worker question by typing into its pane |
 
@@ -256,33 +256,66 @@ Codex doc names a session-title contract.
 Planned on top: `--write` (slice 12), `--resume NAME` (slice 20), `--container` (slice 21),
 `--tools`, `--plugin`, `--mcp` (slice 27), one live worker per item (section 5, slice 16).
 
-### 2.6 Planned commands
+### 2.6 Mailbox verbs (available, slice 11)
 
-None of these exist yet. Flags come from the plan. Where the plan sets no exit code, the row says
-"not set in the plan"; that is open, and the plan has no question id for it.
+```
+wipnote delegate send NAME [TEXT | --file PATH|-]
+wipnote delegate wait NAME --timeout D
+wipnote delegate result NAME
+wipnote delegate questions NAME
+wipnote delegate inbox            # inside a worker
+```
 
-**`delegate send NAME <task>`, planned (slice 11).** Writes the inbox file first, with the result
-preamble (decision R), then sends a `herdr agent prompt` hint. A person's draft on the input line
-blocks it (D8). Exit codes: not set in the plan.
+**send** refuses, writing nothing, unless the readiness predicate accepts input and the input line
+holds no draft (the same `SendCheck` as slice 10; a grey suggestion reads as empty), and while the
+newest inbox task is not acked yet. The whole decision (row still open, readiness, input line,
+ack) and the post run under `mail/<name>/send.lock`. It writes
+`inbox/<seq>-<task>.json` first, with the result preamble (decision R) that also names the question
+file `outbox/<task>-q<n>.json`, then types the same text with `herdr agent prompt` as a hint and
+marks the message `hinted`. A failed hint keeps the task in the inbox (`hinted: false`,
+`hint_error`). Prints `{run, name, task, turn, hinted, hint_error}`. `turn` counts the worker's tasks.
 
-**`delegate wait NAME --timeout D`, planned (slice 11).** Blocks until a durable signal. `--timeout` is
-required. It prints `{run, turn, outcome}` with outcome `ready`, `done`, `asks`, `idle_no_result`,
-`idle_shell`, `timeout`, `gone` or `stopped`. It polls at most twice a second. It writes no run state.
+**wait** needs `--timeout` and settles, in this order: a closed row (`stopped`, or `gone` for
+`end_reason=gone`) at once; a lost pane (`gone`: the row closes as gone only if still open, and only
+the worker sessions' own claim episodes are expired; a harness that exited in a live pane counts
+the same); the current task's result file (`done`, even
+with silent hooks or a turn stuck at working, D1 and D1b); a pending ask (`asks`, with the rows of
+`questions`, D7); a folder-trust dialog (`blocked`, even before the first task is acked); then the
+predicate's `ready`, `idle_no_result` or `idle_shell`. While the newest task is not acked, the hook
+turn state belongs to an older turn and never settles the wait; the ack is read before the events.
+Every herdr call is bounded by the wait's deadline, which still ends in `timeout` and exit 124.
+It polls at most twice a second, never reads the input line (D8) and writes no run state; its only
+writes are the two ledger ones under the ledger lock on a still-open row (a `/clear` session joins
+`worker_sessions`; the worker-loss close). Prints `{run, name, turn, outcome, task, detail, asks}`.
+
+**Run scoping.** A mailbox is keyed by worker name, so a later worker with the same name shares
+it. Every message carries `run`, and send, wait, list, result, questions, inbox and the worker's ack
+hook read only their own run's tasks (and the result and question files of those tasks).
+
+**result** prints the newest result file's body and the task it answers whatever the state
+(D3), or `"result": "none"`. **questions** prints the current session's pending AskUserQuestion
+and PermissionRequest calls and the newest task's unanswered question files as rows `{id, kind, task,
+tool, text, options}`; a question file is answered once an inbox message has `in_reply_to` set to
+its id (slice 17 writes it). `delegate view` of an interactive run prints each new set of pending
+asks. **inbox** reads the mailbox of the run named by `WIPNOTE_DELEGATE_RUN`; `lost: true` marks a
+task that was neither hinted nor acked.
+
+**Worker hooks** (in addition to the bind events): PreToolUse writes `tool_start`, or `question`
+for AskUserQuestion with a bounded summary of the questions and options; PostToolUse and
+PostToolUseFailure write `tool_end`; PermissionRequest writes `permission_request` when the prompt
+reaches the person; UserPromptSubmit, after its `prompt` event, acks the newest inbox task. The
+Stop event records only that the turn ended.
 
 | Exit | When |
 |---|---|
-| 124 | The timeout passed |
-| other | Not set in the plan |
+| 0 | send, result, questions and inbox succeeded; wait settled |
+| 124 | wait: the timeout passed |
+| 1 | a refusal or error, including wait without `--timeout` |
 
-**`delegate result NAME`, planned (slice 11).** Prints the newest result file's body and the task it
-answers, whatever the state (D3). Exit codes: not set in the plan.
+### 2.7 Planned commands
 
-**`delegate questions NAME`, planned (slice 11).** Prints pending AskUserQuestion and
-PermissionRequest calls, and outbox question files, as JSON rows. Answered ones are dropped. Exit
-codes: not set in the plan.
-
-**`delegate inbox`, planned (slice 11).** Runs in the worker. It reads the worker's own mailbox, named
-by `WIPNOTE_DELEGATE_RUN`, including messages whose hint was lost. Exit codes: not set in the plan.
+None of these exist yet. Flags come from the plan. Where the plan sets no exit code, the row says
+"not set in the plan"; that is open, and the plan has no question id for it.
 
 **`delegate doctor`, available (slice 12).** Pass, warn, fail or skip per check, with the exact
 stderr. Slice 12: `codex` (on PATH, its version), `bwrap sandbox` (a fresh probe, which refreshes
@@ -473,7 +506,7 @@ Claude Code 2.1.310, codex-cli 0.164.0).
 
 - Whether `spawn` NAME becomes optional when slice 15 derives `<item-id>-<slug>`. The plan has no
   question id for it.
-- Exit codes for every planned command except `wait`'s 124. The plan sets none and has no question
+- Exit codes for every planned command. The plan sets none and has no question
   id for them.
 - Slice 27's notes leave four facts to verify on the real CLIs: whether `--strict-mcp-config` also
   drops plugin-bundled MCP servers; whether `codex -c mcp_servers={}` replaces the table; whether the

@@ -191,7 +191,7 @@ func writeRunFiles(d Deps, rf *runstore.RunFolder, info *Info, brief string) err
 		if err != nil {
 			return err
 		}
-		task, err := mb.Post(runstore.Inbox, runstore.Message{From: "caller", To: info.Name, Type: runstore.TypeTask, Body: brief})
+		task, err := mb.Post(runstore.Inbox, runstore.Message{Run: info.Run, From: "caller", To: info.Name, Type: runstore.TypeTask, Body: brief})
 		if err != nil {
 			return err
 		}
