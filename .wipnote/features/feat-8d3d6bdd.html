@@ -10,20 +10,30 @@
 <body>
     <article id="feat-8d3d6bdd"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-27T21:39:40.657677"
-             data-updated="2026-10-28T02:20:27.892022" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
+             data-updated="2026-10-28T02:38:44.752122" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Label herdr panes with their work item</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="a5d55c842fa2767d7c2f0166f85ca87f3b3e2644.html" data-relationship="committed_in" data-since="2026-10-27T22:38:01">Merge pull request #277 from shakestzd/obs/d2</a></li>
+                    <li><a href="446ff67f2929a1b9be17fe21d6f058919999c57c.html" data-relationship="committed_in" data-since="2026-10-28T02:21:46">wipnote: sync feat-8d3d6bdd</a></li>
+                    <li><a href="7ac8ab5969872ec9bbdaed2ea34c7fb16d41bd28.html" data-relationship="committed_in" data-since="2026-10-28T02:20:25">feat-8d3d6bdd: label delegate run panes with their work item</a></li>
+                    <li><a href="cd61be5d225fcb9f8dbb966ae59202271e125053.html" data-relationship="committed_in" data-since="2026-10-27T21:54:59">wipnote: start feat-8d3d6bdd</a></li>
+                    <li><a href="cf8311c5d1c3acdfcc5ffa5405e64fdaaf802e78.html" data-relationship="committed_in" data-since="2026-10-27T21:54:06">feat-8d3d6bdd: label herdr panes with their work item</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -47,11 +57,11 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-feat-8d3d6bdd-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Finding: herdr 0.9.5 can rename an existing pane and tab. Primary source https://herdr.dev/docs/cli-reference/ lists &#39;herdr pane rename &lt;pane_id&gt; &lt;label&gt;|--clear&#39; and &#39;herdr tab rename &lt;tab_id&gt; &lt;label&gt;&#39;; pane rename added in v0.5.8 (https://newreleases.io/project/github/herdrdev/herdr/release/v0.5.8). Same page: HERDR_ENV=1 inside herdr panes, HERDR_PANE_ID / HERDR_TAB_ID / HERDR_WORKSPACE_ID name the pane, tab, workspace. No herdr binary here, so not run live. flaviocopes and betterstack guides do not document rename. Plan: label the caller&#39;s pane via the adapter&#39;s existing Rename (pane rename HERDR_PANE_ID label).</li>
-                <li data-completed="false" data-step-id="step-feat-8d3d6bdd-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ herdr adapter: label.go adds WorkLabel (&lt;id&gt;: &lt;title&gt;, whitespace collapsed, cut to 48 runes with an ellipsis), LabelTimeout (1s) and LabelCallerPane (no call outside herdr, no caller pane or blank label). Tests in label_test.go with the scripted fake, red then green.</li>
-                <li data-completed="false" data-step-id="step-feat-8d3d6bdd-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ feature/bug/spike start labels the caller&#39;s herdr pane via pane rename (root or codex agent only; a subagent start leaves the pane alone). cmd TestMain clears HERDR_* and doubles as the fake herdr.</li>
-                <li data-completed="false" data-step-id="step-feat-8d3d6bdd-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ wipnote claude (dev/default) and wipnote codex (--feature/--track; --work-item goes through feature start) label the pane in a background goroutine so launch never waits. delegate run left unchanged: it already names its own pane with --label or the derived label.</li>
-                <li data-completed="false" data-step-id="step-feat-8d3d6bdd-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ delegate run panes: with a work item the pane title is &lt;id&gt;: &lt;title&gt; (herdr.WorkLabel); explicit --label wins; no work item keeps the derived label. Chosen in oneshot.paneLabel (internal/delegate/oneshot/run.go). Yolo launches and clearing labels on exit left out per owner decision.</li>
+                <li data-completed="true" data-step-id="step-feat-8d3d6bdd-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Finding: herdr 0.9.5 can rename an existing pane and tab. Primary source https://herdr.dev/docs/cli-reference/ lists &#39;herdr pane rename &lt;pane_id&gt; &lt;label&gt;|--clear&#39; and &#39;herdr tab rename &lt;tab_id&gt; &lt;label&gt;&#39;; pane rename added in v0.5.8 (https://newreleases.io/project/github/herdrdev/herdr/release/v0.5.8). Same page: HERDR_ENV=1 inside herdr panes, HERDR_PANE_ID / HERDR_TAB_ID / HERDR_WORKSPACE_ID name the pane, tab, workspace. No herdr binary here, so not run live. flaviocopes and betterstack guides do not document rename. Plan: label the caller&#39;s pane via the adapter&#39;s existing Rename (pane rename HERDR_PANE_ID label).</li>
+                <li data-completed="true" data-step-id="step-feat-8d3d6bdd-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ herdr adapter: label.go adds WorkLabel (&lt;id&gt;: &lt;title&gt;, whitespace collapsed, cut to 48 runes with an ellipsis), LabelTimeout (1s) and LabelCallerPane (no call outside herdr, no caller pane or blank label). Tests in label_test.go with the scripted fake, red then green.</li>
+                <li data-completed="true" data-step-id="step-feat-8d3d6bdd-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ feature/bug/spike start labels the caller&#39;s herdr pane via pane rename (root or codex agent only; a subagent start leaves the pane alone). cmd TestMain clears HERDR_* and doubles as the fake herdr.</li>
+                <li data-completed="true" data-step-id="step-feat-8d3d6bdd-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ wipnote claude (dev/default) and wipnote codex (--feature/--track; --work-item goes through feature start) label the pane in a background goroutine so launch never waits. delegate run left unchanged: it already names its own pane with --label or the derived label.</li>
+                <li data-completed="true" data-step-id="step-feat-8d3d6bdd-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ delegate run panes: with a work item the pane title is &lt;id&gt;: &lt;title&gt; (herdr.WorkLabel); explicit --label wins; no work item keeps the derived label. Chosen in oneshot.paneLabel (internal/delegate/oneshot/run.go). Yolo launches and clearing labels on exit left out per owner decision.</li>
             </ol>
         </section>
 
