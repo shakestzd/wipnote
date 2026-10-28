@@ -52,13 +52,17 @@ func RequestedSandbox(args []string) string {
 	return v
 }
 
+// isBypass reports whether w turns the sandbox off: the long flag or its
+// --yolo alias.
+func isBypass(w string) bool { return w == bypassFlag || w == yoloFlag }
+
 // BypassesSandbox reports whether args turn the sandbox off entirely.
 func BypassesSandbox(args []string) bool {
-	return slices.Contains(ownWords(args), bypassFlag)
+	return slices.ContainsFunc(ownWords(args), isBypass)
 }
 
 // WithSandbox returns args with the caller's own sandbox words (--sandbox,
-// -s, --full-auto and the bypass flag) replaced by one --sandbox m in
+// -s, --full-auto, the bypass flag and --yolo) replaced by one --sandbox m in
 // front. Words after "--" are prompt and are never touched.
 func WithSandbox(args []string, m Mode) []string {
 	own := ownWords(args)
@@ -68,7 +72,7 @@ func WithSandbox(args []string, m Mode) []string {
 			i += span - 1
 			continue
 		}
-		if own[i] == "--full-auto" || own[i] == bypassFlag {
+		if own[i] == "--full-auto" || isBypass(own[i]) {
 			continue
 		}
 		out = append(out, own[i])

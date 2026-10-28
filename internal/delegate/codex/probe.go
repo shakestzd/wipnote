@@ -68,6 +68,10 @@ func Probe(ctx context.Context, goos string) ProbeResult {
 	out, err := ProbeBwrap(ctx)
 	r := ProbeResult{Output: strings.TrimSpace(string(out)), CheckedAt: time.Now().UTC()}
 	switch {
+	case errors.Is(err, exec.ErrNotFound):
+		// Codex falls back to its bundled bubblewrap when no system bwrap
+		// exists, so a missing one settles nothing.
+		r.Status, r.Output = ProbeUnknown, r.Output+"; Codex may use its bundled bubblewrap"
 	case err == nil:
 		r.Status = ProbePass
 	case errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled):

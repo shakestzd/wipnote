@@ -40,6 +40,9 @@ var ErrRefused = errors.New("codex sandbox refused")
 // bypassFlag is Codex's flag that turns off the sandbox and approvals.
 const bypassFlag = "--dangerously-bypass-approvals-and-sandbox"
 
+// yoloFlag is Codex's documented alias for bypassFlag.
+const yoloFlag = "--yolo"
+
 // ParseMode reads a --sandbox value.
 func ParseMode(s string) (Mode, bool) {
 	m := Mode(strings.TrimSpace(s))
