@@ -24,7 +24,7 @@ func newThreadFixture(t *testing.T) *threadFixture {
 	t.Helper()
 	unsetProjectEnv(t)
 	f := &threadFixture{home: t.TempDir(), project: t.TempDir(), env: map[string]string{"WIPNOTE_SESSION_ID": "sess-thread"}, binary: true}
-	writeTestFile(t, filepath.Join(f.home, ".claude", "plugins", "cache", "mkt", "wipnote", "0.84.0", ".claude-plugin", "plugin.json"), `{"name": "wipnote"}`)
+	installTestPlugin(t, f.home, true)
 	writeTestFile(t, filepath.Join(f.project, ".claude", "rules", "tracking.md"), "Track work with wipnote.\n")
 	return f
 }
@@ -187,5 +187,83 @@ func TestDoctorProjectThread_CommandExit(t *testing.T) {
 	}
 	if out, err := run(); err != nil {
 		t.Fatalf("all present: err %v\n%s", err, out)
+	}
+}
+
+// installTestPlugin records wipnote@wipnote as Claude Code does: the files
+// in the cache, a row in installed_plugins.json, and enabledPlugins in the
+// user settings (only when enabled).
+func installTestPlugin(t *testing.T, home string, enabled bool) {
+	t.Helper()
+	dir := filepath.Join(home, ".claude", "plugins", "cache", "wipnote", "wipnote", "0.84.0")
+	writeTestFile(t, filepath.Join(dir, ".claude-plugin", "plugin.json"), `{"name": "wipnote"}`)
+	writeTestFile(t, filepath.Join(home, ".claude", "plugins", "installed_plugins.json"),
+		`{"version": 2, "plugins": {"wipnote@wipnote": [{"scope": "user", "installPath": "`+dir+`", "version": "0.84.0"}]}}`)
+	if enabled {
+		writeTestFile(t, filepath.Join(home, ".claude", "settings.json"), `{"enabledPlugins": {"wipnote@wipnote": true}}`)
+	}
+}
+
+// The plugin part passes only for a plugin Claude Code installed and
+// enabled (or synced from claude.ai and not turned off); a marketplace
+// clone or a cached copy with no enabled install does not count.
+func TestDoctorProjectThread_PluginMustBeInstalledAndEnabled(t *testing.T) {
+	f := newThreadFixture(t)
+	delete(f.env, "WIPNOTE_SESSION_ID") // no hooks, so no inference from them
+	reset := func() {
+		if err := os.RemoveAll(filepath.Join(f.home, ".claude")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	plugin := func() codex.Check { return statusOf(t, projectThreadChecks(f.probe()), "plugin") }
+	settings := filepath.Join(f.home, ".claude", "settings.json")
+	cases := []struct {
+		name  string
+		setup func()
+		want  string
+	}{
+		{"marketplace clone only", func() {
+			writeTestFile(t, filepath.Join(f.home, ".claude", "plugins", "marketplaces", "wipnote", "plugin", ".claude-plugin", "plugin.json"), `{"name": "wipnote"}`)
+		}, codex.CheckFail},
+		{"cached copy, no install record", func() {
+			writeTestFile(t, filepath.Join(f.home, ".claude", "plugins", "cache", "wipnote", "wipnote", "0.84.0", ".claude-plugin", "plugin.json"), `{"name": "wipnote"}`)
+		}, codex.CheckFail},
+		{"installed, not enabled", func() { installTestPlugin(t, f.home, false) }, codex.CheckFail},
+		{"installed, disabled", func() {
+			installTestPlugin(t, f.home, false)
+			writeTestFile(t, settings, `{"enabledPlugins": {"wipnote@wipnote": false}}`)
+		}, codex.CheckFail},
+		{"installed and enabled", func() { installTestPlugin(t, f.home, true) }, codex.CheckPass},
+		{"synced from claude.ai", func() {
+			writeTestFile(t, filepath.Join(f.home, ".claude", "plugins", "synced", "wipnote", ".claude-plugin", "plugin.json"), `{"name": "wipnote"}`)
+		}, codex.CheckPass},
+		{"synced, turned off", func() {
+			writeTestFile(t, filepath.Join(f.home, ".claude", "plugins", "synced", "wipnote", ".claude-plugin", "plugin.json"), `{"name": "wipnote"}`)
+			writeTestFile(t, settings, `{"enabledPlugins": {"wipnote@synced": false}}`)
+		}, codex.CheckFail},
+	}
+	for _, c := range cases {
+		reset()
+		c.setup()
+		if got := plugin(); got.Status != c.want {
+			t.Errorf("%s: %+v, want %s", c.name, got, c.want)
+		}
+	}
+}
+
+// Claude Code discovers .claude/rules/**/*.md recursively, so a rule in a
+// subdirectory counts; a non-.md file there does not.
+func TestDoctorProjectThread_RuleInSubdirectory(t *testing.T) {
+	f := newThreadFixture(t)
+	if err := os.RemoveAll(filepath.Join(f.project, ".claude")); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(f.project, ".claude", "rules", "tools", "notes.txt"), "wipnote\n")
+	if c := statusOf(t, projectThreadChecks(f.probe()), "rules"); c.Status != codex.CheckFail {
+		t.Fatalf("a .txt counted: %+v", c)
+	}
+	writeTestFile(t, filepath.Join(f.project, ".claude", "rules", "tools", "tracking.md"), "Use wipnote.\n")
+	if c := statusOf(t, projectThreadChecks(f.probe()), "rules"); c.Status != codex.CheckPass || !strings.Contains(c.Detail, "tools") {
+		t.Fatalf("nested rule: %+v", c)
 	}
 }

@@ -111,16 +111,16 @@ func binaryCheck(p projectThreadProbe) codex.Check {
 	return codex.Check{Name: "binary", Status: codex.CheckPass, Detail: path}
 }
 
-// pluginCheck passes when the plugin's tree is installed under the user's
-// Claude plugins directory, or when its hooks ran (in a thread they come
-// only from the plugin).
+// pluginCheck passes when Claude Code loaded the plugin (CLAUDE_PLUGIN_ROOT),
+// installed and enabled it, or synced it from claude.ai and left it on, or
+// when its hooks ran (in a thread they come only from the plugin).
 func pluginCheck(p projectThreadProbe, hooksRan bool) codex.Check {
 	c := codex.Check{Name: "plugin", Status: codex.CheckPass}
 	if root := p.Getenv("CLAUDE_PLUGIN_ROOT"); root != "" && isWipnotePluginDir(root) {
 		c.Detail = root
 		return c
 	}
-	if dir := findWipnotePlugin(filepath.Join(p.Home, ".claude", "plugins")); dir != "" {
+	if dir := enabledWipnotePlugin(p); dir != "" {
 		c.Detail = dir
 		return c
 	}
@@ -129,7 +129,7 @@ func pluginCheck(p projectThreadProbe, hooksRan bool) codex.Check {
 		return c
 	}
 	c.Status = codex.CheckFail
-	c.Detail = "the wipnote plugin is not installed\nfix: add the wipnote plugin in Project settings > Plugins " +
+	c.Detail = "the wipnote plugin is not installed and enabled\nfix: add the wipnote plugin in Project settings > Plugins " +
 		"(a repo's .claude/ plugin settings do not load in a project thread)"
 	return c
 }
@@ -205,14 +205,22 @@ func rulesCheck(projectDir string) codex.Check {
 			return codex.Check{Name: "rules", Status: codex.CheckPass, Detail: rel + " names wipnote"}
 		}
 	}
-	return codex.Check{Name: "rules", Status: codex.CheckFail, Detail: "no CLAUDE.md, .claude/CLAUDE.md or .claude/rules/*.md names wipnote\n" +
+	return codex.Check{Name: "rules", Status: codex.CheckFail, Detail: "no CLAUDE.md, .claude/CLAUDE.md or .claude/rules/**/*.md names wipnote\n" +
 		"fix: add a rule such as .claude/rules/wipnote.md (text in docs/guides/claude-projects.md) and commit it; " +
 		"for plan context also paste `wipnote plan project-instructions <plan>` into Project settings > Memory > Project instructions"}
 }
 
 // threadInstructionFiles lists the files a project thread loads, in order.
+// Claude Code discovers .claude/rules/**/*.md recursively
+// (code.claude.com/docs/en/memory, checked 2026-10-28); symlinked
+// directories are not followed here.
 func threadInstructionFiles(projectDir string) []string {
 	files := []string{filepath.Join(projectDir, "CLAUDE.md"), filepath.Join(projectDir, ".claude", "CLAUDE.md")}
-	rules, _ := filepath.Glob(filepath.Join(projectDir, ".claude", "rules", "*.md"))
-	return append(files, rules...)
+	_ = filepath.WalkDir(filepath.Join(projectDir, ".claude", "rules"), func(path string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && strings.HasSuffix(path, ".md") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	return files
 }
