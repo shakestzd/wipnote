@@ -116,23 +116,30 @@ func (o Options) withDefaults() Options {
 
 type sessionState struct {
 	project string
-	endedAt time.Time // zero while the session is open
+	latest  sessionledger.Run // the session's latest run
 }
 
 // orphans reports whether a process started at start is a leftover of this
-// session's ended run. The ledger keeps a resumed session's row closed
-// (`--resume` reuses the id and Store.Open leaves an existing row alone), so
-// a process started after the recorded end, past endClockTolerance, belongs
-// to the resumed run and is live. An unknown (zero) start cannot be placed
-// relative to the end, so it keeps the plain rule: ended session → orphan.
+// session. It decides from the LATEST run, which the ledger records for every
+// resume (bug-2a96e9cb):
+//
+//   - latest run open: live, whenever the process started — a process left
+//     over from an earlier run shares the id of a running session;
+//   - latest run ended, start unknown (zero): it cannot be placed relative to
+//     the end, so the plain rule holds — orphan;
+//   - latest run ended, started at or before its end + endClockTolerance: a
+//     leftover of that run or an earlier one — orphan;
+//   - latest run ended, started after that: no recorded run covers it (a
+//     resume whose SessionStart has not been written yet), so it is not called
+//     an orphan.
 func (s sessionState) orphans(start time.Time) bool {
-	if s.endedAt.IsZero() {
+	if s.latest.IsOpen() {
 		return false
 	}
 	if start.IsZero() {
 		return true
 	}
-	return !start.After(s.endedAt.Add(endClockTolerance))
+	return !start.After(s.latest.EndedAt.Add(endClockTolerance))
 }
 
 // loadSessions indexes every readable project's ledger by session id. The
@@ -153,7 +160,7 @@ func loadSessions(projects []Project) (map[string]sessionState, map[string]strin
 		}
 		for _, r := range recs {
 			if _, seen := out[r.SessionID]; !seen {
-				out[r.SessionID] = sessionState{project: p.Name, endedAt: r.EndedAt}
+				out[r.SessionID] = sessionState{project: p.Name, latest: r.LatestRun()}
 			}
 		}
 	}

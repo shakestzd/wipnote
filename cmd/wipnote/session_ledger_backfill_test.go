@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -199,7 +200,7 @@ func TestBackfillIsIdempotent(t *testing.T) {
 	if len(first) != 1 || len(second) != 1 {
 		t.Fatalf("row count changed across repeated backfills: %d then %d", len(first), len(second))
 	}
-	if first[0] != second[0] {
+	if !reflect.DeepEqual(first[0], second[0]) {
 		t.Errorf("a repeated backfill changed the row:\n  first:  %+v\n  second: %+v", first[0], second[0])
 	}
 }
