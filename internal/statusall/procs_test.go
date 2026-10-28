@@ -129,3 +129,28 @@ func TestCollect_HungSweepIsBounded(t *testing.T) {
 		t.Fatalf("procs source = %q", s)
 	}
 }
+
+// A sweep stuck in a filesystem read that ignores the context (a stalled
+// project disk) must not hold the report past the sweep's bound.
+func TestCollect_StalledSweepReadIsBounded(t *testing.T) {
+	o, _, _ := procsFixture(t)
+	o.ProcsTimeout = 200 * time.Millisecond
+	release := make(chan struct{})
+	defer close(release)
+	o.sweep = func(context.Context, []procsweep.Project, procsweep.Options) (procsweep.Result, error) {
+		<-release // blocks and never looks at ctx
+		return procsweep.Result{}, nil
+	}
+	start := time.Now()
+	r := Collect(context.Background(), o)
+	if d := time.Since(start); d > 3*time.Second {
+		t.Fatalf("Collect took %s with a stalled sweep read", d)
+	}
+	pa := findProject(t, r, "a")
+	if s := pa.Sources["procs"]; !strings.HasPrefix(s, SourceNotAvailable) {
+		t.Fatalf("procs source = %q", s)
+	}
+	if pa.LastCommit == nil {
+		t.Fatalf("row = %+v; the rest must still read", pa)
+	}
+}

@@ -55,6 +55,8 @@ type Options struct {
 	Procs        procsweep.Lister
 	ProcsReason  string
 	ProcsTimeout time.Duration // the sweep's own bound
+	// sweep is procsweep.Sweep; a test swaps it to stall the sweep.
+	sweep func(context.Context, []procsweep.Project, procsweep.Options) (procsweep.Result, error)
 }
 
 func (o Options) withDefaults() Options {
@@ -81,6 +83,9 @@ func (o Options) withDefaults() Options {
 	}
 	if o.ProcsTimeout <= 0 {
 		o.ProcsTimeout = procsweep.DefaultTimeout
+	}
+	if o.sweep == nil {
+		o.sweep = procsweep.Sweep
 	}
 	if o.HerdrReason == "" {
 		o.HerdrReason = SourceNotAvailable
