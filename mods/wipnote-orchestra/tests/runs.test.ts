@@ -2,10 +2,11 @@ import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
-import { runSpans } from '../hooks/model'
-import { firstLine, parseLedger, visibleRuns, RUN_KEEP_MS } from '../hooks/runs'
+import { GROUP_LABELS, groupOf, runSpans } from '../hooks/model'
+import { firstLine, parseLedger, rowOf, visibleRuns, RUN_KEEP_MS } from '../hooks/runs'
+import type { FolderFacts, LedgerRow } from '../hooks/runs'
 import type { RunRow } from '../types'
-import { FILES, ROOT, T0 } from './fixtures/runs'
+import { FILES, GROUPS, GROUP_LABELS as GO_LABELS, ROOT, T0 } from './fixtures/runs'
 import { memFs, under } from './memfs'
 
 // The fixture is written by the Go run store, ledger and renderers
@@ -13,6 +14,7 @@ import { memFs, under } from './memfs'
 // ended 0, …02 one-shot codex live (explicit label), …03 interactive codex w1
 // live, …04 one-shot ccx ended 2, …05 interactive claude w2 stopped (ledger only),
 // …06 a live folder with no ledger row; …07 a ledger row whose folder was swept.
+// …03's worker asks a question: its state.json is what `wipnote delegate list` observed.
 const NOW = (T0 + 230) * 1000
 const RUNS = '.wipnote/delegate/runs'
 const LEDGER = FILES['.wipnote/delegations-ledger.html'] ?? ''
@@ -43,7 +45,39 @@ test("a run's line is the first non-blank line of last.md, without its Markdown 
   expect(firstLine('\n  \n')).toBe('')
 })
 
-const row = (over: Partial<RunRow>): RunRow => ({ id: 'dlg-000000000001', title: 't', harness: 'codex', mode: 'oneshot', state: 'live', answer: '', ...over })
+const row = (over: Partial<RunRow>): RunRow => ({
+  id: 'dlg-000000000001', title: 't', harness: 'codex', mode: 'oneshot', state: 'live', status: 'running', group: 'working', answer: '', ...over,
+})
+
+test('every delegate state maps to the Overview group Go maps it to; an unknown state has none', () => {
+  const want: Record<string, string> = {
+    starting: 'working', ready: 'idle', working: 'working', question: 'waiting_on_you', done: 'ready_for_review',
+    idle_no_result: 'waiting_on_you', idle_shell: 'working', blocked: 'waiting_on_you', gone: 'waiting_on_you',
+    running: 'working', ended: 'resolved', failed: 'waiting_on_you',
+  }
+  for (const [state, group] of Object.entries(want)) expect(groupOf(state)).toBe(group)
+  for (const state of ['', 'bogus', 'live']) expect(groupOf(state)).toBeUndefined()
+  expect(GROUP_LABELS).toEqual(GO_LABELS)
+})
+
+test("a row's state is Go's: an open worker's observed state, a one-shot's running, and failed or gone once ended", () => {
+  const ledger = (over: Partial<LedgerRow>): LedgerRow => ({ mode: 'interactive', harness: 'codex', name: 'w1', label: '', closed: false, endReason: '', ...over })
+  const facts = (over: Partial<FolderFacts>): FolderFacts => ({ label: 'l', answer: '', ...over })
+  const of = (f: Partial<FolderFacts>, l: Partial<LedgerRow>) => {
+    const { status, group } = rowOf('dlg-000000000001', facts(f), ledger(l))
+    return [status, group]
+  }
+  expect(of({ observed: 'question' }, {})).toEqual(['question', 'waiting_on_you'])
+  expect(of({ observed: 'ready' }, {})).toEqual(['ready', 'idle'])
+  expect(of({}, {})).toEqual(['starting', 'working'])
+  expect(of({ observed: 'bogus' }, {})).toEqual(['starting', 'working'])
+  expect(of({ observed: 'question' }, { mode: 'oneshot' })).toEqual(['running', 'working'])
+  expect(of({ observed: 'question' }, { closed: true, endReason: 'stop' })).toEqual(['ended', 'resolved'])
+  expect(of({ exit: 2 }, { mode: 'oneshot', closed: true, exit: 2, endReason: 'exit' })).toEqual(['failed', 'waiting_on_you'])
+  expect(of({ exit: 0 }, { mode: 'oneshot', closed: true, exit: 0, endReason: 'exit' })).toEqual(['ended', 'resolved'])
+  expect(of({}, { closed: true, endReason: 'gone' })).toEqual(['gone', 'waiting_on_you'])
+  expect(rowOf('dlg-000000000001', facts({}))).toMatchObject({ status: 'running', group: 'working' })
+})
 
 test('live runs always show; an ended run shows for RUN_KEEP_MS after it ended', () => {
   const live = row({ id: 'a', startedAt: 0 })
@@ -59,7 +93,21 @@ test('a row says live or ended, and how an ended run ended', () => {
   expect(text(runSpans(row({ state: 'ended', reason: 'stop' })))).toMatch(/■ ended \(stop\)/)
   expect(text(runSpans(row({ state: 'ended', exit: 0 })))).not.toMatch(/live/)
   expect(text(runSpans(row({})))).not.toMatch(/ended/)
+  expect(text(runSpans(row({ status: 'question', group: 'waiting_on_you' })))).toMatch(/● live +Waiting on you/)
+  expect(text(runSpans(row({ state: 'ended', exit: 0, status: 'ended', group: 'resolved' })))).toMatch(/✔ ended +Resolved/)
+  expect(text(runSpans(row({})))).toMatch(/● live +Working/)
+  expect(text(runSpans(row({})))).not.toMatch(/Waiting on you|Resolved/)
 })
+
+// The fixture's titles, by run id, for the rows list reports.
+const TITLES: Record<string, string> = {
+  'dlg-0a0000000001': 'Find the tsconfig base',
+  'dlg-0a0000000002': 'band "review" & <check>',
+  'dlg-0a0000000003': 'w1',
+  'dlg-0a0000000004': 'Fix the tests',
+  'dlg-0a0000000005': 'w2',
+}
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Starts a session whose project is the fixture's, outside git and herdr, with the band above the prompt. */
 async function start($: Engine, on: On, rel: Record<string, string>) {
@@ -85,12 +133,17 @@ test('Go-written run folders show one row per run, live and ended, outside git a
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...ABOVE, surface })
     const has = async (re: RegExp) => expect(await ui.find({ type: 'Text', text: re })).toBeDefined()
-    await has(/⇄ w1 +codex · interactive +● live +Working on it\./)
-    await has(/⇄ band "review" & <check> +codex · oneshot +● live/)
-    await has(/⇄ Find the tsconfig base +claude-print · oneshot +✔ ended +`tsconfig\.json` extends/)
-    await has(/⇄ Fix the tests +ccx · oneshot +✘ ended exit 2 +ccx: failed in 3s/)
-    await has(/⇄ w2 +claude · interactive +■ ended \(stop\) +Summary/)
-    await has(/⇄ orphan run +● live/)
+    await has(/⇄ w1 +codex · interactive +● live +Waiting on you +Working on it\./)
+    await has(/⇄ band "review" & <check> +codex · oneshot +● live +Working/)
+    await has(/⇄ Find the tsconfig base +claude-print · oneshot +✔ ended +Resolved +`tsconfig\.json` extends/)
+    await has(/⇄ Fix the tests +ccx · oneshot +✘ ended exit 2 +Waiting on you +ccx: failed in 3s/)
+    await has(/⇄ w2 +claude · interactive +■ ended \(stop\) +Resolved +Summary/)
+    await has(/⇄ orphan run +● live +Working/)
+    // The band shows the group list gives the same run (GROUPS, from Go's list).
+    for (const [id, title] of Object.entries(TITLES)) {
+      const label = GO_LABELS[GROUPS[id] ?? ''] ?? 'no group'
+      await has(new RegExp(`⇄ ${escape(title)}  .*  ${escape(label)}(?:  |$)`))
+    }
     expect(await ui.findAll({ type: 'Text', text: /⇄ w1 / })).toHaveLength(1) // one row per run, not per pane or writer
     expect(await ui.find({ type: 'Text', text: /dlg-0a0000000007|not-a-run|noise/ })).toBeUndefined()
     await ui.unmount()

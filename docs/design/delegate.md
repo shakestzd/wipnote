@@ -187,6 +187,24 @@ after it), `done` (the turn ended and the newest task's result file exists), `id
 `idle_no_result`, or `ready`. Input-line text never makes a worker working (D8). `list` also
 renames the herdr agent to NAME and pins its terminal id once herdr lists an agent in the pane.
 
+**Overview groups (slice 25).** list, tree, the orchestra band and `run.html` also name each run's
+Projects Overview group (decision P). `internal/delegate/session/groups.go` holds the one table:
+
+| Group | States |
+|-------|--------|
+| Working | `starting`, `working`, `idle_shell`, `running` (an open one-shot run) |
+| Waiting on you | `question`, `blocked`, `idle_no_result`, `gone` (incl. a run ended `gone`), `failed` (ended with a non-zero exit) |
+| Ready for review | `done` (the result file waits to be read); any idle or ended run with an open PR |
+| Landing | an idle or ended run whose PR is approved or queued |
+| Idle | `ready` |
+| Resolved | `ended` (exit 0, `stop`, `pane_closed`, `imported`); a merged PR |
+
+Working and Waiting on you win over a PR. Waiting on you matches the run and agent kinds of
+`status --all`'s needs_you (`blocked_agent`, `failed_run`, `lost_run`). The band runs no
+readiness predicate: `list` keeps each open worker's observed state in its run folder
+(`state.json`), and the band and tree read it until the ledger row closes. No PR source feeds a
+run yet, so the PR rows are mapped but not shown.
+
 **stop** records the pane's foreground pids and their start times, refuses to type when the
 input line may hold a draft (plain or mixed text, or a failed styled read; an all-grey
 suggestion reads as empty), types `/exit` (Claude) or `/quit` (Codex), waits until process-info
@@ -266,7 +284,8 @@ harness's own ids, oldest first), `host` (`host` or `container`), `started`, `en
 `clean.log`, `clean.md`, `last.md`, `usage`, `start`, `end`, `exit` (its presence ends the run),
 `label`, `host`, `run.html`, and `events-<writer>.ndjson`. A one-shot run also uses `job.json` (what
 the pane worker runs) and, for ccx, `out.txt`. An interactive run also holds `session.json` (name,
-harness, pane, pinned terminal id, caller pane, cwd, place, first task id) and `brief.md`. A caller's
+harness, pane, pinned terminal id, caller pane, cwd, place, first task id), `brief.md` and
+`state.json` (the state and group `list` last observed). A caller's
 workers tab and its worker panes are kept in `.wipnote/delegate/workers/<caller-pane>.json`.
 
 **Mailbox** (`.wipnote/delegate/mail/<name>/`): `inbox/` (written by the caller), `outbox/` (written by

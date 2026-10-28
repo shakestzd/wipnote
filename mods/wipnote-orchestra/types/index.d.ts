@@ -107,6 +107,14 @@ export type RunRow = {
   exit?: number
   /** The ledger's end reason for a run that ended with no exit code (stop, pane_closed, gone). */
   reason?: string
+  /**
+   * The run's state as `wipnote delegate list` names it: an open worker's readiness from its
+   * state.json (starting before any list), running for an open one-shot run, and ended, failed
+   * or gone once the run ended.
+   */
+  status: string
+  /** The status's Projects Overview group (working, waiting_on_you, ready_for_review, landing, idle, resolved). */
+  group: string
   startedAt?: number
   endedAt?: number
   /** The first line of last.md, or empty. */

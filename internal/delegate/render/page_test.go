@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/shakestzd/wipnote/internal/delegate/session"
 )
 
 // run.html escapes everything taken from the run (raw HTML and Markdown in
@@ -99,5 +101,18 @@ func TestPage_Status(t *testing.T) {
 		if got := Status(c.in); got != c.want {
 			t.Errorf("Status(%+v) = %q, want %q", c.in, got, c.want)
 		}
+	}
+}
+
+// run.html names the run's Overview group (slice 25): a failed run waits on
+// you, a run that finished cleanly is resolved.
+func TestPage_ShowsGroup(t *testing.T) {
+	html := Page(PageInput{Label: "l", Status: "s", Group: session.GroupWaitingOnYou, LogPath: "/d"})
+	if !strings.Contains(html, `data-group="waiting_on_you"`) || !strings.Contains(html, ">Waiting on you<") {
+		t.Fatalf("page lacks its group:\n%s", html)
+	}
+	if html := Page(PageInput{Label: "l", Status: "s", OK: true, Group: session.GroupResolved, LogPath: "/d"}); strings.Contains(html, "Waiting on you") ||
+		!strings.Contains(html, `data-group="resolved"`) {
+		t.Fatal("a resolved run's page should say Resolved only")
 	}
 }
