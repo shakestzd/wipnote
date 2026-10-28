@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 83
+    version: 84
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -1810,6 +1810,7 @@ slices:
         **Codex:** stays on codex exec until the slice 2 Mac probes show the TUI Stop payload has the reply, token counts are non-zero and the plugin loads in both modes; switching Codex is a later slice.
         **Rejected:** refusing Claude runs outside herdr; a tmux fallback (owner 2026-10-25).
     - id: slic-8cfc0567
+      feature_id: feat-e3f36f91
       num: 23
       title: wipnote works inside Claude project threads
       what: Make wipnote and delegate usable in a Claude project cloud thread. Threads load CLAUDE.md and .claude/rules only; repo hooks and plugins and skills and .mcp.json do not load. Ship the wipnote plugin so it can be added in Project settings > Plugins; give a cloud environment setup script that installs the wipnote binary; add wipnote doctor --project-thread.
@@ -1840,6 +1841,7 @@ slices:
           claim: Cloud sessions run in a cloud environment whose setup script installs tools before Claude starts.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Principle (owner 2026-10-25):** delegate plus herdr is a multi-harness Projects harness. wipnote plans are the durable layer shared across users and platforms; a Claude project is one more surface that reads them.
         **Rejected:** a delegate cloud backend through claude --cloud (owner did not pick it, 2026-10-25). Projects have no CLI or API to start threads, so delegate does not spawn project threads.
@@ -2796,3 +2798,8 @@ feedback:
           value: promoted
           created_at: "2026-10-28T21:55:28Z"
           updated_at: "2026-10-28T21:55:28Z"
+        - section: slice-23
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-10-28T21:55:31Z"
+          updated_at: "2026-10-28T21:55:31Z"
