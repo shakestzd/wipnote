@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-27T21:39:40.661477"
-             data-updated="2026-10-28T03:17:47.416457" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
+             data-updated="2026-10-28T03:23:22.378086" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
 
         <header>
             <h1>wipnote status --all for every project</h1>
@@ -57,6 +57,7 @@
                 <li data-completed="false" data-step-id="step-feat-715f1d4f-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Write statusall tests first (unreadable project, gh present/absent/hung, herdr blocked/idle/absent, ordering, runs needs, plan, golden schema); confirmed red</li>
                 <li data-completed="false" data-step-id="step-feat-715f1d4f-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Implement internal/statusall (pool &#43; deadline, plan/items/runs/ledgers/git/gh/herdr readers, needs_you, text &#43; JSON), doc docs/design/status-all.md and golden; tests green incl. -race</li>
                 <li data-completed="false" data-step-id="step-feat-715f1d4f-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Wire status --all/--json/--no-gh/--timeout/--runs into cmd status (prerun skipped: writes nothing); cmd tests red-&gt;green; gate green; committed f99ea9d77 &#43; d1b145aee on obs/obs3</li>
+                <li data-completed="false" data-step-id="step-feat-715f1d4f-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Place herdr panes by foreground_cwd, then cwd, then label (herdr CLI reference); fake shape updated; held runs / worker questions noted as not yet sourced; gate green</li>
             </ol>
         </section>
 
