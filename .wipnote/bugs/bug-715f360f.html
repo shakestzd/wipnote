@@ -10,15 +10,15 @@
 <body>
     <article id="bug-715f360f"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-28T05:27:16.715108"
-             data-updated="2026-10-28T05:30:59.033983" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+             data-updated="2026-10-28T11:52:16.525981" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>status --all and procsweep: Codex findings on PRs 279 and 281</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -28,6 +28,17 @@
                 <h3>Caused By:</h3>
                 <ul>
                     <li><a href="../features/feat-715f1d4f.html" data-relationship="caused_by" data-since="2026-10-28T05:27:16.718342">feat-715f1d4f</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="cb352f87f8484774246a27822d5c425cb6c4315f.html" data-relationship="committed_in" data-since="2026-10-28T07:42:07">Merge pull request #283 from shakestzd/obs/codexfix2</a></li>
+                    <li><a href="cb1e4c00061cc036a8272ea303af01b4cb2a5ddc.html" data-relationship="committed_in" data-since="2026-10-28T06:27:03">wipnote: start bug-715f360f</a></li>
+                    <li><a href="65e8e2292cd0bb8c7e45c0b4fa486bd2ab7ba950.html" data-relationship="committed_in" data-since="2026-10-28T05:30:58">fix(statusall): look up the checked-out branch as a branch, not a PR number</a></li>
+                    <li><a href="9f1353d3083b8b757f6fe684c49d5e6372104ca9.html" data-relationship="committed_in" data-since="2026-10-28T05:30:26">fix(statusall): join labelled panes before the harness fallback</a></li>
+                    <li><a href="6b019b2379aef8d02912c72945ca13dd9454437d.html" data-relationship="committed_in" data-since="2026-10-28T05:29:49">fix(procsweep): one unreadable ledger skips only its project</a></li>
+                    <li><a href="671a08199f6b6a5bbe74bfb08fc5ed195521017c.html" data-relationship="committed_in" data-since="2026-10-28T05:28:21">fix(procsweep): honour harness stamp before WIPNOTE_SESSION_ID fallback</a></li>
                 </ul>
             </section>
             <section data-edge-type="implemented_in">
@@ -47,10 +58,10 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-bug-715f360f-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ procsweep env: recognised WIPNOTE_HARNESS stamp limits lookup to its natives then WIPNOTE_SESSION_ID (matches hooks.ResolveSessionID); tests red-&gt;green</li>
-                <li data-completed="false" data-step-id="step-bug-715f360f-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ procsweep sweep: unreadable ledger skips only its project, recorded in Result.ProjectErrors; reconcile prints skipped projects; tests red-&gt;green</li>
-                <li data-completed="false" data-step-id="step-bug-715f360f-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ statusall agents: joinLedger resolves label matches for all panes before the harness fallback; tests red-&gt;green</li>
-                <li data-completed="false" data-step-id="step-bug-715f360f-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ statusall pr: branch looked up via new gitwatch.ResolveBranchPR so a numeric branch is never read as a PR number; tests red-&gt;green</li>
+                <li data-completed="true" data-step-id="step-bug-715f360f-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ procsweep env: recognised WIPNOTE_HARNESS stamp limits lookup to its natives then WIPNOTE_SESSION_ID (matches hooks.ResolveSessionID); tests red-&gt;green</li>
+                <li data-completed="true" data-step-id="step-bug-715f360f-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ procsweep sweep: unreadable ledger skips only its project, recorded in Result.ProjectErrors; reconcile prints skipped projects; tests red-&gt;green</li>
+                <li data-completed="true" data-step-id="step-bug-715f360f-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ statusall agents: joinLedger resolves label matches for all panes before the harness fallback; tests red-&gt;green</li>
+                <li data-completed="true" data-step-id="step-bug-715f360f-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ statusall pr: branch looked up via new gitwatch.ResolveBranchPR so a numeric branch is never read as a PR number; tests red-&gt;green</li>
             </ol>
         </section>
 
