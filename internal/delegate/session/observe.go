@@ -46,11 +46,25 @@ func factsOf(evs []runstore.Event) eventFacts {
 			}
 		case runstore.KindToolEnd:
 			delete(open, ev.ToolUseID)
-			f.asks = nil
+			f.asks = clearAsks(f.asks, ev.ToolUseID)
 		}
 	}
 	f.question, f.shell = len(f.asks) > 0, len(open) > 0
 	return f
+}
+
+// clearAsks drops the asks a tool_end answers: the one of the same tool
+// call. Tools can run side by side, so an unrelated call's end leaves other
+// asks pending. An ask with no tool_use_id cannot be matched and clears on
+// any tool_end, as before.
+func clearAsks(asks []runstore.Event, toolUseID string) []runstore.Event {
+	var keep []runstore.Event
+	for _, a := range asks {
+		if a.ToolUseID != "" && a.ToolUseID != toolUseID {
+			keep = append(keep, a)
+		}
+	}
+	return keep
 }
 
 func isShellTool(name string) bool {
