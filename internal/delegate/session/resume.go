@@ -53,6 +53,7 @@ func resumeOptions(d Deps, o *SpawnOptions, from string) error {
 		return err
 	}
 	o.Harness, o.Cwd, o.ResumedFrom, o.ResumeSession = old.Harness, info.Cwd, old.ID, sid
+	o.WorkDir, o.ProjectDir = info.WorkDir, info.ProjectDir // claude finds the session only from its own dir
 	if o.WorkItem == "" {
 		o.WorkItem = old.WorkItem
 	}

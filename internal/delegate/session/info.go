@@ -45,7 +45,20 @@ type Info struct {
 	// harness session boot passes to --resume (slice 20).
 	ResumedFrom   string `json:"resumed_from,omitempty"`
 	ResumeSession string `json:"resume_session,omitempty"`
-	Created       string `json:"created"`
+	// Args are extra harness flags boot passes after the brief, and
+	// SessionID and Transcript the session id they fix and its transcript
+	// file: a Claude one-shot run's launch (slice 22).
+	Args []string `json:"args,omitempty"`
+	// WorkDir is where the launcher runs claude (--work-dir): the caller's
+	// own cwd, a linked worktree too, rather than the project's main root.
+	WorkDir string `json:"work_dir,omitempty"`
+	// ProjectDir is the project the run store belongs to, passed to the
+	// launcher as --project-dir with WorkDir: the wipnote root (hooks, the
+	// launch marker) stays the run store's wherever claude runs.
+	ProjectDir string `json:"project_dir,omitempty"`
+	SessionID  string `json:"session_id,omitempty"`
+	Transcript string `json:"transcript,omitempty"`
+	Created    string `json:"created"`
 }
 
 // Pin is the herdr pin of the worker's agent (pane plus pinned terminal).

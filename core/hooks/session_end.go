@@ -41,6 +41,9 @@ func SessionEnd(event *CloudEvent, projectDir string) (*HookResult, error) {
 		return &HookResult{Continue: true}, nil
 	}
 
+	// A delegate worker's end reason first: one bounded append, no lock.
+	recordDelegateEnd(event, projectDir, sessionID, "session_end", event.Reason)
+
 	// 0. Denied calls count as failed (feat-ddeaa0d1). This runs before the
 	// end note: once the note exists a concurrent session-start sweep may call
 	// any unmatched start aborted. The pass reads a bounded transcript tail and

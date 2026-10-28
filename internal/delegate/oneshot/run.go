@@ -42,6 +42,9 @@ type Options struct {
 	Stdout    io.Writer
 	Stderr    io.Writer
 	Poll      time.Duration // pane wait; 1 s (the mod's) when zero
+	// Worker makes a claude -p run inside herdr an interactive worker
+	// (slice 22); nil keeps the claude -p pane path.
+	Worker *WorkerOptions
 
 	sandbox codex.Mode // the ladder's decision, set by Run
 }
@@ -74,6 +77,9 @@ func Run(ctx context.Context, o Options) (Result, error) {
 	}
 	if o.sandbox, err = sandboxFor(ctx, o, r); err != nil {
 		return Result{}, err
+	}
+	if res, ok, err := runClaudeWorker(ctx, o, r); ok || err != nil {
+		return res, err
 	}
 	rec, err := o.Ledger.Open(delegationledger.Record{
 		Mode: delegationledger.ModeOneshot, Harness: string(r.Kind), Label: strings.TrimSpace(o.Label),
