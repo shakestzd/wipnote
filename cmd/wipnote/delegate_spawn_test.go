@@ -102,3 +102,48 @@ func TestDelegateBoot_ExecsLauncherWithBrief(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// spawn --resume (plan-28b4a7f6 slice 20): outside herdr it refuses before
+// anything is written, and boot of a resumed run execs the launcher with
+// --resume <id> in the recorded cwd.
+func TestDelegateSpawn_ResumeFlag(t *testing.T) {
+	dir := delegateSessionProject(t)
+	t.Setenv("HERDR_ENV", "")
+	if _, err := execDelegate(t, "spawn", "w2", "--resume", "w1"); err == nil || !strings.Contains(err.Error(), "herdr") {
+		t.Fatalf("outside herdr: %v", err)
+	}
+	if rows, _ := delegationledger.NewStore(filepath.Join(dir, ".wipnote")).ReadAll(); len(rows) != 0 {
+		t.Fatalf("a refused resume wrote %d rows", len(rows))
+	}
+	store, _ := runstore.New(dir)
+	row, err := delegationledger.NewStore(filepath.Join(dir, ".wipnote")).Open(delegationledger.Record{
+		Mode: delegationledger.ModeInteractive, Harness: "claude", Name: "w2", WorkItem: "feat-0a1b2c3d",
+		ResumedFrom: "dlg-0123456789ab",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rf, _ := store.CreateRun(row.ID)
+	if err := session.WriteInfo(rf, session.Info{Run: row.ID, Name: "w2", Harness: "claude", Cwd: dir, ResumeSession: "sid-b"}); err != nil {
+		t.Fatal(err)
+	}
+	var gotArgv []string
+	delegateBootExec = func(_ string, argv, _ []string) error { gotArgv = argv; return nil }
+	t.Cleanup(func() { delegateBootExec = defaultBootExec })
+	t.Chdir(t.TempDir())
+	if _, err := execDelegate(t, "boot", row.ID); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(gotArgv[1:], []string{"claude", "--in-place", "--resume", "sid-b"}) {
+		t.Fatalf("argv %q: want claude --in-place --resume sid-b", gotArgv)
+	}
+	if wd, _ := os.Getwd(); !sameDir(wd, dir) {
+		t.Fatalf("boot ran in %s, want the recorded cwd %s", wd, dir)
+	}
+}
+
+func sameDir(a, b string) bool {
+	ra, _ := filepath.EvalSymlinks(a)
+	rb, _ := filepath.EvalSymlinks(b)
+	return ra == rb
+}

@@ -102,3 +102,35 @@ func TestDelegateBind_FastAndFailOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestDelegateBind_ResumeSourceBindsSameSession (plan-28b4a7f6 slice 20): a
+// resumed worker's SessionStart arrives with source "resume" and the session
+// id the stopped run held. It binds that id to the NEW run the env names,
+// and the old run's folder gets nothing.
+func TestDelegateBind_ResumeSourceBindsSameSession(t *testing.T) {
+	project := t.TempDir()
+	oldDir := delegateRunDir(t, project, "dlg-0123456789ab")
+	newRun := "dlg-ba9876543210"
+	newDir := delegateRunDir(t, project, newRun)
+	t.Setenv(DelegateRunEnv, newRun)
+	ev := &CloudEvent{SessionID: "sid-kept", CWD: project, HookEventName: "SessionStart", Source: "resume"}
+	if _, err := SessionStart(ev, project); err != nil {
+		t.Fatalf("SessionStart: %v", err)
+	}
+	lines := readDelegateLines(t, filepath.Join(newDir, "events-sid-kept.ndjson"))
+	if len(lines) != 1 || lines[0]["kind"] != "session_start" || lines[0]["sid"] != "sid-kept" || lines[0]["run"] != newRun {
+		t.Fatalf("new run lines %v: want one session_start for sid-kept", lines)
+	}
+	if old, _ := filepath.Glob(filepath.Join(oldDir, "events-*")); len(old) != 0 {
+		t.Fatalf("the old run folder was written: %v", old)
+	}
+	// Other side: the same resume start outside a worker binds nothing.
+	t.Setenv(DelegateRunEnv, "")
+	ev2 := &CloudEvent{SessionID: "sid-other", CWD: project, HookEventName: "SessionStart", Source: "resume"}
+	if _, err := SessionStart(ev2, project); err != nil {
+		t.Fatalf("SessionStart: %v", err)
+	}
+	if got, _ := filepath.Glob(filepath.Join(newDir, "events-sid-other*")); len(got) != 0 {
+		t.Fatalf("a non-worker session bound: %v", got)
+	}
+}

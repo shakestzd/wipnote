@@ -256,7 +256,14 @@ Codex doc names a session-title contract.
 
 `spawn --container` starts the worker in the project's devcontainer (section 2.7).
 
-Planned on top: `--write` (slice 12), `--resume NAME` (slice 20),
+`spawn NAME2 --resume NAME` (slice 20, `delegate-resume.md`) starts NAME2 on NAME's last harness
+session: `wipnote claude --in-place --resume <id>` or `wipnote codex --in-place --resume <id>`, in
+NAME's recorded cwd and place, with NAME's harness and work item unless given. The new row has
+`resumed_from` = NAME's run id; the old row stays closed. It refuses, before anything is written, a
+live NAME, a swept run folder, no recorded session id, a gone working folder, `--harness` or
+`--container` that disagree with the old run, a run already resumed, and a Codex resume with a brief.
+
+Planned on top: `--write` (slice 12),
 `--tools`, `--plugin`, `--mcp` (slice 27), one live worker per item (section 5, slice 16).
 
 ### 2.6 Mailbox verbs (available, slice 11)
