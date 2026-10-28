@@ -38,25 +38,38 @@ and its bundled plugin trees) from the project's GitHub release assets, the
 same assets `scripts/install.sh` uses, and checks the tarball against the
 release's checksums file. It needs no secrets.
 
-In the cloud environment's settings, set the setup script to:
+A setup script is entered in the cloud environment's dialog (Setup script row:
+type or paste it, or use Choose file to load a file up to 64 KB). It runs as
+root before Claude Code launches, and the docs do not promise that the
+repository is checked out or is the working directory at that point, so do not
+point it at `bash scripts/cloud-env-setup.sh`. Load the script itself instead:
+select Choose file and pick `scripts/cloud-env-setup.sh`. To change a setting,
+add a line near the top of the loaded text, because the environment's variables
+are not set yet when the setup script runs:
 
 ```bash
-bash scripts/cloud-env-setup.sh
+export WIPNOTE_BIN_DIR=/usr/local/bin   # a directory on the thread's PATH
 ```
 
-For a repository other than wipnote, copy `scripts/cloud-env-setup.sh` into it
-first, so the pin is reviewed with the rest of the repository.
+After changing the pin, load the file again: the environment keeps its own copy.
+The script must exit 0 or the session fails to start, which is why it exits 0
+even when the install fails. A setup script that finishes in about five
+minutes is cached as a filesystem snapshot, so later sessions start with
+wipnote already installed and skip it.
 
 - **Pinned.** The version is `WIPNOTE_PIN` at the top of the script.
   `WIPNOTE_VERSION=X.Y.Z` overrides it; `latest` is refused.
-- **Idempotent.** A second run with the same pin finds the installed version
-  and downloads nothing.
+- **Idempotent.** A second run downloads nothing when the recorded version, the
+  version the binary reports and the plugin tree all match the pin; otherwise
+  it reinstalls.
+- **Bounded.** Each download has a 15 s connect timeout and a 300 s limit, so a
+  stalled host cannot hang the environment start.
 - **Never blocks startup.** When the download, checksum or install fails, the
   script prints why and exits 0, so the environment still starts and the doctor
   reports the missing binary. Set `WIPNOTE_SETUP_STRICT=1` to make it exit 1.
 - **Where it installs.** `~/.local/bin` and `~/.local/share/wipnote`. If
   `~/.local/bin` is not on the thread's `PATH`, set `WIPNOTE_BIN_DIR` to a
-  directory that is (for example `/usr/local/bin` when the script runs as root).
+  directory that is (for example `/usr/local/bin`; the script runs as root).
 
 ### 2. Add the plugin in Project settings > Plugins
 
@@ -70,7 +83,7 @@ Start a new thread after adding the plugin: a running thread does not pick it up
 
 ### 3. Add a rule the thread loads
 
-Threads load `.claude/rules/*.md`, so a rule is the one part that lives in the
+Threads load `.claude/rules/**/*.md` (subdirectories included), so a rule is the one part that lives in the
 repository. A `CLAUDE.md` that already names wipnote is enough. Otherwise
 commit `.claude/rules/wipnote.md`:
 
@@ -113,12 +126,16 @@ pass  rules: .claude/rules/wipnote.md names wipnote
 How it decides each part:
 
 - **binary**: `wipnote` is found on `PATH`.
-- **plugin**: a `.claude-plugin/plugin.json` named `wipnote` is under
-  `~/.claude/plugins` (or at `CLAUDE_PLUGIN_ROOT`), or the hooks ran.
+- **plugin**: Claude Code loaded it (`CLAUDE_PLUGIN_ROOT` points at it), or
+  `~/.claude/plugins/installed_plugins.json` records a `wipnote@<marketplace>`
+  install that `enabledPlugins` in `~/.claude/settings.json` sets to `true`, or
+  it was synced from claude.ai (`~/.claude/plugins/synced/`) and
+  `wipnote@synced` is not set to `false`, or the hooks ran. A marketplace clone
+  or a cached copy with no enabled install does not count.
 - **hooks**: the SessionStart hook ran for this session: `WIPNOTE_SESSION_ID`
   is set (the hook exports it), or `.wipnote/.active-session` names this
   session. Only SessionStart is checked; every other hook depends on it.
-- **rules**: `CLAUDE.md`, `.claude/CLAUDE.md` or a `.claude/rules/*.md` names
+- **rules**: `CLAUDE.md`, `.claude/CLAUDE.md` or a `.claude/rules/**/*.md` names
   wipnote. `@` imports are not followed.
 
 ## Delegation in a thread
