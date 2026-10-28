@@ -69,7 +69,7 @@ func Run(ctx context.Context, o Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	if err := checkContainer(o); err != nil {
+	if err := checkContainer(o, r); err != nil {
 		return Result{}, err
 	}
 	if o.sandbox, err = sandboxFor(ctx, o, r); err != nil {

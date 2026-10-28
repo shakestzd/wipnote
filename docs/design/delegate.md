@@ -119,8 +119,9 @@ Planned changes to `run`:
   (slice 26). Outside herdr, `codex exec` stays. `codex review` and `ccx task` stay one-shot.
 - A bare `codex exec` or `claude -p` in the Bash tool is denied, and the reason holds the exact
   `wipnote delegate run -- <same argv>`. A bare `ccx task` gets the `--container` form
-  (`wipnote delegate run --container -- <task args>`); when `--container` would refuse the task's
-  arguments, the exact-argv form instead. This is a PreToolUse hook, not a command.
+  (`wipnote delegate run --container -- <task words>`) only when its arguments are plain task words
+  and the project has its own devcontainer (`.devcontainer/devcontainer.json` and the devcontainer
+  CLI); a ccx flag such as `--resume`, or no devcontainer, gets the exact-argv form instead. This is a PreToolUse hook, not a command.
   Chained commands, a command fed on stdin, `dev exec`, and anything else `delegate run` would
   refuse run as typed; a command that starts with `wipnote delegate` is never denied. Available
   (slice 9; q-intercept: deny-redirect; recogniser in `internal/delegate/detect`).

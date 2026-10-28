@@ -39,7 +39,7 @@ Usage in hooks.json:
 			provenance.SetCLIVersion(version)
 			// The bare-delegation redirect needs delegate run's argv
 			// classifier, which core cannot import (plan-28b4a7f6 slice 9).
-			hooks.DelegateRedirect = detect.Redirect
+			hooks.DelegateRedirect = detect.RedirectAt
 		},
 	}
 	cmd.PersistentFlags().StringVar(&hookHarnessOverride, "harness", "",

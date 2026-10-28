@@ -268,3 +268,31 @@ func TestRunPane_ContainerFoldsBeforeClose(t *testing.T) {
 		}
 	}
 }
+
+// TestRun_ContainerRefusesOwnAnswerFileOutsideProject: codex exec's own -o
+// file outside the project is not in the container, so the host would read a
+// stale file of its own; --container refuses it before anything is written.
+// The other side: an -o inside the project (relative or absolute) runs.
+func TestRun_ContainerRefusesOwnAnswerFileOutsideProject(t *testing.T) {
+	p, stub, _ := containerProject(t)
+	outside := filepath.Join(t.TempDir(), "ans.md")
+	for _, argv := range [][]string{{"codex", "exec", "-o", outside, "x"}, {"codex", "exec", "--output-last-message=" + outside, "x"}} {
+		o := p.containerOptions(argv...)
+		o.Sandbox = SandboxOptions{Host: testHost, OptIn: []string{testHost}}
+		if _, err := Run(context.Background(), o); err == nil || !strings.Contains(err.Error(), "outside") {
+			t.Errorf("%q: err %v, want the -o refusal", argv, err)
+		}
+	}
+	if recs, _ := p.ledger.ReadAll(); len(recs) != 0 || len(stub.Calls(t)) != 0 {
+		t.Fatalf("a refused run wrote %d rows, calls %q", len(recs), stub.Calls(t))
+	}
+	t.Setenv("STUB_ANSWER", "inside answer")
+	for _, own := range []string{"ans.md", filepath.Join(p.dir, "abs.md")} {
+		o := p.containerOptions("codex", "exec", "-o", own, "x")
+		o.Sandbox = SandboxOptions{Host: testHost, OptIn: []string{testHost}}
+		res := p.run(o)
+		if got := p.file(res.RunID, runstore.FileLastMD); got != "inside answer" {
+			t.Errorf("-o %s: last.md %q", own, got)
+		}
+	}
+}

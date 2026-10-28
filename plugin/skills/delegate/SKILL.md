@@ -53,7 +53,7 @@ Rules:
 - `--help` and `--version` are refused. They are not runs.
 - `claude -p` must not set its own `--output-format`. The run adds `--output-format stream-json --verbose`.
 - `codex exec` always gets one `--sandbox`: `read-only`, or `workspace-write` with `--write`. `danger-full-access` is passed only on a host listed in `delegate.codex.dangerFullAccessHosts` in `~/.wipnote/config.json`.
-- A bare `ccx task` in the Bash tool is denied with the `--container` form. Run that instead.
+- A bare `ccx task` in the Bash tool is denied. The denial names `wipnote delegate run --container -- <task words>` when the task is plain words and the project has its own devcontainer; otherwise (ccx flags such as `--resume`, or no devcontainer) it names `wipnote delegate run -- ccx task ...`. Run the form it names.
 - Inside herdr (`HERDR_ENV=1`) the call runs in a herdr pane. Otherwise it runs headless.
 - The command exits with the tool's exit status, or 130 when its pane was closed.
 - A long run blocks until it ends. Run it in the background when the harness lets you.

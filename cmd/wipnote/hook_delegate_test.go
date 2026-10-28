@@ -19,10 +19,10 @@ func TestHookCmd_WiresDelegateRedirect(t *testing.T) {
 	if hooks.DelegateRedirect == nil {
 		t.Fatal("hook command did not wire hooks.DelegateRedirect")
 	}
-	if hooks.DelegateRedirect(`codex exec "x"`) == "" {
+	if hooks.DelegateRedirect(`codex exec "x"`, "") == "" {
 		t.Error("wired recogniser does not redirect a bare codex exec")
 	}
-	if hooks.DelegateRedirect("ls") != "" {
+	if hooks.DelegateRedirect("ls", "") != "" {
 		t.Error("wired recogniser redirects ls")
 	}
 }
