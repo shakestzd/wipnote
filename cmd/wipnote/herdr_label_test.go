@@ -195,3 +195,17 @@ func TestLaunchHerdrLabel_DoesNotBlockLaunch(t *testing.T) {
 		t.Fatalf("herdr calls = %q", got)
 	}
 }
+
+func TestWorkItemTitle(t *testing.T) {
+	root, id := labelTestFeature(t, "Label the pane")
+	dir := filepath.Join(root, ".wipnote")
+	if gotID, title := workItemTitle(dir, id); gotID != id || title != "Label the pane" {
+		t.Fatalf("workItemTitle = %q, %q", gotID, title)
+	}
+	if gotID, title := workItemTitle(dir, "feat-00000000"); gotID != "feat-00000000" || title != "" {
+		t.Fatalf("unknown item = %q, %q, want the id and no title", gotID, title)
+	}
+	if _, title := workItemTitle(dir, ""); title != "" {
+		t.Fatalf("no item gave title %q", title)
+	}
+}

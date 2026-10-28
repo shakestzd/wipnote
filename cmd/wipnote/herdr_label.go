@@ -31,11 +31,22 @@ func labelHerdrPaneForWorkItem(projectRoot, id string) {
 	}
 	title := ""
 	if projectRoot != "" {
-		if n, err := resolveNodeByUnionID(filepath.Join(projectRoot, ".wipnote"), id); err == nil && n != nil {
-			id, title = n.ID, n.Title
-		}
+		id, title = workItemTitle(filepath.Join(projectRoot, ".wipnote"), id)
 	}
 	labelHerdrPane(id, title)
+}
+
+// workItemTitle resolves id in wipnoteDir and returns its full id and title.
+// An item that cannot be read gives the id back and no title.
+func workItemTitle(wipnoteDir, id string) (string, string) {
+	if id == "" {
+		return "", ""
+	}
+	n, err := resolveNodeByUnionID(wipnoteDir, id)
+	if err != nil || n == nil {
+		return id, ""
+	}
+	return n.ID, n.Title
 }
 
 // launchHerdrLabel labels the pane in the background so a launch never waits
