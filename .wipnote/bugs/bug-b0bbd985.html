@@ -10,15 +10,15 @@
 <body>
     <article id="bug-b0bbd985"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-28T02:54:48.30728"
-             data-updated="2026-10-28T03:01:16.359923" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+             data-updated="2026-10-28T05:19:23.940624" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Run records credit the session&#39;s newest claim, not the calling agent&#39;s</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -28,6 +28,13 @@
                 <h3>Caused By:</h3>
                 <ul>
                     <li><a href="../features/feat-36658c22.html" data-relationship="caused_by" data-since="2026-10-28T02:54:48.311319">feat-36658c22</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="4ce9e8805396676c87b36e3fb4c7f0bb8da893a5.html" data-relationship="committed_in" data-since="2026-10-28T01:18:50">Merge pull request #280 from shakestzd/obs/obsfix</a></li>
+                    <li><a href="f250284beaba336e31de53a72cad79ecfef7e8e1.html" data-relationship="committed_in" data-since="2026-10-28T03:01:16">bug-b0bbd985: credit run records to the calling agent&#39;s claim</a></li>
                 </ul>
             </section>
             <section data-edge-type="implemented_in">
@@ -47,7 +54,7 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-bug-b0bbd985-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ runWorkItem resolves the calling agent&#39;s open claim (agent_id / root sentinel) before the session&#39;s root and newest claim; two-agent, single-agent and no-claim tests red-&gt;green</li>
+                <li data-completed="true" data-step-id="step-bug-b0bbd985-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ runWorkItem resolves the calling agent&#39;s open claim (agent_id / root sentinel) before the session&#39;s root and newest claim; two-agent, single-agent and no-claim tests red-&gt;green</li>
             </ol>
         </section>
 
