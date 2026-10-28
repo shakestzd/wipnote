@@ -10,6 +10,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/filelock"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
@@ -21,9 +22,13 @@ const (
 )
 
 // SpawnOptions is one spawn. WorkItem is required: the caller resolves the
-// default (the active claim) before calling.
+// default (the active claim) before calling. An empty Name is derived from
+// the work item and WorkTitle: <item-id>-<slug>, cut to 32 (plan-28b4a7f6
+// slice 15). The name is the mailbox name and the harness name alike:
+// BootArgv passes it to Claude as --name and list renames the herdr agent.
 type SpawnOptions struct {
 	Name, Harness, WorkItem string
+	WorkTitle               string
 	CallerSession           string
 	CallerPane              herdr.PaneID
 	Brief                   string
@@ -47,6 +52,9 @@ type Spawned struct {
 // before anything is written: a bad name or harness, no work item, a live
 // name, and a full workers tab ("at cap").
 func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
+	if o.Name == "" {
+		o.Name = slug.WorkerName(o.WorkItem, o.WorkTitle)
+	}
 	if err := checkSpawn(d, o); err != nil {
 		return Spawned{}, err
 	}
@@ -87,12 +95,12 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 
 func checkSpawn(d Deps, o SpawnOptions) error {
 	switch {
+	case o.WorkItem == "":
+		return fmt.Errorf("%w: pass --work-item or claim one first", ErrNoWorkItem)
 	case !ValidName(o.Name):
 		return fmt.Errorf("%w %q: use [a-z0-9-], 1 to 32 characters, starting with a letter", ErrBadName, o.Name)
 	case o.Harness != HarnessClaude && o.Harness != HarnessCodex:
 		return fmt.Errorf("%w, not %q", ErrBadHarness, o.Harness)
-	case o.WorkItem == "":
-		return fmt.Errorf("%w: pass --work-item or claim one first", ErrNoWorkItem)
 	case d.Herdr == nil:
 		return ErrNotInHerdr
 	case o.BootLine == nil:

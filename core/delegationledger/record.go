@@ -102,6 +102,9 @@ type Record struct {
 	UsageInput     int
 	UsageCached    int
 	UsageOutput    int
+	// UsageReasoning is Codex's reasoning_output_tokens (slice 12); 0 for
+	// harnesses that do not report it and for rows written before it.
+	UsageReasoning int
 	ResumedFrom    string // dlg- id of the run this one resumed
 }
 

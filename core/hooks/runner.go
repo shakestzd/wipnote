@@ -203,6 +203,10 @@ type HookSpecificOutput struct {
 	AdditionalContext string `json:"additionalContext,omitempty"`
 	// PermissionDecision is Codex's PreToolUse permission verdict.
 	PermissionDecision string `json:"permissionDecision,omitempty"`
+	// SessionTitle is Claude Code's UserPromptSubmit/SessionStart rename of
+	// the live session, same effect as /rename (https://code.claude.com/docs/en/hooks,
+	// checked 2026-10-28). Claude only: the Codex emitter never copies it.
+	SessionTitle string `json:"sessionTitle,omitempty"`
 	// PermissionDecisionReason is Codex's PreToolUse denial reason.
 	PermissionDecisionReason string `json:"permissionDecisionReason,omitempty"`
 	// UpdatedInput is Claude Code's PreToolUse mechanism for rewriting a

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/cmd/wipnote/launchtui"
-	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/internal/launcher"
 	"github.com/spf13/cobra"
 )
@@ -121,40 +120,6 @@ func claudeCmd() *cobra.Command {
 		"Launch even when stdin is not a terminal (default: refuse; env "+allowNonTTYEnv+"=1 is equivalent)")
 	cmd.AddCommand(yoloCmd())
 	return cmd
-}
-
-// resolveSessionName returns the session name to pass to Claude Code.
-//
-// Rules (in priority order):
-//  1. An explicitly provided sessionName is always kept as-is.
-//  2. When continue_ is true the caller is resuming the most-recent session via
-//     --continue; no synthesized name is emitted so it doesn't conflict with the
-//     implicit resume.
-//  3. When resumeID is non-empty the caller is resuming a specific session by ID;
-//     synthesizing a name would rename or conflict with the existing session.
-//  4. Otherwise (fresh launch) a default name is synthesized via defaultSessionName.
-func resolveSessionName(sessionName, resumeID string, continue_ bool, projectRoot string) string {
-	if sessionName != "" {
-		return sessionName
-	}
-	if continue_ || resumeID != "" {
-		return ""
-	}
-	return defaultSessionName(projectRoot)
-}
-
-// defaultSessionName builds a default session label: <project-slug>-<timestamp>.
-// projectRoot may be empty, in which case the label is just the timestamp.
-func defaultSessionName(projectRoot string) string {
-	ts := time.Now().Format("20060102-15.04.05")
-	if projectRoot == "" {
-		return ts
-	}
-	projectSlug := slug.Make(filepath.Base(projectRoot), 30)
-	if projectSlug == "" {
-		return ts
-	}
-	return projectSlug + "-" + ts
 }
 
 // marketplaceArtifactDirs returns all artifact directories that may be removed

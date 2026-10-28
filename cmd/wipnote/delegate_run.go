@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -27,9 +28,9 @@ var delegateRunExit = os.Exit
 // codex-herdr-pane mod's report. The exit status is the tool's.
 func delegateRunCmd() *cobra.Command {
 	var label, workItem string
-	var noPane bool
+	var noPane, write bool
 	cmd := &cobra.Command{
-		Use:   "run [--label L] [--work-item ID] [--no-pane] -- <codex exec|codex review|claude -p|ccx task> ...",
+		Use:   "run [--label L] [--work-item ID] [--no-pane] [--write] -- <codex exec|codex review|claude -p|ccx task> ...",
 		Short: "Run one delegated codex, claude -p or ccx call and print its report",
 		Long: `Runs one tool call (codex exec or review, claude -p, ccx task) as a recorded
 delegation: a row in .wipnote/delegations-ledger.html, a run folder under
@@ -45,10 +46,16 @@ closePane, closeDelay, tailLines, maxReturnLines, leanProfile, leanProfileName,
 ccxRunsDir, ccxWaitSeconds, keepDays), merged per key from ~/.wipnote/config.json,
 then .wipnote/config.json, then .wipnote/config.local.json (gitignored). The
 host path ccxRunsDir is read only from the user and local files. CCX_RUNS_DIR
-overrides ccxRunsDir.`,
+overrides ccxRunsDir.
+
+codex exec runs with --sandbox read-only, or workspace-write with --write.
+danger-full-access is passed, with a warning, only on a host listed in
+delegate.codex.dangerFullAccessHosts in ~/.wipnote/config.json. When Codex's
+bwrap sandbox fails on this host (a cached probe; see wipnote delegate
+doctor) the run is refused with the probe output unless the host opted in.`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			code, err := runDelegateRun(cmd, args, label, workItem, noPane)
+			code, err := runDelegateRun(cmd, args, label, workItem, runFlags{noPane: noPane, write: write})
 			if err != nil {
 				return err
 			}
@@ -62,10 +69,14 @@ overrides ccxRunsDir.`,
 	cmd.Flags().StringVar(&label, "label", "", "pane title; the only label the ledger keeps")
 	cmd.Flags().StringVar(&workItem, "work-item", "", "work item id (default: the caller's active claim)")
 	cmd.Flags().BoolVar(&noPane, "no-pane", false, "run headless even inside herdr")
+	cmd.Flags().BoolVar(&write, "write", false, "codex exec: --sandbox workspace-write instead of read-only")
 	return cmd
 }
 
-func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, noPane bool) (int, error) {
+// runFlags are delegate run's boolean flags.
+type runFlags struct{ noPane, write bool }
+
+func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, f runFlags) (int, error) {
 	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return 0, err
@@ -82,8 +93,13 @@ func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, n
 	_, workTitle := workItemTitle(wipnoteDir, workItem)
 	cwd, _ := os.Getwd()
 	env := herdr.EnvFrom(os.Getenv)
+	sandbox := codexSandboxOptions(projectDir, f.write)
+	for _, n := range sandbox.notes {
+		fmt.Fprintln(cmd.ErrOrStderr(), n)
+	}
 	o := oneshot.Options{
-		Argv: argv, Label: label, WorkItem: workItem, WorkTitle: workTitle, CallerSession: session, NoPane: noPane, Cwd: cwd,
+		Argv: argv, Label: label, WorkItem: workItem, WorkTitle: workTitle, CallerSession: session, NoPane: f.noPane, Cwd: cwd,
+		Sandbox:  sandbox.SandboxOptions,
 		Settings: oneshot.LoadSettings(projectDir, cmd.ErrOrStderr()), Store: store, Ledger: delegationledger.NewStore(wipnoteDir),
 		HerdrEnv: env, PaneLine: delegatePaneLine(projectDir), Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
 	}

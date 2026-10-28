@@ -416,5 +416,6 @@ func (t *statusTransition) report() {
 		if slices.Contains(legacyActiveFeatureAgents(), dbpkg.NormaliseAgentID(t.agentID)) {
 			labelHerdrPane(node.ID, node.Title)
 		}
+		markSessionTitle(t.dir, t.sessionID, t.agentID, node.ID)
 	}
 }

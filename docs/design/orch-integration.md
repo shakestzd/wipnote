@@ -73,14 +73,18 @@ Q3 is now decided (section 7): spawn and stop become delegation-run rows; the ot
 - **orch:** `orch spawn NAME --kind K --work-item feat-1a2b3c4d` stores `work_item` on the registry
   record (an optional field, so older registries still load) and echoes it as `wi`. A malformed id is
   refused (`bad_work_item`) before any herdr call or registry write. orch stays the only writer.
-- **wipnote:** `internal/orchlink` reads the registry and each session's `events.ndjson`.
-  `wipnote lineage <work-item>` adds an "orch sessions" section (and `orch_sessions` in `--json`):
-  name, kind, state, host or container, the harness session ids seen, sub-agents started, and why it
-  is shown: `tag` (named by `--work-item`) or `sid` (derived: untagged, and one of its session ids is
-  a direct `implemented_in` session of the work item). A session tagged with another work item is
-  never derived. An unreadable registry prints `orch sessions: unreadable (...)` / `orch_error`; a
-  missing one prints nothing. No host path is printed. Lineage for sessions, commits and files is
-  unchanged.
+- **wipnote (retired, plan-28b4a7f6 slice 13):** `internal/orchlink` read the registry and each
+  session's `events.ndjson` at query time, and `wipnote lineage <work-item>` showed an "orch sessions"
+  section (`orch_sessions` / `orch_error` in `--json`). Both are gone. `wipnote delegate import-orch`
+  (slice 18) copies orch history into the delegations ledger once, and lineage now reads only that
+  ledger: a "delegations" section (`delegations[]` / `delegations_error` in `--json`) and
+  `wipnote lineage dlg-<id>`. The link rules carry over: `tag` (the row names the work item) is
+  asserted; `sid` (untagged, and one of its worker sessions is a direct `implemented_in` session of
+  the work item) is derived and labelled; a row tagged with another work item is never derived. Each
+  delegation lists its workers' claim episodes from the claim ledger, joined on worker session id; a
+  worker episode that overlaps a caller episode on the same item is shown as a co-claim with the
+  `dlg-` id. No host path is printed. orch runs show in lineage only once the import has run; the
+  import is idempotent and stays available.
 
 ## 6. Not verified at the time; Phase B results
 

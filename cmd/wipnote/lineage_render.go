@@ -32,8 +32,8 @@ func sortLineageTimeline(nodes []lineageNode) {
 	})
 }
 
-// renderLineageJSON emits the stable {root, kind, forward, backward, agent_tree?, orch_*?, runs?} schema.
-func renderLineageJSON(w io.Writer, root string, kind lineageKind, forward, backward []lineageNode, agentTree string, orch *lineageOrchView, runs []runledger.Record) error {
+// renderLineageJSON emits the stable {root, kind, forward, backward, agent_tree?, delegations*?, runs?} schema.
+func renderLineageJSON(w io.Writer, root string, kind lineageKind, forward, backward []lineageNode, agentTree string, dlg *lineageDelegationsView, runs []runledger.Record) error {
 	out := lineageJSON{
 		Root:      root,
 		Kind:      kind.String(),
@@ -41,8 +41,8 @@ func renderLineageJSON(w io.Writer, root string, kind lineageKind, forward, back
 		Backward:  backward,
 		AgentTree: agentTree,
 	}
-	if orch != nil {
-		out.OrchSessions, out.OrchError = orch.Sessions, orch.Err
+	if dlg != nil {
+		out.Delegations, out.DelegationsError = dlg.Rows, dlg.Err
 	}
 	if len(runs) > 0 {
 		out.Runs = lineageRunsJSON(runs)
