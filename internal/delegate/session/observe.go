@@ -16,6 +16,7 @@ type eventFacts struct {
 	sessions []string // bound session ids, oldest first
 	turn     Turn
 	question bool
+	asks     []runstore.Event // the pending question and permission events
 	shell    bool
 }
 
@@ -32,23 +33,23 @@ func factsOf(evs []runstore.Event) eventFacts {
 				seen[ev.SID] = true
 				f.sessions = append(f.sessions, ev.SID)
 			}
-			f.turn, f.question, open = TurnNone, false, map[string]bool{}
+			f.turn, f.asks, open = TurnNone, nil, map[string]bool{}
 		case runstore.KindPrompt:
-			f.turn, f.question = TurnRunning, false
+			f.turn, f.asks = TurnRunning, nil
 		case runstore.KindStop:
-			f.turn, f.question = TurnEnded, false
+			f.turn, f.asks = TurnEnded, nil
 		case runstore.KindQuestion, runstore.KindPermissionRequest:
-			f.question = true
+			f.asks = append(f.asks, ev)
 		case runstore.KindToolStart:
 			if isShellTool(ev.Tool) && ev.ToolUseID != "" {
 				open[ev.ToolUseID] = true
 			}
 		case runstore.KindToolEnd:
 			delete(open, ev.ToolUseID)
-			f.question = false
+			f.asks = nil
 		}
 	}
-	f.shell = len(open) > 0
+	f.question, f.shell = len(f.asks) > 0, len(open) > 0
 	return f
 }
 
@@ -60,23 +61,43 @@ func isShellTool(name string) bool {
 	return false
 }
 
-// taskFacts reports whether the newest inbox task has its result file.
-func taskFacts(store *runstore.Store, name string) (pending, answered bool) {
+// task is a worker's newest inbox task: its message, its turn (the count of
+// tasks so far) and whether the worker acked it.
+type task struct {
+	mb    *runstore.Mailbox
+	msg   runstore.Message
+	turn  int
+	acked bool
+}
+
+// newestTask returns name's newest inbox task; ok is false when there is none.
+func newestTask(store *runstore.Store, name string) (task, bool) {
 	mb, err := store.Mailbox(name)
 	if err != nil {
-		return false, false
+		return task{}, false
 	}
 	msgs, err := mb.Read(runstore.Inbox)
 	if err != nil {
-		return false, false
+		return task{mb: mb}, false
 	}
-	for i := len(msgs) - 1; i >= 0; i-- {
-		if msgs[i].Type == runstore.TypeTask {
-			_, ok, _ := mb.Result(msgs[i].ID)
-			return !ok, ok
+	t := task{mb: mb}
+	for _, m := range msgs {
+		if m.Type == runstore.TypeTask {
+			t.msg, t.turn = m, t.turn+1
 		}
 	}
-	return false, false
+	t.acked = t.turn > 0 && mb.Acked(t.msg.ID)
+	return t, t.turn > 0
+}
+
+// taskFacts reports whether the newest inbox task has its result file.
+func taskFacts(store *runstore.Store, name string) (pending, answered bool) {
+	t, ok := newestTask(store, name)
+	if !ok {
+		return false, false
+	}
+	_, found, _ := t.mb.Result(t.msg.ID)
+	return !found, found
 }
 
 // observe builds the Observation for one worker. Herdr is asked only
@@ -88,6 +109,7 @@ func observe(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info) (Ob
 	f := factsOf(evs)
 	o := Observation{Bound: len(f.sessions) > 0, Turn: f.turn, Question: f.question, ShellRunning: f.shell}
 	o.TaskPending, o.TaskAnswered = taskFacts(d.Store, info.Name)
+	o.Question = o.Question || len(pendingQFiles(d.Store, info.Name)) > 0 // D7
 	if d.Herdr == nil || info.Pane == "" {
 		return o, f
 	}

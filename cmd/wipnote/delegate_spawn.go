@@ -102,7 +102,7 @@ func delegateSessionDeps(wipnoteDir string) (session.Deps, herdr.Env, error) {
 	if err != nil {
 		return session.Deps{}, herdr.Env{}, err
 	}
-	d := session.Deps{Store: store, Ledger: delegationledger.NewStore(wipnoteDir)}
+	d := session.Deps{Store: store, Ledger: delegationledger.NewStore(wipnoteDir), Claims: claimLedgerStore(wipnoteDir)}
 	env := herdr.EnvFrom(os.Getenv)
 	if env.InHerdr {
 		d.Herdr = herdr.New(env)

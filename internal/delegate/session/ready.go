@@ -49,7 +49,7 @@ type Observation struct {
 	Dialog       string // a folder-trust dialog named by its labels, or ""
 	Bound        bool   // a session_start event from the worker's hook
 	Turn         Turn
-	Question     bool // a question or permission request is pending
+	Question     bool // a question, permission request or outbox q-file is pending
 	TaskPending  bool // the newest task has no result file
 	TaskAnswered bool // the newest task has its result file
 	ShellRunning bool // a shell tool started and has not ended
@@ -68,10 +68,10 @@ func Ready(o Observation) Readiness {
 		return Readiness{StateGone, o.GoneWhy}
 	case o.Dialog != "":
 		return Readiness{StateBlocked, o.Dialog + "; delegate presses no key on it: answer it in the pane"}
+	case o.Question: // an outbox q-file counts before any hook has fired (D7)
+		return Readiness{State: StateQuestion}
 	case !o.Bound:
 		return Readiness{State: StateStarting}
-	case o.Question:
-		return Readiness{State: StateQuestion}
 	case o.Turn == TurnRunning:
 		return Readiness{State: StateWorking}
 	case o.Turn == TurnEnded && o.TaskAnswered:
