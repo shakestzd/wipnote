@@ -89,6 +89,11 @@ func resumeSource(d Deps, old delegationledger.Record) (Info, string, error) {
 	}
 	evs, _ := rf.ReadEvents()
 	sessions := mergeSessions(old.WorkerSessions, factsOf(evs).sessions)
+	if len(sessions) == 0 && info.ResumeSession != "" {
+		// A resumed run stopped before its bind was seen still continues
+		// the session it was started on.
+		sessions = []string{info.ResumeSession}
+	}
 	if len(sessions) == 0 {
 		return Info{}, "", fmt.Errorf("%w: run %s has no recorded harness session id (its SessionStart hook never bound one), so there is nothing to resume",
 			ErrCannotResume, old.ID)
@@ -122,7 +127,8 @@ func matchResume(o SpawnOptions, old delegationledger.Record, info Info) error {
 }
 
 // checkResumedOnce refuses a second resume of one run, under namesLock: two
-// workers must never continue one session. Resume the newest run instead.
+// workers must never continue one session. Resume the newest run instead. An
+// attempt abandoned before launch does not count (neverLaunched).
 func checkResumedOnce(d Deps, from string) error {
 	if from == "" {
 		return nil
@@ -132,9 +138,25 @@ func checkResumedOnce(d Deps, from string) error {
 		return fmt.Errorf("%w: the delegations ledger cannot be read: %v", ErrCannotResume, err)
 	}
 	for _, r := range recs {
-		if r.ResumedFrom == from {
+		if r.ResumedFrom == from && !neverLaunched(d, r) {
 			return fmt.Errorf("%w: run %s was already resumed as run %s (%s); resume that one instead", ErrCannotResume, from, r.ID, r.Name)
 		}
 	}
 	return nil
+}
+
+// neverLaunched reports a resume attempt that spawn abandoned before the
+// harness started: abandon closes the row with end_reason gone, and no
+// session was ever bound (none in the ledger, no session_start in its run
+// folder). A run folder that is gone gives no proof, so the run counts.
+func neverLaunched(d Deps, r delegationledger.Record) bool {
+	if r.IsOpen() || r.EndReason != delegationledger.EndGone || len(r.WorkerSessions) > 0 {
+		return false
+	}
+	rf, err := d.Store.Run(r.ID)
+	if err != nil {
+		return false
+	}
+	evs, err := rf.ReadEvents()
+	return err == nil && len(factsOf(evs).sessions) == 0
 }

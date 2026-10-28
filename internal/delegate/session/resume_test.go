@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
@@ -248,4 +249,51 @@ func TestResume_RefusesSweptRunFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 	resume(t, e, e.resumeOpts("w2"), "w1")
+}
+
+// TestResume_RetryAfterAbandonedAttempt: a resume whose shell never settled
+// was abandoned before the harness started (end_reason gone, no bound
+// session), so the original run can be resumed again. Other side: a resume
+// that launched and bound a session still blocks a second resume.
+func TestResume_RetryAfterAbandonedAttempt(t *testing.T) {
+	e := newEnv(t)
+	old := stoppedWorker(t, e, e.opts("w1"), "sid-a")
+	e.herdr.shellAfter = 1 << 20
+	o := e.resumeOpts("w2")
+	o.ShellWait = 30 * time.Millisecond
+	if _, err := Resume(context.Background(), e.deps, o, "w1"); !errors.Is(err, ErrShellNotReady) {
+		t.Fatalf("first attempt: %v, want ErrShellNotReady", err)
+	}
+	e.herdr.shellAfter = 0
+	s, info := resume(t, e, e.resumeOpts("w3"), "w1")
+	if info.ResumeSession != "sid-a" || e.row(s.Run).ResumedFrom != old {
+		t.Fatalf("retry info %+v row %+v", info, e.row(s.Run))
+	}
+	// Other side: w3 launched and bound sid-a; once stopped it still counts.
+	e.event(s.Run, "sid-a", "session_start")
+	e.herdr.exitOnEnter = true
+	e.herdr.setRunning(PaneOf(s), herdr.Proc{PID: 4243, Name: "claude"})
+	e.herdr.pane(PaneOf(s)).styled = "> \n"
+	stop(t, e, "w3")
+	refuseResume(t, e, e.resumeOpts("w4"), "w1", s.Run)
+}
+
+// TestResume_NewerRunWithoutBindUsesRecordedSession: a resumed run stopped
+// before its SessionStart was seen still names the session it resumed
+// (resume_session), so following the "resume that one instead" advice works.
+// Other side: a fresh run with no bind and no resume_session still refuses.
+func TestResume_NewerRunWithoutBindUsesRecordedSession(t *testing.T) {
+	e := newEnv(t)
+	stoppedWorker(t, e, e.opts("w1"), "sid-a")
+	s, _ := resume(t, e, e.resumeOpts("w2"), "w1")
+	e.herdr.exitOnEnter = true
+	e.herdr.setRunning(PaneOf(s), herdr.Proc{PID: 4243, Name: "claude"})
+	e.herdr.pane(PaneOf(s)).styled = "> \n"
+	stop(t, e, "w2")
+	if _, info := resume(t, e, e.resumeOpts("w3"), "w2"); info.ResumeSession != "sid-a" {
+		t.Fatalf("resume_session %q, want w2's recorded sid-a", info.ResumeSession)
+	}
+	e2 := newEnv(t)
+	stoppedWorker(t, e2, e2.opts("w1"))
+	refuseResume(t, e2, e2.resumeOpts("w2"), "w1", "session id")
 }
