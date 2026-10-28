@@ -3,14 +3,18 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // cloudSetupScript is scripts/cloud-env-setup.sh, relative to this package.
@@ -168,5 +172,87 @@ func TestCloudEnvSetup_RefusesLatest(t *testing.T) {
 	out, err := runCloudSetup(t, t.TempDir(), t.TempDir(), "WIPNOTE_VERSION=latest", "WIPNOTE_SETUP_STRICT=1")
 	if err == nil || !strings.Contains(out, "pinned") {
 		t.Fatalf("latest accepted: %v\n%s", err, out)
+	}
+}
+
+// A release host that accepts the connection and never answers must not
+// hang the environment's start: curl's timeouts end the download and the
+// script exits 0 (non-strict). The timeouts are shortened for the test.
+func TestCloudEnvSetup_StalledServerReturnsBounded(t *testing.T) {
+	requireScriptTools(t)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	var held []net.Conn
+	var mu sync.Mutex
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			held = append(held, c) // accepted, never answered
+			mu.Unlock()
+		}
+	}()
+	t.Cleanup(func() {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, c := range held {
+			c.Close()
+		}
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bash", cloudSetupScript)
+	cmd.WaitDelay = 3 * time.Second // a killed bash leaves curl holding the pipe
+	cmd.Env = []string{"HOME=" + t.TempDir(), "PATH=/usr/bin:/bin", "WIPNOTE_VERSION=9.9.9",
+		"WIPNOTE_RELEASE_BASE_URL=http://" + ln.Addr().String(), "WIPNOTE_CURL_MAX_TIME=1"}
+	start := time.Now()
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		t.Fatalf("the script hung on a stalled server (killed after %s):\n%s", time.Since(start), out)
+	}
+	if err != nil || !strings.Contains(string(out), "download failed") {
+		t.Fatalf("err %v after %s:\n%s", err, time.Since(start), out)
+	}
+}
+
+// The skip trusts the stamp only when the binary reports the pinned
+// version and the plugin tree is there; otherwise it reinstalls.
+func TestCloudEnvSetup_SkipNeedsMatchingBinaryAndPlugin(t *testing.T) {
+	requireScriptTools(t)
+	home, base := t.TempDir(), t.TempDir()
+	fakeRelease(t, base, "9.9.9", false)
+	if out, err := runCloudSetup(t, home, base, "WIPNOTE_VERSION=9.9.9"); err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	bin := filepath.Join(home, ".local", "bin", "wipnote")
+	plugin := filepath.Join(home, ".local", "share", "wipnote", "plugin")
+	reinstalled := func(why string) {
+		t.Helper()
+		out, err := runCloudSetup(t, home, base, "WIPNOTE_VERSION=9.9.9", "WIPNOTE_SETUP_STRICT=1")
+		if err != nil || strings.Contains(out, "already installed") || !strings.Contains(out, "Installed wipnote v9.9.9") {
+			t.Fatalf("%s: not reinstalled: %v\n%s", why, err, out)
+		}
+		if got, _ := exec.Command(bin).Output(); strings.TrimSpace(string(got)) != "wipnote 9.9.9 (go)" {
+			t.Fatalf("%s: binary reports %q", why, got)
+		}
+		if _, err := os.Stat(filepath.Join(plugin, ".claude-plugin", "plugin.json")); err != nil {
+			t.Fatalf("%s: plugin tree %v", why, err)
+		}
+	}
+	writeTestFile(t, bin, "#!/bin/sh\necho \"wipnote 9.9.90 (go)\"\n") // stamp still says 9.9.9
+	reinstalled("binary reports another version")
+	if err := os.RemoveAll(plugin); err != nil {
+		t.Fatal(err)
+	}
+	reinstalled("plugin tree missing")
+	out, err := runCloudSetup(t, home, base, "WIPNOTE_VERSION=9.9.9")
+	if err != nil || !strings.Contains(out, "already installed") {
+		t.Fatalf("all good: %v\n%s", err, out)
 	}
 }

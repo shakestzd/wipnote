@@ -25,6 +25,10 @@
 #   WIPNOTE_SETUP_STRICT       1: exit non-zero when the install fails
 #   WIPNOTE_RELEASE_BASE_URL   release download root (tests point it at a
 #                              local file:// release)
+#   WIPNOTE_CURL_CONNECT_TIMEOUT, WIPNOTE_CURL_MAX_TIME
+#                              curl --connect-timeout and --max-time in seconds
+#                              (default 15 and 300) so a stalled host cannot
+#                              hang the environment start
 
 set -uo pipefail
 
@@ -86,7 +90,8 @@ verify_checksum() {
 
 # download fetches $1 to $2.
 download() {
-  curl -fsSL --retry 2 "$1" -o "$2" || fail "download failed: $1"
+  curl -fsSL --retry 2 --connect-timeout "${WIPNOTE_CURL_CONNECT_TIMEOUT:-15}" \
+    --max-time "${WIPNOTE_CURL_MAX_TIME:-300}" "$1" -o "$2" || fail "download failed: $1"
 }
 
 # install_trees moves the binary and plugin trees from $1 into place; the
@@ -97,6 +102,7 @@ install_trees() {
   mkdir -p "$BIN_DIR" "$SHARE_DIR" || fail "cannot create ${BIN_DIR} or ${SHARE_DIR}"
   if ! { cp "${src}/wipnote" "${BIN_DIR}/.wipnote.new" && chmod +x "${BIN_DIR}/.wipnote.new" &&
     mv -f "${BIN_DIR}/.wipnote.new" "${BIN_DIR}/wipnote"; }; then
+    rm -f "${BIN_DIR}/.wipnote.new"
     fail "cannot install into ${BIN_DIR}"
   fi
   for tree in plugin codex-marketplace antigravity-extension mods; do
@@ -108,6 +114,21 @@ install_trees() {
   done
 }
 
+# already_installed reports whether the pinned version is fully in place:
+# the stamp names it, the binary reports it, and the plugin tree exists.
+# The version call is bounded: it may try an update check.
+already_installed() {
+  local out
+  [[ -x "${BIN_DIR}/wipnote" && -d "${SHARE_DIR}/plugin" ]] || return 1
+  [[ "$(cat "$1" 2>/dev/null)" == "$VERSION" ]] || return 1
+  if command -v timeout >/dev/null 2>&1; then
+    out="$(timeout 20 "${BIN_DIR}/wipnote" version 2>/dev/null | head -n 1)"
+  else
+    out="$("${BIN_DIR}/wipnote" version 2>/dev/null | head -n 1)"
+  fi
+  [[ "$out" == "wipnote ${VERSION} "* || "$out" == "wipnote v${VERSION} "* ]]
+}
+
 main() {
   VERSION="${WIPNOTE_VERSION:-$WIPNOTE_PIN}"
   VERSION="${VERSION#v}"
@@ -115,7 +136,7 @@ main() {
   BIN_DIR="${WIPNOTE_BIN_DIR:-$HOME/.local/bin}"
   SHARE_DIR="${WIPNOTE_SHARE_DIR:-$HOME/.local/share/wipnote}"
   local stamp="${SHARE_DIR}/.cloud-env-version"
-  if [[ -x "${BIN_DIR}/wipnote" && "$(cat "$stamp" 2>/dev/null)" == "$VERSION" ]]; then
+  if already_installed "$stamp"; then
     info "wipnote v${VERSION} already installed in ${BIN_DIR}"
     exit 0
   fi
