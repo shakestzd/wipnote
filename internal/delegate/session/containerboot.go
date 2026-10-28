@@ -109,9 +109,9 @@ func containerBrief(store *runstore.Store, rf *runstore.RunFolder, info Info) (s
 	if err != nil {
 		return "", err
 	}
-	host := Preamble(info, mb.Dir())
+	host := TaskPreamble(info, mb.Dir())
 	if !strings.HasPrefix(string(brief), host) {
-		return "", fmt.Errorf("delegate boot: %s does not start with its result preamble; nothing was started", runstore.FileBrief)
+		return "", fmt.Errorf("delegate boot: %s does not start with its claim line and result preamble; nothing was started", runstore.FileBrief)
 	}
 	inside, err := WorkerPreamble(store, info)
 	if err != nil {

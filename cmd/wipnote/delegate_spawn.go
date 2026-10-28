@@ -11,6 +11,7 @@ import (
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/internal/delegate/codex"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
@@ -163,10 +164,28 @@ func delegateSessionDeps(wipnoteDir string) (session.Deps, herdr.Env, error) {
 	if err != nil {
 		return session.Deps{}, herdr.Env{}, err
 	}
-	d := session.Deps{Store: store, Ledger: delegationledger.NewStore(wipnoteDir), Claims: claimLedgerStore(wipnoteDir)}
+	d := session.Deps{Store: store, Ledger: delegationledger.NewStore(wipnoteDir),
+		Claims: claimLedgerStore(wipnoteDir), ExpireClaims: expireDelegateWorkerClaims(wipnoteDir),
+		ResolveWorkItem: func(id string) (string, error) { return resolveSpawnWorkItem(wipnoteDir, id) }}
 	env := herdr.EnvFrom(os.Getenv)
 	if env.InHerdr {
 		d.Herdr = herdr.New(env)
 	}
 	return d, env, nil
+}
+
+// resolveSpawnWorkItem turns a work-item id or unambiguous prefix into its
+// canonical id, so the one-worker-per-item check compares like with like. An
+// unknown or ambiguous id is refused; an empty one is left for Spawn to refuse.
+// It is Spawn's Deps.ResolveWorkItem, so it also sees the item a resume
+// defaults to the old run's.
+func resolveSpawnWorkItem(wipnoteDir, id string) (string, error) {
+	if id == "" {
+		return "", nil
+	}
+	full, err := workitem.ResolvePartialID(wipnoteDir, id)
+	if err != nil {
+		return "", fmt.Errorf("delegate spawn: work item %s: %w", id, err)
+	}
+	return full, nil
 }

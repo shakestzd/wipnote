@@ -30,7 +30,9 @@ const (
 
 // List returns the open runs (all runs with all) with readiness. For each
 // open interactive run it also adopts a late agent (rename and pin) and moves
-// bound sessions into the ledger's worker_sessions (Enrich).
+// bound sessions into the ledger's worker_sessions (Enrich). A run whose pane
+// is gone goes through the worker-loss path: its row closes as gone and its
+// sessions' claim episodes close as expired.
 func List(ctx context.Context, d Deps, all bool) ([]Row, error) {
 	recs, err := d.Ledger.ReadAll()
 	if err != nil {
@@ -81,7 +83,12 @@ func workerRow(ctx context.Context, d Deps, r delegationledger.Record, row *Row)
 	if len(f.sessions) > 0 {
 		if _, err := d.Ledger.Enrich(r.ID, delegationledger.Enrichment{WorkerSessions: f.sessions}); err == nil {
 			row.Sessions = mergeSessions(r.WorkerSessions, f.sessions)
+			r.WorkerSessions = row.Sessions
 		}
+	}
+	if o.PaneGone {
+		loseWorker(d, r, rf, info)
+		row.Open = false
 	}
 }
 

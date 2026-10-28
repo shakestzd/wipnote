@@ -1,6 +1,8 @@
 package hooks
 
 import (
+	"time"
+
 	"github.com/shakestzd/wipnote/core/claimledger"
 )
 
@@ -40,4 +42,43 @@ func rootSessionForClaimLedger(wipnoteDir, sessionID string) string {
 		return sessionID
 	}
 	return ""
+}
+
+// CloseClaimEpisodesForSession closes every open episode of sessionID, and no
+// other session's, with outcome. It is the session-scoped close a delegate
+// verb runs for a lost worker (plan-28b4a7f6 slice 16): the worker's pane is
+// gone and no SessionEnd will fire, so its episodes close as expired. Each
+// shard that holds an open episode of the session is closed in one
+// read-modify-write, scoped to the session's own rows so siblings sharing a
+// root keep theirs. Returns how many episodes it closed.
+func CloseClaimEpisodesForSession(wipnoteDir, sessionID string, outcome claimledger.Outcome) (int, error) {
+	if wipnoteDir == "" || sessionID == "" {
+		return 0, nil
+	}
+	store := claimledger.NewStore(wipnoteDir)
+	episodes, err := store.ReadAll()
+	if err != nil {
+		return 0, err
+	}
+	roots := map[string]bool{}
+	for _, e := range episodes {
+		if e.SessionID != sessionID || !e.IsOpen() {
+			continue
+		}
+		root := e.RootSessionID
+		if root == "" {
+			root = sessionID
+		}
+		roots[root] = true
+	}
+	closed := 0
+	now := time.Now().UTC()
+	for root := range roots {
+		n, err := store.CloseAllForSession(root, sessionID, outcome, now)
+		closed += n
+		if err != nil {
+			return closed, err
+		}
+	}
+	return closed, nil
 }

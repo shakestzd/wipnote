@@ -98,7 +98,8 @@ func TestResolveSessionName_WorkItem(t *testing.T) {
 // it from the work item and fails only for the usual reasons (here: not in
 // herdr), never on the missing argument.
 func TestDelegateSpawn_NameOptional(t *testing.T) {
-	delegateSessionProject(t)
+	dir := delegateSessionProject(t)
+	writeFeature(t, filepath.Join(dir, ".wipnote"), "feat-0a1b2c3d")
 	t.Setenv("HERDR_ENV", "")
 	_, err := execDelegate(t, "spawn", "--harness", "claude", "--work-item", "feat-0a1b2c3d")
 	if err == nil || !strings.Contains(err.Error(), "herdr") {

@@ -310,23 +310,23 @@ func ownSessionFor(t *testing.T, e *env, run, sid string) {
 }
 
 // TestClose_FoldsContainerWorkerFirst: every path that closes a container
-// worker's row (wait's loss close, spawn's cleanup, a reused pane, a gone
-// pane at spawn) folds its own files into the host's ledgers first. A host
+// worker's row (wait's loss close, spawn's cleanup, a lost pane in list or
+// stop, a gone pane at spawn) folds its own files into the host's ledgers first. A host
 // worker's close folds nothing.
 func TestClose_FoldsContainerWorkerFirst(t *testing.T) {
 	paths := map[string]func(e *env, s Spawned){
-		"closeLost": func(e *env, s Spawned) { closeLost(e.deps, s.Run, []string{"sid-1"}) },
+		"closeLostRun": func(e *env, s Spawned) { closeLostRun(e.deps, s.Run, []string{"sid-1"}) },
 		"abandon": func(e *env, s Spawned) {
 			rf, _, _ := loadInfo(e.deps.Store, s.Run)
 			abandon(e.deps, s.Run, rf, "")
 		},
-		"forgetWorker": func(e *env, s Spawned) {
+		"loseWorker": func(e *env, s Spawned) {
 			rf, info, _ := loadInfo(e.deps.Store, s.Run)
-			forgetWorker(e.deps, rf, info)
+			loseWorker(e.deps, e.row(s.Run), rf, info)
 		},
-		"freeName": func(e *env, s Spawned) {
+		"checkLive": func(e *env, s Spawned) {
 			e.herdr.pane(PaneOf(s)).gone = true
-			_ = freeName(context.Background(), e.deps, s.Name)
+			_, _ = checkLive(context.Background(), e.deps, e.containerOpts(s.Name, HarnessClaude))
 		},
 	}
 	for name, closeIt := range paths {
@@ -348,7 +348,7 @@ func TestClose_FoldsContainerWorkerFirst(t *testing.T) {
 	}
 	h := newEnv(t)
 	hs := h.worker("w1", "")
-	closeLost(h.deps, hs.Run, []string{"sid-1"})
+	closeLostRun(h.deps, hs.Run, []string{"sid-1"})
 	if _, err := os.Stat(filepath.Join(h.dir, ".wipnote", sessionledger.FileName)); !os.IsNotExist(err) {
 		t.Errorf("a host worker's close wrote the sessions ledger (err %v)", err)
 	}

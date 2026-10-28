@@ -316,7 +316,7 @@ func TestWait_LateLedgerWriteAfterStopLeavesRowClosed(t *testing.T) {
 	}
 	before := e.row(s.Run)
 	addSessions(e.deps, s.Run, []string{"sid-1", "sid-2"})
-	closeLost(e.deps, s.Run, []string{"sid-1", "sid-2"})
+	closeLostRun(e.deps, s.Run, []string{"sid-1", "sid-2"})
 	after := e.row(s.Run)
 	if after.IsOpen() || after.EndReason != delegationledger.EndStop || !slices.Equal(after.WorkerSessions, before.WorkerSessions) {
 		t.Fatalf("a late wait write changed a stopped row: %+v -> %+v", before, after)
@@ -330,7 +330,7 @@ func TestWait_LedgerWriteOnOpenRowApplies(t *testing.T) {
 	if r := e.row(s.Run); !r.IsOpen() || !slices.Equal(r.WorkerSessions, []string{"sid-1", "sid-2"}) {
 		t.Fatalf("%+v", r)
 	}
-	closeLost(e.deps, s.Run, []string{"sid-1"})
+	closeLostRun(e.deps, s.Run, []string{"sid-1"})
 	if r := e.row(s.Run); r.IsOpen() || r.EndReason != delegationledger.EndGone {
 		t.Fatalf("%+v", r)
 	}

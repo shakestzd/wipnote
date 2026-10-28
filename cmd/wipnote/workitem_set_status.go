@@ -151,6 +151,9 @@ func (t *statusTransition) runCompletionGates() error {
 		if err := checkResearchCompleteGate(os.Stderr, filepath.Dir(dir), col, id, wiResearchWaiver); err != nil {
 			return fmt.Errorf("refusing to complete %s %s: %w", typeName, id, err)
 		}
+		// Completion closes every open episode on the item, a live delegate
+		// worker's included (plan-28b4a7f6 slice 16): warn, never refuse.
+		warnLiveDelegation(stderr, dir, id)
 	}
 	return t.runGateRecordCheck()
 }

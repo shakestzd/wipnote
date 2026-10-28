@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/delegationledger"
 )
 
@@ -144,7 +143,7 @@ func waitOnce(ctx context.Context, d Deps, runID, name string) (WaitResult, bool
 func settle(d Deps, res WaitResult, o Observation, f eventFacts, unacked bool) (WaitResult, bool) {
 	switch {
 	case o.PaneGone || o.Exited: // a lost pane or an exited harness: worker loss
-		closeLost(d, res.Run, f.sessions)
+		closeLostRun(d, res.Run, f.sessions)
 		res.Outcome, res.Detail = OutcomeGone, o.GoneWhy
 	case o.TaskAnswered:
 		res.Outcome = OutcomeDone
@@ -172,15 +171,14 @@ func addSessions(d Deps, runID string, sessions []string) {
 	}
 }
 
-// closeLost is the worker-loss close: the row ends gone only if it is still
-// open, and only then are the worker sessions' own episodes expired (each
-// worker session is its own claim root). The orchestrator's are untouched.
-func closeLost(d Deps, runID string, sessions []string) {
-	closed, err := closeWorkerRow(d, runID, delegationledger.EndGone)
-	if err != nil || !closed || d.Claims == nil {
+// closeLostRun is wait's worker-loss close: it reads the row and run folder
+// and hands them to closeLost, adding the sessions this look saw bound.
+func closeLostRun(d Deps, runID string, sessions []string) {
+	r, ok, err := d.Ledger.Get(runID)
+	if err != nil || !ok {
 		return
 	}
-	for _, sid := range sessions {
-		_, _ = d.Claims.CloseAllForSession(sid, sid, claimledger.OutcomeExpired, d.now())
-	}
+	r.WorkerSessions = mergeSessions(r.WorkerSessions, sessions)
+	rf, _ := d.Store.Run(runID)
+	closeLost(d, r, rf)
 }

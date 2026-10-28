@@ -58,7 +58,8 @@ func TestDelegateRun_ContainerFlag(t *testing.T) {
 }
 
 func TestDelegateSpawn_ContainerFlag(t *testing.T) {
-	containerCmdProject(t)
+	dir, _, _ := containerCmdProject(t)
+	writeFeature(t, filepath.Join(dir, ".wipnote"), "feat-0a1b2c3d") // spawn resolves the item first (slice 16)
 	t.Setenv("WIPNOTE_SESSION_ID", "sess-delegate-spawn-test")
 	_, err := execDelegate(t, "spawn", "w1", "--harness", "claude", "--work-item", "feat-0a1b2c3d", "--container")
 	if err == nil || strings.Contains(err.Error(), "unknown flag") || !strings.Contains(err.Error(), "herdr") {

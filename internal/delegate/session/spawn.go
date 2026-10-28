@@ -59,16 +59,14 @@ type Spawned struct {
 
 // Spawn starts a worker and returns with status starting. Refusals come
 // before anything is written: a bad name or harness, no work item, a live
-// name, and a full workers tab ("at cap").
+// name, a live worker on the item, and a full workers tab ("at cap").
 func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
-	if o.Name == "" {
-		o.Name = slug.WorkerName(o.WorkItem, o.WorkTitle)
-	}
-	if err := checkSpawn(d, o); err != nil {
+	if err := prepareSpawn(d, &o); err != nil {
 		return Spawned{}, err
 	}
 	var info Info
 	var rf *runstore.RunFolder
+	var lost []Info
 	err := withWorkers(d.Store, string(o.CallerPane), func(w *Workers) error {
 		if err := prune(ctx, d.Herdr, w); err != nil {
 			return err
@@ -77,7 +75,11 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 			return err
 		}
 		var err error
-		if info, rf, err = claimName(ctx, d, o); err != nil {
+		info, rf, lost, err = claimName(ctx, d, o)
+		for _, l := range lost {
+			w.dropRun(l.Run) // never split a lost worker's pane
+		}
+		if err != nil {
 			return err
 		}
 		pane, err := place(ctx, d.Herdr, w, info.Run, o.Cwd)
@@ -88,6 +90,9 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 		info, err = UpdateInfo(rf, func(i *Info) { i.Pane = string(pane) })
 		return err
 	})
+	for _, l := range lost {
+		dropPane(d, l) // other callers' records, now no lock is held
+	}
 	if err != nil {
 		return Spawned{}, err
 	}
@@ -100,6 +105,23 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 		return Spawned{}, err
 	}
 	return Spawned{Run: info.Run, Name: info.Name, Pane: info.Pane, Harness: info.Harness, Status: StatusStarting}, nil
+}
+
+// prepareSpawn resolves the work item (Deps.ResolveWorkItem, so a resume's
+// defaulted item is resolved too), names an unnamed worker after it, and
+// runs the refusals that need no lock.
+func prepareSpawn(d Deps, o *SpawnOptions) error {
+	if d.ResolveWorkItem != nil && o.WorkItem != "" {
+		id, err := d.ResolveWorkItem(o.WorkItem)
+		if err != nil {
+			return err
+		}
+		o.WorkItem = id
+	}
+	if o.Name == "" {
+		o.Name = slug.WorkerName(o.WorkItem, o.WorkTitle)
+	}
+	return checkSpawn(d, *o)
 }
 
 func checkSpawn(d Deps, o SpawnOptions) error {
@@ -124,43 +146,24 @@ func checkSpawn(d Deps, o SpawnOptions) error {
 // across placing or booting the pane.
 const namesLock = "names.lock"
 
-// claimName checks that name is free and opens the run, under namesLock.
-func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
+// claimName checks that the name and the work item are free (checkLive: one
+// live worker per item, slice 16) and opens the run, under namesLock.
+// It also returns the lost workers checkLive closed.
+func claimName(ctx context.Context, d Deps, o SpawnOptions) (Info, *runstore.RunFolder, []Info, error) {
 	if err := os.MkdirAll(d.Store.Root(), 0o700); err != nil {
-		return Info{}, nil, fmt.Errorf("delegate: run store: %w", err)
+		return Info{}, nil, nil, fmt.Errorf("delegate: run store: %w", err)
 	}
 	releaseNames := filelock.Guard(filepath.Join(d.Store.Root(), namesLock))
 	defer releaseNames()
-	if err := freeName(ctx, d, o.Name); err != nil {
-		return Info{}, nil, err
-	}
 	if err := checkSessionFree(d, o.ResumedFrom, o.ResumeSession); err != nil {
-		return Info{}, nil, err
+		return Info{}, nil, nil, err // the resume refusal names the run to resume instead
 	}
-	return openRun(d, o)
-}
-
-// freeName refuses a name an open interactive row holds while its pane
-// lives. A row whose pane herdr says is gone is closed first (end gone).
-func freeName(ctx context.Context, d Deps, name string) error {
-	open, ok := d.Ledger.ReadOpen()
-	if !ok {
-		return errors.New("delegate: the delegations ledger cannot be read; nothing was spawned")
+	lost, err := checkLive(ctx, d, o)
+	if err != nil {
+		return Info{}, nil, lost, err
 	}
-	for _, r := range open.Interactive() {
-		if r.Name != name {
-			continue
-		}
-		_, info, err := loadInfo(d.Store, r.ID)
-		if err == nil && info.Pane != "" {
-			if _, gerr := d.Herdr.Get(ctx, herdr.PaneID(info.Pane)); herdr.IsAbsent(gerr) {
-				_, _ = closeWorkerRow(d, r.ID, delegationledger.EndGone)
-				continue
-			}
-		}
-		return fmt.Errorf("%w: %s is run %s", ErrLiveName, name, r.ID)
-	}
-	return nil
+	info, rf, err := openRun(d, o)
+	return info, rf, lost, err
 }
 
 // openRun opens the ledger row, then the run folder with session.json, the
@@ -213,7 +216,7 @@ func writeRunFiles(d Deps, rf *runstore.RunFolder, info *Info, brief string) err
 			return err
 		}
 		info.Task = task.ID
-		if err := rf.WriteFile(runstore.FileBrief, []byte(Preamble(*info, mb.Dir())+brief+"\n")); err != nil {
+		if err := rf.WriteFile(runstore.FileBrief, []byte(TaskPreamble(*info, mb.Dir())+brief+"\n")); err != nil {
 			return err
 		}
 	}

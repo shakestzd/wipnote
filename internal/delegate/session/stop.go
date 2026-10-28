@@ -64,14 +64,15 @@ func Stop(ctx context.Context, d Deps, name string, o StopOptions) (StopResult, 
 	pane := herdr.PaneID(info.Pane)
 	p, err := d.Herdr.Get(ctx, pane)
 	if herdr.IsAbsent(err) {
-		res.Why = fmt.Sprintf("pane %s was already gone; the run is closed as gone", pane)
+		res.Why = fmt.Sprintf("pane %s was already gone; the run is closed as gone and its claims as expired", pane)
 		finishStop(ctx, d, rf, info, &res, delegationledger.EndGone)
+		expireWorkerClaims(d, r, rf)
 		return res, nil
 	}
 	if err == nil && reused(info, p) {
-		res.Why = fmt.Sprintf("pane %s now holds terminal %s, not the worker's %s; nothing was typed or closed, and the run is closed as gone",
+		res.Why = fmt.Sprintf("pane %s now holds terminal %s, not the worker's %s; nothing was typed or closed, and the run is closed as gone and its claims as expired",
 			pane, p.TerminalID, info.TerminalID)
-		forgetWorker(d, rf, info)
+		loseWorker(d, r, rf, info)
 		return res, nil
 	}
 	inside := recordInside(ctx, d, info, &res)
@@ -195,22 +196,16 @@ func reused(info Info, p herdr.Pane) bool {
 	return info.TerminalID != "" && p.TerminalID != "" && p.TerminalID != info.TerminalID
 }
 
-// forgetWorker closes a worker whose pane id was reused without touching
-// herdr: the pane leaves the caller's record (its tab is left alone, it now
-// holds another session), the row closes as gone, the run folder finishes.
-func forgetWorker(d Deps, rf *runstore.RunFolder, info Info) {
+// dropPane removes a lost worker's run from the caller's workers record
+// without touching herdr: its tab is left alone, and a reused id now holds
+// another session, so it must not count against the cap or be split. It
+// matches the run, not the pane id, which herdr may have given to another
+// worker.
+func dropPane(d Deps, info Info) {
 	_ = withWorkers(d.Store, info.CallerPane, func(w *Workers) error {
-		var keep []WorkerPane
-		for _, wp := range w.Panes {
-			if wp.Pane != herdr.PaneID(info.Pane) {
-				keep = append(keep, wp)
-			}
-		}
-		w.Panes = keep
+		w.dropRun(info.Run)
 		return nil
 	})
-	_, _ = closeWorkerRow(d, info.Run, delegationledger.EndGone)
-	_ = rf.Finish(1, d.now())
 }
 
 // findWorker returns the newest open interactive row named name.

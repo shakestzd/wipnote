@@ -22,16 +22,17 @@ func closeWorkerRow(d Deps, run, reason string) (bool, error) {
 	return d.Ledger.CloseIfOpen(run, delegationledger.CloseInfo{Ended: d.now(), Reason: reason})
 }
 
-// WorkerPreamble is the result preamble for a task to info's worker, naming
-// the mailbox paths that worker sees: the container's workspace folder for
-// a container worker, the host's otherwise. Every message that tells a
-// worker where to write (the brief, each sent task) is built here.
+// WorkerPreamble is TaskPreamble (the claim line, then the result preamble)
+// for a task to info's worker, naming the mailbox paths that worker sees:
+// the container's workspace folder for a container worker, the host's
+// otherwise. Every message that tells a worker where to write (the brief,
+// each sent task) is built here.
 func WorkerPreamble(store *runstore.Store, info Info) (string, error) {
 	dir, err := workerMailDir(store, info)
 	if err != nil {
 		return "", err
 	}
-	return Preamble(info, dir), nil
+	return TaskPreamble(info, dir), nil
 }
 
 // workerMailDir is the worker's mailbox as the worker sees it. A container
