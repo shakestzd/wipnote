@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-27T21:39:40.665647"
-             data-updated="2026-10-28T02:54:59.294839" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
+             data-updated="2026-10-28T03:06:45.729101" data-agent-assigned="claude-code" data-track-id="trk-621f9064">
 
         <header>
             <h1>Sweep for processes that outlive their session</h1>
@@ -49,6 +49,14 @@
                 </ul>
             </section>
         </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-e6e3ef39-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ First-step findings (2026-10-28). (1) Claude Code: CLAUDE_CODE_SESSION_ID is set in Bash/PowerShell tool, hook and stdio MCP subprocesses, matches hook session_id, updated on /clear (https://code.claude.com/docs/en/env-vars). Local check: a &#39;sleep &amp;&#39; child of a Bash tool shell inherits CLAUDE_CODE_SESSION_ID, CLAUDECODE=1 and WIPNOTE_SESSION_ID in /proc/&lt;pid&gt;/environ. (2) Codex: CODEX_THREAD_ID injected into the terminal environment &#39;when applicable&#39; (openai/codex PR #10096, merged 2026-02-03, https://github.com/openai/codex/pull/10096); not in the official env-var page (https://learn.chatgpt.com/docs/config-file/environment-variables); shell_environment_policy can filter it (https://learn.chatgpt.com/docs/config-file/config-reference). CODEX_SESSION_ID = root thread fallback (core/agent/detect.go). (3) WIPNOTE_SESSION_ID: written by the SessionStart hook into CLAUDE_ENV_FILE (core/hooks/session_start_active.go), stripped by the claude launcher (cmd/wipnote/claude_env.go), and known to be stale in child sessions (issues #125/#144) - so sweep prefers the harness-native id and falls back to WIPNOTE_SESSION_ID. (4) Linux: /proc/&lt;pid&gt;/environ holds the env at execve, later putenv not reflected, access gated by PTRACE_MODE_READ_FSCREDS (https://man7.org/linux/man-pages/man5/proc_pid_environ.5.html). (5) macOS: ps -E &#39;Display the environment as well. This does not reflect changes in the environment after process launch.&#39; (https://keith.github.io/xcode-man-pages/ps.1.html); not verifiable here, so behind a Lister interface with a self-check that reports &#39;process environment not readable on this platform&#39;.</li>
+                <li data-completed="false" data-step-id="step-feat-e6e3ef39-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Built internal/procsweep (Sweep/Options/Project/Result/Proc, Lister &#43; ListerFunc, ErrEnvUnreadable, ErrTimeout; Linux /proc lister, macOS ps -E lister, other OS reports unreadable) and wired wipnote reconcile (orphaned-process class) plus reconcile --processes (read-only full view). Tests red then green: fake table (found / ignored / orphan / live / unattributed / self excluded / trimmed / platform error / time bound), fake /proc, ps parsing, one real sleep child on Linux, AST scan proving no signal/kill call. Gate: go build, go vet, scripts/go-test-streaming.sh ./... all pass. Commits 082b25676, 9e630efe9 on obs/obs4.</li>
+            </ol>
+        </section>
 
         <section data-content>
             <h3>Description</h3>
