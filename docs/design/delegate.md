@@ -201,7 +201,9 @@ closes after its last worker.
 | 1 | a refusal or error; stop left the pane open (the JSON still prints) |
 
 Planned on top: `--write` (slice 12), `--resume NAME` (slice 20), `--container` (slice 21),
-`--tools`, `--plugin`, `--mcp` (slice 27), one live worker per item (section 5, slice 16).
+`--tools`, `--plugin`, `--mcp` (slice 27). Slice 16 adds the claim rules of section 5: spawn
+also refuses a second live worker on the same work item, and list, stop and spawn close a lost
+worker's claim episodes as expired.
 
 ### 2.6 Planned commands
 
@@ -341,11 +343,13 @@ q-concurrent-workers (section 5).
 ## 5. Claims
 
 A spawned worker claims its work item through the existing claim-episode model (q-worker-claim:
-the worker claims). No claim store or outcome is added. Planned (slice 16; blocked by bug-01f182e5).
+the worker claims). No claim store or outcome is added. Available (slice 16). Liveness is the
+sessions-ledger rule (a session is live until its row records an end), now that bug-01f182e5 is
+fixed.
 
-- **How the worker claims.** Its brief begins with `wipnote <kind> start <id>`. The item lock, the
-  collision gate and the ledger write run unchanged. `wait` and `list` report it when the episode
-  did not appear.
+- **How the worker claims.** Its brief begins with `wipnote <kind> start <id>` (the kind follows
+  the id's prefix). The item lock, the collision gate and the ledger write run unchanged. Planned:
+  `wait` and `list` report it when the episode did not appear.
 - **Handoff (q-claim-handoff: co-claim, workers count as family).** The orchestrator keeps its
   episode while the worker holds its own, so the claim never leaves the orchestrator and nothing has
   to return. The claim gate (`liveForeignClaims` and `checkLiveCollisionGate`) treats an episode as
@@ -357,18 +361,24 @@ the worker claims). No claim store or outcome is added. Planned (slice 16; block
 
   An unrelated live session is still refused. An unreadable delegations ledger fails open.
 - **Concurrency (q-concurrent-workers: one worker per item in v1).** `spawn` refuses when an open
-  interactive row for the item has a live worker. A row whose pane is gone is closed first. One-shot
-  runs do not claim and do not count.
+  interactive row for the item has a live worker (its pane lives, or its run folder cannot be
+  read). A row whose pane is gone goes through the worker-loss path first. One-shot runs do not
+  claim and do not count.
 - **Stop.** The worker's own SessionEnd closes its episode as `abandoned`; the row records
   `end_reason=stop`.
-- **Crash or lost pane.** `wait`, `list` or `stop` confirms no worker process remains, then closes only
-  that worker session's episodes as `expired`. `wipnote claims reconcile` stays the backstop.
+- **Crash or lost pane.** When herdr reports the pane absent (or holding another terminal), `list`,
+  `stop` and `spawn` close the row as `gone`, then close only that worker's sessions' episodes as
+  `expired` (`worker_sessions` plus sessions bound in events that no `list` has moved yet). The
+  caller's episode is never touched. `wipnote claims reconcile` stays the backstop.
 - **wait timeout.** It changes no claim.
 - **Orchestrator ends first.** Its SessionEnd closes only its own rows; workers keep their claims.
 - **Completion.** Whoever completes the item closes every open episode on it. So stop the worker
-  before completing; `feature complete` warns while a live delegation row exists.
-- **After `/clear`.** The new worker session is added to `worker_sessions`, so the gate still treats
-  it as family.
+  before completing; `<kind> complete` warns (never refuses) while an open interactive row exists
+  for the item.
+- **After `/clear`.** The new worker session still carries `WIPNOTE_DELEGATE_RUN`, so it is family of
+  the caller and of the run's earlier worker sessions, and its next `<kind> start` reopens its
+  episode. The next `list` adds it to `worker_sessions`, so the caller's gate treats it as family
+  too.
 
 ## 6. Interactive parity (spike spk-87139e0e)
 
