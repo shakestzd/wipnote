@@ -10,15 +10,15 @@
 <body>
     <article id="feat-a786efa7"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-25T14:56:32.996841"
-             data-updated="2026-10-28T19:19:30.358699" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
+             data-updated="2026-10-28T21:53:43.258457" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Mailbox verbs: send, wait, result and questions</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -29,6 +29,25 @@
                 <ul>
                     <li><a href="../features/feat-0031fd91.html" data-relationship="blocked_by">feat-0031fd91</a></li>
                     <li><a href="../features/feat-ee335139.html" data-relationship="blocked_by">feat-ee335139</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="58f58fc1a30043074e17ccd8f021936ecefcd438.html" data-relationship="committed_in" data-since="2026-10-28T15:07:57">Merge pull request #296 from shakestzd/dlg/s11</a></li>
+                    <li><a href="c61cc87b88c84766a7c16f984decf46f9920bed0.html" data-relationship="committed_in" data-since="2026-10-28T18:56:23">feat-a786efa7: merge dlg/s10 into slice 11</a></li>
+                    <li><a href="b5b8664f6845d8b619e9ea42adbc4f30320fdf76.html" data-relationship="committed_in" data-since="2026-10-28T18:11:48">feat-a786efa7: a tool_end clears only its own tool call&#39;s ask (review)</a></li>
+                    <li><a href="c79a8fb8b16890be119d491518eb1d1a51d1baaf.html" data-relationship="committed_in" data-since="2026-10-28T17:59:25">wipnote: sync feat-a786efa7</a></li>
+                    <li><a href="41da8b7b88f88fabe29c2ad75be7b54b0bf72845.html" data-relationship="committed_in" data-since="2026-10-28T17:59:13">feat-a786efa7: wait returns a caller&#39;s cancellation, not a timeout (review)</a></li>
+                    <li><a href="20f55a356f45a15b993d3fd16dc95b799b6b5f77.html" data-relationship="committed_in" data-since="2026-10-28T17:49:46">wipnote: sync feat-a786efa7</a></li>
+                    <li><a href="0f8a32c8e058b545e1dc67016522fafd73987d31.html" data-relationship="committed_in" data-since="2026-10-28T17:47:03">feat-a786efa7: send decides under its lock; mailbox reads are scoped to the run (review)</a></li>
+                    <li><a href="e46c03bbf521564fb5a3d8d3f05452659729c876.html" data-relationship="committed_in" data-since="2026-10-28T17:32:58">wipnote: sync feat-a786efa7</a></li>
+                    <li><a href="59ce1f6e50d53b685d037b8650be8687a18596c4.html" data-relationship="committed_in" data-since="2026-10-28T17:30:47">feat-a786efa7: exited harness is worker loss in wait; one unacked task per worker (review)</a></li>
+                    <li><a href="217810845123760eef45c87868f262e39dedae28.html" data-relationship="committed_in" data-since="2026-10-28T17:17:28">feat-a786efa7: merge dlg/s10 review fixes into slice 11</a></li>
+                    <li><a href="eb82e0e18dd3d993730205590ac41dba65e8d3f1.html" data-relationship="committed_in" data-since="2026-10-28T17:15:34">feat-a786efa7: wait reports trust dialogs, reads the ack first, bounds herdr calls (review)</a></li>
+                    <li><a href="98dbf507d5d37feb8eab430b7c0fd7f93dccc33c.html" data-relationship="committed_in" data-since="2026-10-28T16:55:09">feat-a786efa7: merge dlg/s10 review fixes into slice 11</a></li>
+                    <li><a href="ff9a43ad67cace3ea9a7a73e471e85efc81320d0.html" data-relationship="committed_in" data-since="2026-10-28T16:55:09">feat-a786efa7: delegate send, wait, result, questions and inbox (plan-28b4a7f6 slice 11)</a></li>
+                    <li><a href="2388ef84ec799d531f0e6eb30d5bcd94060441e6.html" data-relationship="committed_in" data-since="2026-10-28T16:55:08">feat-a786efa7: worker hooks record tool, ask and permission events (plan-28b4a7f6 slice 11)</a></li>
                 </ul>
             </section>
             <section data-edge-type="implemented_in">
@@ -54,14 +73,14 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-feat-a786efa7-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ D8: a grey suggestion on the input line never holds wait at working; Stop or a result file ends it (two-sided tests, red first)</li>
-                <li data-completed="false" data-step-id="step-feat-a786efa7-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Verified gates; opened PR #296 against dlg/s10; marked ready for Codex review</li>
-                <li data-completed="false" data-step-id="step-feat-a786efa7-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fixed 3 Codex wait findings (eb82e0e18); merged dlg/s10 (217810845); re-requested review</li>
-                <li data-completed="false" data-step-id="step-feat-a786efa7-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fixed 2 more Codex findings: exited harness is worker loss in wait; one unacked task per worker (59ce1f6e5)</li>
-                <li data-completed="false" data-step-id="step-feat-a786efa7-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Root-cause fix: send decides under its lock; mailbox reads scoped to the run (0f8a32c8e)</li>
-                <li data-completed="false" data-step-id="step-feat-a786efa7-5" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fixed Codex finding: wait returns caller cancellation, not timeout (41da8b7b8)</li>
-                <li data-completed="false" data-step-id="step-feat-a786efa7-6" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fixed Codex finding: tool_end clears only its own ask (b5b8664f6)</li>
-                <li data-completed="false" data-step-id="step-feat-a786efa7-7" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Merged dlg/s10 into slice 11; merged PR #296 into dlg/s10</li>
+                <li data-completed="true" data-step-id="step-feat-a786efa7-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ D8: a grey suggestion on the input line never holds wait at working; Stop or a result file ends it (two-sided tests, red first)</li>
+                <li data-completed="true" data-step-id="step-feat-a786efa7-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Verified gates; opened PR #296 against dlg/s10; marked ready for Codex review</li>
+                <li data-completed="true" data-step-id="step-feat-a786efa7-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fixed 3 Codex wait findings (eb82e0e18); merged dlg/s10 (217810845); re-requested review</li>
+                <li data-completed="true" data-step-id="step-feat-a786efa7-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fixed 2 more Codex findings: exited harness is worker loss in wait; one unacked task per worker (59ce1f6e5)</li>
+                <li data-completed="true" data-step-id="step-feat-a786efa7-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Root-cause fix: send decides under its lock; mailbox reads scoped to the run (0f8a32c8e)</li>
+                <li data-completed="true" data-step-id="step-feat-a786efa7-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fixed Codex finding: wait returns caller cancellation, not timeout (41da8b7b8)</li>
+                <li data-completed="true" data-step-id="step-feat-a786efa7-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fixed Codex finding: tool_end clears only its own ask (b5b8664f6)</li>
+                <li data-completed="true" data-step-id="step-feat-a786efa7-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ Merged dlg/s10 into slice 11; merged PR #296 into dlg/s10</li>
             </ol>
         </section>
 
