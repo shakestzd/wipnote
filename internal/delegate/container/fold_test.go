@@ -190,3 +190,46 @@ func TestFold_EnsureAfterEndStaysEnded(t *testing.T) {
 		t.Errorf("host row %+v: want one ended run", row)
 	}
 }
+
+// TestFold_ResumedRunInNewFolder: a resumed container run is a new run
+// folder whose own file holds only the new run of the same session. Its
+// fold adds that run to the host's row (closed by the first run's fold) and
+// ends it; folding either folder again writes nothing.
+func TestFold_ResumedRunInNewFolder(t *testing.T) {
+	wipnoteDir, firstDir := foldProject(t)
+	second := "dlg-0123456789cd"
+	secondDir := filepath.Join(wipnoteDir, "delegate", "runs", second)
+	if err := os.MkdirAll(secondDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sid := "acacacac-1111-2222-3333-444444444444"
+	t0 := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	inRun := func(run string, start, end time.Time) {
+		t.Setenv(containerwrite.RunEnv, run)
+		t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+		s := sessionledger.NewStore(wipnoteDir)
+		_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: start})
+		_ = s.Close(sid, end)
+		t.Setenv(containerwrite.PlaceEnv, "")
+	}
+	inRun(foldRun, t0, t0.Add(time.Hour))
+	if _, err := Fold(wipnoteDir, firstDir); err != nil {
+		t.Fatal(err)
+	}
+	inRun(second, t0.Add(2*time.Hour), t0.Add(3*time.Hour))
+	got, err := Fold(wipnoteDir, secondDir)
+	if err != nil || got.Resumed != 1 || got.Ended != 1 {
+		t.Errorf("fold of the resumed run's folder = %+v, %v; want one resumed run, ended", got, err)
+	}
+	row, _, _ := sessionledger.NewStore(wipnoteDir).Get(sid)
+	if runs := row.RunList(); len(runs) != 2 || !row.EndedAt.Equal(t0.Add(3*time.Hour)) {
+		t.Errorf("host row runs %+v ended %v: want both runs, ended at the resume's end", runs, row.EndedAt)
+	}
+	before, _ := os.ReadFile(sessionledger.NewStore(wipnoteDir).Path())
+	a, _ := Fold(wipnoteDir, firstDir)
+	b, _ := Fold(wipnoteDir, secondDir)
+	after, _ := os.ReadFile(sessionledger.NewStore(wipnoteDir).Path())
+	if a != (Folded{}) || b != (Folded{}) || string(before) != string(after) {
+		t.Errorf("refolds = %+v, %+v (ledger changed %v), want nothing", a, b, string(before) != string(after))
+	}
+}

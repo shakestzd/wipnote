@@ -91,11 +91,12 @@ func Run(ctx context.Context, o Options) (Result, error) {
 	if err != nil {
 		return res, err
 	}
-	closeRow(o.Ledger, rf, res)
 	if o.Container {
-		// The tool's hooks inside wrote only their own files: fold them in.
+		// The tool's hooks inside wrote only their own files: fold them
+		// in before the row closes.
 		_, _ = container.Fold(filepath.Dir(o.Store.Root()), rf.Dir())
 	}
+	closeRow(o.Ledger, rf, res)
 	sweep(o)
 	return res, nil
 }

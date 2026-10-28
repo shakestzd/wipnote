@@ -154,7 +154,7 @@ func freeName(ctx context.Context, d Deps, name string) error {
 		_, info, err := loadInfo(d.Store, r.ID)
 		if err == nil && info.Pane != "" {
 			if _, gerr := d.Herdr.Get(ctx, herdr.PaneID(info.Pane)); herdr.IsAbsent(gerr) {
-				_, _ = d.Ledger.CloseIfOpen(r.ID, delegationledger.CloseInfo{Ended: d.now(), Reason: delegationledger.EndGone})
+				_, _ = closeWorkerRow(d, r.ID, delegationledger.EndGone)
 				continue
 			}
 		}
@@ -229,7 +229,7 @@ func abandon(d Deps, run string, rf *runstore.RunFolder, pane herdr.PaneID) {
 	if rf != nil {
 		_ = rf.Finish(1, d.now())
 	}
-	_, _ = d.Ledger.CloseIfOpen(run, delegationledger.CloseInfo{Ended: d.now(), Reason: delegationledger.EndGone})
+	_, _ = closeWorkerRow(d, run, delegationledger.EndGone)
 }
 
 // boot waits for the new pane's shell to settle, then types the boot line.

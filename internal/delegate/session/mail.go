@@ -87,9 +87,13 @@ func decideAndPost(ctx context.Context, d Deps, rf *runstore.RunFolder, info Inf
 			ErrTaskUnacked, t.msg.ID)
 	}
 	info.Task = runstore.NewMsgID()
+	preamble, err := WorkerPreamble(d.Store, info)
+	if err != nil {
+		return runstore.Message{}, 0, err
+	}
 	msg, err := mb.Post(runstore.Inbox, runstore.Message{
 		ID: info.Task, Run: info.Run, From: "caller", To: info.Name, Type: runstore.TypeTask, Turn: t.turn + 1,
-		Body: Preamble(info, mb.Dir()) + text,
+		Body: preamble + text,
 	})
 	return msg, t.turn + 1, err
 }

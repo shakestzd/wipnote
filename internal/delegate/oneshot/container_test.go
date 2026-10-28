@@ -3,12 +3,16 @@ package oneshot
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/shakestzd/wipnote/core/delegationledger"
+	"github.com/shakestzd/wipnote/core/sessionledger"
 	"github.com/shakestzd/wipnote/internal/delegate/codex"
 	"github.com/shakestzd/wipnote/internal/delegate/container"
 	"github.com/shakestzd/wipnote/internal/delegate/container/containertest"
@@ -227,5 +231,40 @@ func TestRun_ContainerMapsPathsWithSpaces(t *testing.T) {
 	}
 	if got := p.file(res.RunID, runstore.FileLastMD); got != "spaced answer" {
 		t.Errorf("host last.md %q (exit %d)", got, res.Exit)
+	}
+}
+
+// TestRunPane_ContainerFoldsBeforeClose: the pane worker of a container run
+// folds the tool's own files before it closes the row, so a run whose
+// caller was interrupted still leaves its session in the host's ledger. A
+// host run folds nothing.
+func TestRunPane_ContainerFoldsBeforeClose(t *testing.T) {
+	p, _, _ := containerProject(t)
+	sid := "bcbcbcbc-1111-2222-3333-444444444444"
+	t.Setenv("STUB_OWN_SESSION", filepath.Join(p.store.Root(), "runs"))
+	t.Setenv("STUB_OWN_SESSION_ID", sid)
+	for _, inContainer := range []bool{true, false} {
+		o := p.options("claude", "-p", "x")
+		if inContainer {
+			o = p.containerOptions("claude", "-p", "x")
+		}
+		r, err := classify(o)
+		must(t, err)
+		rec, err := p.ledger.Open(delegationledger.Record{Mode: delegationledger.ModeOneshot, Harness: string(r.Kind), Host: ledgerHost(o, r)})
+		must(t, err)
+		rf, err := p.store.CreateRun(rec.ID)
+		must(t, err)
+		must(t, writeJob(rf, buildJob(o, r, rf)))
+		RunPane(context.Background(), PaneOptions{Store: p.store, RunID: rec.ID, Out: io.Discard, Ledger: p.ledger, Poll: 10 * time.Millisecond})
+		if row := p.row(rec.ID); row.IsOpen() {
+			t.Fatalf("container=%v: row still open", inContainer)
+		}
+		got, ok, _ := sessionledger.NewStore(filepath.Dir(p.store.Root())).Get(sid)
+		if inContainer && (!ok || got.Host != sessionledger.HostContainer) {
+			t.Errorf("container run: host ledger row %+v (found %v), want the folded session", got, ok)
+		}
+		if !inContainer && ok && got.Host != sessionledger.HostContainer {
+			t.Errorf("host run folded a session: %+v", got)
+		}
 	}
 }

@@ -350,8 +350,14 @@ override or a docker command. There is no second-account gate.
   sessions-ledger row and family entry), `gate-<id>.json` (gate runs, which its own completion gate
   also reads), and its own claim shard. It never writes the sessions, gate or delegations ledger,
   the family index, `.active-session` or `.wipnote/.gitignore`.
-- **Fold:** `list`, `stop` and the end of a run fold those files into the host's sessions ledger
-  (`host=container`, the real harness, its end), the family index and the gate ledger, once.
+- **Fold:** every close of a container worker's row (stop, wait's or list's loss close, spawn's
+  cleanup) and the end of a one-shot run first fold those files into the host's sessions ledger
+  (`host=container`, the real harness, each run and its end, a resumed run's folder included), the
+  family index and the gate ledger. The host records what it folded in the run folder's
+  `folded.json`, so nothing is folded twice.
+- **Paths:** every task sent to a container worker (the brief and each `delegate send`) names its
+  result and question files in the container's workspace folder; a send before the boot recorded
+  that folder is refused.
 - **stop:** herdr sees only the host's `devcontainer exec`. stop also records the worker's processes
   inside (found by its run id in `/proc`, through `devcontainer exec`) before it types anything, and
   after the pane closes reports any still running with the same start as a survivor with

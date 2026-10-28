@@ -185,9 +185,8 @@ func finishStop(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info, 
 		}
 		return nil
 	})
-	_, _ = d.Ledger.CloseIfOpen(info.Run, delegationledger.CloseInfo{Ended: d.now(), Reason: reason})
+	_, _ = closeWorkerRow(d, info.Run, reason)
 	_ = rf.Finish(0, d.now())
-	foldContainer(d, rf, info)
 }
 
 // reused reports that a pinned worker's pane id now holds another terminal:
@@ -210,7 +209,7 @@ func forgetWorker(d Deps, rf *runstore.RunFolder, info Info) {
 		w.Panes = keep
 		return nil
 	})
-	_, _ = d.Ledger.CloseIfOpen(info.Run, delegationledger.CloseInfo{Ended: d.now(), Reason: delegationledger.EndGone})
+	_, _ = closeWorkerRow(d, info.Run, delegationledger.EndGone)
 	_ = rf.Finish(1, d.now())
 }
 

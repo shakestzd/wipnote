@@ -77,7 +77,7 @@ func ContainerBoot(ctx context.Context, store *runstore.Store, run, caller strin
 	if err != nil {
 		return nil, err
 	}
-	brief, err := containerBrief(store, rf, info, m)
+	brief, err := containerBrief(store, rf, info)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func recordContainer(rf *runstore.RunFolder, info Info, up container.Up) error {
 // containerBrief is brief.md with its preamble's result path in the
 // container. A brief that does not start with its own preamble is refused:
 // nothing is guessed about where the worker writes its answer.
-func containerBrief(store *runstore.Store, rf *runstore.RunFolder, info Info, m container.Mapper) (string, error) {
+func containerBrief(store *runstore.Store, rf *runstore.RunFolder, info Info) (string, error) {
 	brief, _, _ := rf.ReadFrom(runstore.FileBrief, 0)
 	if len(brief) == 0 {
 		return "", nil
@@ -110,11 +110,11 @@ func containerBrief(store *runstore.Store, rf *runstore.RunFolder, info Info, m 
 	if !strings.HasPrefix(string(brief), host) {
 		return "", fmt.Errorf("delegate boot: %s does not start with its result preamble; nothing was started", runstore.FileBrief)
 	}
-	remote, err := m.Path(mb.Dir())
+	inside, err := WorkerPreamble(store, info)
 	if err != nil {
 		return "", err
 	}
-	return Preamble(info, remote) + strings.TrimPrefix(string(brief), host), nil
+	return inside + strings.TrimPrefix(string(brief), host), nil
 }
 
 // containerArgv is the launcher inside: the container's own wipnote, in

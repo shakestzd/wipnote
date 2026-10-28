@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/shakestzd/wipnote/core/containerwrite"
 	"github.com/shakestzd/wipnote/core/sessionledger"
@@ -231,5 +232,124 @@ func TestList_FoldsContainerWorkerSession(t *testing.T) {
 	}
 	if r := e.row(s.Run); !slices.Contains(r.WorkerSessions, sid) {
 		t.Errorf("worker_sessions %v lacks %s", r.WorkerSessions, sid)
+	}
+}
+
+// bootedContainerWorker spawns a container worker, runs its boot (which
+// records the workspace folder) and binds sid-1 with an empty input line,
+// so send may type.
+func bootedContainerWorker(t *testing.T, e *env, name string) Spawned {
+	t.Helper()
+	o := e.containerOpts(name, HarnessClaude)
+	o.Brief = ""
+	s, err := Spawn(context.Background(), e.deps, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ContainerBoot(context.Background(), e.deps.Store, s.Run, "", nil); err != nil {
+		t.Fatal(err)
+	}
+	e.herdr.prompts = true
+	e.herdr.pane(PaneOf(s)).styled = "> \n"
+	e.event(s.Run, "sid-1", runstore.KindSessionStart)
+	return s
+}
+
+// TestSend_ContainerWorkerGetsWorkspacePaths: every task sent to a container
+// worker names its result and question files in the container's workspace
+// folder, as the brief does; a host worker's tasks name host paths. A send
+// before the boot recorded the workspace folder is refused, writing nothing.
+func TestSend_ContainerWorkerGetsWorkspacePaths(t *testing.T) {
+	e, _, remote := containerEnv(t)
+	bootedContainerWorker(t, e, "w1")
+	sent := e.send("w1", "Count the files.")
+	msgs, _ := e.mailbox("w1").Read(runstore.Inbox)
+	body := msgs[len(msgs)-1].Body
+	inside := filepath.Join(remote, ".wipnote", "delegate", "mail", "w1", "outbox")
+	if !strings.Contains(body, filepath.Join(inside, sent.Task+"-result.json")) || !strings.Contains(body, filepath.Join(inside, sent.Task+"-q1.json")) ||
+		strings.Contains(body, e.mailbox("w1").Dir()) {
+		t.Errorf("task body %q: want the result and question paths in the workspace folder only", body)
+	}
+
+	o2 := e.containerOpts("w2", HarnessClaude)
+	o2.Brief = ""
+	s2, err := Spawn(context.Background(), e.deps, o2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.herdr.pane(PaneOf(s2)).styled = "> \n"
+	e.event(s2.Run, "sid-2", runstore.KindSessionStart)
+	before, _ := e.mailbox("w2").Read(runstore.Inbox)
+	if _, err := Send(context.Background(), e.deps, "w2", "x"); err == nil || !strings.Contains(err.Error(), "workspace folder") {
+		t.Errorf("send before the boot: %v, want a refusal naming the workspace folder", err)
+	}
+	if after, _ := e.mailbox("w2").Read(runstore.Inbox); len(after) != len(before) {
+		t.Errorf("a refused send posted a message")
+	}
+
+	h := newEnv(t)
+	h.worker("w3", "")
+	hs := h.send("w3", "x")
+	hm, _ := h.mailbox("w3").Read(runstore.Inbox)
+	if !strings.Contains(hm[len(hm)-1].Body, filepath.Join(h.mailbox("w3").Dir(), "outbox", hs.Task+"-result.json")) {
+		t.Errorf("host task body %q: want the host path", hm[len(hm)-1].Body)
+	}
+}
+
+// ownSessionFor writes, as the container worker's hooks do, its own session
+// row (started and ended) in the run folder.
+func ownSessionFor(t *testing.T, e *env, run, sid string) {
+	t.Helper()
+	wipnoteDir := filepath.Join(e.dir, ".wipnote")
+	t.Setenv(containerwrite.RunEnv, run)
+	t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+	s := sessionledger.NewStore(wipnoteDir)
+	_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: e.deps.now().Add(-time.Hour)})
+	_ = s.Close(sid, e.deps.now())
+	t.Setenv(containerwrite.PlaceEnv, "")
+}
+
+// TestClose_FoldsContainerWorkerFirst: every path that closes a container
+// worker's row (wait's loss close, spawn's cleanup, a reused pane, a gone
+// pane at spawn) folds its own files into the host's ledgers first. A host
+// worker's close folds nothing.
+func TestClose_FoldsContainerWorkerFirst(t *testing.T) {
+	paths := map[string]func(e *env, s Spawned){
+		"closeLost": func(e *env, s Spawned) { closeLost(e.deps, s.Run, []string{"sid-1"}) },
+		"abandon": func(e *env, s Spawned) {
+			rf, _, _ := loadInfo(e.deps.Store, s.Run)
+			abandon(e.deps, s.Run, rf, "")
+		},
+		"forgetWorker": func(e *env, s Spawned) {
+			rf, info, _ := loadInfo(e.deps.Store, s.Run)
+			forgetWorker(e.deps, rf, info)
+		},
+		"freeName": func(e *env, s Spawned) {
+			e.herdr.pane(PaneOf(s)).gone = true
+			_ = freeName(context.Background(), e.deps, s.Name)
+		},
+	}
+	for name, closeIt := range paths {
+		e, _, _ := containerEnv(t)
+		s, err := Spawn(context.Background(), e.deps, e.containerOpts("w1", HarnessClaude))
+		if err != nil {
+			t.Fatal(err)
+		}
+		sid := "13131313-1111-2222-3333-44444444444" + string(rune('0'+len(name)%10))
+		ownSessionFor(t, e, s.Run, sid)
+		closeIt(e, s)
+		if r := e.row(s.Run); r.IsOpen() {
+			t.Errorf("%s: the row stayed open", name)
+		}
+		row, ok, _ := sessionledger.NewStore(filepath.Join(e.dir, ".wipnote")).Get(sid)
+		if !ok || row.Host != sessionledger.HostContainer || row.IsOpen() {
+			t.Errorf("%s: host ledger row %+v (found %v): want the folded, ended container session", name, row, ok)
+		}
+	}
+	h := newEnv(t)
+	hs := h.worker("w1", "")
+	closeLost(h.deps, hs.Run, []string{"sid-1"})
+	if _, err := os.Stat(filepath.Join(h.dir, ".wipnote", sessionledger.FileName)); !os.IsNotExist(err) {
+		t.Errorf("a host worker's close wrote the sessions ledger (err %v)", err)
 	}
 }

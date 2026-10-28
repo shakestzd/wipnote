@@ -1,11 +1,15 @@
 package container
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/containerwrite"
+	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/gateledger"
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/sessionledger"
@@ -19,10 +23,28 @@ type Folded struct{ Sessions, Resumed, Ended, Gates, Families int }
 // writes the shared ledgers.
 var ErrFoldInside = errors.New("delegate: only the host folds a container worker's files")
 
+// FoldedFile is the host's own record, in the run folder, of what it has
+// folded from that folder: per session, how many of its runs were opened in
+// the host's ledger and whether the latest one's end was closed. The host
+// alone writes it (replaced by rename); the container never does.
+const FoldedFile = "folded.json"
+
+type foldedSession struct {
+	Runs  int  `json:"runs"`
+	Ended bool `json:"ended"`
+}
+
+type foldedState struct {
+	Sessions map[string]foldedSession `json:"sessions"`
+}
+
 // Fold folds a container worker's own files in runDir into the host's
 // sessions ledger (host=container, the worker's real harness), the session
-// family index and the gate ledger. It is idempotent: a row already there is
-// only closed once, and a gate run already recorded is not appended again.
+// family index and the gate ledger. It is idempotent: what the run folder's
+// folded.json says was folded is not folded again, and a gate run already
+// recorded is not appended again. A resumed run is a new run folder whose
+// file holds only its own runs of the session; those are added to the
+// host's row as resumed runs.
 func Fold(wipnoteDir, runDir string) (Folded, error) {
 	if containerwrite.Active() {
 		return Folded{}, ErrFoldInside
@@ -32,60 +54,99 @@ func Fold(wipnoteDir, runDir string) (Folded, error) {
 	if err != nil {
 		return f, err
 	}
-	for _, s := range sessions {
-		if err := foldSession(wipnoteDir, s, &f); err != nil {
+	if len(sessions) > 0 {
+		if err := foldSessions(wipnoteDir, runDir, sessions, &f); err != nil {
 			return f, err
 		}
 	}
 	return f, foldGates(wipnoteDir, runDir, &f)
 }
 
-// foldSession folds the worker's runs in order: a run the host's row lacks
-// is opened (the first one creates the row, a later one is a resume, as the
-// sessions ledger's Open records it), and the latest run's end is closed
-// once. Runs are matched by position, so folding the same file again finds
-// every run already there and writes nothing.
-func foldSession(wipnoteDir string, s containerwrite.Session, f *Folded) error {
+func foldSessions(wipnoteDir, runDir string, sessions []containerwrite.Session, f *Folded) error {
+	path := filepath.Join(runDir, FoldedFile)
+	release := filelock.Guard(path)
+	defer release()
+	st := foldedState{Sessions: map[string]foldedSession{}}
+	if data, err := os.ReadFile(path); err == nil {
+		_ = json.Unmarshal(data, &st)
+		if st.Sessions == nil {
+			st.Sessions = map[string]foldedSession{}
+		}
+	}
+	before := fmt.Sprint(st.Sessions)
+	var ferr error
+	for _, s := range sessions {
+		fs := st.Sessions[s.SessionID]
+		ferr = foldSession(wipnoteDir, s, &fs, f)
+		st.Sessions[s.SessionID] = fs
+		if ferr != nil {
+			break
+		}
+	}
+	if fmt.Sprint(st.Sessions) != before {
+		data, _ := json.MarshalIndent(st, "", "  ")
+		if err := filelock.WriteFileAtomic(path, append(data, '\n'), 0o600); err != nil && ferr == nil {
+			ferr = err
+		}
+	}
+	return ferr
+}
+
+// foldSession opens, in order, each of the session's runs this folder has
+// not folded yet (the first creates the row, a later one, or the first of a
+// resumed run's folder, resumes it, as the sessions ledger's Open records
+// it), closing the run before each one, then closes the latest run's end
+// once.
+func foldSession(wipnoteDir string, s containerwrite.Session, fs *foldedSession, f *Folded) error {
 	store := sessionledger.NewStore(wipnoteDir)
-	row, found, err := store.Get(s.SessionID)
-	if err != nil {
-		return err
+	runs := s.RunList()
+	for i := fs.Runs; i < len(runs); i++ {
+		if i > 0 && !fs.Ended {
+			if err := closeRun(store, s.SessionID, runs[i-1], fs, f); err != nil {
+				return err
+			}
+		}
+		if err := openRun(store, wipnoteDir, s, runs[i], f); err != nil {
+			return err
+		}
+		fs.Runs, fs.Ended = i+1, false
 	}
-	var host []sessionledger.Run
-	if found {
-		host = row.RunList()
-	}
-	for i, run := range s.RunList() {
-		if err := foldOneRun(store, wipnoteDir, s, i, run, &host, f); err != nil {
+	if fs.Runs > 0 && !fs.Ended {
+		if err := closeRun(store, s.SessionID, runs[fs.Runs-1], fs, f); err != nil {
 			return err
 		}
 	}
 	return foldFamily(wipnoteDir, s, f)
 }
 
-func foldOneRun(store *sessionledger.Store, wipnoteDir string, s containerwrite.Session, i int, run containerwrite.Run,
-	host *[]sessionledger.Run, f *Folded) error {
-	if i >= len(*host) {
-		rec := sessionledger.Record{SessionID: s.SessionID, Harness: s.Harness, StartedAt: run.StartedAt,
-			ProjectDir: paths.NormalizeProjectDir(filepath.Dir(wipnoteDir)), Host: sessionledger.HostContainer}
-		if _, err := store.Open(rec); err != nil {
-			return err
-		}
-		if i == 0 {
-			f.Sessions++
-		} else {
-			f.Resumed++
-		}
-		*host = append(*host, sessionledger.Run{StartedAt: run.StartedAt})
-	}
-	latest := i == len(*host)-1
-	if run.EndedAt.IsZero() || !latest || !(*host)[i].IsOpen() {
-		return nil
-	}
-	if err := store.Close(s.SessionID, run.EndedAt); err != nil {
+func openRun(store *sessionledger.Store, wipnoteDir string, s containerwrite.Session, run containerwrite.Run, f *Folded) error {
+	row, found, err := store.Get(s.SessionID)
+	if err != nil {
 		return err
 	}
-	(*host)[i].EndedAt = run.EndedAt
+	rec := sessionledger.Record{SessionID: s.SessionID, Harness: s.Harness, StartedAt: run.StartedAt,
+		ProjectDir: paths.NormalizeProjectDir(filepath.Dir(wipnoteDir)), Host: sessionledger.HostContainer}
+	if _, err := store.Open(rec); err != nil {
+		return err
+	}
+	switch {
+	case !found:
+		f.Sessions++
+	case !row.IsOpen():
+		f.Resumed++
+	}
+	return nil
+}
+
+// closeRun records run's end, when it has one, on the host's latest run.
+func closeRun(store *sessionledger.Store, sid string, run containerwrite.Run, fs *foldedSession, f *Folded) error {
+	if run.EndedAt.IsZero() {
+		return nil
+	}
+	if err := store.Close(sid, run.EndedAt); err != nil {
+		return err
+	}
+	fs.Ended = true
 	f.Ended++
 	return nil
 }
