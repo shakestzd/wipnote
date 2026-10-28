@@ -1,0 +1,108 @@
+{
+  "schema": "wipnote.status-all/v1",
+  "generated_at": "2026-10-28T12:00:00Z",
+  "projects": [
+    {
+      "name": "alpha",
+      "id": "0a1b2c3d",
+      "last_activity": "2026-10-28T11:55:00Z",
+      "branch": "work",
+      "plan": {
+        "id": "plan-0000aaaa",
+        "title": "Ship the widget",
+        "slice": {
+          "num": 2,
+          "title": "Second",
+          "feature_id": "feat-11110002",
+          "status": "promoted"
+        },
+        "done": 1,
+        "total": 3
+      },
+      "in_progress": [
+        {
+          "id": "feat-11110002",
+          "title": "Second",
+          "type": "feature"
+        }
+      ],
+      "last_commit": {
+        "sha": "0123456789abcdef0123456789abcdef01234567",
+        "subject": "Add the thing",
+        "at": "2026-10-28T11:00:00Z"
+      },
+      "pr": {
+        "number": 42,
+        "title": "Add the thing",
+        "state": "OPEN",
+        "url": "https://example.invalid/o/r/pull/42",
+        "checks": {
+          "pass": 1,
+          "fail": 1,
+          "pending": 0,
+          "other": 0,
+          "total": 2
+        },
+        "failing": [
+          "lint"
+        ],
+        "review": "APPROVED",
+        "mergeable": "MERGEABLE"
+      },
+      "agents": [
+        {
+          "source": "herdr+ledger",
+          "harness": "claude",
+          "state": "blocked",
+          "work_item": "feat-11110002",
+          "title": "Second",
+          "last_line": "Allow this command?",
+          "pane": "w1:p2",
+          "session": "11111111-1111-4111-8111-111111111111",
+          "since": "2026-10-28T11:40:00Z"
+        }
+      ],
+      "runs": [
+        {
+          "id": "run-0123456789ab",
+          "kind": "shell",
+          "description": "gate",
+          "command": "scripts/gate.sh",
+          "folder": ".",
+          "status": "failed",
+          "exit_code": 1,
+          "started_at": "2026-10-28T11:50:00Z",
+          "ended_at": "2026-10-28T11:55:00Z",
+          "commit": "0123456",
+          "log_path": "…/tasks/b1.output",
+          "last_line": "FAIL",
+          "first_error": "FAIL TestSomething",
+          "work_item": "feat-11110002",
+          "session": "11111111-1111-4111-8111-111111111111",
+          "harness": "claude",
+          "line": "gate exit 1 at 11:55 on commit 0123456"
+        }
+      ],
+      "needs_you": [
+        {
+          "kind": "blocked_agent",
+          "what": "claude agent in pane w1:p2 is blocked",
+          "work_item": "feat-11110002"
+        },
+        {
+          "kind": "failed_run",
+          "what": "gate exit 1 at 11:55: FAIL TestSomething",
+          "since": "2026-10-28T11:55:00Z",
+          "work_item": "feat-11110002"
+        }
+      ],
+      "orphans": [],
+      "sources": {
+        "gh": "ok",
+        "git": "ok",
+        "herdr": "ok"
+      },
+      "errors": []
+    }
+  ]
+}

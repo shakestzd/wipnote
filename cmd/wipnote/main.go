@@ -289,6 +289,11 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 	case "run-pane":
 		return nil
 	}
+	// `wipnote status --all` reads every registered project and must write
+	// nothing: no session row, no registry upsert (feat-715f1d4f).
+	if isStatusAll(cmd) {
+		return nil
+	}
 	// Skip hook subtree — hooks manage their own session lifecycle.
 	for p := cmd; p != nil; p = p.Parent() {
 		if p.Name() == "hook" {
