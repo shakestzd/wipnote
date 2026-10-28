@@ -17,7 +17,7 @@ import (
 
 // fakeHerdr is an in-memory herdr: tabs, panes with a scripted foreground,
 // screens and styled reads, and a call log in order. Every pane starts at a
-// bare shell (pid 900+n).
+// bare shell (pid 900+n); running the boot line starts a harness in it.
 type fakeHerdr struct {
 	mu       sync.Mutex
 	calls    []string
@@ -114,6 +114,10 @@ func (f *fakeHerdr) Run(_ context.Context, pane herdr.PaneID, shell string) erro
 	f.log("run %s %s", pane, shell)
 	if p := f.panes[pane]; p != nil {
 		p.typed = append(p.typed, shell)
+		// The boot line starts the harness, as the real one does.
+		if len(p.fg) == 0 {
+			p.fg = []herdr.Proc{{PID: p.shellPID, Name: "zsh"}, {PID: p.shellPID + 1000, Name: "claude"}}
+		}
 	}
 	return nil
 }
