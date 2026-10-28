@@ -10,15 +10,15 @@
 <body>
     <article id="bug-2a96e9cb"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-28T06:28:49.234313"
-             data-updated="2026-10-28T06:47:07.647867" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+             data-updated="2026-10-28T11:54:38.283667" data-agent-assigned="claude-code" data-track-id="trk-621f9064" data-created-by-cli-version="0.82.1-147-g14ea2e60b" data-change_kind="bugfix" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Resumed sessions are not recorded in the sessions ledger</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -28,6 +28,15 @@
                 <h3>Caused By:</h3>
                 <ul>
                     <li><a href="../features/feat-e6e3ef39.html" data-relationship="caused_by" data-since="2026-10-28T06:28:49.237797">feat-e6e3ef39</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="293626b3de08e4d1f2619b36c0d5e08ada896367.html" data-relationship="committed_in" data-since="2026-10-28T07:52:53">Merge pull request #284 from shakestzd/obs/resume</a></li>
+                    <li><a href="6c3f568cb3eac6125df7ecf010ad5b59b5731088.html" data-relationship="committed_in" data-since="2026-10-28T06:47:07">wipnote: sync bug-2a96e9cb</a></li>
+                    <li><a href="6c3dba4e5026d9ec1ae4d129c132ecb0d5234381.html" data-relationship="committed_in" data-since="2026-10-28T06:42:02">fix(procsweep): decide orphan status from the latest session run (bug-2a96e9cb)</a></li>
+                    <li><a href="b0b8ef75092b0a0d9d103cca2642d155d9c4d7db.html" data-relationship="committed_in" data-since="2026-10-28T06:42:02">fix(sessionledger): record each resume as a run on the session row (bug-2a96e9cb)</a></li>
                 </ul>
             </section>
             <section data-edge-type="implemented_in">
@@ -47,11 +56,11 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-bug-2a96e9cb-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Design: one session row keeps run 1; each resume appends run-event lines (tr data-run-of, data-run-event=start|end) folded in document order; old ledgers read as one implicit run, older binaries ignore the events</li>
-                <li data-completed="false" data-step-id="step-bug-2a96e9cb-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Ledger: Store.Open on a closed row appends a run-start event (resume); on an open row it is a replay and writes nothing; Close ends the latest run; Enrich/Correct target the latest run; new Store.Ensure for late writers never resumes</li>
-                <li data-completed="false" data-step-id="step-bug-2a96e9cb-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ procsweep: orphan status decided from the latest run (live while open; orphan if started at or before latest end &#43; 2s; zero start stays orphan)</li>
-                <li data-completed="false" data-step-id="step-bug-2a96e9cb-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Committed b0b8ef750 (ledger runs, Store.Ensure, hook docs) and 6c3dba4e5 (procsweep latest-run rule) on obs/resume; gates green: root build/vet, darwin vet procsweep, go-test-streaming ./..., core go test ./...</li>
-                <li data-completed="false" data-step-id="step-bug-2a96e9cb-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Draft PR 284 opened from obs/resume; gates green locally</li>
+                <li data-completed="true" data-step-id="step-bug-2a96e9cb-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Design: one session row keeps run 1; each resume appends run-event lines (tr data-run-of, data-run-event=start|end) folded in document order; old ledgers read as one implicit run, older binaries ignore the events</li>
+                <li data-completed="true" data-step-id="step-bug-2a96e9cb-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Ledger: Store.Open on a closed row appends a run-start event (resume); on an open row it is a replay and writes nothing; Close ends the latest run; Enrich/Correct target the latest run; new Store.Ensure for late writers never resumes</li>
+                <li data-completed="true" data-step-id="step-bug-2a96e9cb-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ procsweep: orphan status decided from the latest run (live while open; orphan if started at or before latest end &#43; 2s; zero start stays orphan)</li>
+                <li data-completed="true" data-step-id="step-bug-2a96e9cb-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Committed b0b8ef750 (ledger runs, Store.Ensure, hook docs) and 6c3dba4e5 (procsweep latest-run rule) on obs/resume; gates green: root build/vet, darwin vet procsweep, go-test-streaming ./..., core go test ./...</li>
+                <li data-completed="true" data-step-id="step-bug-2a96e9cb-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Draft PR 284 opened from obs/resume; gates green locally</li>
             </ol>
         </section>
 
