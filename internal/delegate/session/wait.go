@@ -77,13 +77,19 @@ func Wait(ctx context.Context, d Deps, name string, o WaitOptions) (WaitResult, 
 		return WaitResult{}, err
 	}
 	deadline := time.Now().Add(o.Timeout)
+	// Every herdr call of a look is bounded by the wait's own deadline.
+	look, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
 	for {
-		res, settled := waitOnce(ctx, d, row.ID, name)
+		res, settled := waitOnce(look, d, row.ID, name)
+		if ctx.Err() == nil && look.Err() != nil {
+			settled = false // the deadline cut the look short: it is a timeout
+		}
 		if settled {
 			return res, nil
 		}
 		left := time.Until(deadline)
-		if left <= 0 {
+		if left <= 0 || look.Err() != nil {
 			res.Outcome = OutcomeTimeout
 			return res, nil
 		}
@@ -115,9 +121,12 @@ func waitOnce(ctx context.Context, d Deps, runID, name string) (WaitResult, bool
 		res.Outcome, res.Detail = OutcomeGone, err.Error()
 		return res, true
 	}
+	// The ack is read before the events: the hook writes its prompt event
+	// before the ack, so a seen ack's turn is in the snapshot, and an ack
+	// written during the look reads as unacked until the next one.
+	t, hasTask := newestTask(d.Store, name)
 	o, f := observe(ctx, d, rf, info)
 	addSessions(d, runID, f.sessions)
-	t, hasTask := newestTask(d.Store, name)
 	if hasTask {
 		res.Task, res.Turn = t.msg.ID, t.turn
 	}
@@ -127,8 +136,8 @@ func waitOnce(ctx context.Context, d Deps, runID, name string) (WaitResult, bool
 // settle is wait's rule over the one readiness predicate. Durable signals
 // come first: a lost pane, then the current task's result file, which ends
 // the wait even with silent hooks or a turn stuck at working (D1, D1b).
-// While the newest task is not yet acked, the hook turn state belongs to an
-// older turn and is rejected. Input-line text is never read (D8).
+// A folder-trust dialog is reported next. While the newest task is not yet
+// acked, the hook turn state belongs to an older turn and is rejected. Input-line text is never read (D8).
 func settle(d Deps, res WaitResult, o Observation, f eventFacts, unacked bool) (WaitResult, bool) {
 	switch {
 	case o.PaneGone:
@@ -138,7 +147,9 @@ func settle(d Deps, res WaitResult, o Observation, f eventFacts, unacked bool) (
 		res.Outcome = OutcomeDone
 	case o.Question:
 		res.Outcome, res.Asks = OutcomeAsks, pendingQuestions(d.Store, res.Name, f)
-	case o.TaskPending && unacked:
+	case o.Dialog != "": // a trust dialog holds the first task unacked
+		res.Outcome, res.Detail = OutcomeBlocked, Ready(o).Detail
+	case o.TaskPending && unacked: // only stale turn signals are rejected
 		return res, false
 	default:
 		s, ok := WaitOutcome(o)

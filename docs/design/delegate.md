@@ -227,8 +227,10 @@ marks the message `hinted`. A failed hint keeps the task in the inbox (`hinted: 
 `end_reason=gone`) at once; a lost pane (`gone`: the row closes as gone only if still open, and only
 the worker sessions' own claim episodes are expired); the current task's result file (`done`, even
 with silent hooks or a turn stuck at working, D1 and D1b); a pending ask (`asks`, with the rows of
-`questions`, D7); then the predicate's `ready`, `idle_no_result`, `idle_shell` or `blocked`. While the
-newest task is not acked, the hook turn state belongs to an older turn and never settles the wait.
+`questions`, D7); a folder-trust dialog (`blocked`, even before the first task is acked); then the
+predicate's `ready`, `idle_no_result` or `idle_shell`. While the newest task is not acked, the hook
+turn state belongs to an older turn and never settles the wait; the ack is read before the events.
+Every herdr call is bounded by the wait's deadline, which still ends in `timeout` and exit 124.
 It polls at most twice a second, never reads the input line (D8) and writes no run state; its only
 writes are the two ledger ones under the ledger lock on a still-open row (a `/clear` session joins
 `worker_sessions`; the worker-loss close). Prints `{run, name, turn, outcome, task, detail, asks}`.

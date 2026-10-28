@@ -417,3 +417,62 @@ func TestWait_TimeoutLeavesClaims(t *testing.T) {
 		t.Fatal("a timeout changed a claim or the row")
 	}
 }
+
+// --- Review fixes ---
+
+// A worker held at a folder-trust dialog never acks its first task; wait
+// reports the dialog instead of timing out behind the unacked-task guard.
+func TestWait_TrustDialogBeforeAckReturnsBlocked(t *testing.T) {
+	e := newEnv(t)
+	s := e.unbound("w1", "brief")
+	e.herdr.pane(PaneOf(s)).screen = "plain output\n"
+	if res := e.wait("w1", 60*time.Millisecond); res.Outcome != OutcomeTimeout {
+		t.Fatalf("no dialog: %+v", res)
+	}
+	e.herdr.pane(PaneOf(s)).screen = "❯ No, exit\n  Yes, I trust this folder\n"
+	if res := e.wait("w1", time.Second); res.Outcome != OutcomeBlocked || res.Detail == "" {
+		t.Fatalf("%+v", res)
+	}
+}
+
+// The prompt hook runs (prompt event, then ack) while wait is looking: an
+// older turn's Stop must never settle the new task.
+func TestWait_AckRacingObserveNeverSettlesOnOlderStop(t *testing.T) {
+	e := newEnv(t)
+	s := e.worker("w1", "brief")
+	e.startTurn(s, "sid-1")
+	e.event(s.Run, "sid-1", runstore.KindStop)
+	e.send("w1", "second")
+	fired := false
+	e.herdr.onGet = func() {
+		if !fired {
+			fired = true
+			e.startTurn(s, "sid-1") // the hook: prompt event, then the ack
+		}
+	}
+	if res := e.wait("w1", 80*time.Millisecond); res.Outcome != OutcomeTimeout {
+		t.Fatalf("an older stop settled the running task: %+v", res)
+	}
+	e.event(s.Run, "sid-1", runstore.KindStop) // other side: its own stop settles
+	if res := e.wait("w1", time.Second); res.Outcome != OutcomeIdleNoResult {
+		t.Fatalf("%+v", res)
+	}
+}
+
+// Slow herdr calls are bounded by the wait's deadline.
+func TestWait_DeadlineBoundsHerdrCalls(t *testing.T) {
+	e := newEnv(t)
+	s := e.worker("w1", "brief")
+	e.startTurn(s, "sid-1")
+	e.herdr.getDelay = 300 * time.Millisecond
+	start := time.Now()
+	res := e.wait("w1", 20*time.Millisecond)
+	if res.Outcome != OutcomeTimeout || res.ExitCode() != TimeoutExit || time.Since(start) > 150*time.Millisecond {
+		t.Fatalf("%+v after %s", res, time.Since(start))
+	}
+	// Other side: a deadline long enough lets the slow look settle.
+	e.event(s.Run, "sid-1", runstore.KindStop)
+	if res := e.wait("w1", 2*time.Second); res.Outcome != OutcomeIdleNoResult {
+		t.Fatalf("%+v", res)
+	}
+}

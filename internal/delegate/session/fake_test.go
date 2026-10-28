@@ -37,6 +37,10 @@ type fakeHerdr struct {
 	prompts   bool
 	promptErr error
 	onPrompt  func(text string)
+	// onGet runs (unlocked) at the start of each Get, as a worker's hook
+	// racing a look would; getDelay makes Get slow, honouring ctx.
+	onGet    func()
+	getDelay time.Duration
 }
 
 type fpane struct {
@@ -124,7 +128,17 @@ func (f *fakeHerdr) Run(_ context.Context, pane herdr.PaneID, shell string) erro
 	return nil
 }
 
-func (f *fakeHerdr) Get(_ context.Context, pane herdr.PaneID) (herdr.Pane, error) {
+func (f *fakeHerdr) Get(ctx context.Context, pane herdr.PaneID) (herdr.Pane, error) {
+	if f.onGet != nil {
+		f.onGet()
+	}
+	if f.getDelay > 0 {
+		select {
+		case <-ctx.Done():
+			return herdr.Pane{}, ctx.Err()
+		case <-time.After(f.getDelay):
+		}
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	p := f.panes[pane]
