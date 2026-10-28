@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 84
+    version: 86
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -1305,7 +1305,7 @@ slices:
           claim: Plugin hooks merge with user and project hooks, so removing the mod leaves wipnote's plugin hooks as the only delegation path.
           accessed: "2026-10-25"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |
         **Trigger:** slices 8 to 13 pass their gates.
         **State:** guidance lives in plugin/skills/delegate/SKILL.md (shared source) and the system prompt.
@@ -1633,7 +1633,7 @@ slices:
           claim: codex exec resume <SESSION_ID> or --last continues an earlier run.
           accessed: "2026-10-25"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       questions:
         - id: q-resume-mode
           text: How does a later task reuse a stopped worker's context?
@@ -2803,3 +2803,13 @@ feedback:
           value: promoted
           created_at: "2026-10-28T21:55:31Z"
           updated_at: "2026-10-28T21:55:31Z"
+        - section: slice-14
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T21:56:57Z"
+          updated_at: "2026-10-28T21:56:57Z"
+        - section: slice-20
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T21:56:58Z"
+          updated_at: "2026-10-28T21:56:58Z"
