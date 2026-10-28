@@ -152,6 +152,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "quality", Command: complianceCmd()},
 			{GroupID: "quality", Command: reconcileCmd()},
 			{GroupID: "quality", Command: launcherCmd()},
+			{GroupID: "quality", Command: doctorCmd()},
 			{GroupID: "quality", Command: guardCmd()},
 			{GroupID: "quality", Command: researchCmd()},
 			{GroupID: "quality", Command: ciCmd()},
