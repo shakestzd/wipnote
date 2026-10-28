@@ -54,6 +54,15 @@ scripts/delegate-phase-b.sh --self-test # container smoke run (no herdr, no mode
 
 See `docs/design/delegate-phase-b.md` for the checks and flags.
 
+## Claude cloud environments
+
+```bash
+scripts/cloud-env-setup.sh             # install the pinned wipnote release (idempotent)
+```
+
+Point a Claude cloud environment's setup script at it. See
+`docs/guides/claude-projects.md`.
+
 ## Other
 
 ```bash
