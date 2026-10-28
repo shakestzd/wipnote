@@ -123,12 +123,6 @@ func runIDFor(session, toolUseID, taskID string) string {
 	return runledger.NewRunID()
 }
 
-// runWorkItem is the active work item for the call: the agent's own claim,
-// else the session's open claim.
-func runWorkItem(ctx *toolUseContext) string {
-	return firstNonEmpty(ctx.ClaimedItem, ctx.FeatureID, canonicalActiveWorkItem(ctx.ProjectDir, ctx.SessionID))
-}
-
 // appendRunEvent appends one event. Best-effort: a hook never fails because
 // a run record could not be written.
 func appendRunEvent(projectDir string, e runledger.Event) {

@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/shakestzd/wipnote/core/sessionledger"
 )
 
@@ -27,22 +24,9 @@ func initSessionLedgerCommitSeam() {
 // pending intent that commits the file's final state once, whenever
 // `wipnote commit-queue flush` next drains.
 //
-// Under the legacy "separate" policy the write is committed directly, matching
+// Under "none" nothing is committed or queued (bug-37c5cac2). Under the
+// legacy "separate" policy the write is committed directly, matching
 // how work-item artifacts and the claim ledger behave under that same opt-in.
 func persistSessionLedgerWrite(wipnoteDir, relPath, action string) {
-	msg := "wipnote: record " + action
-	switch policy := workitemArtifactCommitPolicyForEnv(); {
-	case policy == workitemArtifactCommitPolicyDefer || (commitIntentLight.Load() && policy != workitemArtifactCommitPolicyNone):
-		if err := enqueueSessionLedgerCommitIntent(wipnoteDir, relPath, msg); err != nil && os.Getenv("WIPNOTE_DEBUG") == "1" {
-			fmt.Fprintf(stderr, "session ledger commit defer: %v\n", err)
-		}
-	default:
-		if err := commitWipnotePath(wipnoteDir, relPath, msg); err != nil && os.Getenv("WIPNOTE_DEBUG") == "1" {
-			fmt.Fprintf(stderr, "session ledger commit: %v\n", err)
-		}
-	}
-}
-
-func enqueueSessionLedgerCommitIntent(wipnoteDir, relPath, msg string) error {
-	return enqueueLedgerCommitIntent(wipnoteDir, relPath, msg, "session", "session ledger commit defer")
+	persistLedgerWrite(wipnoteDir, relPath, "wipnote: record "+action, "session", "session ledger commit")
 }

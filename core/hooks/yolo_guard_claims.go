@@ -104,6 +104,17 @@ func canonicalOpenClaim(wipnoteDir, sessionID string) (workItem string, ok bool)
 // subagent guards in pretooluse.go, see getClaimFromParentChain) can report it.
 // The zero Episode with ok=true means "ledger consulted, no open claim".
 func canonicalOpenClaimEpisode(wipnoteDir, sessionID string) (ep claimledger.Episode, ok bool) {
+	// Either this session holds the claim itself, or the family root does and
+	// this session is a descendant inheriting it.
+	return scanOpenClaims(wipnoteDir, sessionID, func(e claimledger.Episode, root string) bool {
+		return e.SessionID == sessionID || e.SessionID == root
+	})
+}
+
+// scanOpenClaims returns the newest open claim in the shards of sessionID and
+// its family root that match accepts (called with the shard's root). The zero
+// Episode with ok=true means "ledger consulted, no match".
+func scanOpenClaims(wipnoteDir, sessionID string, accepts func(e claimledger.Episode, root string) bool) (claimledger.Episode, bool) {
 	if wipnoteDir == "" || sessionID == "" {
 		return claimledger.Episode{}, false
 	}
@@ -125,13 +136,7 @@ func canonicalOpenClaimEpisode(wipnoteDir, sessionID string) (ep claimledger.Epi
 		// Newest-first: a session that re-claimed should resolve to its most
 		// recent open episode.
 		for i := len(episodes) - 1; i >= 0; i-- {
-			e := episodes[i]
-			if !e.IsOpen() || e.WorkItemID == "" {
-				continue
-			}
-			// Either this session holds the claim itself, or the family root
-			// does and this session is a descendant inheriting it.
-			if e.SessionID == sessionID || e.SessionID == root {
+			if e := episodes[i]; e.IsOpen() && e.WorkItemID != "" && accepts(e, root) {
 				return e, true
 			}
 		}
