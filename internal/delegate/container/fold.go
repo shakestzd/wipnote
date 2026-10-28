@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/agent"
+	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/containerwrite"
 	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/gateledger"
@@ -18,7 +19,7 @@ import (
 
 // Folded counts what one fold wrote: new session rows, resumed runs, ends,
 // gate runs and family entries. A fold that finds nothing new writes nothing.
-type Folded struct{ Sessions, Resumed, Ended, Gates, Families int }
+type Folded struct{ Sessions, Resumed, Ended, Gates, Families, Claims, ClaimCloses int }
 
 // ErrFoldInside refuses a fold inside a container worker: only the host
 // writes the shared ledgers.
@@ -41,6 +42,8 @@ type foldedSession struct {
 
 type foldedState struct {
 	Sessions map[string]foldedSession `json:"sessions"`
+	// ClaimCloses are the worker's pending claim closes already applied.
+	ClaimCloses map[string]bool `json:"claim_closes,omitempty"`
 }
 
 // Fold folds a container worker's own files in runDir into the host's
@@ -61,47 +64,99 @@ func Fold(wipnoteDir, runDir string) (Folded, error) {
 	return f, foldGates(wipnoteDir, runDir, &f)
 }
 
-// foldSessions reads the worker's session files and folded.json under the
-// fold lock, so a fold never works from a snapshot another fold has
-// already moved past.
+// foldSessions reads the worker's session files, claim files and
+// folded.json under the fold lock, so a fold never works from a snapshot
+// another fold has already moved past, and folds them.
 func foldSessions(wipnoteDir, runDir string, f *Folded) error {
 	path := filepath.Join(runDir, FoldedFile)
-	// One project-wide lock for every session fold: two folds of one run
-	// re-read folded.json under it, and two run folders of one resumed
-	// session (an end and a resume) never interleave on the host's row.
+	// One project-wide lock for every fold of sessions and claims: two folds
+	// of one run re-read folded.json under it, and two run folders of one
+	// resumed session never interleave on the host's row.
 	if foldBeforeLock != nil {
 		foldBeforeLock()
 	}
 	release := filelock.Guard(filepath.Join(wipnoteDir, "delegate", foldLock))
 	defer release()
-	sessions, err := containerwrite.ReadSessions(runDir)
-	if err != nil || len(sessions) == 0 {
-		return err
+	st := readFolded(path)
+	before := fmt.Sprint(st)
+	ferr := foldSessionFiles(wipnoteDir, runDir, &st, f)
+	if ferr == nil {
+		ferr = foldClaims(wipnoteDir, runDir, &st, f)
 	}
-	st := foldedState{Sessions: map[string]foldedSession{}}
-	if data, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(data, &st)
-		if st.Sessions == nil {
-			st.Sessions = map[string]foldedSession{}
-		}
-	}
-	before := fmt.Sprint(st.Sessions)
-	var ferr error
-	for _, s := range sessions {
-		fs := st.Sessions[s.SessionID]
-		ferr = foldSession(wipnoteDir, s, &fs, f)
-		st.Sessions[s.SessionID] = fs
-		if ferr != nil {
-			break
-		}
-	}
-	if fmt.Sprint(st.Sessions) != before {
+	if fmt.Sprint(st) != before {
 		data, _ := json.MarshalIndent(st, "", "  ")
 		if err := filelock.WriteFileAtomic(path, append(data, '\n'), 0o600); err != nil && ferr == nil {
 			ferr = err
 		}
 	}
 	return ferr
+}
+
+func readFolded(path string) foldedState {
+	var st foldedState
+	if data, err := os.ReadFile(path); err == nil {
+		_ = json.Unmarshal(data, &st)
+	}
+	if st.Sessions == nil {
+		st.Sessions = map[string]foldedSession{}
+	}
+	if st.ClaimCloses == nil {
+		st.ClaimCloses = map[string]bool{}
+	}
+	return st
+}
+
+func foldSessionFiles(wipnoteDir, runDir string, st *foldedState, f *Folded) error {
+	sessions, err := containerwrite.ReadSessions(runDir)
+	if err != nil {
+		return err
+	}
+	for _, s := range sessions {
+		fs := st.Sessions[s.SessionID]
+		err := foldSession(wipnoteDir, s, &fs, f)
+		st.Sessions[s.SessionID] = fs
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// foldClaims merges the worker's own claim shards into the shared ones and
+// applies each of its pending closes once (folded.json records them), each
+// under the shard's lock in the claim store.
+func foldClaims(wipnoteDir, runDir string, st *foldedState, f *Folded) error {
+	store := claimledger.NewStore(wipnoteDir)
+	shards, err := claimledger.OwnShards(runDir)
+	if err != nil {
+		return err
+	}
+	for _, path := range shards {
+		eps, err := claimledger.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		n, err := store.MergeOwnShard(filepath.Base(path), eps)
+		if err != nil {
+			return err
+		}
+		f.Claims += n
+	}
+	ops, err := claimledger.ReadPendingCloses(runDir)
+	if err != nil {
+		return err
+	}
+	for _, op := range ops {
+		if st.ClaimCloses[op.ID] {
+			continue
+		}
+		if _, err := store.CloseWorkItem(op.WorkItemID, op.Outcome, op.EndedAt, op.StartedBy); err != nil {
+			return err
+		}
+		st.ClaimCloses[op.ID] = true
+		f.ClaimCloses++
+	}
+	return nil
 }
 
 // foldSession opens, in order, each of the session's runs this folder has

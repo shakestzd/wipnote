@@ -92,10 +92,9 @@ func ownFile(rel, sid string) bool {
 	switch {
 	case strings.HasPrefix(rel, runPrefix):
 		name := strings.TrimPrefix(rel, runPrefix)
-		return name == "events-"+sid+".ndjson" || name == "session-"+sid+".json"
+		return name == "events-"+sid+".ndjson" || name == "session-"+sid+".json" ||
+			strings.HasPrefix(name, "claims/sess-"+sid+".html")
 	case rel == ".wipnote/sessions/"+sid+".html", strings.HasPrefix(rel, ".wipnote/sessions/"+sid+"/"):
-		return true
-	case strings.HasPrefix(rel, ".wipnote/claims/sess-"+sid+".html"):
 		return true
 	}
 	return false

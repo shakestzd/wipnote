@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/agent"
+	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/containerwrite"
 	"github.com/shakestzd/wipnote/core/gateledger"
 	"github.com/shakestzd/wipnote/core/hooks"
@@ -407,5 +408,56 @@ func TestFold_LostFoldedRecordAddsNoRun(t *testing.T) {
 	}
 	if row, _, _ = sessionledger.NewStore(wipnoteDir).Get(sid); len(row.RunList()) != 2 || !row.IsOpen() {
 		t.Errorf("a real resume: runs %+v, want it folded", row.RunList())
+	}
+}
+
+// TestFold_ClaimsReachHostShards: a container worker's claims (its own shard
+// in its run folder, and a completion's close of the host's episode on the
+// item) reach the shared shards only through the host fold, under each
+// shard's lock: the worker's episode is merged, the host's episode on the
+// item is closed, a claim the host opened after the completion is kept
+// open, and a second fold changes nothing.
+func TestFold_ClaimsReachHostShards(t *testing.T) {
+	wipnoteDir, runDir := foldProject(t)
+	t.Setenv(containerwrite.RunEnv, foldRun)
+	t.Setenv(containerwrite.PlaceEnv, "")
+	host := claimledger.NewStore(wipnoteDir)
+	t0 := time.Now().UTC().Add(-time.Hour)
+	open := func(s *claimledger.Store, root, item string, at time.Time) {
+		if _, _, err := s.Open(root, claimledger.Episode{WorkItemID: item, SessionID: root, AgentID: "claude", StartedAt: at}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	open(host, "host-root", "feat-x", t0)
+	t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+	worker := claimledger.NewStore(wipnoteDir)
+	open(worker, "w-root", "feat-x", t0.Add(time.Minute))
+	done := t0.Add(2 * time.Minute)
+	if _, err := worker.CloseWorkItem("feat-x", claimledger.OutcomeCompleted, done, done); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(containerwrite.PlaceEnv, "")
+	open(host, "host-root", "feat-y", t0.Add(3*time.Minute)) // the host appends meanwhile
+	got, err := Fold(wipnoteDir, runDir)
+	if err != nil || got.Claims != 1 || got.ClaimCloses != 1 {
+		t.Fatalf("Fold = %+v, %v; want one merged episode and one applied close", got, err)
+	}
+	mine, _ := host.ReadShard("w-root")
+	if len(mine) != 1 || mine[0].IsOpen() {
+		t.Errorf("worker's shared shard %+v: want its closed episode", mine)
+	}
+	for _, e := range func() []claimledger.Episode { e, _ := host.ReadShard("host-root"); return e }() {
+		if e.WorkItemID == "feat-x" && (e.IsOpen() || e.Outcome != claimledger.OutcomeCompleted) {
+			t.Errorf("host's feat-x episode %+v: want completed", e)
+		}
+		if e.WorkItemID == "feat-y" && !e.IsOpen() {
+			t.Errorf("host's later feat-y claim was closed: %+v", e)
+		}
+	}
+	before, _ := host.ReadAll()
+	again, _ := Fold(wipnoteDir, runDir)
+	after, _ := host.ReadAll()
+	if again != (Folded{}) || len(before) != len(after) {
+		t.Errorf("refold = %+v (%d -> %d episodes), want nothing", again, len(before), len(after))
 	}
 }
