@@ -118,8 +118,11 @@ Planned changes to `run`:
 - Inside herdr, a Codex run becomes an interactive TUI worker with the same report. Planned
   (slice 26). Outside herdr, `codex exec` stays. `codex review` and `ccx task` stay one-shot.
 - A bare `codex exec` or `claude -p` in the Bash tool is denied, and the reason holds the exact
-  `wipnote delegate run -- <same argv>`. A bare `ccx task` gets the `--container` form. This is a
-  PreToolUse hook, not a command. Planned (slice 9; q-intercept: deny-redirect).
+  `wipnote delegate run -- <same argv>`. A bare `ccx task` gets the `--container` form, and until
+  slice 21 ships `--container`, the exact-argv form too. This is a PreToolUse hook, not a command.
+  Chained commands, a command fed on stdin, `dev exec`, and anything else `delegate run` would
+  refuse run as typed; a command that starts with `wipnote delegate` is never denied. Available
+  (slice 9; q-intercept: deny-redirect; recogniser in `internal/delegate/detect`).
 
 ### 2.2 `wipnote delegate run-pane <run-id>` (available, hidden)
 
