@@ -201,6 +201,13 @@ func (s *Store) Close(sessionID string, endedAt time.Time) error {
 		return nil
 	}
 	if start := rec.LatestRun().StartedAt; endedAt.Before(start) {
+		// On a resumed run an end before its start belongs to an earlier
+		// run (a late SessionEnd catch-up); closing the live run with it
+		// would turn its processes into orphans. Run 1 has no earlier run,
+		// so there it is clock skew and clamps.
+		if rec.resumed() {
+			return nil
+		}
 		endedAt = start
 	}
 	if rec.resumed() {
