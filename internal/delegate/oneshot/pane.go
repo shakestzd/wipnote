@@ -19,7 +19,7 @@ import (
 )
 
 // paneRegistryDir holds, per caller pane, the caller's live one-shot panes
-// in creation order (the mod's $TMPDIR/codex-herdr-panes.<pane>), under the
+// in creation order (the retired mod kept this list in $TMPDIR), under the
 // run store so only this user writes there.
 const paneRegistryDir = "panes"
 

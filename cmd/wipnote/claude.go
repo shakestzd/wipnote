@@ -276,6 +276,9 @@ func launchClaude(opts LaunchOpts) error {
 	// Show the one-time OTel first-launch notice before starting the
 	// server so users see the explanation before any server output.
 	MaybeShowOtelNotice(opts.ProjectRoot)
+	// One-time: where the retired herdr pane mod's settings went. A few
+	// small file reads; it never fails the launch.
+	maybeShowModSettingsNotice(os.Stderr, opts.ProjectRoot)
 
 	launchTiming("launchClaude: before ensureGuardProfile")
 	// Launch-time guard-profile initialization (peer to the OTel collector

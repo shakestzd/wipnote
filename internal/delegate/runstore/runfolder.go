@@ -12,9 +12,9 @@ import (
 	"github.com/shakestzd/wipnote/core/filelock"
 )
 
-// Run-folder file names: the feat-a1df60c2 contract that the
-// codex-herdr-pane mod writes and its follower and viewer read. The mod
-// writes label with no newline and start, end, exit and host with one;
+// Run-folder file names: the feat-a1df60c2 contract that the retired
+// herdr pane mod wrote and its follower and viewer read. The mod
+// wrote label with no newline and start, end, exit and host with one;
 // readers trim.
 const (
 	FileRawLog   = "raw.log"   // harness output as captured

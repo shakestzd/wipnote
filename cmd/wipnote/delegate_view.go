@@ -14,7 +14,7 @@ import (
 )
 
 // delegateViewCmd is `wipnote delegate view <run-id>`: the plain Go viewer
-// that runs in a run's pane (it replaces the codex-herdr-pane mod's Textual
+// that runs in a run's pane (it replaces the retired herdr pane mod's Textual
 // viewer, owner decision q-viewer=go-plain). It follows the run's clean.md
 // until the exit file appears, then prints the status and the answer.
 func delegateViewCmd() *cobra.Command {

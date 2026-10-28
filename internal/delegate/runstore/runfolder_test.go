@@ -3,8 +3,6 @@ package runstore_test
 import (
 	"os"
 	"path/filepath"
-	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,38 +11,12 @@ import (
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
 
-func modDir(t *testing.T) string {
-	t.Helper()
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "..", "..", "..", "mods", "codex-herdr-pane")
-}
-
-// modReadNames lists the run-folder files the mod's run follower
-// (hooks/runstate.ts) and pane viewer (viewer/codex_view.py) read.
-func modReadNames(t *testing.T) []string {
-	t.Helper()
-	pats := map[string]*regexp.Regexp{
-		"hooks/runstate.ts":    regexp.MustCompile(`\$\{r\.dir\}/([A-Za-z0-9._-]+)`),
-		"viewer/codex_view.py": regexp.MustCompile(`(?:self\.dir|run_dir) / "([A-Za-z0-9._-]+)"`),
-	}
-	seen := map[string]bool{}
-	var names []string
-	for rel, re := range pats {
-		src, err := os.ReadFile(filepath.Join(modDir(t), rel))
-		if err != nil {
-			t.Fatalf("read mod source %s: %v", rel, err)
-		}
-		for _, m := range re.FindAllStringSubmatch(string(src), -1) {
-			if !seen[m[1]] {
-				seen[m[1]] = true
-				names = append(names, m[1])
-			}
-		}
-	}
-	if len(names) < 8 {
-		t.Fatalf("found only %v in the mod sources; the patterns no longer match", names)
-	}
-	return names
+// modReadNames lists the run-folder files the retired herdr pane mod's run
+// follower (hooks/runstate.ts) and pane viewer (viewer/codex_view.py) read,
+// frozen from their sources when the mod was removed. The orchestra band
+// and other readers of old run folders still expect them.
+var modReadNames = []string{
+	"clean.log", "clean.md", "end", "exit", "host", "label", "last.md", "run.html", "start", "usage",
 }
 
 // TestRunFolder_MatchesModContract: every file the mod reads is a contract
@@ -54,7 +26,7 @@ func TestRunFolder_MatchesModContract(t *testing.T) {
 	for _, n := range runstore.ContractFiles {
 		contract[n] = true
 	}
-	for _, n := range modReadNames(t) {
+	for _, n := range modReadNames {
 		if !contract[n] {
 			t.Errorf("the mod reads %q, which is not in runstore.ContractFiles", n)
 		}
@@ -75,7 +47,8 @@ func TestRunFolder_MatchesModContract(t *testing.T) {
 func writeFixtureRun(t *testing.T) *runstore.RunFolder {
 	t.Helper()
 	_, rf := newRun(t)
-	raw, err := os.ReadFile(filepath.Join(modDir(t), "test", "fixtures", "run1.raw.log"))
+	// The retired mod's run1 fixture, kept with the render goldens.
+	raw, err := os.ReadFile(filepath.Join("..", "render", "testdata", "codex", "run1.raw"))
 	if err != nil {
 		t.Fatal(err)
 	}
