@@ -312,11 +312,20 @@ func (e *env) setAlive(pid int, start string) {
 
 func (e *env) opts(name string) SpawnOptions {
 	return SpawnOptions{
-		Name: name, Harness: HarnessClaude, WorkItem: "feat-0a1b2c3d", CallerSession: "sess-caller",
+		Name: name, Harness: HarnessClaude, WorkItem: itemFor(name), CallerSession: "sess-caller",
 		CallerPane: "w1:p1", Brief: "Do the thing.\nIn detail.", Cwd: e.dir,
 		BootLine:  func(run string) string { return BootLine("/bin/wipnote", e.dir, run, "sess-caller") },
 		ShellWait: time.Second, Poll: 5 * time.Millisecond,
 	}
+}
+
+// itemFor gives each worker name its own work item: one live worker per item
+// (slice 16). w1 keeps the base item.
+func itemFor(name string) string {
+	if name == "w1" {
+		return "feat-0a1b2c3d"
+	}
+	return "feat-0a1b2c3d" + strings.ReplaceAll(name, "-", "")
 }
 
 func (e *env) spawn(name string) Spawned {

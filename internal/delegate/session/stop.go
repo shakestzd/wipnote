@@ -61,8 +61,9 @@ func Stop(ctx context.Context, d Deps, name string, o StopOptions) (StopResult, 
 	}
 	pane := herdr.PaneID(info.Pane)
 	if _, err := d.Herdr.Get(ctx, pane); herdr.IsAbsent(err) {
-		res.Why = fmt.Sprintf("pane %s was already gone; the run is closed as gone", pane)
+		res.Why = fmt.Sprintf("pane %s was already gone; the run is closed as gone and its claims as expired", pane)
 		finishStop(ctx, d, rf, info, &res, delegationledger.EndGone)
+		expireWorkerClaims(d, r, rf)
 		return res, nil
 	}
 	procs, why := exitAgent(ctx, d, info, o)

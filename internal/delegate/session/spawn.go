@@ -42,12 +42,12 @@ type Spawned struct {
 
 // Spawn starts a worker and returns with status starting. Refusals come
 // before anything is written: a bad name or harness, no work item, a live
-// name, and a full workers tab ("at cap").
+// name, a live worker on the item, and a full workers tab ("at cap").
 func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 	if err := checkSpawn(d, o); err != nil {
 		return Spawned{}, err
 	}
-	if err := freeName(ctx, d, o.Name); err != nil {
+	if err := checkLive(ctx, d, o); err != nil {
 		return Spawned{}, err
 	}
 	var info Info
@@ -101,29 +101,6 @@ func checkSpawn(d Deps, o SpawnOptions) error {
 	return nil
 }
 
-// freeName refuses a name an open interactive row holds while its pane
-// lives. A row whose pane herdr says is gone is closed first (end gone).
-func freeName(ctx context.Context, d Deps, name string) error {
-	open, ok := d.Ledger.ReadOpen()
-	if !ok {
-		return errors.New("delegate: the delegations ledger cannot be read; nothing was spawned")
-	}
-	for _, r := range open.Interactive() {
-		if r.Name != name {
-			continue
-		}
-		_, info, err := loadInfo(d.Store, r.ID)
-		if err == nil && info.Pane != "" {
-			if _, gerr := d.Herdr.Get(ctx, herdr.PaneID(info.Pane)); herdr.IsAbsent(gerr) {
-				_, _ = d.Ledger.CloseIfOpen(r.ID, delegationledger.CloseInfo{Ended: d.now(), Reason: delegationledger.EndGone})
-				continue
-			}
-		}
-		return fmt.Errorf("%w: %s is run %s", ErrLiveName, name, r.ID)
-	}
-	return nil
-}
-
 // openRun opens the ledger row, then the run folder with session.json, the
 // brief's task message and brief.md.
 func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
@@ -169,7 +146,7 @@ func writeRunFiles(d Deps, rf *runstore.RunFolder, info *Info, brief string) err
 			return err
 		}
 		info.Task = task.ID
-		if err := rf.WriteFile(runstore.FileBrief, []byte(Preamble(*info, mb.Dir())+brief+"\n")); err != nil {
+		if err := rf.WriteFile(runstore.FileBrief, []byte(ClaimLine(info.WorkItem)+Preamble(*info, mb.Dir())+brief+"\n")); err != nil {
 			return err
 		}
 	}

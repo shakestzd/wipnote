@@ -66,6 +66,7 @@ var (
 	ErrNotInHerdr    = errors.New("delegate: interactive workers need herdr (HERDR_ENV=1)")
 	ErrShellNotReady = errors.New("delegate: the new pane's shell did not settle")
 	ErrNoWorker      = errors.New("delegate: no live worker by that name")
+	ErrLiveWorker    = errors.New("delegate: a live worker already holds this work item")
 )
 
 // namePattern: [a-z0-9-], 1 to 32 characters, starting with a letter so the
@@ -87,6 +88,10 @@ type Deps struct {
 	// runs. Nil uses ps (procs.go). Stop compares start times so a reused pid
 	// is not a survivor.
 	ProcStart func(pid int) (string, bool)
+	// ExpireClaims closes one worker session's open claim episodes as
+	// expired, and no other session's (slice 16). The worker-loss path calls
+	// it once the pane is gone; nil skips it.
+	ExpireClaims func(sessionID string)
 }
 
 func (d Deps) now() time.Time {
