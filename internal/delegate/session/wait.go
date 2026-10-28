@@ -171,14 +171,16 @@ func addSessions(d Deps, runID string, sessions []string) {
 	}
 }
 
-// closeLostRun is wait's worker-loss close: it reads the row and run folder
-// and hands them to closeLost, adding the sessions this look saw bound.
+// closeLostRun is wait's worker-loss close: it reads the row, run folder and
+// session.json and hands them to loseWorker, adding the sessions this look
+// saw bound, so the run also leaves the caller's workers record (an exited
+// harness leaves its pane open, and prune keeps a pane that exists).
 func closeLostRun(d Deps, runID string, sessions []string) {
 	r, ok, err := d.Ledger.Get(runID)
 	if err != nil || !ok {
 		return
 	}
 	r.WorkerSessions = mergeSessions(r.WorkerSessions, sessions)
-	rf, _ := d.Store.Run(runID)
-	closeLost(d, r, rf)
+	rf, info, _ := loadInfo(d.Store, runID)
+	loseWorker(d, r, rf, info)
 }

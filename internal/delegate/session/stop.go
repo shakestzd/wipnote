@@ -202,6 +202,9 @@ func reused(info Info, p herdr.Pane) bool {
 // matches the run, not the pane id, which herdr may have given to another
 // worker.
 func dropPane(d Deps, info Info) {
+	if info.Run == "" { // no session.json: no placement is known
+		return
+	}
 	_ = withWorkers(d.Store, info.CallerPane, func(w *Workers) error {
 		w.dropRun(info.Run)
 		return nil
