@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -33,24 +34,36 @@ func (m Mapper) Path(host string) (string, error) {
 	return path.Join(m.Remote, filepath.ToSlash(rel)), nil
 }
 
-// Argv maps each word that is a host path under Root, alone or as the value
-// of --flag=PATH. Other words, prompt text among them, are left as given.
-func (m Mapper) Argv(argv []string) []string {
+// pathFlags take a path value in the next word or after "=". Their value is
+// mapped even when it holds a space (a checkout under "My Project").
+var pathFlags = map[string]bool{
+	"-o": true, "--output-last-message": true, "-C": true, "--cd": true, "--add-dir": true,
+	"-i": true, "--image": true, "--mcp-config": true, "--settings": true, "--plugin-dir": true,
+}
+
+// Argv maps the path arguments in argv: a word equal to one of known (paths
+// the caller put there, such as the run folder's answer file), the value of
+// a path flag, --flag=PATH, and any other word that is a host path under
+// Root and holds no whitespace. Prompt text is left as given, even when it
+// starts with a path.
+func (m Mapper) Argv(argv []string, known ...string) []string {
 	out := make([]string, len(argv))
 	for i, w := range argv {
-		out[i] = m.word(w)
+		pathValue := i > 0 && pathFlags[argv[i-1]]
+		out[i] = m.word(w, pathValue || slices.Contains(known, w))
 	}
 	return out
 }
 
-func (m Mapper) word(w string) string {
-	if strings.ContainsAny(w, " \t\n") {
-		return w
+// word maps w; isPath says it is known to be a path, whitespace or not.
+func (m Mapper) word(w string, isPath bool) string {
+	if isPath || !strings.ContainsAny(w, " \t\n") {
+		if mapped, err := m.Path(w); err == nil {
+			return mapped
+		}
 	}
-	if mapped, err := m.Path(w); err == nil {
-		return mapped
-	}
-	if flag, val, ok := strings.Cut(w, "="); ok && strings.HasPrefix(flag, "-") {
+	if flag, val, ok := strings.Cut(w, "="); ok && strings.HasPrefix(flag, "-") &&
+		(pathFlags[flag] || !strings.ContainsAny(val, " \t\n")) {
 		if mapped, err := m.Path(val); err == nil {
 			return flag + "=" + mapped
 		}

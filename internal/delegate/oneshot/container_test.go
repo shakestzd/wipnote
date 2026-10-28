@@ -193,3 +193,39 @@ func TestRun_ContainerUpFails(t *testing.T) {
 		t.Errorf("row %+v: want closed with exit 1", r)
 	}
 }
+
+// TestRun_ContainerMapsPathsWithSpaces: a project whose path has a space
+// (and a container workspace folder with one) still gets the answer file and
+// the cwd mapped; the answer lands in the host's run folder and the tool runs
+// in the mapped subfolder.
+func TestRun_ContainerMapsPathsWithSpaces(t *testing.T) {
+	base := newProject(t)
+	dir := filepath.Join(t.TempDir(), "My Project")
+	must(t, os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755))
+	must(t, os.MkdirAll(filepath.Join(dir, ".devcontainer"), 0o755))
+	must(t, os.WriteFile(filepath.Join(dir, ".devcontainer", "devcontainer.json"), []byte(`{"name":"t"}`), 0o644))
+	store, err := runstore.New(dir)
+	must(t, err)
+	p := &testProject{t: t, dir: dir, store: store, ledger: base.ledger}
+	remote := filepath.Join(t.TempDir(), "work spaces")
+	must(t, os.Symlink(dir, remote))
+	stub := containertest.Install(t, remote)
+	sub := filepath.Join(dir, "sub dir")
+	must(t, os.MkdirAll(sub, 0o755))
+	t.Setenv("STUB_ANSWER", "spaced answer")
+	o := p.containerOptions("codex", "exec", "x")
+	o.Cwd = sub
+	o.Sandbox = SandboxOptions{Host: testHost, OptIn: []string{testHost}}
+	res := p.run(o)
+	ex := execCall(t, stub)
+	want := filepath.Join(remote, ".wipnote", "delegate", "runs", res.RunID, runstore.FileLastMD)
+	if i := slices.Index(ex, "--output-last-message"); i < 0 || ex[i+1] != want {
+		t.Fatalf("exec call %q: want --output-last-message %s", ex, want)
+	}
+	if !slices.Contains(ex, filepath.Join(remote, "sub dir")) || slices.Contains(ex, sub) {
+		t.Errorf("exec call %q: want the cwd mapped to %s", ex, filepath.Join(remote, "sub dir"))
+	}
+	if got := p.file(res.RunID, runstore.FileLastMD); got != "spaced answer" {
+		t.Errorf("host last.md %q (exit %d)", got, res.Exit)
+	}
+}
