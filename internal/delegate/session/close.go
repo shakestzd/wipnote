@@ -16,10 +16,16 @@ import (
 // caller closes a row without the fold, so a worker lost to wait, list or
 // stop never leaves its records unfolded (slice 21).
 func closeWorkerRow(d Deps, run, reason string) (bool, error) {
+	return closeWorkerRowAs(d, run, reason, nil)
+}
+
+// closeWorkerRowAs is closeWorkerRow with the exit status a one-shot run
+// decided (slice 22); nil records none.
+func closeWorkerRowAs(d Deps, run, reason string, exit *int) (bool, error) {
 	if rf, info, err := loadInfo(d.Store, run); err == nil {
 		foldContainer(d, rf, info)
 	}
-	return d.Ledger.CloseIfOpen(run, delegationledger.CloseInfo{Ended: d.now(), Reason: reason})
+	return d.Ledger.CloseIfOpen(run, delegationledger.CloseInfo{Ended: d.now(), Exit: exit, Reason: reason})
 }
 
 // WorkerPreamble is TaskPreamble (the claim line, then the result preamble)

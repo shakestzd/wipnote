@@ -26,7 +26,15 @@ var delegateRunExit = os.Exit
 const delegateRunLong = `Runs one tool call (codex exec or review, claude -p, ccx task) as a recorded
 delegation: a row in .wipnote/delegations-ledger.html, a run folder under
 .wipnote/delegate/runs/, and a herdr pane when HERDR_ENV=1 (headless otherwise,
-or with --no-pane). Prints a status line, the answer (or the end of the log on
+or with --no-pane). Inside herdr a claude -p run is an interactive worker
+instead: wipnote claude in a workers-tab pane with the prompt as its brief, a
+known --session-id, workspace trust pre-seeded and a status line that records
+cost and tokens. It ends on the brief's result file (or a named failure:
+no_result, stop_failure, session_start_timeout, plugin_not_loaded,
+error_max_turns, error_max_budget_usd, ...) and wipnote ends it with /exit,
+then SIGTERM. --max-turns and --max-budget-usd are enforced by wipnote; other
+print-only flags are dropped. It needs a work item; without one, or for a
+--resume or --continue run, the claude -p path runs. Prints a status line, the answer (or the end of the log on
 failure) and the run page. Exits with the tool's status, 130 if its pane closed.
 
 Only --label enters the ledger; a derived pane title stays in the run folder.
@@ -117,6 +125,7 @@ func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, f
 	}
 	if env.InHerdr {
 		o.Herdr = herdr.New(env)
+		o.Worker = delegateWorkerOptions(wipnoteDir, session)
 	}
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

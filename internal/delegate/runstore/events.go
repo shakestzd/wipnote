@@ -24,7 +24,8 @@ const (
 	KindNotification      = "notification"
 	KindPermissionRequest = "permission_request"
 	KindStop              = "stop"
-	KindError             = "error"
+	KindError             = "error"       // StopFailure: the turn ended on an API error
+	KindSessionEnd        = "session_end" // SessionEnd: the summary is the end reason
 )
 
 // tornMark ends a torn last line before the next append. A torn line can be

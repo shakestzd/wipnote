@@ -64,8 +64,17 @@ const (
 	FileUpLog     = "up.log"
 )
 
+// Files a Claude one-shot worker's run folder holds (plan-28b4a7f6 slice
+// 22): the --settings file its launch gets (the status line command), and
+// what that status line command last saw (cost and token totals).
+const (
+	FileClaudeSettings = "claude-settings.json"
+	FileStatus         = "status.json"
+)
+
 // RunnerFiles lists the files beside the contract that WriteFile accepts.
-var RunnerFiles = []string{FileOut, FileJob, FileSession, FileBrief, FileState, FileContainer, FileUpLog}
+var RunnerFiles = []string{FileOut, FileJob, FileSession, FileBrief, FileState, FileContainer, FileUpLog,
+	FileClaudeSettings, FileStatus}
 
 // Hosts a run can name in its host file.
 const (

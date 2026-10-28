@@ -67,7 +67,7 @@ func claudeCmd() *cobra.Command {
 	// Isolation flags (slice-2). --no-worktree and --in-place are mutually equivalent;
 	// --in-place is the preferred semantic name going forward.
 	var noWorktree, inPlace bool
-	var workItem, baseBranch string
+	var workItem, baseBranch, workDir string
 
 	cmd := &cobra.Command{
 		Use:   "claude",
@@ -89,7 +89,7 @@ func claudeCmd() *cobra.Command {
 				return err
 			}
 			// --no-worktree is a legacy alias for --in-place.
-			effectiveInPlace := inPlace || noWorktree
+			effectiveInPlace := inPlace || noWorktree || workDir != ""
 			_ = baseBranch // reserved for slice-3+; accepted but not yet acted on
 			switch {
 			case dev:
@@ -101,7 +101,7 @@ func claudeCmd() *cobra.Command {
 			case continue_:
 				return launchClaudeContinue(args, resumeID)
 			default:
-				return launchClaudeDefault(args, resumeID, name, workItem, effectiveInPlace)
+				return launchClaudeDefault(args, resumeID, name, workItem, workDir, effectiveInPlace)
 			}
 		},
 	}
@@ -115,11 +115,20 @@ func claudeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&resumeID, "resume", "", "Resume a specific Claude Code session by ID")
 	cmd.Flags().StringVar(&name, "name", "", "Session label shown in Claude TUI (default: <project>-<timestamp>)")
 	cmd.Flags().StringVar(&workItem, "work-item", "", "Work item ID for isolation planning (e.g. feat-15c458aa, trk-3719d8f3)")
+	addWorkDirFlag(cmd, &workDir)
 	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch for managed worktree (advanced; default: current HEAD)")
 	cmd.Flags().BoolVar(&allowNonInteractive, allowNonInteractiveFlag, false,
 		"Launch even when stdin is not a terminal (default: refuse; env "+allowNonTTYEnv+"=1 is equivalent)")
 	cmd.AddCommand(yoloCmd())
 	return cmd
+}
+
+// addWorkDirFlag adds the hidden --work-dir: claude runs in that dir, in
+// place. A delegate worker's boot passes the caller's own dir, a linked
+// worktree too (plan-28b4a7f6 slice 22).
+func addWorkDirFlag(cmd *cobra.Command, workDir *string) {
+	cmd.Flags().StringVar(workDir, "work-dir", "", "Run Claude Code in this directory, in place (delegate workers)")
+	_ = cmd.Flags().MarkHidden("work-dir")
 }
 
 // marketplaceArtifactDirs returns all artifact directories that may be removed
@@ -218,10 +227,7 @@ func launchClaude(opts LaunchOpts) error {
 	_ = computeLauncherMode(opts.WipnoteRoot, opts.PluginDir != "" && opts.Mode == "go", false)
 
 	// Write launch marker to the main project root, not the worktree.
-	markerRoot := opts.ProjectRoot
-	if opts.WipnoteRoot != "" {
-		markerRoot = opts.WipnoteRoot
-	}
+	markerRoot := launchMarkerRoot(opts)
 	writeLaunchMarker(opts.Mode, markerRoot)
 	launchHerdrLabel(markerRoot, opts.WorkItem)
 
@@ -395,6 +401,15 @@ func buildClaudeArgs(opts LaunchOpts, systemPromptFile string) []string {
 		claudeArgs = append(claudeArgs, "--append-system-prompt-file", systemPromptFile)
 	}
 	return append(claudeArgs, opts.ExtraArgs...)
+}
+
+// launchMarkerRoot is where the launch marker goes: the wipnote root, not
+// the dir claude runs in (a worktree, or a delegate worker's --work-dir).
+func launchMarkerRoot(opts LaunchOpts) string {
+	if opts.WipnoteRoot != "" {
+		return opts.WipnoteRoot
+	}
+	return opts.ProjectRoot
 }
 
 // claudeEnvProjectDir is the WIPNOTE_PROJECT_DIR exported to the Claude
