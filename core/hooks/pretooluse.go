@@ -78,6 +78,7 @@ func preToolUseGuards() []preToolGuard {
 	return []preToolGuard{
 		{"wipnote-write", guardWipnoteWrite},
 		{"bash-cwd", guardBashCwd},
+		{"delegate-redirect", guardDelegateRedirect},
 		{"plan-mode-bypass", guardPlanModeBypass},
 		{"orchestrator-research-advisory", guardOrchestratorResearchAdvisory},
 		{"orchestrator-strict", guardOrchestratorStrict},

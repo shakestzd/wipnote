@@ -474,3 +474,34 @@ func TestLedger_EnrichIfOpenNeverTouchesClosedRow(t *testing.T) {
 		t.Fatalf("open row not enriched: %+v", got)
 	}
 }
+
+// TestLedger_ReasoningTokensRoundTrip pins the fourth usage column (Codex's
+// reasoning_output_tokens, slice 12): Enrich records it, it survives the
+// HTML, and an Enrich without it leaves it alone. A row written before the
+// column existed reads back as 0.
+func TestLedger_ReasoningTokensRoundTrip(t *testing.T) {
+	s := testStore(t)
+	r := mustOpen(t, s, Record{ID: "dlg-0123456789ab", Mode: ModeOneshot, Harness: "codex", Host: "host", Started: t0})
+	changed, err := s.Enrich(r.ID, Enrichment{UsageInput: intp(10), UsageReasoning: intp(64)})
+	if err != nil || !changed {
+		t.Fatalf("Enrich: changed=%v err=%v", changed, err)
+	}
+	if _, err := s.Enrich(r.ID, Enrichment{UsageOutput: intp(5)}); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := NewStore(filepath.Dir(s.Path())).Get(r.ID)
+	if err != nil || got.UsageReasoning != 64 || got.UsageInput != 10 || got.UsageOutput != 5 {
+		t.Fatalf("row %+v err %v, want reasoning 64 kept", got, err)
+	}
+	data, err := os.ReadFile(s.Path())
+	if err != nil || !strings.Contains(string(data), `data-usage-reasoning="64"`) {
+		t.Fatalf("ledger lacks the reasoning column:\n%s", data)
+	}
+	old := strings.ReplaceAll(string(data), ` data-usage-reasoning="64"`, "")
+	if err := os.WriteFile(s.Path(), []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, _, _ := s.Get(r.ID); got.UsageReasoning != 0 || got.UsageInput != 10 {
+		t.Fatalf("pre-column row read back %+v", got)
+	}
+}

@@ -23,5 +23,6 @@ func delegateCmd() *cobra.Command {
 	cmd.AddCommand(delegateResultCmd())
 	cmd.AddCommand(delegateQuestionsCmd())
 	cmd.AddCommand(delegateInboxCmd())
+	cmd.AddCommand(delegateDoctorCmd())
 	return cmd
 }
