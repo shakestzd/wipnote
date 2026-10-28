@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 86
+    version: 88
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -873,7 +873,7 @@ slices:
           claim: Codex PreToolUse supports permissionDecision deny with a reason; ask is parsed but not supported; updatedInput is valid only with allow. Bash and exec_command match as Bash.
           accessed: "2026-10-25"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       questions:
         - id: q-rewrite-support
           text: Which harnesses can rewrite a Bash call in PreToolUse?
@@ -1229,7 +1229,7 @@ slices:
       comment: ""
       research_waiver: An in-repo lineage change. Its rules come from internal/orchlink and feat-ac66c687's decision Q1.
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |
         **Trigger:** wipnote lineage on a work item or a dlg- id.
         **State:** reads the ledger, never live run files.
@@ -2813,3 +2813,13 @@ feedback:
           value: done
           created_at: "2026-10-28T21:56:58Z"
           updated_at: "2026-10-28T21:56:58Z"
+        - section: slice-9
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T22:13:27Z"
+          updated_at: "2026-10-28T22:13:27Z"
+        - section: slice-13
+          action: set_execution_status
+          value: done
+          created_at: "2026-10-28T22:13:28Z"
+          updated_at: "2026-10-28T22:13:28Z"
