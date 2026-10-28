@@ -65,7 +65,15 @@ func (s *Session) setRuns(runs []Run) {
 // the latest run ended is a resume and opens a new run, as the sessions
 // ledger's Open does; a start while a run is open is a replay. The first
 // real harness is kept.
-func OpenSession(wipnoteDir string, s Session) error {
+func OpenSession(wipnoteDir string, s Session) error { return openSession(wipnoteDir, s, true) }
+
+// EnsureSession is the late writer's start, as the sessions ledger's
+// Ensure: it records run 1 of a session it has never seen, and otherwise
+// only a missing harness. It never starts a run, so a process that outlives
+// the session cannot reopen it.
+func EnsureSession(wipnoteDir string, s Session) error { return openSession(wipnoteDir, s, false) }
+
+func openSession(wipnoteDir string, s Session, mayResume bool) error {
 	name, err := sessionFile(s.SessionID)
 	if err != nil {
 		return err
@@ -74,7 +82,8 @@ func OpenSession(wipnoteDir string, s Session) error {
 	return withOwnFile(wipnoteDir, name, &cur, func() bool {
 		runs, changed := cur.RunList(), cur.SessionID == ""
 		cur.SessionID, cur.V = s.SessionID, SessionVersion
-		if n := len(runs); n == 0 || !runs[n-1].EndedAt.IsZero() {
+		n := len(runs)
+		if n == 0 || (mayResume && !runs[n-1].EndedAt.IsZero()) {
 			at := s.StartedAt.UTC()
 			if n > 0 && at.Before(runs[n-1].EndedAt) {
 				at = runs[n-1].EndedAt // runs never overlap
@@ -104,7 +113,10 @@ func CloseSession(wipnoteDir, sid string, ended time.Time) error {
 		}
 		end := ended.UTC()
 		if end.Before(runs[n-1].StartedAt) {
-			end = runs[n-1].StartedAt
+			if n > 1 {
+				return false // an earlier run's late end, as the sessions ledger reads it
+			}
+			end = runs[n-1].StartedAt // run 1: clock skew
 		}
 		runs[n-1].EndedAt = end
 		cur.SessionID, cur.V = sid, SessionVersion

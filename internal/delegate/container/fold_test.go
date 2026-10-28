@@ -168,3 +168,25 @@ func TestFold_ResumedRunReachesHostLedger(t *testing.T) {
 		t.Errorf("refold = %+v (ledger changed %v), want nothing", again, string(before) != string(after))
 	}
 }
+
+// TestFold_EnsureAfterEndStaysEnded: a late Ensure inside the worker after
+// its session ended leaves the host's folded row ended with one run.
+func TestFold_EnsureAfterEndStaysEnded(t *testing.T) {
+	wipnoteDir, runDir := foldProject(t)
+	sid := "dededede-1111-2222-3333-444444444444"
+	t0 := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	t.Setenv(containerwrite.RunEnv, foldRun)
+	t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+	s := sessionledger.NewStore(wipnoteDir)
+	_, _ = s.Open(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: t0})
+	_ = s.Close(sid, t0.Add(time.Hour))
+	_, _ = s.Ensure(sessionledger.Record{SessionID: sid, Harness: "claude", StartedAt: t0.Add(2 * time.Hour)})
+	t.Setenv(containerwrite.PlaceEnv, "")
+	if _, err := Fold(wipnoteDir, runDir); err != nil {
+		t.Fatal(err)
+	}
+	row, _, _ := sessionledger.NewStore(wipnoteDir).Get(sid)
+	if row.IsOpen() || len(row.RunList()) != 1 {
+		t.Errorf("host row %+v: want one ended run", row)
+	}
+}

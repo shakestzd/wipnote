@@ -15,14 +15,22 @@ const HostContainer = "container"
 var ErrContainerWorker = errors.New("sessionledger: a container worker does not write the shared sessions ledger")
 
 // openOwn records a container worker's start in its own file instead of the
-// shared ledger; the host folds it in with Host=container. It reports a new
-// row the first time only, as Open does.
-func (s *Store) openOwn(r Record) (bool, error) {
+// shared ledger; the host folds it in with Host=container. mayResume is
+// Open's (a start after the end is a resume); Ensure passes false and never
+// starts a run. It reports whether a new row or run was written, as Open
+// does.
+func (s *Store) openOwn(r Record, mayResume bool) (bool, error) {
 	before, _ := ownSession(s.wipnoteDir, r.SessionID)
-	err := containerwrite.OpenSession(s.wipnoteDir, containerwrite.Session{
-		SessionID: r.SessionID, Harness: r.Harness, StartedAt: r.StartedAt,
-	})
-	return err == nil && before.StartedAt.IsZero(), err
+	write := containerwrite.EnsureSession
+	if mayResume {
+		write = containerwrite.OpenSession
+	}
+	err := write(s.wipnoteDir, containerwrite.Session{SessionID: r.SessionID, Harness: r.Harness, StartedAt: r.StartedAt})
+	if err != nil {
+		return false, err
+	}
+	after, _ := ownSession(s.wipnoteDir, r.SessionID)
+	return len(after.RunList()) > len(before.RunList()), nil
 }
 
 func ownSession(wipnoteDir, sid string) (containerwrite.Session, bool) {

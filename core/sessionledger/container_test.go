@@ -74,3 +74,35 @@ func TestHost_RoundTrips(t *testing.T) {
 		}
 	}
 }
+
+// TestEnsure_ContainerWorkerNeverReopens: inside a container worker, Ensure
+// after the session ended writes nothing (no phantom open run), while Open
+// after the end is a resume, as on the host.
+func TestEnsure_ContainerWorkerNeverReopens(t *testing.T) {
+	wipnoteDir := filepath.Join(t.TempDir(), ".wipnote")
+	runDir := filepath.Join(wipnoteDir, "delegate", "runs", "dlg-0123456789ab")
+	if err := os.MkdirAll(runDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(containerwrite.PlaceEnv, containerwrite.PlaceContainer)
+	t.Setenv(containerwrite.RunEnv, "dlg-0123456789ab")
+	s := NewStore(wipnoteDir)
+	sid := "efefefef-1111-2222-3333-444444444444"
+	t0 := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	_, _ = s.Open(Record{SessionID: sid, Harness: "claude", StartedAt: t0})
+	_ = s.Close(sid, t0.Add(time.Hour))
+	if wrote, err := s.Ensure(Record{SessionID: sid, Harness: "claude", StartedAt: t0.Add(2 * time.Hour)}); err != nil || wrote {
+		t.Errorf("Ensure after the end = %v, %v; want nothing written", wrote, err)
+	}
+	own, _ := containerwrite.ReadSessions(runDir)
+	if len(own) != 1 || len(own[0].RunList()) != 1 || own[0].EndedAt.IsZero() {
+		t.Fatalf("own rows %+v: want one ended run", own)
+	}
+	if wrote, err := s.Open(Record{SessionID: sid, Harness: "claude", StartedAt: t0.Add(3 * time.Hour)}); err != nil || !wrote {
+		t.Errorf("Open after the end = %v, %v; want a resumed run", wrote, err)
+	}
+	own, _ = containerwrite.ReadSessions(runDir)
+	if len(own[0].RunList()) != 2 {
+		t.Errorf("runs %+v: want the resume", own[0].RunList())
+	}
+}
