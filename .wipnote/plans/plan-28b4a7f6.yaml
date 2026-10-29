@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 75
+    version: 76
     repositories:
         - shakestzd/wipnote
     base_branch: main
@@ -296,6 +296,7 @@ slices:
         **Finding for slices 8 and 10:** wipnote claude does not accept --settings directly. Anything that must reach claude goes after `--`.
         **B9 (new):** slice 17 assumes a digit key selects an AskUserQuestion option. This is unverified.
         **Results (Phase B runs 1-9, 2026-10-26; herdr 0.9.5, Claude Code 2.1.310, codex-cli 0.164.0, macOS bash 3.2.57):** PASS: H1-H9, B1, B2 (run 8, read-only: 34 of 35 orch sids in a wipnote ledger), B3a and B3b (run 6, rows tagged claude and codex), B4, B5, B7L, B8L, C1-C3. Runs 2-5 failed on script bugs (empty workspace id, trust-dialog keys and labels, harness filter) and on bug-5333ea49 (rows tagged human), fixed in wipnote dd659cfc1. Run 9 (container, devcontainer up from the worktree): B7L, B8L and B8 PASS; B7 FAIL (flock not exclusive across the bind mount, O_APPEND lost lines, rename atomic: a real finding, now a slice 21 rule); B6 FAIL on environment (Claude not logged in inside the container, ~/.claude not writable). NOT RUN: B9, D8a, D8b (need the owner at the keyboard). Arch cards phase-b-b2, phase-b-b3 and phase-b-b8 (invariants) and phase-b-b7 (hazard) record the results; no hazard card from the failed runs was recorded. Full record: docs/design/delegate-phase-b.md.
+        **Results (Phase B runs 10-15, 2026-10-29; devcontainer in herdr 0.9.5, Claude Code 2.1.312, codex-cli 0.165.0):** run 15 B9 PASS, D8a PASS, D8b PASS. herdr pane read --format ansi keeps SGR 2 (dim) on the grey input-box text of both TUIs (Claude Code's Try "..." placeholder, Codex's Ask Codex to do anything), and a typed draft reads in the default colour. Run 10's D8 failures were probe bugs (a 48;2 truecolour background read as dim; a whole-screen dim count; no next-prompt suggestion on this account), fixed under bug-ec114e74 (PR 304). D8 now reads the empty-box placeholder and needs no model. Still open: B6 (container login and writable ~/.claude).
       blocks:
         - type: tabs
           title: Phase B checks
@@ -1473,7 +1474,7 @@ slices:
         **Pin:** refuse when the pane or terminal_id differs from the one recorded at spawn. No fallback to raw input (orch src/orch/service/transports.py:check_occupant).
         **Person-only dialogs:** refuse while a permission, folder-trust or login dialog shows (orch src/orch/adapters/claude.py:CLAUDE_DIALOGS).
         **Question file (D7, orch defect, Mac evidence 2026-10-25):** a question the worker writes as outbox/<task-id>-q<n>.json is pending even when hooks report nothing. answer takes that question id; once answered, a second answer is refused.
-        **Unverified:** that a digit key selects an AskUserQuestion option. Phase B check B9 (slice 2) tests it; until it passes, an option is refused with that reason.
+        **Verified (Phase B B9, run 15, 2026-10-29):** herdr pane send-text <pane> 2 then send-keys <pane> enter selects AskUserQuestion option 2.
         **Rejected:** a blocking PreToolUse hook (holds the worker's hook open) and a reply-file protocol like herdr-orch ask/reply. The owner chose typing into the pane.
         **Risk:** Medium. Key input differs across herdr and harness versions; contract-test against the herdr stub and refuse outside herdr.
         **Parallel:** after slice 11; beside slices 12, 16 and 19.
@@ -1944,7 +1945,7 @@ slices:
           answer: Inside herdr, Codex runs become interactive workers like Claude; outside herdr, codex exec stays (owner 2026-10-26).
       decisions_notes: |
         **Owner decision (2026-10-26):** Codex workers run interactively in a herdr pane, as delegate runs Claude; codex exec stays outside herdr. The owner proposed it; the Phase B Codex results meet slice 22's condition: C1, C2, C3, B4, B5 and B3b pass on codex-cli 0.164.0.
-        **Depends on D8b:** idle detection for a Codex TUI worker needs the grey next-prompt suggestion to read as empty. D8b (the owner's interactive run) is still not run.
+        **Depends on D8b:** idle detection for a Codex TUI worker needs the grey next-prompt suggestion to read as empty. D8b passed (Phase B run 15, 2026-10-29, codex-cli 0.165.0): the grey composer text reads as SGR 2 dim and a typed draft reads default, so one ANSI read tells them apart.
         **Profile:** Codex TUI workers start with slice 27's lean profile.
     - id: slic-5482c80d
       num: 27
