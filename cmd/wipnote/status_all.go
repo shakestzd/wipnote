@@ -33,8 +33,8 @@ var statusAllProcLister = procsweep.DefaultLister()
 
 type statusAllFlags struct {
 	all, json, noGH, noProcs bool
-	timeout         time.Duration
-	runs            int
+	timeout                  time.Duration
+	runs                     int
 }
 
 func addStatusAllFlags(cmd *cobra.Command, f *statusAllFlags) {

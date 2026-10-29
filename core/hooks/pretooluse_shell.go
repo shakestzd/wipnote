@@ -56,7 +56,7 @@ func iswipnoteWrite(event *CloudEvent) bool {
 
 func containsWipnoteDir(path string) bool {
 	for i := range path {
-		if path[i] == '.' && i+11 <= len(path) && path[i:i+11] == ".wipnote/" {
+		if path[i] == '.' && i+9 <= len(path) && path[i:i+9] == ".wipnote/" {
 			return true
 		}
 	}

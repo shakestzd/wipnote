@@ -101,6 +101,8 @@ wipnote delegate stop api-fix
 
 **`wipnote delegate inbox`** runs inside a worker. It reads the worker's own mailbox, including tasks whose hint was lost.
 
+**`wipnote delegate reply`** runs inside a worker. It writes the worker's answer to its task (`--task`, default the newest), or with `--ask` a question for the caller. The task preamble tells the worker to use it, because the worker's own hooks block writes into `.wipnote/`.
+
 **`wipnote delegate stop NAME [--wait D]`** asks the worker to exit, waits (20s by default) until only the shell is left, then closes the pane. It never kills a process. It exits 1 when the pane stays open, and `why` says why.
 
 ## Claim rules

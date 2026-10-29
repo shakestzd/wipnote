@@ -82,19 +82,25 @@ func claudeDirArgs(info Info) []string {
 	return out
 }
 
-// Preamble is put before the brief and every sent task (decision R): the worker writes its
-// answer to the task's result file, which is what wait and result read.
+// Preamble is put before the brief and every sent task (decision R): the worker answers
+// with delegate reply, which writes the task's result file that wait and result read.
+// Writing the file by hand stays the fallback for a worker without the command.
 func Preamble(info Info, mailDir string) string {
 	result := filepath.Join(mailDir, "outbox", info.Task+"-result.json")
 	question := filepath.Join(mailDir, "outbox", info.Task+"-q1.json")
 	return fmt.Sprintf(`You are the wipnote delegate worker %q (run %s, work item %s).
-When you finish the task below, write your final answer as JSON {"body": "<your answer>"}
-to %s : write a temporary file in the same folder first, then rename it to that name.
+When you finish the task below, give your final answer with
+  wipnote delegate reply --task %s "<your answer>"
+(for a long answer, pipe it in: wipnote delegate reply --task %s --file -).
 Then end your turn and wait for the next task.
-If you need an answer from your caller first, write {"body": "<question>", "options": ["..."]}
-the same way to %s (q2, q3 for later ones) and end your turn; the answer is typed to you.
+If you need an answer from your caller first, run
+  wipnote delegate reply --task %s --ask --option "<choice>" "<question>"
+and end your turn; the answer is typed to you.
+Only if that command fails, write {"body": "<your answer>"} to %s
+(or {"body": "<question>", "options": ["..."]} to %s, q2, q3 for later ones):
+write a temporary file in the same folder first, then rename it to that name.
 
 ---
 
-`, info.Name, info.Run, info.WorkItem, result, question)
+`, info.Name, info.Run, info.WorkItem, info.Task, info.Task, info.Task, result, question)
 }
