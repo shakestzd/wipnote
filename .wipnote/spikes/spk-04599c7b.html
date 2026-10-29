@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Research: How must a CLI command stream output for Claude Code&#39;s Monitor tool, and what can delegate watch reuse from delegate wait?</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-04599c7b"
+             data-type="spike"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-10-29T10:31:58.860317"
+             data-updated="2026-10-29T10:32:22.987223" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-spike-subtype="technical" data-research_for="feat-7338491c" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;delegate watch: reuse wait&#39;s settle logic; one flushed line per change; exit on terminal outcome with wait&#39;s exit codes; honour --timeout under Monitor&#39;s 30-minute deadline and say how to re-arm; the skill tells Claude Code callers to run it under Monitor&#34;,&#34;exists&#34;:&#34;delegate wait (internal/delegate/session/wait.go) settles on durable signals and returns one outcome; oneshot/claude_watch.go watches one-shot runs; the delegate skill only says &#39;run it in the background&#39;. No streaming command exists (searched: wipnote relevant &#39;delegate watch monitor&#39;, grep Monitor in plugin/ and internal/delegate).&#34;,&#34;options&#34;:[&#34;Plugin monitor component (session-long command): rejected, it would run for every session, not per worker&#34;,&#34;Keep only background wait: rejected, the caller learns of asks only at the end&#34;,&#34;wipnote delegate watch NAME: one flushed stdout line per state change, exits on a terminal outcome, run under Monitor&#34;],&#34;question&#34;:&#34;How must a CLI command stream output for Claude Code&#39;s Monitor tool, and what can delegate watch reuse from delegate wait?&#34;,&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-10-29&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/tools-reference&#34;},{&#34;retrieved&#34;:&#34;2026-10-29&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/plugins/components&#34;},{&#34;retrieved&#34;:&#34;2026-10-29&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/changelog&#34;}]}}">
+
+        <header>
+            <h1>Research: How must a CLI command stream output for Claude Code&#39;s Monitor tool, and what can delegate watch reuse from delegate wait?</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="spawned_from">
+                <h3>Spawned From:</h3>
+                <ul>
+                    <li><a href="../features/feat-7338491c.html" data-relationship="spawned_from" data-since="2026-10-29T10:31:58.970479">delegate watch: stream a worker&#39;s state changes, one line each, for Claude Code&#39;s Monitor tool</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Research spike for feat-7338491c. Record with `wipnote spike research add spk-04599c7b`:
+question; sources (--primary/--secondary, retrieved date); findings;
+exists (`wipnote relevant &lt;topic&gt;` + code search, or &#34;none found&#34; with --query);
+options; chosen; rejected (&#34;&lt;option&gt;: &lt;reason&gt;&#34;); gaps (failed sources, unverified claims).
+Completing this spike attaches the record to feat-7338491c.</p>
+        </section>
+    </article>
+</body>
+</html>
