@@ -33,7 +33,7 @@
 set -uo pipefail
 
 # The pinned release. Move it deliberately, to a version whose assets exist.
-WIPNOTE_PIN="0.84.0"
+WIPNOTE_PIN="0.85.0"
 
 tmp="" # the download folder, removed on exit
 RELEASE_BASE_DEFAULT="https://github.com/shakestzd/wipnote/releases/download"

@@ -5,7 +5,7 @@ All notable changes to wipnote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.85.0] - Unreleased
+## [0.85.0] - 2026-10-29
 
 ### Added
 - `wipnote delegate` is the one way to hand work to another harness. Every run is a row in `.wipnote/delegations-ledger.html` (feat-89cfa21c):
@@ -15,8 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `list`, `tree` and `view` to see runs. The wipnote-orchestra band shows them too, inside and outside herdr.
   - `doctor` (and `doctor --container`) to check the host and the devcontainer.
   - `import-orch` to copy orch's run history into the ledger.
+- Inside herdr, `wipnote delegate run -- claude ...` runs as an interactive worker you can watch and answer, with the same report as `claude -p`. Outside herdr, or with `--no-pane`, it stays `claude -p`. wipnote pre-seeds workspace trust, enforces `--max-turns` and `--max-budget-usd` itself, and names start failures such as `session_start_timeout` and `plugin_not_loaded` (feat-21ae0920).
+- Workers are named after their work item, co-claim it, and can resume a stopped session with its context. Container workers keep their session, gate and claim records in their own run folder, and the host folds them into the shared ledgers.
+- Lineage shows delegations: a worker's session sits under the session that started it.
+- `wipnote doctor --project-thread` checks a Claude project thread for the binary, plugin, hooks and rules, and names the fix for each missing part. `scripts/cloud-env-setup.sh` installs a pinned, checksum-verified wipnote binary in a Claude cloud environment. `docs/guides/claude-projects.md` explains the setup (feat-e3f36f91).
 - The `delegate` skill now covers every verb and the claim rules: the worker co-claims its item, there is one live worker per item, and you stop the worker before you complete the item. It ships to Claude Code and Codex, not to Antigravity.
-- A bare `codex exec`, `codex review`, `claude -p` or `ccx task` in the Bash tool is denied with the `wipnote delegate run` form to use.
+- A bare `codex exec`, `codex review`, `claude -p` or `ccx task` in the Bash tool is denied with the `wipnote delegate run` form to use. A plain `ccx task` is offered the `--container` form only when the project has a devcontainer.
 - A one-time notice at `wipnote claude` launch tells a user who set options for the removed mod which `delegate` settings in `~/.wipnote/config.json` they map to. wipnote does not move them.
 
 ### Fixed
