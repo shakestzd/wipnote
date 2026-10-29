@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>delegate doctor --container: hook events miss the host when the container&#39;s wipnote predates 0.85 (#306)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-6715affb"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-29T10:19:09.941115"
+             data-updated="2026-10-29T10:19:47.992377" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.85.0" data-change_kind="bugfix" data-created_in_session="dd81015a-030d-4f98-aa9b-2f2a13a342a1">
+
+        <header>
+            <h1>delegate doctor --container: hook events miss the host when the container&#39;s wipnote predates 0.85 (#306)</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/dd81015a-030d-4f98-aa9b-2f2a13a342a1.html" data-relationship="implemented_in" data-since="2026-10-29T10:19:47.992225">session dd81015a-030d-4f98-aa9b-2f2a13a342a1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-29T10:19:09.986052">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #306: on macOS Docker Desktop the &#39;hook inside&#39; check fails; writer.sock is unusable through the bind mount (ENOTSUP) and the container runs wipnote 0.71.0 while the host runs 0.85.0. core/hooks/delegate_bind.go RecordDelegateEvent writes events-&lt;sid&gt;.ndjson as a plain file (containerwrite.AppendLine, no socket); that path shipped in v0.85.0 (77574bea6). Hypothesis: the version gap, not the socket, loses the events. Fix: prove with a test that a container-worker hook records its event with an unusable writer.sock and never blocks on it; make the doctor&#39;s &#39;wipnote inside&#39; check fail when the container&#39;s wipnote is older than the host&#39;s (or older than the first version with container event files), naming the update command; make sure no hook path waits on writer.sock inside a container worker.</p>
+        </section>
+    </article>
+</body>
+</html>
