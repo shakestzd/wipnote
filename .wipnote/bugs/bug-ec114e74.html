@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Phase B probe reads truecolour background 48;2 as SGR dim; D8a needs a real suggestion</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-ec114e74"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-10-29T08:26:59.033282"
+             data-updated="2026-10-29T09:30:25.934908" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.85.0" data-change_kind="bugfix" data-created_in_session="dd81015a-030d-4f98-aa9b-2f2a13a342a1" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Phase B probe reads truecolour background 48;2 as SGR dim; D8a needs a real suggestion</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="892020cabe7c769a028057809532a00ae7d7601f.html" data-relationship="committed_in" data-since="2026-10-29T04:57:51">fix(delegate): Phase B D8 reads the input line, not a 48;2 background as dim (bug-ec114e74)</a></li>
+                    <li><a href="094a2d0dea915b5bef50cb6e0333dffe7b677a84.html" data-relationship="committed_in" data-since="2026-10-29T05:02:56">docs(delegate): Claude Code suggestions appear after longer turns, not never (bug-ec114e74)</a></li>
+                    <li><a href="a45b59d7693a1428c99309e6f6bf83e1bda652ce.html" data-relationship="committed_in" data-since="2026-10-29T05:30:18">Merge pull request #304 from shakestzd/fix/phase-b-probe</a></li>
+                    <li><a href="dc5207b998229dd31782acdcfa32053bf06b31f2.html" data-relationship="committed_in" data-since="2026-10-29T04:53:46">wipnote: start bug-ec114e74</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/dd81015a-030d-4f98-aa9b-2f2a13a342a1.html" data-relationship="implemented_in" data-since="2026-10-29T08:27:04.720619">session dd81015a-030d-4f98-aa9b-2f2a13a342a1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-29T08:26:59.044019">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="task-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fix probe.pl background SGR parsing</li>
+                <li data-completed="true" data-step-id="task-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Rerun B9,D8a,D8b live in herdr and commit</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>scripts/delegate-phase-b/probe.pl runs() does not consume 48;2;R;G;B or 48;5;N, so the 2 in 48;2 sets dim. D8b failed with a normal-colour draft (style=dim) and D8a&#39;s dim count was inflated. D8a also asked about a suggestion that Claude Code never showed after a one-word reply. Found in the 2026-10-29 interactive run (refs feat-0c976595).</p>
+        </section>
+    </article>
+</body>
+</html>

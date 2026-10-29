@@ -43,3 +43,8 @@ migrations/*.done
 **/.index-offset
 **/.collector-pid
 **/state.json
+
+# Added by wipnote: managed patterns missing from this file.
+delegate/
+config.local.json
+**/.index-offset*
