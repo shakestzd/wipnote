@@ -299,6 +299,8 @@ with silent hooks or a turn stuck at working, D1 and D1b); a pending ask (`asks`
 predicate's `ready`, `idle_no_result` or `idle_shell`. While the newest task is not acked, the hook
 turn state belongs to an older turn and never settles the wait; the ack is read before the events.
 Every herdr call is bounded by the wait's deadline, which still ends in `timeout` and exit 124.
+`gone` exits 3 and `blocked` exits 4, so `wait && result` never reads a lost or held worker as
+finished; every other outcome exits 0 (bug-da9bde6f).
 It polls at most twice a second, never reads the input line (D8) and writes no run state; its only
 writes are the two ledger ones under the ledger lock on a still-open row (a `/clear` session joins
 `worker_sessions`; the worker-loss close). Prints `{run, name, turn, outcome, task, detail, asks}`.
@@ -323,7 +325,9 @@ Stop event records only that the turn ended.
 
 | Exit | When |
 |---|---|
-| 0 | send, result, questions and inbox succeeded; wait settled |
+| 0 | send, result, questions and inbox succeeded; wait settled on `done`, `ready`, `asks`, `idle_no_result`, `idle_shell` or `stopped` |
+| 3 | wait: `gone`, the worker is lost (pane or harness gone, or its run ended `gone`) |
+| 4 | wait: `blocked`, the worker waits at a dialog in its pane (folder trust) |
 | 124 | wait: the timeout passed |
 | 1 | a refusal or error, including wait without `--timeout` |
 

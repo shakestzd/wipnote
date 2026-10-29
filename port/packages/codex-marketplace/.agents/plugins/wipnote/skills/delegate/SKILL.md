@@ -93,7 +93,7 @@ wipnote delegate stop api-fix
 
 **`wipnote delegate send NAME [TEXT | --file PATH|-]`** gives a live worker a task. The task goes to the worker's inbox first, then herdr types a hint. It is refused, and writes nothing, unless the worker accepts input and its input line holds no draft.
 
-**`wipnote delegate wait NAME --timeout D`** blocks until the worker settles. `--timeout` is required. It prints `{run, name, turn, outcome, task, detail, asks}`. The outcome is `ready`, `done`, `asks`, `idle_no_result`, `idle_shell`, `blocked`, `timeout`, `gone` or `stopped`. A timeout exits 124 and changes no claim: wait again, or look with `list`.
+**`wipnote delegate wait NAME --timeout D`** blocks until the worker settles. `--timeout` is required. It prints `{run, name, turn, outcome, task, detail, asks}`. The outcome is `ready`, `done`, `asks`, `idle_no_result`, `idle_shell`, `blocked`, `timeout`, `gone` or `stopped`. A timeout exits 124 and changes no claim: wait again, or look with `list`. `gone` exits 3: the worker is lost, so spawn or resume one. `blocked` exits 4: the worker waits at a dialog in its pane, so answer it there. Every other outcome exits 0, so read `outcome` before you trust the result.
 
 **`wipnote delegate result NAME`** prints the newest result the worker wrote and the task it answers, or `{"result": "none"}`.
 
