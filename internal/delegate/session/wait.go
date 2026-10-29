@@ -24,8 +24,18 @@ const (
 // DefaultWaitPoll is wait's poll period: at most 2 Hz.
 const DefaultWaitPoll = 500 * time.Millisecond
 
-// TimeoutExit is wait's exit status when the timeout passed (as timeout(1)).
-const TimeoutExit = 124
+// Wait's exit statuses. Every outcome not named here exits 0; 1 stays a
+// refusal or error (bug-da9bde6f).
+const (
+	// TimeoutExit: the timeout passed (as timeout(1)).
+	TimeoutExit = 124
+	// GoneExit: the worker is lost (its pane or harness is gone, or its run
+	// ended gone).
+	GoneExit = 3
+	// BlockedExit: the worker is alive but held at a dialog it cannot pass
+	// alone (a folder-trust prompt).
+	BlockedExit = 4
+)
 
 // ErrNoTimeout: every wait must be bounded (cbds: a mandatory timeout).
 var ErrNoTimeout = errors.New("delegate: wait needs --timeout (a positive duration)")
@@ -49,10 +59,16 @@ type WaitResult struct {
 	Asks    []Question `json:"asks,omitempty"`
 }
 
-// ExitCode is TimeoutExit for a timeout and 0 for any settled outcome.
+// ExitCode is TimeoutExit for a timeout, GoneExit for a lost worker,
+// BlockedExit for a worker held at a dialog, and 0 for any other outcome.
 func (w WaitResult) ExitCode() int {
-	if w.Outcome == OutcomeTimeout {
+	switch w.Outcome {
+	case OutcomeTimeout:
 		return TimeoutExit
+	case OutcomeGone:
+		return GoneExit
+	case OutcomeBlocked:
+		return BlockedExit
 	}
 	return 0
 }
