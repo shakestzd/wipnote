@@ -112,7 +112,7 @@ form or its reply parsing is wrong. The fix goes in `commands.go`, `agent.go` or
 | D8b | the same for Codex's composer (`Ask Codex to do anything`, input line `›`) | the same in `wipnote codex`; the script picks "Skip" on the "Update available" prompt and "Continue without trusting" on "Hooks need review" | herdr, interactive |
 
 D8 used to wait for Claude Code's next-prompt suggestion after one turn. Run 10 showed
-that suggestion is not shown on every account, so D8 now reads the empty-box placeholder:
+that a short turn gets no suggestion, so D8 now reads the empty-box placeholder:
 the same kind of grey text that idle detection must tell from a draft. The probe counts
 grey text on the input line only, and reads `48;2;R;G;B` and `48;5;N` backgrounds as
 colours, not as SGR 2 dim (bug-ec114e74). No grey text in the box is NOT RUN, not FAIL.
@@ -383,9 +383,10 @@ Probe and check bugs found and fixed (bug-ec114e74):
   the arguments of `48;2`, `48;5`, `58;2` and `58;5`.
 - The dim count covered the whole screen (borders, status line), so run 10's D8a counted 751 grey
   characters with no suggestion on screen. It now counts the input line only (`probe.pl dim FILE MARKER`).
-- D8 waited for Claude Code's next-prompt suggestion after a turn. No suggestion appeared on this
-  account, with or without `CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=1` or `promptSuggestionEnabled`. D8 now
-  launches with no prompt and reads the empty-box placeholder. It needs no model.
+- D8 waited for Claude Code's next-prompt suggestion after a turn. A one-line reply got none, with or
+  without `CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=1` or `promptSuggestionEnabled`. Suggestions do appear
+  after longer turns: a resumed session's suggestion read as SGR 2 in the same ANSI read. A check cannot
+  count on one, so D8 now launches with no prompt and reads the empty-box placeholder. It needs no model.
 - `check_D8` ran both halves whatever `--only` said.
 - Keys sent while a Codex dialog was up could pick a dialog option. The poll now needs grey text on two
   reads 3 s apart, with no dialog or splash on screen. It picks "Skip" on the update prompt and

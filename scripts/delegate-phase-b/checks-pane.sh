@@ -132,8 +132,8 @@ yn() { case "$1" in 0) echo yes ;; 1) echo no ;; *) echo "not asked" ;; esac; }
 
 # D8: herdr pane read --format ansi keeps the dim/grey text of an empty input
 # box and shows a typed draft in the default colour. D8a Claude Code, D8b
-# Codex. No model turn: Claude Code's next-prompt suggestion is not shown on
-# every account (2026-10-29 run), but the empty-box placeholder (Claude Code
+# Codex. No model turn: Claude Code shows no next-prompt suggestion after a
+# short reply (2026-10-29 run 10), but the empty-box placeholder (Claude Code
 # 'Try "..."', Codex 'Ask Codex to do anything') always is, and it is the same
 # grey text idle detection must tell from a draft.
 check_D8() {
