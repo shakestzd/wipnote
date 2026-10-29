@@ -55,8 +55,8 @@ title_of() {
     B8L) echo "control: the claim gate refuses a second session on one side" ;;
     B8) echo "claim gate sees the other side's live episode across the mount, both ways" ;;
     B9) echo "send-text 2 + send-keys enter selects AskUserQuestion option 2" ;;
-    D8a) echo "Claude Code: pane read --format ansi keeps the grey suggestion; draft is default" ;;
-    D8b) echo "Codex: pane read --format ansi keeps the grey suggestion; draft is default" ;;
+    D8a) echo "Claude Code: pane read --format ansi keeps the grey input-box text; draft is default" ;;
+    D8b) echo "Codex: pane read --format ansi keeps the grey input-box text; draft is default" ;;
     C1) echo "Codex exec: final text, turn.completed usage, exit code, Stop hook" ;;
     C2) echo "Codex TUI: Stop final text, rollout token_count, task_complete, exit code" ;;
     C3) echo "wipnote plugin loads in both Codex modes (B4 and B5)" ;;
@@ -78,8 +78,9 @@ needs_of() {
     B7) echo "container perl" ;;
     B8L) echo "wipnote" ;;
     B8) echo "container wipnote" ;;
-    B9|D8a) echo "herdr model interactive claude wipnote" ;;
-    D8b) echo "herdr model interactive codex wipnote" ;;
+    B9) echo "herdr model interactive claude wipnote" ;;
+    D8a) echo "herdr interactive claude wipnote" ;;
+    D8b) echo "herdr interactive codex wipnote" ;;
     C2) echo "herdr model codex" ;;
     C3) echo "B4 B5" ;;
   esac

@@ -108,8 +108,14 @@ form or its reply parsing is wrong. The fix goes in `commands.go`, `agent.go` or
 
 | Id | Proves | How | Needs |
 |---|---|---|---|
-| D8a | `herdr pane read --format ansi` keeps the dim or grey SGR codes of Claude Code's next-prompt suggestion, and a typed draft reads in the default colour | after one turn: one read is checked for dim or grey runs; the script types `phaseb typed draft`, reads again and checks the draft's style; you confirm both by eye | herdr, model, interactive |
-| D8b | the same for Codex's composer | the same in `wipnote codex` | herdr, model, interactive |
+| D8a | `herdr pane read --format ansi` keeps the dim or grey SGR codes of the grey text in Claude Code's empty input box, and a typed draft reads in the default colour | no model turn: the script waits for grey text on the `❯` input line (the `Try "..."` placeholder), reads it, types `phaseb typed draft`, reads again and checks the draft's style; you confirm both by eye | herdr, interactive |
+| D8b | the same for Codex's composer (`Ask Codex to do anything`, input line `›`) | the same in `wipnote codex`; the script picks "Skip" on the "Update available" prompt and "Continue without trusting" on "Hooks need review" | herdr, interactive |
+
+D8 used to wait for Claude Code's next-prompt suggestion after one turn. Run 10 showed
+that a short turn gets no suggestion, so D8 now reads the empty-box placeholder:
+the same kind of grey text that idle detection must tell from a draft. The probe counts
+grey text on the input line only, and reads `48;2;R;G;B` and `48;5;N` backgrounds as
+colours, not as SGR 2 dim (bug-ec114e74). No grey text in the box is NOT RUN, not FAIL.
 
 PASS needs the machine check and your answers to agree. If they disagree, the read
 dropped or changed the styling. Delegate's idle detection (decision D8) cannot then
@@ -352,6 +358,40 @@ the same rule is required for every shared `.wipnote/` file a container worker t
 - The worker needs Claude credentials inside the container, for example a token passed in by the launcher, or credentials mounted read-only.
 - The container user needs a writable `~/.claude` (a volume or a tmpfs home).
 
+### Runs 10 to 15 (2026-10-29, `--only B9,D8a,D8b`, devcontainer in herdr, bug-ec114e74)
+
+Versions: wipnote 0.85.0, Claude Code 2.1.312, herdr 0.9.5, codex-cli 0.164.0 (runs 10 to 12), then
+0.165.0. The y/n answers came from a Claude session that read each pane in ANSI form.
+
+| Run | Script | B9 | D8a | D8b | What it showed |
+|---|---|---|---|---|---|
+| 10 | 5777e18f4 tree (v0.85.0) | PASS | FAIL | FAIL | Both D8 failures were probe bugs (below), not herdr defects. |
+| 11 | first fix | PASS | PASS | PASS | D8b passed only because the owner cleared Codex's update prompt and trust dialog by hand. |
+| 12 | `--only D8b` | not run | PASS | NOT RUN | `--only D8b` also ran D8a. The poll passed while Codex's update prompt was up; the draft and `/exit` keys then chose "Update now". |
+| 13 | dialog handling | PASS | PASS | NOT RUN | Codex 0.165 drew its composer under a start-up splash, then opened its dialogs; the poll passed during the splash. |
+| 14 | `--only D8b` | not run | not run | PASS | The script cleared Codex's trust and hook review dialogs on its own. |
+| 15 | final | PASS | PASS | PASS | All three on the final script; no dialog answered by hand. |
+
+**D8 result: `herdr pane read --format ansi` keeps SGR 2 (dim) on the grey text in both input boxes.**
+Claude Code's `Try "..."` placeholder and Codex's `Ask Codex to do anything` read as dim, and a typed
+draft reads in the default colour in both. Idle detection can tell the two apart from one ANSI read.
+
+Probe and check bugs found and fixed (bug-ec114e74):
+
+- The probe read the `2` of a truecolour background (`48;2;R;G;B`) as SGR 2 dim. Codex draws its
+  composer on `48;2;31;34;38`, so a normal draft read as `style=dim` (run 10's D8b). The probe now skips
+  the arguments of `48;2`, `48;5`, `58;2` and `58;5`.
+- The dim count covered the whole screen (borders, status line), so run 10's D8a counted 751 grey
+  characters with no suggestion on screen. It now counts the input line only (`probe.pl dim FILE MARKER`).
+- D8 waited for Claude Code's next-prompt suggestion after a turn. A one-line reply got none, with or
+  without `CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=1` or `promptSuggestionEnabled`. Suggestions do appear
+  after longer turns: a resumed session's suggestion read as SGR 2 in the same ANSI read. A check cannot
+  count on one, so D8 now launches with no prompt and reads the empty-box placeholder. It needs no model.
+- `check_D8` ran both halves whatever `--only` said.
+- Keys sent while a Codex dialog was up could pick a dialog option. The poll now needs grey text on two
+  reads 3 s apart, with no dialog or splash on screen. It picks "Skip" on the update prompt and
+  "Continue without trusting" on the hook review. When the box never shows, D8 is NOT RUN and sends no keys.
+
 ### Summary of runs 1 to 8
 
 | Run | Script | wipnote | Result | Cause of failures |
@@ -370,9 +410,7 @@ the same rule is required for every shared `.wipnote/` file a container worker t
 
 ### Not run yet
 
-- **B9, D8a, D8b** need the owner at the keyboard (y/n answers):
-  `scripts/delegate-phase-b.sh --only B9,D8a,D8b --out phase-b-results-interactive.md`. D8b (Codex's
-  grey next-prompt suggestion) matters for interactive Codex workers (slice 26).
+- **B9, D8a, D8b:** ran in runs 10 to 15 (above); all pass in run 15.
 - **B6, B7, B8 (container):** ran in run 9 (above).
 
 ### Script findings (not delegate defects)
