@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T14:56:32.968794"
-             data-updated="2026-10-26T00:10:58.308256" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
+             data-updated="2026-10-29T09:01:06.537653" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
 
         <header>
             <h1>Phase B: verify harness hooks on the owner&#39;s Mac</h1>
@@ -48,9 +48,10 @@
             <h3>Implementation Steps</h3>
             <ol>
                 <li data-completed="false" data-step-id="step-feat-0c976595-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Verify herdr calls slice 6 (feat-39bc46a1) could not confirm: tab close &lt;tab&gt;; pane split &lt;pane-id&gt; (positional target); pane layout --pane reply shape; pane read --source recent-unwrapped --lines N; agent rename &lt;target&gt; &lt;name&gt;; pane rename &lt;pane&gt; &lt;title&gt;; gone-pane error code (pane_not_found vs not_found); pane close &lt;pane&gt;. Run TestHerdr_LiveTabRoundTrip with HERDR_ENV=1.</li>
-                <li data-completed="false" data-step-id="step-feat-0c976595-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ D8 check: herdr pane read --format ansi keeps the dim/grey SGR codes of Claude Code and Codex suggestions; a typed draft shows default colour</li>
+                <li data-completed="true" data-step-id="step-feat-0c976595-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ D8 check: herdr pane read --format ansi keeps the dim/grey SGR codes of Claude Code and Codex suggestions; a typed draft shows default colour</li>
                 <li data-completed="false" data-step-id="step-feat-0c976595-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Codex parity probes (spk-87139e0e, docs/design/delegate-interactive-parity.md last section): exec vs TUI result, token counts, exit code, plugin load in both modes</li>
                 <li data-completed="true" data-step-id="step-feat-0c976595-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Write scripts/delegate-phase-b.sh (bash 3.2 safe, --self-test, --only, --no-model, --no-interactive) and docs/design/delegate-phase-b.md; self-test passes in the container</li>
+                <li data-completed="true" data-step-id="step-feat-0c976595-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ B9 and D8 results (runs 10-15, devcontainer in herdr 0.9.5, Claude Code 2.1.312, codex-cli 0.165.0): run 15 B9 PASS (send-text 2 then send-keys enter picks AskUserQuestion option 2), D8a PASS, D8b PASS. herdr pane read --format ansi keeps SGR 2 on the grey input-box text of both TUIs and a typed draft reads default, so the D8b answer for slice 26 is yes. Probe bugs fixed under bug-ec114e74 (PR 304, branch fix/phase-b-probe); results in docs/design/delegate-phase-b.md on that branch.</li>
             </ol>
         </section>
 
