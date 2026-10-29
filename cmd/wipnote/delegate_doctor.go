@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -81,7 +82,7 @@ func containerChecks(ctx context.Context, projectDir string, inContainer bool) [
 		return []codex.Check{{Name: "devcontainer", Status: codex.CheckFail, Detail: err.Error()}}
 	}
 	defer os.RemoveAll(rf.Dir())
-	return container.Doctor(ctx, container.DoctorOptions{Root: projectDir, ProbeRun: probe, ProbeDir: rf.Dir(), Progress: io.Discard})
+	return container.Doctor(ctx, container.DoctorOptions{Root: projectDir, ProbeRun: probe, ProbeDir: rf.Dir(), HostVersion: strings.TrimPrefix(version, "v"), Progress: io.Discard})
 }
 
 // herdrCheck: panes need herdr on PATH and HERDR_ENV=1; without them runs

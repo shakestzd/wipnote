@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/containerwrite"
 	"github.com/shakestzd/wipnote/core/daemon"
 	"github.com/shakestzd/wipnote/core/hooks"
 )
@@ -63,7 +64,10 @@ type pendingDaemon struct {
 // alongside the rest of the launch instead of in front of it.
 func startDaemonEnsure(wipnoteRoot string) *pendingDaemon {
 	p := &pendingDaemon{done: make(chan struct{})}
-	if wipnoteRoot == "" || !hooks.IswipnoteProject(wipnoteRoot) {
+	// A container worker's project mount cannot carry writer.sock (Docker
+	// Desktop), and its hooks write plain files: start and dial no daemon
+	// (bug-6715affb).
+	if wipnoteRoot == "" || containerwrite.Active() || !hooks.IswipnoteProject(wipnoteRoot) {
 		p.err = errNotAProject
 		close(p.done)
 		return p
