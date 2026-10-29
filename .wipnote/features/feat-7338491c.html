@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>delegate watch: stream a worker&#39;s state changes, one line each, for Claude Code&#39;s Monitor tool</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-7338491c"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-29T10:31:54.51187"
+             data-updated="2026-10-29T10:33:02.35231" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.85.0" data-affected_files="cmd/wipnote/delegate_watch.go,cmd/wipnote/delegate_watch_test.go,plugin/skills/delegate/SKILL.md" data-change_kind="capability" data-created_in_session="dd81015a-030d-4f98-aa9b-2f2a13a342a1" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;delegate watch: reuse wait&#39;s settle logic; one flushed line per change; exit on terminal outcome with wait&#39;s exit codes; honour --timeout under Monitor&#39;s 30-minute deadline and say how to re-arm; the skill tells Claude Code callers to run it under Monitor&#34;,&#34;exists&#34;:&#34;delegate wait (internal/delegate/session/wait.go) settles on durable signals and returns one outcome; oneshot/claude_watch.go watches one-shot runs; the delegate skill only says &#39;run it in the background&#39;. No streaming command exists (searched: wipnote relevant &#39;delegate watch monitor&#39;, grep Monitor in plugin/ and internal/delegate).&#34;,&#34;options&#34;:[&#34;Plugin monitor component (session-long command): rejected, it would run for every session, not per worker&#34;,&#34;Keep only background wait: rejected, the caller learns of asks only at the end&#34;,&#34;wipnote delegate watch NAME: one flushed stdout line per state change, exits on a terminal outcome, run under Monitor&#34;],&#34;question&#34;:&#34;How must a CLI command stream output for Claude Code&#39;s Monitor tool, and what can delegate watch reuse from delegate wait?&#34;,&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-10-29&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/tools-reference&#34;},{&#34;retrieved&#34;:&#34;2026-10-29&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/plugins/components&#34;},{&#34;retrieved&#34;:&#34;2026-10-29&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/changelog&#34;}],&#34;spike_id&#34;:&#34;spk-04599c7b&#34;}}">
+
+        <header>
+            <h1>delegate watch: stream a worker&#39;s state changes, one line each, for Claude Code&#39;s Monitor tool</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/dd81015a-030d-4f98-aa9b-2f2a13a342a1.html" data-relationship="implemented_in" data-since="2026-10-29T10:33:02.352069">session dd81015a-030d-4f98-aa9b-2f2a13a342a1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-29T10:31:54.569417">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-28b4a7f6.html" data-relationship="planned_in" data-since="2026-10-29T10:31:54.565659">plan-28b4a7f6</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Today delegate wait blocks and returns one outcome, so a caller learns of a worker&#39;s question only when wait returns asks. Add wipnote delegate watch NAME [--timeout D]: reuse wait&#39;s settle logic, print one flushed line per state change (started, working, asks with the question summary, blocked, done, idle_no_result, gone, stopped, timeout), and exit on any terminal outcome with wait&#39;s exit codes. Never prints prompt or answer text beyond the existing bounded summaries. The delegate skill tells Claude Code callers to run it under the Monitor tool and to answer asks with delegate send while it keeps running.</p>
+        </section>
+    </article>
+</body>
+</html>
