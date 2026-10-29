@@ -68,6 +68,10 @@ holds no draft (a grey next-prompt suggestion reads as empty). Prints
 	return cmd
 }
 
+// delegateWaitExit ends the process with wait's non-zero status; tests
+// replace it.
+var delegateWaitExit = os.Exit
+
 func delegateWaitCmd() *cobra.Command {
 	var timeout time.Duration
 	cmd := &cobra.Command{
@@ -80,7 +84,9 @@ for the current task (an older turn's never counts). herdr state and the input
 line are never read as done. Polls at most twice a second and writes no run
 state. Prints {run, name, turn, outcome, task, detail, asks}: outcome is ready,
 done, asks, idle_no_result, idle_shell, blocked, timeout, gone or stopped.
---timeout is required; a timeout exits 124 and changes no claim.`,
+--timeout is required. Exit status: 124 for a timeout (which changes no
+claim), 3 for gone (the worker is lost), 4 for blocked (the worker waits at a
+dialog in its pane), 0 for every other outcome, 1 for an error.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !cmd.Flags().Changed("timeout") {
@@ -88,7 +94,7 @@ done, asks, idle_no_result, idle_shell, blocked, timeout, gone or stopped.
 			}
 			code, err := runDelegateWait(cmd, args[0], timeout)
 			if err == nil && code != 0 {
-				os.Exit(code)
+				delegateWaitExit(code)
 			}
 			return err
 		},

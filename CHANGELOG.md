@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A bare `codex exec`, `codex review`, `claude -p` or `ccx task` in the Bash tool is denied with the `wipnote delegate run` form to use. A plain `ccx task` is offered the `--container` form only when the project has a devcontainer.
 - A one-time notice at `wipnote claude` launch tells a user who set options for the removed mod which `delegate` settings in `~/.wipnote/config.json` they map to. wipnote does not move them.
 
+### Fixed
+- `wipnote delegate wait` no longer exits 0 when the worker is gone or blocked: `gone` exits 3 and `blocked` exits 4. `done` and the other settled outcomes still exit 0, a timeout still exits 124, and the JSON is unchanged (bug-da9bde6f).
+
 ### Removed
 - The `codex-herdr-pane` mod. `wipnote delegate run` does its job, `wipnote delegate view` replaces its viewer, and the wipnote-orchestra band replaces its Claude Code pane.
 
