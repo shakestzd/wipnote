@@ -129,3 +129,19 @@ func writeOlderLeaseForTest(t *testing.T, root string) {
 		t.Fatal(err)
 	}
 }
+
+// A container worker never starts or dials a work-item daemon: the project
+// mount cannot carry writer.sock (bug-6715affb).
+func TestDaemonEnsure_ContainerWorkerStartsNone(t *testing.T) {
+	called := false
+	root := stubEnsure(t, func(context.Context) (string, error) { called = true; return "/x/writer.sock", nil })
+	t.Setenv("WIPNOTE_DELEGATE_PLACE", "container")
+	t.Setenv("WIPNOTE_DELEGATE_RUN", "dlg-0123456789ab")
+	var out bytes.Buffer
+	if env := startDaemonEnsure(root).sessionEnv(&out, time.Second); env != nil || out.Len() != 0 {
+		t.Fatalf("env=%v out=%q, want no env and no output", env, out.String())
+	}
+	if called {
+		t.Fatal("the daemon ensure ran inside a container worker")
+	}
+}

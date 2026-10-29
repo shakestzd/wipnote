@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Lean default profile for delegated Claude workers (slice 27, Claude half)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-6a437fc0"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-29T09:34:44.215646"
+             data-updated="2026-10-29T09:37:00.496887" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.85.0" data-affected_files="internal/delegate/profile/profile.go,internal/delegate/profile/claude.go,internal/delegate/profile/profile_test.go,internal/delegate/session/spawn.go,internal/delegate/oneshot/recipes.go" data-change_kind="capability" data-created_in_session="dd81015a-030d-4f98-aa9b-2f2a13a342a1" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;--tools Read,Edit,Write,Glob,Grep,Bash; --strict-mcp-config with a per-run mcp.json; --settings disabling claude.ai connectors, auto-memory and every installed plugin (ids from claude plugin list --json) while wipnote loads from --plugin-dir; widen only by named --tools/--plugin/--mcp&#34;,&#34;exists&#34;:&#34;plan-28b4a7f6 slice 27 research (2026-10-26, Claude Code 2.1.310); claude --help on 2.1.312 still lists --tools, --strict-mcp-config, --mcp-config, --settings, --plugin-dir (repeatable), --bare, --disallowedTools; claude plugin list --json exists. No internal/delegate/profile package yet (wipnote relevant &#39;lean default profile delegated workers&#39;: none).&#34;,&#34;options&#34;:[&#34;--bare: rejected, OAuth users cannot authenticate under it&#34;,&#34;--disable-slash-commands / --setting-sources: rejected, drops wipnote&#39;s skills or project settings&#34;,&#34;--tools list + --strict-mcp-config + --mcp-config task file + --settings {disableClaudeAiConnectors, autoMemoryEnabled false, enabledPlugins id:false for each installed plugin} + --plugin-dir wipnote&#34;],&#34;question&#34;:&#34;Which Claude Code 2.1.312 flags give a delegated worker a lean profile (tools, MCP, plugins) without dropping wipnote&#39;s hooks?&#34;,&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-10-29&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/cli-reference&#34;},{&#34;retrieved&#34;:&#34;2026-10-29&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/settings-reference&#34;},{&#34;retrieved&#34;:&#34;2026-10-29&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/headless&#34;}],&#34;spike_id&#34;:&#34;spk-058f8f13&#34;}}">
+
+        <header>
+            <h1>Lean default profile for delegated Claude workers (slice 27, Claude half)</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/dd81015a-030d-4f98-aa9b-2f2a13a342a1.html" data-relationship="implemented_in" data-since="2026-10-29T09:37:00.493752">session dd81015a-030d-4f98-aa9b-2f2a13a342a1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-29T09:34:44.343778">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-28b4a7f6.html" data-relationship="planned_in" data-since="2026-10-29T09:34:44.341178">plan-28b4a7f6</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Slice 27 of plan-28b4a7f6, Claude half only (the Codex half waits on slice 26). Add internal/delegate/profile: a Profile (tools, plugins, MCP servers) whose default is lean, rendered to Claude Code flags: --tools Read,Edit,Write,Glob,Grep,Bash; --strict-mcp-config with a task mcp.json; --settings disabling claude.ai connectors, auto-memory and every installed plugin except wipnote&#39;s plugin dir. delegate spawn and run widen it only with named --tools/--plugin/--mcp items and record the widened set in the run folder. delegate doctor prints the effective profile and names what it cannot turn off. Never --bare for OAuth users.</p>
+        </section>
+    </article>
+</body>
+</html>
