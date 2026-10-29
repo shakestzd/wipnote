@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Spawned delegate worker cannot write its result: the .wipnote/ write guard blocks outbox/&lt;task&gt;-result.json</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-66574a82"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-29T10:51:12.359893"
+             data-updated="2026-10-29T12:07:00.582457" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.85.0" data-change_kind="bugfix" data-created_in_session="dd81015a-030d-4f98-aa9b-2f2a13a342a1">
+
+        <header>
+            <h1>Spawned delegate worker cannot write its result: the .wipnote/ write guard blocks outbox/&lt;task&gt;-result.json</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="345f487329d8d91893346f97c031d5afa4027c23.html" data-relationship="committed_in" data-since="2026-10-29T08:06:39">fix(delegate): workers answer with delegate reply, not by writing .wipnote/ (bug-66574a82)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/dd81015a-030d-4f98-aa9b-2f2a13a342a1.html" data-relationship="implemented_in" data-since="2026-10-29T11:53:33.458814">session dd81015a-030d-4f98-aa9b-2f2a13a342a1</a></li>
+                    <li><a href="../sessions/8eb4d8f2-7d09-4b90-9ce1-e1eb963040b0.html" data-relationship="implemented_in" data-since="2026-10-29T12:01:22.568243">session 8eb4d8f2-7d09-4b90-9ce1-e1eb963040b0</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-29T10:51:12.439393">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Live test 2026-10-29 (run dlg-80e7c5232149): a delegate spawn worker answered its task but could not write .wipnote/delegate/mail/&lt;name&gt;/outbox/&lt;task&gt;-result.json. The Bash write was blocked by core/hooks guardWipnoteWrite (isBashwipnoteWrite), and the Write tool also failed, so the turn ended with no result (watch/wait: idle_shell). runstore/results.go says the worker writes this file itself, as the preamble tells it, but no CLI verb exists for a worker to deliver a result. Fix options: a worker-side CLI verb (e.g. wipnote delegate reply) that writes via runstore.WriteResult, with the preamble updated; or a guard exemption limited to the worker&#39;s own outbox when WIPNOTE_DELEGATE_RUN names its run. Also: containsWipnoteDir in core/hooks/pretooluse_shell.go compares an 11-byte slice with the 9-byte &#39;.wipnote/&#39;, so the Write-tool guard only matches the bare path &#39;.wipnote&#39;.</p>
+        </section>
+    </article>
+</body>
+</html>
