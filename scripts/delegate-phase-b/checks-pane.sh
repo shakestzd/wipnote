@@ -130,27 +130,83 @@ check_B9() {
 
 yn() { case "$1" in 0) echo yes ;; 1) echo no ;; *) echo "not asked" ;; esac; }
 
-# D8: herdr pane read --format ansi keeps the dim/grey suggestion and shows a
-# typed draft in the default colour. D8a Claude Code, D8b Codex.
+# D8: herdr pane read --format ansi keeps the dim/grey text of an empty input
+# box and shows a typed draft in the default colour. D8a Claude Code, D8b
+# Codex. No model turn: Claude Code's next-prompt suggestion is not shown on
+# every account (2026-10-29 run), but the empty-box placeholder (Claude Code
+# 'Try "..."', Codex 'Ask Codex to do anything') always is, and it is the same
+# grey text idle detection must tell from a draft.
 check_D8() {
-  d8_one D8a claude
-  d8_one D8b codex
+  want D8a && d8_one D8a claude '❯'
+  want D8b && d8_one D8b codex '›'
+  return 0
+}
+
+# input_grey PANE MARKER: the input line (it starts with MARKER) has dim or
+# grey text. Dismisses Codex's start-up dialogs first, since they hide the box.
+input_grey() {
+  codex_dialogs "$1"
+  grey_now "$1" "$2" || return 1
+  # Codex draws its composer, then may open a dialog over it: run 12's poll
+  # passed in that gap, and the draft and /exit keys then chose "Update now".
+  sleep 3
+  codex_dialogs "$1"
+  grey_now "$1" "$2"
+}
+
+# grey_now PANE MARKER: one read has grey text on the input line, and no
+# dialog or start-up splash on screen. Codex 0.165 draws its composer under a
+# braille-art splash for several seconds before its dialogs (run 13).
+grey_now() {
+  screen "$1" ansi >"$SCRATCH/input-grey.ansi"
+  strip_ansi <"$SCRATCH/input-grey.ansi" | grep -qE "$TRUST_RE|Update available|Hooks need review|⣿" && return 1
+  ! perl "$PROBE" dim "$SCRATCH/input-grey.ansi" "$2" | grep -qx 'dim_or_grey_chars=0'
+}
+
+# codex_dialogs PANE: on Codex's "Update available" prompt pick option 2,
+# "Skip" (nothing installed, nothing saved); on "Hooks need review" pick
+# option 3, "Continue without trusting" (D8 needs no hooks). The folder trust
+# dialog behind them is poll_pane's maybe_trust.
+codex_dialogs() {
+  local n=0
+  if screen_has "$1" 'Update available'; then
+    log "$1: Codex update prompt up; choosing skip"
+    n=1
+  elif screen_has "$1" 'Hooks need review'; then
+    log "$1: Codex hook review up; choosing continue without trusting"
+    n=2
+  else
+    return 0
+  fi
+  while [ "$n" -gt 0 ]; do
+    with_timeout 10 herdr pane send-keys "$1" down >/dev/null 2>&1
+    n=$((n - 1))
+  done
+  with_timeout 10 herdr pane send-keys "$1" enter >/dev/null 2>&1
+  sleep 2
 }
 
 d8_one() {
-  local id="$1" tool="$2" why d a1 a2 q1 q2 dimc style
-  why=$(why_not herdr model interactive wipnote "$tool" git)
+  local id="$1" tool="$2" marker="$3" why d a1 a2 q1 q2 dimc style
+  why=$(why_not herdr interactive wipnote "$tool" git)
   [ -n "$why" ] && { skip "$id" "$why"; return 0; }
   d="$SCRATCH/$id"
   new_project "$d" || { fail "$id" "new_project" "scratch project failed"; return 0; }
-  tui_turn "$id" "$tool" "$d" "'$OK_PROMPT'" || { fail "$id" "$CAP_CMD" "tab launch failed: $CAP_OUT"; return 0; }
-  ask "$id: in tab phase-b-$id, wait for the reply to '$OK_PROMPT'. Is a grey (dim) suggestion now shown in the input box?"
+  pane_launch "$id" "$d" "wipnote $tool --in-place" || { fail "$id" "$CAP_CMD" "tab launch failed: $CAP_OUT"; return 0; }
+  # No keys go to a pane whose input box never showed: they could pick a
+  # dialog option. The tab closes with the run.
+  if ! poll_pane "$L_PANE" 90 input_grey "$L_PANE" "$marker"; then
+    dump_screen "$id" "$L_PANE"
+    skip "$id" "no grey text in the input box after 90s, or a dialog still up; no keys sent (tab phase-b-$id)"
+    return 0
+  fi
+  ask "$id: in tab phase-b-$id, is grey (dim) text shown in the empty input box?"
   q1=$?
   a1="$SCRATCH/$id-suggestion.ansi"
   cap 15 herdr pane read "$L_PANE" --source recent-unwrapped --lines 60 --format ansi
   local cmd="$CAP_CMD" rc1="$CAP_RC"
   printf '%s' "$CAP_OUT" >"$a1"
-  dimc=$(perl "$PROBE" dim "$a1")
+  dimc=$(perl "$PROBE" dim "$a1" "$marker")
   with_timeout 10 herdr pane send-text "$L_PANE" "phaseb typed draft" >/dev/null 2>&1
   sleep 2
   a2="$SCRATCH/$id-draft.ansi"
@@ -164,11 +220,13 @@ d8_one() {
 }
 
 # d8_verdict ID CMD RC Q1 Q2 DIM STYLE: PASS needs the read to keep a dim or
-# grey run, the draft to be default, and the owner to agree on both.
+# grey run on the input line, the draft to be default, and the owner to agree
+# on both. No grey text on screen or in the read leaves nothing to check.
 d8_verdict() {
   local obs
-  obs="read exit $3; suggestion read: $6; draft read: $7; owner: suggestion grey $(yn "$4"), draft normal $(yn "$5")"
+  obs="read exit $3; input line read: $6; draft read: $7; owner: input grey $(yn "$4"), draft normal $(yn "$5")"
   if [ "$4" = 2 ] || [ "$5" = 2 ]; then skip "$1" "no terminal to ask on; $obs"; return 0; fi
+  if [ "$4" = 1 ] && [ "$6" = dim_or_grey_chars=0 ]; then skip "$1" "no grey text in the input box to check; $obs"; return 0; fi
   if [ "$3" = 0 ] && [ "$4" = 0 ] && [ "$5" = 0 ] && [ "$6" != dim_or_grey_chars=0 ] && [ "$7" = style=default ]; then
     pass "$1" "$2" "$obs"
   else
