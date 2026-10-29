@@ -77,3 +77,22 @@ func (m *Mailbox) Answered(id string) (bool, error) {
 	}
 	return false, nil
 }
+
+// WriteQFile writes task's next question file, outbox/<task-id>-q<n>.json,
+// by temp file and rename, n one past the highest readable one. It returns
+// the question id.
+func (m *Mailbox) WriteQFile(task, text string, options []string) (string, error) {
+	if !ValidMsgID(task) {
+		return "", fmt.Errorf("runstore: invalid task id %q", task)
+	}
+	qs, err := m.QFiles(task)
+	if err != nil {
+		return "", err
+	}
+	n := 1
+	if len(qs) > 0 {
+		n = qs[len(qs)-1].N + 1
+	}
+	id := task + "-q" + strconv.Itoa(n)
+	return id, m.writeJSON(Outbox, id+".json", QFile{ID: id, Task: task, N: n, Body: text, Options: options})
+}

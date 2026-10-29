@@ -75,10 +75,15 @@ func pendingQuestions(store *runstore.Store, name, run string, f eventFacts) []Q
 }
 
 // pendingQFiles are the newest task's question files with no answer yet. An
-// older task's question is not pending: the caller has moved on.
+// older task's question is not pending: the caller has moved on. Nor is one
+// whose task has its result: the answer was typed into the pane, which
+// records nothing, and the worker went on to finish.
 func pendingQFiles(store *runstore.Store, name, run string) []runstore.QFile {
 	t, ok := newestTask(store, name, run)
 	if !ok {
+		return nil
+	}
+	if _, done, _ := t.mb.Result(t.msg.ID); done {
 		return nil
 	}
 	qs, err := t.mb.QFiles(t.msg.ID)
