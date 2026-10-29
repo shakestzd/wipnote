@@ -12,7 +12,8 @@
 #   probe.pl count FILE EXPECTED  prints lines, good, bad and expected
 #   probe.pl renamer FILE SECS    rewrite FILE by temp file plus rename
 #   probe.pl reader FILE SECS     read FILE in a loop: reads, torn, missing
-#   probe.pl dim FILE             count characters drawn dim or grey
+#   probe.pl dim FILE [MARKER]    count characters drawn dim or grey; with
+#                                 MARKER, only on lines that start with it
 #   probe.pl style FILE TEXT      the style TEXT is drawn in: dim, grey,
 #                                 default, other, or absent
 #
@@ -140,6 +141,10 @@ sub runs {
                 elsif (($c >= 30 && $c <= 37) || ($c >= 90 && $c <= 97)) { $fg = $c }
                 elsif ($c == 38 && @c && $c[0] == 5) { shift @c; $fg = '5;' . (shift(@c) // '') }
                 elsif ($c == 38 && @c && $c[0] == 2) { shift @c; $fg = '2;' . join(';', splice(@c, 0, 3)) }
+                # Background (48) and underline (58) colours: skip their
+                # arguments, or the 2 of 48;2;R;G;B reads as dim (bug-ec114e74).
+                elsif (($c == 48 || $c == 58) && @c && $c[0] == 5) { splice(@c, 0, 2) }
+                elsif (($c == 48 || $c == 58) && @c && $c[0] == 2) { splice(@c, 0, 4) }
             }
             next;
         }
@@ -162,9 +167,24 @@ sub style {
     return 'other';
 }
 
+# dim FILE [MARKER]: with MARKER, count only on lines that start with it (the
+# input box), so dim borders and status lines elsewhere do not count.
 sub dim {
-    my $n = 0;
-    for my $r (runs($_[0])) { $n += () = $r->[1] =~ /\S/g if $r->[0] eq 'dim' || $r->[0] eq 'grey' }
+    my ($f, $marker) = @_;
+    my ($n, $line, $count) = (0, '', 0);
+    my $end = sub {
+        $n += $count if !defined $marker || $line =~ /^\s*\Q$marker\E/;
+        ($line, $count) = ('', 0);
+    };
+    for my $r (runs($f)) {
+        my @bits = split /(\r?\n)/, $r->[1], -1;
+        for my $b (@bits) {
+            if ($b =~ /^\r?\n$/) { $end->(); next }
+            $line .= $b;
+            $count += () = $b =~ /\S/g if $r->[0] eq 'dim' || $r->[0] eq 'grey';
+        }
+    }
+    $end->();
     print "dim_or_grey_chars=$n\n";
 }
 

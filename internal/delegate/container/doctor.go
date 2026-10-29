@@ -19,10 +19,11 @@ import (
 // probe run (an id and its run folder on the host, made and removed by the
 // caller) for the hook check.
 type DoctorOptions struct {
-	Root     string
-	ProbeRun string
-	ProbeDir string
-	Progress io.Writer // devcontainer up's progress; discarded when nil
+	Root        string
+	ProbeRun    string
+	ProbeDir    string
+	HostVersion string    // the host wipnote version, for the inside check
+	Progress    io.Writer // devcontainer up's progress; discarded when nil
 }
 
 // insideTimeout bounds one check run inside the container.
@@ -45,7 +46,7 @@ func Doctor(ctx context.Context, o DoctorOptions) []codex.Check {
 	}
 	checks = append(checks, codex.Check{Name: "devcontainer up", Status: codex.CheckPass,
 		Detail: fmt.Sprintf("container %s, workspace folder %s, user %s", up.ContainerID, up.RemoteWorkspaceFolder, up.RemoteUser)})
-	w := wipnoteInside(ctx, o.Root)
+	w := wipnoteInside(ctx, o.Root, o.HostVersion)
 	checks = append(checks, w)
 	if w.Status == codex.CheckPass {
 		checks = append(checks, hookInside(ctx, o, up.RemoteWorkspaceFolder))
@@ -71,15 +72,14 @@ func inside(ctx context.Context, root string, env, argv []string) (string, error
 	return strings.TrimSpace(out.String()), err
 }
 
-func wipnoteInside(ctx context.Context, root string) codex.Check {
+func wipnoteInside(ctx context.Context, root, host string) codex.Check {
 	c := codex.Check{Name: "wipnote inside"}
 	out, err := inside(ctx, root, nil, []string{"wipnote", "version"})
 	if err != nil {
 		c.Status, c.Detail = codex.CheckFail, fmt.Sprintf("wipnote version failed inside the container (%v): %s; install wipnote in the container (its ~/.local volume keeps it)", err, out)
 		return c
 	}
-	c.Status, c.Detail = codex.CheckPass, firstLine(out)
-	return c
+	return versionCheck(root, out, host)
 }
 
 // probeSession is the session id the hook check fires its hook as.
@@ -132,8 +132,7 @@ func claudeLogin(ctx context.Context, root string, writable bool) codex.Check {
 		c.Status, c.Detail = codex.CheckFail, fmt.Sprintf("Claude Code is not logged in inside the container (claude auth status: %v): %s; log in once inside: open a shell in the devcontainer, start claude and type /login (the named ~/.claude volume keeps the login)", err, out)
 		return c
 	}
-	c.Status, c.Detail = codex.CheckPass, firstLine(out)
-	return c
+	return loginResult(c, out)
 }
 
 func firstLine(s string) string {

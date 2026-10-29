@@ -80,6 +80,14 @@ func (w WaitResult) ExitCode() int {
 // row closes as gone with that worker's own claim episodes expired. A
 // timeout changes nothing.
 func Wait(ctx context.Context, d Deps, name string, o WaitOptions) (WaitResult, error) {
+	return lookLoop(ctx, d, name, o, func(_ WaitResult, settled bool) bool { return settled })
+}
+
+// lookLoop is the one blocking loop under wait and watch. It takes a look
+// every poll and hands it to onLook; the loop returns when onLook says stop,
+// the timeout passes (Outcome timeout) or the caller cancels (the ctx error).
+// A look the deadline cut short never counts as settled.
+func lookLoop(ctx context.Context, d Deps, name string, o WaitOptions, onLook func(res WaitResult, settled bool) bool) (WaitResult, error) {
 	if o.Timeout <= 0 {
 		return WaitResult{}, ErrNoTimeout
 	}
@@ -103,7 +111,7 @@ func Wait(ctx context.Context, d Deps, name string, o WaitOptions) (WaitResult, 
 		if look.Err() != nil {
 			settled = false // the deadline cut the look short: it is a timeout
 		}
-		if settled {
+		if onLook(res, settled) {
 			return res, nil
 		}
 		left := time.Until(deadline)

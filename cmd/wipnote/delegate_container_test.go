@@ -114,7 +114,7 @@ func fakeInside(t *testing.T) {
 	bin := t.TempDir()
 	wipnote := `#!/bin/sh
 case "$1" in
-version) echo "wipnote 0.0.0-test" ;;
+version) echo "wipnote ${STUB_INSIDE_VERSION:-99.0.0} (go)" ;;
 hook)
   [ "$WIPNOTE_DELEGATE_PLACE" = container ] || exit 0
   cat > /dev/null
@@ -162,8 +162,15 @@ func TestDoctor_ContainerChecks(t *testing.T) {
 		t.Errorf("doctor left probe run folders: %v", entries)
 	}
 
-	t.Setenv("STUB_AUTH_EXIT", "1")
+	t.Setenv("STUB_INSIDE_VERSION", "0.71.0")
 	out, err := runDoctorArgs(t, "--container")
+	if err == nil || !strings.Contains(out, "fail  wipnote inside: wipnote 0.71.0 inside") || !strings.Contains(out, "wipnote upgrade") {
+		t.Errorf("old wipnote inside: err %v\n%s", err, out)
+	}
+	t.Setenv("STUB_INSIDE_VERSION", "")
+
+	t.Setenv("STUB_AUTH_EXIT", "1")
+	out, err = runDoctorArgs(t, "--container")
 	if err == nil || !strings.Contains(out, "fail  claude login:") || !strings.Contains(out, "/login") {
 		t.Errorf("not logged in: err %v\n%s", err, out)
 	}

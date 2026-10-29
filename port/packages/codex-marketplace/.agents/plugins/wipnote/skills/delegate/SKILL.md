@@ -95,11 +95,15 @@ wipnote delegate stop api-fix
 
 **`wipnote delegate wait NAME --timeout D`** blocks until the worker settles. `--timeout` is required. It prints `{run, name, turn, outcome, task, detail, asks}`. The outcome is `ready`, `done`, `asks`, `idle_no_result`, `idle_shell`, `blocked`, `timeout`, `gone` or `stopped`. A timeout exits 124 and changes no claim: wait again, or look with `list`. `gone` exits 3: the worker is lost, so spawn or resume one. `blocked` exits 4: the worker waits at a dialog in its pane, so answer it there. Every other outcome exits 0, so read `outcome` before you trust the result.
 
+**`wipnote delegate watch NAME [--timeout D]`** is for Claude Code callers. Run it under the Monitor tool: each state change is one line (`run=R name=N state=working|asks|blocked|done|...`), so you see a question while the worker keeps going. Unlike `wait`, `state=asks` does not end the watch: read it with `delegate questions NAME`, answer it by typing into the worker's pane (`send` refuses while a dialog is open), and the watch goes on. It ends on any other outcome with `wait`'s exit codes. The default timeout is 25 minutes, under Monitor's 30-minute cap. On `timeout`, run `watch` again. Codex callers keep using `wait`.
+
 **`wipnote delegate result NAME`** prints the newest result the worker wrote and the task it answers, or `{"result": "none"}`.
 
 **`wipnote delegate questions NAME`** lists the worker's open questions and permission prompts. Answer one by typing into the worker's pane.
 
 **`wipnote delegate inbox`** runs inside a worker. It reads the worker's own mailbox, including tasks whose hint was lost.
+
+**`wipnote delegate reply`** runs inside a worker. It writes the worker's answer to its task (`--task`, default the newest), or with `--ask` a question for the caller. The task preamble tells the worker to use it, because the worker's own hooks block writes into `.wipnote/`.
 
 **`wipnote delegate stop NAME [--wait D]`** asks the worker to exit, waits (20s by default) until only the shell is left, then closes the pane. It never kills a process. It exits 1 when the pane stays open, and `why` says why.
 
