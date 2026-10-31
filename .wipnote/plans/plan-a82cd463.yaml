@@ -1,0 +1,18 @@
+meta:
+    id: plan-a82cd463
+    track_id: trk-2e707ed1
+    title: 'Delegate routing: subagent by default, session flags when a pane is worth it'
+    description: Agents use wipnote delegate spawn for same-harness work that a native subagent does better. Add a routing rule, then make spawn worth choosing by passing session-level settings that subagents cannot set.
+    created_at: "2026-10-31"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
