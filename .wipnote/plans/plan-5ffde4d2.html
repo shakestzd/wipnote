@@ -469,11 +469,60 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <a href="/" class="brand">wipnote</a>
     <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
   </div>
-  
+  <a href="#visual-overview" class="nav-link" data-spy="visual-overview" data-initial="V">Visual</a>
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
   
-  <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span>#1 Stop committing session telemetry</span>
+        
+        <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 One reconcile commit per session end</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 Mark stale open items</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 New features and bugs state why and when they are done</span>
+        
+        <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span>#5 Comments that cite an item id also state the reason</span>
+        
+        
+      </a>
+    </li>
+    
+  </ul>
+  
+  
   
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
   <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="&#9825;">Chat</a>
@@ -488,7 +537,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">From spk-bdce0ef0: the useful context in .wipnote is the work-item records and the item ids in commits; session telemetry, per-item bookkeeping commits and stale open items add size and noise. Keep the first, remove the rest.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-10-31</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 5 slices · Created 2026-10-31</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -505,16 +554,96 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </details>
 
 <!-- ZONE 0: Visual Overview (blocks-first headline — expanded, above dependency graph) -->
-
+<section class="visual-overview" id="visual-overview" data-zone="visual-overview">
+  <h2>Visual Overview</h2>
+  <div class="overview-group" data-block-kind="file-tree">
+    <h3>File Trees</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-1-block-file-tree-1" title="Jump to slice 1">
+          <span class="slice-num">#1</span>
+          <span class="overview-slice-title">Stop committing session telemetry</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-1-block-file-tree-1" data-block-anchor="slice-1-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/sync.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/sync_test.go</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-2-block-file-tree-1" title="Jump to slice 2">
+          <span class="slice-num">#2</span>
+          <span class="overview-slice-title">One reconcile commit per session end</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-2-block-file-tree-1" data-block-anchor="slice-2-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/session_end_reconcile.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/session_end_reconcile_test.go</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-3-block-file-tree-1" title="Jump to slice 3">
+          <span class="slice-num">#3</span>
+          <span class="overview-slice-title">Mark stale open items</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-3-block-file-tree-1" data-block-anchor="slice-3-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/stale.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/stale_test.go</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-4-block-file-tree-1" title="Jump to slice 4">
+          <span class="slice-num">#4</span>
+          <span class="overview-slice-title">New features and bugs state why and when they are done</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-4-block-file-tree-1" data-block-anchor="slice-4-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/workitem_create.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/related.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/workitem_create_test.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/prompts/system-prompt.md</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-5-block-file-tree-1" title="Jump to slice 5">
+          <span class="slice-num">#5</span>
+          <span class="overview-slice-title">Comments that cite an item id also state the reason</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-5-block-file-tree-1" data-block-anchor="slice-5-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/prompts/system-prompt.md</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  
+</section>
 
 <!-- ZONE 1: Dependency Graph (drawn at render time — no script, no CDN) -->
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Stop committing session telemetry" data-status="pending" data-deps="" data-files="2" data-questions="1"></div>
+    <div data-node="2" data-name="One reconcile commit per session end" data-status="pending" data-deps="" data-files="2"></div>
+    <div data-node="3" data-name="Mark stale open items" data-status="pending" data-deps="" data-files="2"></div>
+    <div data-node="4" data-name="New features and bugs state why and when they are done" data-status="pending" data-deps="" data-files="4" data-questions="1"></div>
+    <div data-node="5" data-name="Comments that cite an item id also state the reason" data-status="pending" data-deps="" data-files="1"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" class="dep-graph-static"></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1528.8" height="104" viewBox="0 0 1528.8 104" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="24" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="171.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Stop committing session telem…  ?1</text><text class="dep-node-meta" x="171.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="358.4" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="491.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 One reconcile commit per sess…</text><text class="dep-node-meta" x="491.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="664" y="24" width="200.8" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="764.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Mark stale open items</text><text class="dep-node-meta" x="764.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="904.8" y="24" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1052" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 New features and bugs state w…  ?1</text><text class="dep-node-meta" x="1052" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1239.2" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1372" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Comments that cite an item id…</text><text class="dep-node-meta" x="1372" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">1 file</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -523,17 +652,49 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>spk-bdce0ef0 ran two A/B tests (plain Claude Code against wipnote claude) and
+audited the store. The context that helped came from the work-item records
+and from item ids in commits and code comments; plain Claude Code found it
+with grep as well as wipnote&#39;s commands did. The rest of the store costs more
+than it gives:
+- .wipnote is 151 MB; sessions/ is 129 MB (85%) of telemetry. It is listed in
+  .wipnote/.gitignore, but runSync (cmd/wipnote/sync.go:192) collects ignored
+  files with --ignored=traditional and stages them with git add -f, so 236
+  session files are tracked.
+- 77% of commits in the last 90 days were bookkeeping; 1504 were
+  &#34;wipnote: reconcile &lt;id&gt;&#34;, one commit per item
+  (core/hooks/session_end_reconcile.go:185).
+- 301 items are open, 120 of them older than 90 days, 36 in-progress. Stale
+  items give a reader wrong context.
+- About 28% of records state a reason and about 8% have acceptance criteria,
+  yet the reason is the part that answered the history question in test 2.
+- Code comments cite 427 item ids. For a teammate without the store, an id
+  alone points to nothing.
+</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>Size: after slice 1, git ls-files .wipnote/sessions is empty and the tracked .wipnote tree is at least 120 MB smaller.</li>
+<li data-markdown>Commit noise: one SessionEnd makes at most one reconcile commit, whatever the number of drifted items.</li>
+<li data-markdown>Freshness: after the one-time triage, no todo or in-progress item is older than 90 days without activity unless a person kept it.</li>
+<li data-markdown>Record quality: every new feature and bug states why it exists and when it is done.</li>
+<li data-markdown>Self-contained code: a comment that cites an item id also states the reason, so the code still makes sense without the store.</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>Work-item records (features, bugs, spikes, plans, tracks, research, archive) stay canonical and stay in git.</li>
+<li data-markdown>No data loss. Telemetry that leaves git stays on disk; stale items are marked, never deleted.</li>
+<li data-markdown>The daemon and hooks must never block or slow Claude (user rule).</li>
+<li data-markdown>Out of scope: the detached no-files store from the earlier design discussion. This plan only shrinks what the in-repo store holds.</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -542,23 +703,735 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
+    <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 1: Stop committing session telemetry">
+    <span class="slice-num">#1</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Stop committing session telemetry</span>
+      <span class="slice-preview">Change dirtyWipnoteFiles (cmd/wipnote/sync.go) to stage only an allowlist of</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
     
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Change dirtyWipnoteFiles (cmd/wipnote/sync.go) to stage only an allowlist of
+record paths: features/, bugs/, spikes/, plans/, tracks/, research/, archive/,
+recaps/ and architecture.html. Then untrack sessions/ once with
+git rm -r --cached .wipnote/sessions in one commit, keeping the files on disk.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>sessions/ is 85% of the store and gave no context in either test. It is
+already meant to be ignored; sync&#39;s force-add is the only reason it is in git.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/sync.go, cmd/wipnote/sync_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>runSync with dirty files in sessions/ and features/ stages only the features/ file</li><li>after the migration commit, git ls-files .wipnote/sessions prints nothing and the session files are still on disk</li><li>git ls-tree -r -l HEAD .wipnote shows at least 120 MB less than before</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Trigger:</strong> wipnote sync and SessionEnd auto-flush.
+<strong>Change:</strong> an allowlist of record directories replaces the denylist.
+<strong>Rejected:</strong> adding more names to isRuntimeStateFile. A denylist goes on
+missing new telemetry files; an allowlist fails safe.
+<strong>Open:</strong> the ledgers (q-ledgers) stay in git until the question is answered.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-1-block-file-tree-1" data-block-anchor="slice-1-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/sync.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/sync_test.go</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Unit (cmd/wipnote/sync_test.go): TestDirtyWipnoteFiles_AllowlistOnly. Make a
+temp repo with dirty files in sessions/, claims/, features/ and plans/, and
+assert only features/ and plans/ are returned.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Should gate-ledger.html, sessions-ledger.html, delegations-ledger.html and claims/ also leave git? The gate ledger backs the completion gate check, and the claim ledger is canonical for claims, so moving them changes behaviour across machines.</p>
+          
+          
+          <textarea
+            data-section="slice-1-question-q-ledgers"
+            data-comment-for="slice-1-question-q-ledgers"
+            placeholder="Answer question q-ledgers..."></textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: One reconcile commit per session end">
+    <span class="slice-num">#2</span>
+    <span class="slice-title-col">
+      <span class="slice-name">One reconcile commit per session end</span>
+      <span class="slice-preview">SessionEnd reconcile now commits each drifted artifact separately</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>SessionEnd reconcile now commits each drifted artifact separately
+(defaultReconcileArtifactCommit, core/hooks/session_end_reconcile.go).
+Collect the drifted paths and commit them together once, with the subject
+&#34;wipnote: reconcile &lt;N&gt; items&#34; and one id per line in the body. With a single
+item, keep the subject &#34;wipnote: reconcile &#34;.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>1504 reconcile commits in 90 days made bookkeeping 77% of the history. That
+hides real commits in git log and in blame for every reader.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>core/hooks/session_end_reconcile.go, core/hooks/session_end_reconcile_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>a SessionEnd with three drifted artifacts makes exactly one commit whose body lists the three ids</li><li>a SessionEnd with one drifted artifact keeps the subject &#34;wipnote: reconcile &lt;id&gt;&#34;</li><li>a failed commit is still logged and never fails session exit</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Trigger:</strong> SessionEnd reconcile.
+<strong>Change:</strong> collect the drifted paths, then make one path-limited commit.
+<strong>Constraint:</strong> SessionEnd must finish inside Claude Code&#39;s hook window
+(bug-1daed6d6); one commit is faster than N, so this helps.
+<strong>Rejected:</strong> dropping reconcile commits and leaving the files dirty. The
+records must stay committed to stay canonical.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-2-block-file-tree-1" data-block-anchor="slice-2-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/session_end_reconcile.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/session_end_reconcile_test.go</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Unit (core/hooks/session_end_reconcile_test.go): TestReconcile_BatchesCommits.
+Use a temp repo with three drifted artifacts, run reconcile, and assert
+git rev-list --count increases by one and the body has the three ids.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: Mark stale open items">
+    <span class="slice-num">#3</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Mark stale open items</span>
+      <span class="slice-preview">Add wipnote stale [--older-than 90d] [--apply].</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Add wipnote stale [--older-than 90d] [--apply]. The dry-run lists todo and
+in-progress features, bugs and spikes with no update in that time. --apply sets
+them to the existing StatusStale, closes their open claims and makes one commit.
+wipnote wip show leaves stale items out unless --all is given.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>120 open items are older than 90 days and 36 are stuck in-progress. A session
+that reads them gets wrong context about what is planned or active.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/stale.go, cmd/wipnote/stale_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>the dry-run lists only todo and in-progress items whose updated date is older than the threshold, and changes nothing</li><li>--apply sets those items to stale in one commit and closes their open claims</li><li>wipnote wip show leaves stale items out by default</li><li>after the one-time run, the repo has no todo or in-progress item older than 90 days that a person did not keep</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-3-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>State:</strong> the existing StatusStale value; no new status is added.
+<strong>Rollout:</strong> run it once on this repo after a person reviews the dry-run list.
+<strong>Safety:</strong> dry-run by default; one reviewable commit; nothing is deleted.
+A stale item can go back to todo with the existing reset command.
+<strong>Rejected:</strong> auto-closing as done. That would claim the work happened and
+corrupt lineage.
+<strong>Rejected:</strong> wipnote archive. It moves only done features, and stale items
+must stay visible with --all.</p>
+</div>
+        <label for="slice-3-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-3-block-file-tree-1" data-block-anchor="slice-3-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/stale.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/stale_test.go</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Unit (cmd/wipnote/stale_test.go): TestStale_DryRunChangesNothing,
+TestStale_ApplyMarksAndCommitsOnce, TestStale_SkipsRecentAndDone. Use
+fixture items with set data-updated dates.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: New features and bugs state why and when they are done">
+    <span class="slice-num">#4</span>
+    <span class="slice-title-col">
+      <span class="slice-name">New features and bugs state why and when they are done</span>
+      <span class="slice-preview">Add required --why and --done-when flags to feature create and bug create</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Add required --why and --done-when flags to feature create and bug create
+(cmd/wipnote/workitem_create.go); spikes keep them optional. buildDescription
+(cmd/wipnote/related.go) writes them as a Why section and Acceptance Criteria.
+A missing flag gives an error that names it. The agent prompt tells agents to
+pass both.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The record&#39;s reason is what answered the history question in test 2, but
+only about 28% of records state one and about 8% have acceptance criteria.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/workitem_create.go, cmd/wipnote/related.go, cmd/wipnote/workitem_create_test.go, cmd/wipnote/prompts/system-prompt.md</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>feature create and bug create without --why or --done-when exit non-zero and name the missing flag</li><li>with both flags, the record HTML has a Why section and an Acceptance Criteria section</li><li>spike create works without the flags</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-4-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Change:</strong> two required flags on create for features and bugs.
+<strong>Reuse:</strong> buildDescription already renders Acceptance Criteria; only Why is new.
+<strong>Rejected:</strong> enforcing at complete time. By then the reason is
+reconstructed after the fact, and test 2 depended on the reason that was
+written before the work.
+<strong>Risk:</strong> plan promotion (plan_promote_slice.go) creates features too. It must
+fill both fields from the slice&#39;s why and done_when.</p>
+</div>
+        <label for="slice-4-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-4-block-file-tree-1" data-block-anchor="slice-4-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/workitem_create.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/related.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/workitem_create_test.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/prompts/system-prompt.md</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Unit (cmd/wipnote/workitem_create_test.go): TestCreate_RequiresWhyAndDoneWhen,
+TestCreate_WritesWhyAndAcceptanceSections, TestSpikeCreate_FlagsOptional.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Should a missing --why fail the command, or warn first for one release so that existing scripts and other harnesses can catch up?</p>
+          
+          
+          <textarea
+            data-section="slice-4-question-q-strict"
+            data-comment-for="slice-4-question-q-strict"
+            placeholder="Answer question q-strict..."></textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 5: Comments that cite an item id also state the reason">
+    <span class="slice-num">#5</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Comments that cite an item id also state the reason</span>
+      <span class="slice-preview">Change the commit and comment guidance in the agent prompt</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-pending badge-sm badge-complexity" title="Complexity: trivial">Trivial</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-5-approval" value="changes_requested" data-section="slice-5" data-action="approve" aria-label="Request changes for slice 5">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-5-approval" value="rejected" data-section="slice-5" data-action="approve" aria-label="Reject slice 5">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Change the commit and comment guidance in the agent prompt
+(cmd/wipnote/prompts/system-prompt.md). A code comment that cites a work-item
+id must also state the reason in plain words. Commit messages keep the id
+in the subject or a Refs trailer.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Go code cites 427 item ids in 2054 comments. They lead a wipnote user to the
+record, but for a teammate without the store an id alone says nothing.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/prompts/system-prompt.md</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>the prompt has the rule and one good and one bad example</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p>Prompt-only. Existing comments are not rewritten in this plan.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-5-block-file-tree-1" data-block-anchor="slice-5-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/prompts/system-prompt.md</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        <!--PLAN_QUESTIONS_RECAP-->
-      </tbody>
-    </table>
-  </div>
-</details>
+
 
 
 
@@ -569,8 +1442,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">6</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">6</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -662,7 +1535,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
