@@ -52,6 +52,41 @@ func isRuntimeStateFile(path string) bool {
 	return runtimeStateDirRe.MatchString(path)
 }
 
+// syncAllowedDirs are the .wipnote/ subdirectories whose files `wipnote sync`
+// may commit (feat-9457496e). Everything else, notably sessions/, is
+// per-machine telemetry and stays out of git.
+var syncAllowedDirs = []string{
+	"features", "bugs", "spikes", "plans", "tracks", "specs", "research",
+	"archive", "recaps", "claims", "runs", "migrations",
+}
+
+// syncAllowedRootFiles are the files directly under .wipnote/ that sync may commit.
+var syncAllowedRootFiles = map[string]bool{
+	"architecture.html":  true,
+	"guard-profile.yaml": true,
+	"agents.json":        true,
+	".gitignore":         true,
+}
+
+// isSyncAllowedPath reports whether a repo-relative .wipnote/ path belongs to
+// the committed canonical store. Migration *.done sentinels are per-machine.
+func isSyncAllowedPath(path string) bool {
+	rel := strings.TrimPrefix(path, ".wipnote/")
+	if rel == path || rel == "" {
+		return false
+	}
+	dir, rest, nested := strings.Cut(rel, "/")
+	if !nested {
+		return syncAllowedRootFiles[rel] || strings.HasSuffix(rel, "-ledger.html")
+	}
+	for _, d := range syncAllowedDirs {
+		if d == dir {
+			return !(dir == "migrations" && strings.HasSuffix(rest, ".done"))
+		}
+	}
+	return false
+}
+
 func syncCmd() *cobra.Command {
 	var dryRun bool
 	cmd := &cobra.Command{
@@ -226,6 +261,11 @@ func dirtyWipnoteFiles(repoRoot string) ([]string, error) {
 		}
 		// Never sync volatile machine-local runtime state (finding 14).
 		if isRuntimeStateFile(path) {
+			continue
+		}
+		// Allowlist (feat-9457496e): only canonical store paths sync.
+		// Session telemetry and other per-machine files stay out of git.
+		if !isSyncAllowedPath(path) {
 			continue
 		}
 		files = append(files, path)
