@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 11
+    version: 12
 design:
     problem: |
         spk-bdce0ef0 ran two A/B tests (plain Claude Code against wipnote claude) and
@@ -124,6 +124,7 @@ slices:
             - cmd/wipnote/sessions_restore.go
             - cmd/wipnote/writer_daemon.go
     - id: slice-2
+      feature_id: feat-c914483a
       num: 2
       title: One commit per reconcile pass
       what: |
@@ -155,6 +156,7 @@ slices:
       comment: ""
       research_waiver: Internal git usage only; a path-limited commit of several paths is already used by runSync.
       approval_status: approved
+      execution_status: promoted
       critic_revisions:
         - source: local-feasibility
           severity: HIGH
@@ -393,3 +395,8 @@ feedback:
           value: promoted
           created_at: "2026-10-31T07:20:27Z"
           updated_at: "2026-10-31T07:20:27Z"
+        - section: slice-2
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-10-31T07:20:38Z"
+          updated_at: "2026-10-31T07:20:38Z"
