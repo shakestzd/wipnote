@@ -67,16 +67,15 @@ func reconcileDoneButUncommittedCanonical(projectDir string) []string {
 		return nil
 	}
 
-	var committed []string
+	var terminal []dirtyArtifact
 	for _, art := range dirtyWorkItemArtifacts(repoRoot) {
 		node, err := htmlparse.ParseFile(art.Abs)
 		if err != nil || node == nil || !terminalWorkItemStatuses[node.Status] {
 			continue
 		}
-		if reconcileArtifactCommitFn(repoRoot, art.Abs, art.Rel, art.ID) {
-			committed = append(committed, art.ID)
-		}
+		terminal = append(terminal, art)
 	}
+	committed := reconcileBatchCommitFn(repoRoot, terminal)
 	sort.Strings(committed)
 	return committed
 }

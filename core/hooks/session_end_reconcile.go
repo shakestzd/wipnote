@@ -48,11 +48,11 @@ func (r *ReconcileReport) Empty() bool {
 		(len(r.AutoCommitted) == 0 && len(r.PortDrift) == 0 && len(r.Orphaned) == 0)
 }
 
-// reconcileArtifactCommitFn is the injection seam for the deterministic
-// artifact auto-commit. Production wires it to a git-add+commit of the single
-// work-item HTML path. Tests override it to assert the call without mutating a
-// real repo. It returns true when a new commit was actually created.
-var reconcileArtifactCommitFn = defaultReconcileArtifactCommit
+// reconcileBatchCommitFn is the injection seam for the deterministic artifact
+// auto-commit. Production wires it to ONE path-limited commit covering every
+// dirty terminal artifact of the pass. Tests override it to assert the call
+// without mutating a real repo. It returns the ids actually committed.
+var reconcileBatchCommitFn = defaultReconcileBatchCommit
 
 // Reconcile runs a full session-exit reconciliation pass against projectDir.
 //
@@ -169,31 +169,60 @@ func reconcileRepoRoot(projectDir string) string {
 	}
 }
 
-// defaultReconcileArtifactCommit stages and commits exactly the one artifact
-// path. Mirrors cmd/wipnote/workitem_commit.go's non-fatal contract: a failure
-// to commit is logged and treated as "not committed" — reconcile never makes
-// session exit depend on git succeeding. Returns true iff a new commit landed.
-func defaultReconcileArtifactCommit(repoRoot, absPath, relPath, id string) bool {
-	if out, err := exec.Command("git", "-C", repoRoot, "add", "--", absPath).CombinedOutput(); err != nil {
-		debugLog(repoRoot, "[reconcile] git add %s failed: %s", relPath, strings.TrimSpace(string(out)))
-		return false
+func defaultReconcileBatchCommit(repoRoot string, arts []dirtyArtifact) []string {
+	if len(arts) == 0 {
+		return nil
 	}
-	// Nothing staged → already committed and unchanged: idempotent no-op.
-	if err := exec.Command("git", "-C", repoRoot, "diff", "--cached", "--quiet", "--", absPath).Run(); err == nil {
-		return false
+	abs := make([]string, 0, len(arts))
+	for _, a := range arts {
+		abs = append(abs, a.Abs)
 	}
-	msg := "wipnote: reconcile " + id
-	if out, err := exec.Command(
-		"git", "-C", repoRoot, "commit", "-m", msg, "--", absPath,
-	).CombinedOutput(); err != nil {
+	addArgs := append([]string{"-C", repoRoot, "add", "--"}, abs...)
+	if out, err := exec.Command("git", addArgs...).CombinedOutput(); err != nil {
+		debugLog(repoRoot, "[reconcile] git add failed: %s", strings.TrimSpace(string(out)))
+		return nil
+	}
+	// Nothing staged in these paths: already committed, idempotent no-op.
+	diffArgs := append([]string{"-C", repoRoot, "diff", "--cached", "--name-only", "--"}, abs...)
+	staged, err := exec.Command("git", diffArgs...).Output()
+	if err != nil || strings.TrimSpace(string(staged)) == "" {
+		return nil
+	}
+	stagedSet := map[string]bool{}
+	for _, l := range strings.Split(strings.TrimSpace(string(staged)), "\n") {
+		stagedSet[filepath.ToSlash(l)] = true
+	}
+	var ids []string
+	var paths []string
+	for _, a := range arts {
+		if stagedSet[a.Rel] {
+			ids = append(ids, a.ID)
+			paths = append(paths, a.Abs)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	commitArgs := []string{"-C", repoRoot, "commit", "-m", reconcileCommitMessage(ids), "--"}
+	if out, err := exec.Command("git", append(commitArgs, paths...)...).CombinedOutput(); err != nil {
 		o := string(out)
 		if strings.Contains(o, "nothing to commit") || strings.Contains(o, "no changes added") {
-			return false
+			return nil
 		}
-		debugLog(repoRoot, "[reconcile] git commit %s failed: %s", id, strings.TrimSpace(o))
-		return false
+		debugLog(repoRoot, "[reconcile] git commit failed: %s", strings.TrimSpace(o))
+		return nil
 	}
-	return true
+	return ids
+}
+
+// reconcileCommitMessage builds the single commit message for one reconcile
+// pass: "wipnote: reconcile <id>" for one item, otherwise a count subject with
+// one id per body line.
+func reconcileCommitMessage(ids []string) string {
+	if len(ids) == 1 {
+		return "wipnote: reconcile " + ids[0]
+	}
+	return fmt.Sprintf("wipnote: reconcile %d items\n\n%s", len(ids), strings.Join(ids, "\n"))
 }
 
 // --- Durable warnings (Gemini/Codex non-blocking surface) ---
