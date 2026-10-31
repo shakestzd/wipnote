@@ -59,6 +59,7 @@ slices:
       files:
         - cmd/wipnote/prompts/system-prompt.md
         - cmd/wipnote/prompts/yolo-prompt.md
+        - cmd/wipnote/system_prompt_delegate_test.go
         - plugin/skills/delegate/SKILL.md
       deps: []
       done_when:
@@ -68,8 +69,9 @@ slices:
       effort: S
       risk: Low
       tests: |
-        Unit (cmd/wipnote/prompts_test.go or the existing embedded-prompt test):
-        assert system-prompt.md and yolo-prompt.md contain the routing rule heading.
+        Unit (cmd/wipnote/system_prompt_delegate_test.go, existing): assert
+        systemPromptContent and yoloPromptContent contain the routing rule and the
+        session-only list.
         Manual: run wipnote plugin build-ports and confirm no diff.
       complexity: standard
       approved: false
