@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>New features and bugs state why and when they are done</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-051bc8a9"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-31T07:21:00.363023"
+             data-updated="2026-10-31T07:54:38.994501" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>New features and bugs state why and when they are done</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/a6f978ba-e54f-413c-a365-1596eda81653.html" data-relationship="implemented_in" data-since="2026-10-31T07:54:38.994337">session a6f978ba-e54f-413c-a365-1596eda81653</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-31T07:21:00.399139">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-5ffde4d2.html" data-relationship="planned_in" data-since="2026-10-31T07:21:00.423303">plan-5ffde4d2</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add --why and --done-when to feature create and bug create. The check lives
+in warnMissingFields (cmd/wipnote/workitem_edges.go). createNode writes them
+through buildDescription as Why and Acceptance Criteria sections. Plan
+promote, plan finalize and batch creates fill both from their source. A
+missing flag warns first, then fails after one release.</p>
+        </section>
+    </article>
+</body>
+</html>
