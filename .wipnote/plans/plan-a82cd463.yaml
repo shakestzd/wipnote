@@ -7,12 +7,200 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 2
+    version: 3
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |
+        The agent prompt (cmd/wipnote/prompts/system-prompt.md, "Delegate when it
+        helps") and the delegate skill (plugin/skills/delegate/SKILL.md, "the one way
+        to hand work to another harness") give no rule for choosing between a native
+        subagent and wipnote delegate spawn --harness claude. Agents then open a new
+        Claude pane for work a subagent does with less cost and setup.
+        A native subagent already sets tools, disallowedTools, model, effort,
+        maxTurns, skills, memory, isolation, omitClaudeMd and, for non-plugin agents,
+        mcpServers, hooks and permissionMode. A separate session is only worth it for
+        settings a subagent cannot have: dropping inherited MCP servers
+        (--strict-mcp-config), a permission mode other than the parent's
+        auto/acceptEdits/bypass mode, a dollar budget, a fallback model, extra
+        directories, its own setting sources, a different harness, a container, or a
+        worker that the user steers in its own pane or that outlives this session.
+        delegate spawn passes none of these: SpawnOptions.LaunchArgs
+        (internal/delegate/session/spawn.go:51) is set only by the one-shot runner
+        (internal/delegate/oneshot/claude_interactive.go:143), and BootArgv
+        (internal/delegate/session/boot.go:49) already forwards Info.Args after "--".
+    goals:
+        - 'Routing: for same-harness work, agents use a native subagent unless the task needs a session-only setting from the list in the prompt.'
+        - 'Spawn filters: delegate spawn takes flags for the tool set, MCP servers, model, effort, permission mode, budget, fallback model, extra directories and appended system prompt, and the worker starts with them.'
+        - 'Profiles: a named profile in ~/.wipnote/config.json sets a group of these flags with one --profile name.'
+    constraints:
+        - Worker binding must keep working. The worker's wipnote plugin hooks bind the session, so flags that drop hooks or plugins (--bare, --safe-mode, --settings, --plugin-dir) are refused.
+        - Codex workers accept only the flags that have a Codex mapping; any other flag is refused with an error that names it.
+        - The daemon and hooks never block or slow Claude (user rule).
     approved: false
     comment: ""
-slices: []
+    research:
+        - url: https://code.claude.com/docs/en/sub-agents
+          claim: Subagent frontmatter supports tools, disallowedTools, model, effort, maxTurns, skills, memory, isolation, omitClaudeMd, mcpServers, hooks and permissionMode; plugin subagents ignore permissionMode, mcpServers and hooks; a parent in bypassPermissions, acceptEdits or auto forces that mode on every subagent; subagents inherit the parent's MCP tools.
+          accessed: "2026-10-31"
+        - url: https://code.claude.com/docs/en/cli-reference
+          claim: 'Session flags checked against the installed claude 2.1.316 --help: --tools, --allowedTools, --disallowedTools, --mcp-config, --strict-mcp-config, --model, --effort, --permission-mode, --max-budget-usd, --fallback-model, --add-dir, --append-system-prompt, --setting-sources. The page itself was not re-read in this session (unverified against the web page).'
+          accessed: "2026-10-31"
+slices:
+    - id: slice-1
+      num: 1
+      title: Routing rule for subagent or delegate
+      what: |
+        Add a short rule to the agent prompt and the delegate skill. Same harness:
+        use a native subagent by default. Use delegate spawn only when the task needs
+        a session-only setting (listed), a worker the user steers in its own pane,
+        work that must outlive this session, or a container. Other harness: delegate.
+      why: |
+        The current text names delegate as "the one way" without a same-harness
+        rule, so agents open Claude panes for work a subagent does with less cost.
+      files:
+        - cmd/wipnote/prompts/system-prompt.md
+        - cmd/wipnote/prompts/yolo-prompt.md
+        - plugin/skills/delegate/SKILL.md
+      deps: []
+      done_when:
+        - the system prompt and yolo prompt state the rule in five lines or fewer, with the list of session-only settings
+        - the delegate skill opens with a subagent-or-delegate decision table
+        - wipnote plugin build-ports leaves no diff after the change is committed
+      effort: S
+      risk: Low
+      tests: |
+        Unit (cmd/wipnote/prompts_test.go or the existing embedded-prompt test):
+        assert system-prompt.md and yolo-prompt.md contain the routing rule heading.
+        Manual: run wipnote plugin build-ports and confirm no diff.
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/sub-agents
+          claim: The session-only list comes from what subagent frontmatter cannot set, and from the plugin-subagent and parent-mode limits.
+          accessed: "2026-10-31"
+      decisions_notes: |
+        **Rule:** default to a native subagent for same-harness work; delegate for
+        another harness, a container, a session-only setting, a user-steered pane, or
+        work that outlives this session.
+        **Sequencing:** slice 5 of plan-5ffde4d2 also edits system-prompt.md and
+        yolo-prompt.md; run these one after the other, not in parallel.
+        **Rejected:** a hook that denies delegate spawn --harness claude. Some panes
+        are worth it, and the deny would need the same judgment the rule gives.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/prompts/system-prompt.md
+            - cmd/wipnote/prompts/yolo-prompt.md
+            - plugin/skills/delegate/SKILL.md
+    - id: slice-2
+      num: 2
+      title: Session flags on delegate spawn
+      what: |
+        Add spawn flags --tools, --disallowed-tools, --mcp-config (repeatable),
+        --strict-mcp, --model, --effort, --permission-mode, --max-budget-usd,
+        --fallback-model, --add-dir and --append-system-prompt-file. Build them into
+        Claude argv through SpawnOptions.LaunchArgs, record them in the run folder,
+        and keep them on --resume. Refuse unsupported Codex flags.
+      why: |
+        These are the settings that make a separate session worth more than a
+        subagent. Without them, spawn starts a full session with every tool and MCP
+        server loaded.
+      files:
+        - cmd/wipnote/delegate_spawn.go
+        - cmd/wipnote/delegate_spawn_test.go
+        - internal/delegate/session/launchflags.go
+        - internal/delegate/session/launchflags_test.go
+        - internal/delegate/session/spawn.go
+        - internal/delegate/session/resume.go
+      deps: []
+      done_when:
+        - delegate spawn --harness claude --tools Read,Grep --strict-mcp --model sonnet boots wipnote claude with those flags after "--" and after the brief
+        - the run folder records the flags, and delegate spawn --resume starts the session with the same flags
+        - --bare, --safe-mode, --settings and --plugin-dir are refused, because the worker would not bind
+        - a Codex spawn with a flag that has no Codex mapping fails with an error that names the flag
+      effort: M
+      risk: Med
+      tests: |
+        Unit (internal/delegate/session/launchflags_test.go): TestLaunchFlags_ClaudeArgv,
+        TestLaunchFlags_RefusesBindingBreakers, TestLaunchFlags_CodexUnsupported.
+        Unit (cmd/wipnote/delegate_spawn_test.go): TestSpawn_FlagsReachBootArgv,
+        TestSpawn_ResumeKeepsFlags.
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/cli-reference
+          claim: Flag names and behaviour checked against the installed claude 2.1.316 --help.
+          accessed: "2026-10-31"
+        - url: https://learn.chatgpt.com/docs/config-file/config-reference
+          claim: Codex model and reasoning effort are set by --model and -c model_reasoning_effort; the mapping must be verified on this page before implementation (unverified).
+          accessed: "2026-10-31"
+      questions:
+        - id: q-mcp-default
+          text: Should a spawned worker drop the caller's MCP servers by default (--strict-mcp on unless --mcp-config or --inherit-mcp is given)? It saves context, but a worker that needs an MCP tool would fail until the caller adds it.
+      decisions_notes: |
+        **Plumbing:** reuse SpawnOptions.LaunchArgs and Info.Args; BootArgv already
+        puts launch args after the brief so variadic flags such as --mcp-config do
+        not swallow the prompt (boot.go comment).
+        **Safety:** an allowlist of flags, not a raw passthrough, so a flag that
+        breaks binding or the ledger cannot get in.
+        **Rejected:** a free-form --claude-arg passthrough. It would accept --bare and
+        --settings, which stop the worker's hooks and break binding.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/delegate_spawn.go
+            - cmd/wipnote/delegate_spawn_test.go
+            - internal/delegate/session/launchflags.go
+            - internal/delegate/session/launchflags_test.go
+            - internal/delegate/session/spawn.go
+            - internal/delegate/session/resume.go
+    - id: slice-3
+      num: 3
+      title: Named delegate profiles
+      what: |
+        Read delegate.profiles.<name> from ~/.wipnote/config.json, next to the
+        existing delegate.codex settings. Each profile holds slice 2 flag values.
+        Add --profile <name> to delegate spawn and delegate run; explicit flags
+        override the profile. Document two example profiles in the delegate skill.
+      why: |
+        A reviewer or researcher worker needs the same five flags every time. A
+        profile makes the right setup one word, so agents use it.
+      files:
+        - internal/delegate/session/profiles.go
+        - internal/delegate/session/profiles_test.go
+        - cmd/wipnote/delegate_spawn.go
+        - cmd/wipnote/delegate_run.go
+        - plugin/skills/delegate/SKILL.md
+      deps:
+        - 2
+      done_when:
+        - delegate spawn --profile reviewer starts the worker with the profile's flags
+        - an explicit flag on the command line overrides the same field in the profile
+        - an unknown profile name fails with the list of defined profiles
+      effort: S
+      risk: Low
+      tests: |
+        Unit (internal/delegate/session/profiles_test.go): TestProfiles_Load,
+        TestProfiles_FlagOverrides, TestProfiles_UnknownNameListsDefined.
+      complexity: standard
+      approved: false
+      comment: ""
+      research_waiver: Reads wipnote's own config file; the flag set comes from slice 2.
+      decisions_notes: |
+        **Config:** user-level ~/.wipnote/config.json, the file that already holds
+        delegate.codex.dangerFullAccessHosts (internal/delegate/codex/optin.go).
+        **Rejected:** per-project profiles in .wipnote/. That adds files to the
+        project, which plan-5ffde4d2 and the no-files discussion try to avoid.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - internal/delegate/session/profiles.go
+            - internal/delegate/session/profiles_test.go
+            - cmd/wipnote/delegate_spawn.go
+            - cmd/wipnote/delegate_run.go
+            - plugin/skills/delegate/SKILL.md
 questions: []
