@@ -183,6 +183,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "data", Command: cleanupCmd()},
 			{GroupID: "data", Command: archiveCmd()},
 			{GroupID: "data", Command: claimsCmd()},
+			{GroupID: "data", Command: staleCmd()},
 			{GroupID: "data", Command: cacheCmd()},
 			{GroupID: "data", Command: syncCmd()},
 			{GroupID: "data", Command: pruneCmd()},

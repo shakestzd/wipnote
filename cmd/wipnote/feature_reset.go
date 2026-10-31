@@ -59,8 +59,8 @@ func executeReset(typeName, id string) (string, error) {
 		return "", fmt.Errorf("get %s %s: %w", typeName, id, err)
 	}
 
-	if node.Status != models.StatusInProgress {
-		return "", fmt.Errorf("%s is not in-progress (status: %s) — nothing to reset", id, node.Status)
+	if node.Status != models.StatusInProgress && node.Status != models.StatusStale {
+		return "", fmt.Errorf("%s is not in-progress or stale (status: %s) — nothing to reset", id, node.Status)
 	}
 
 	if err := col.Edit(id).SetStatus(string(models.StatusTodo)).SetAgent("").Save(); err != nil {

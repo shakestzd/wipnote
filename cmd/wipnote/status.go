@@ -46,7 +46,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 
 	// Group by type then status.
 	type counts struct {
-		todo, inProgress, blocked, done, other int
+		todo, inProgress, blocked, done, stale, other int
 	}
 	byType := make(map[string]*counts)
 	var inProgress []*models.Node
@@ -66,6 +66,8 @@ func runStatus(_ *cobra.Command, _ []string) error {
 			c.blocked++
 		case models.StatusDone:
 			c.done++
+		case models.StatusStale:
+			c.stale++
 		default:
 			c.other++
 		}
@@ -79,9 +81,9 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		if c == nil {
 			continue
 		}
-		total := c.todo + c.inProgress + c.blocked + c.done + c.other
-		fmt.Printf("  %-10s  %d total  (todo:%d  active:%d  blocked:%d  done:%d)\n",
-			t+"s", total, c.todo, c.inProgress, c.blocked, c.done)
+		total := c.todo + c.inProgress + c.blocked + c.done + c.stale + c.other
+		fmt.Printf("  %-10s  %d total  (todo:%d  active:%d  blocked:%d  done:%d  stale:%d)\n",
+			t+"s", total, c.todo, c.inProgress, c.blocked, c.done, c.stale)
 	}
 
 	if len(inProgress) > 0 {

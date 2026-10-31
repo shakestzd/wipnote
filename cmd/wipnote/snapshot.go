@@ -30,6 +30,7 @@ type snapshotRow struct {
 	inProgress int
 	blocked    int
 	done       int
+	stale      int
 	total      int
 }
 
@@ -63,6 +64,8 @@ func runSnapshot(summary bool) error {
 			r.blocked++
 		case models.StatusDone:
 			r.done++
+		case models.StatusStale:
+			r.stale++
 		}
 	}
 
@@ -75,8 +78,8 @@ func runSnapshot(summary bool) error {
 
 	// Full snapshot view.
 	fmt.Printf("wipnote snapshot  (%s)\n", dir)
-	fmt.Printf("%-12s  %5s  %8s  %7s  %4s\n",
-		"TYPE", "TOTAL", "IN-PROG", "BLOCKED", "DONE")
+	fmt.Printf("%-12s  %5s  %8s  %7s  %4s  %5s\n",
+		"TYPE", "TOTAL", "IN-PROG", "BLOCKED", "DONE", "STALE")
 	fmt.Println("─────────────────────────────────────────")
 
 	for _, t := range typeOrder {
@@ -84,8 +87,8 @@ func runSnapshot(summary bool) error {
 		if r == nil {
 			continue
 		}
-		fmt.Printf("%-12s  %5d  %8d  %7d  %4d\n",
-			t+"s", r.total, r.inProgress, r.blocked, r.done)
+		fmt.Printf("%-12s  %5d  %8d  %7d  %4d  %5d\n",
+			t+"s", r.total, r.inProgress, r.blocked, r.done, r.stale)
 	}
 	fmt.Println("─────────────────────────────────────────")
 	fmt.Printf("%-12s  %5d\n", "total", len(nodes))
@@ -105,15 +108,15 @@ func runSnapshot(summary bool) error {
 }
 
 func printSummaryTable(rowMap map[string]*snapshotRow, order []string, total int) {
-	fmt.Printf("%-10s  %5s  %4s  %7s  %4s\n",
-		"", "TODO", "WIP", "BLOCKED", "DONE")
+	fmt.Printf("%-10s  %5s  %4s  %7s  %4s  %5s\n",
+		"", "TODO", "WIP", "BLOCKED", "DONE", "STALE")
 	for _, t := range order {
 		r := rowMap[t]
 		if r == nil {
 			continue
 		}
-		fmt.Printf("%-10s  %5d  %4d  %7d  %4d\n",
-			t+"s", r.todo, r.inProgress, r.blocked, r.done)
+		fmt.Printf("%-10s  %5d  %4d  %7d  %4d  %5d\n",
+			t+"s", r.todo, r.inProgress, r.blocked, r.done, r.stale)
 	}
 	fmt.Printf("\nTotal: %d items\n", total)
 }
