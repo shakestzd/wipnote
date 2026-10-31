@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 13
+    version: 14
 design:
     problem: |
         spk-bdce0ef0 ran two A/B tests (plain Claude Code against wipnote claude) and
@@ -235,6 +235,7 @@ slices:
             - cmd/wipnote/snapshot.go
             - cmd/wipnote/status.go
     - id: slice-4
+      feature_id: feat-051bc8a9
       num: 4
       title: New features and bugs state why and when they are done
       what: |
@@ -277,6 +278,7 @@ slices:
       comment: ""
       research_waiver: CLI flag change inside this repo; no external dependency or standard applies.
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-strict
           text: After the warn-first release, should a missing --why fail the command? Making it fail breaks 33 call sites in 7 test files and scripts/delegate-phase-b/checks-host.sh:60, so those must be updated in the same release.
@@ -407,3 +409,8 @@ feedback:
           value: promoted
           created_at: "2026-10-31T07:20:49Z"
           updated_at: "2026-10-31T07:20:49Z"
+        - section: slice-4
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-10-31T07:21:00Z"
+          updated_at: "2026-10-31T07:21:00Z"
