@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 12
+    version: 13
 design:
     problem: |
         spk-bdce0ef0 ran two A/B tests (plain Claude Code against wipnote claude) and
@@ -177,6 +177,7 @@ slices:
             - core/hooks/reconcile_canonical.go
             - core/hooks/reconcile_canonical_test.go
     - id: slice-3
+      feature_id: feat-9ac75c25
       num: 3
       title: Mark stale open items
       what: |
@@ -211,6 +212,7 @@ slices:
       comment: ""
       research_waiver: Internal lifecycle change that reuses the existing StatusStale value; no external dependency or standard applies.
       approval_status: approved
+      execution_status: promoted
       critic_revisions:
         - source: local-feasibility
           severity: MEDIUM
@@ -400,3 +402,8 @@ feedback:
           value: promoted
           created_at: "2026-10-31T07:20:38Z"
           updated_at: "2026-10-31T07:20:38Z"
+        - section: slice-3
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-10-31T07:20:49Z"
+          updated_at: "2026-10-31T07:20:49Z"
