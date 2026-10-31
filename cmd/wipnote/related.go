@@ -173,3 +173,20 @@ func buildDescription(text, acceptance, testStrategy, expectedBehavior string) s
 	}
 	return sb.String()
 }
+
+// buildDescriptionWithWhy renders the description with a Why section ahead of
+// the Acceptance Criteria section. With no why it matches buildDescription.
+func buildDescriptionWithWhy(text, why, acceptance string) string {
+	if why == "" {
+		return buildDescription(text, acceptance, "", "")
+	}
+	var sb strings.Builder
+	if text != "" {
+		sb.WriteString("<p>" + text + "</p>\n")
+	}
+	sb.WriteString("<h2>Why</h2>\n<p>" + why + "</p>")
+	if acceptance != "" {
+		sb.WriteString("\n<h2>Acceptance Criteria</h2>\n<p>" + acceptance + "</p>")
+	}
+	return sb.String()
+}

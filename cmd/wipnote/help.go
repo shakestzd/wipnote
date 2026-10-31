@@ -59,7 +59,7 @@ func renderCompactHelp(root *cobra.Command) string {
 		}
 	}
 
-	lines = append(lines, `Required flags: feature/bug create require --track <id> --description "…"`)
+	lines = append(lines, `Required flags: feature/bug create require --track <id> --description "…"; also pass --why "…" --done-when "…" (warns if missing)`)
 	lines = append(lines, "Run `wipnote help --compact` for this reference on demand.")
 
 	return strings.Join(lines, "\n")

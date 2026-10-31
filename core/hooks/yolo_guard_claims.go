@@ -56,7 +56,7 @@ func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string
 // checked session when known.
 func workItemRequiredMessage(sessionID string) string {
 	msg := "An active work item is required before writing code. " +
-		"Run: wipnote feature start <id>  or  wipnote feature create \"title\" --track <trk-id>"
+		"Run: wipnote feature start <id>  or  wipnote feature create \"title\" --track <trk-id> --why \"...\" --done-when \"...\""
 	if sessionID != "" {
 		msg += fmt.Sprintf("\nChecked session: %s", sessionID)
 	}

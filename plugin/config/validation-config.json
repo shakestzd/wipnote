@@ -35,7 +35,7 @@
       "tools": ["Write", "Edit", "Delete", "NotebookEdit"],
       "path_patterns": ["\\.wipnote/"],
       "message": "Never write directly to .wipnote/. Use SDK: wipnote feature create/start/complete",
-      "suggestion": "Use SDK commands:\n  wipnote feature create 'Title' --track <trk-id>\n  wipnote feature start <id>\n  wipnote bug create 'Title' --track <trk-id>"
+      "suggestion": "Use SDK commands:\n  wipnote feature create 'Title' --track <trk-id> --why '...' --done-when '...'\n  wipnote feature start <id>\n  wipnote bug create 'Title' --track <trk-id>"
     }
   },
 
@@ -47,8 +47,8 @@
     ],
     "allowed_during_spike": true,
     "examples": [
-      "wipnote feature create 'Add validation' --track trk-xxx",
-      "wipnote bug create 'Fix drift issue' --track trk-xxx",
+      "wipnote feature create 'Add validation' --track trk-xxx --why '...' --done-when '...'",
+      "wipnote bug create 'Fix drift issue' --track trk-xxx --why '...' --done-when '...'",
       "wipnote feature start feat-123"
     ]
   },

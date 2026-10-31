@@ -258,7 +258,7 @@ func createSliceFeature(wipnoteDir string, plan *planyaml.PlanYAML, planID strin
 	// Create feature.
 	feat, err := p.Features.Create(slice.Title,
 		workitem.FeatWithTrack(track.ID),
-		workitem.FeatWithContent(slice.What),
+		workitem.FeatWithContent(sliceContent(slice)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create feature: %w", err)
@@ -373,4 +373,10 @@ func getSliceExecutionStatuses(db *sql.DB, planID string) (map[string]string, er
 		result[section] = value
 	}
 	return result, rows.Err()
+}
+
+// sliceContent renders a plan slice as feature content: What, a Why section
+// and the done_when list as Acceptance Criteria.
+func sliceContent(slice planyaml.PlanSlice) string {
+	return buildDescriptionWithWhy(slice.What, slice.Why, strings.Join(slice.DoneWhen, "; "))
 }

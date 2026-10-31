@@ -51,9 +51,9 @@ wipnote feature start feat-XXXX  # or: wipnote bug start bug-XXXX
 If no work item exists for this task, first run ` + "`wipnote relevant <topic>`" + ` to find existing context. If still nothing, create one:
 ` + "```bash" + `
 # Preferred — links the feature to its plan and the plan's track:
-wipnote feature create "Short description" --plan <plan-id> --description "optional detail"
+wipnote feature create "Short description" --plan <plan-id> --description "optional detail" --why "<why>" --done-when "<done condition>"
 # Last resort (hotfix or pre-plan work):
-wipnote feature create "Short description" --standalone "<reason>" --description "optional detail"
+wipnote feature create "Short description" --standalone "<reason>" --description "optional detail" --why "<why>" --done-when "<done condition>"
 ` + "```" + `
 `
 }

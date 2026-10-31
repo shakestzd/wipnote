@@ -203,7 +203,7 @@ func createApprovedPlanFeatures(
 			numToFeat[s.Num] = *existing
 			continue
 		}
-		content := buildFeatureContent(s.What, plan.Questions, answers)
+		content := buildFeatureContent(buildSliceFeatureContent(s), plan.Questions, answers)
 		feat, err := p.Features.Create(s.Title, workitem.FeatWithTrack(track.ID), workitem.FeatWithContent(content))
 		if err != nil {
 			failures = append(failures, finalizeFailure{SliceNum: s.Num, Title: s.Title, Error: err.Error()})

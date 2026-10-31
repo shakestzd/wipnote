@@ -190,7 +190,7 @@ func checkSubagentWorkItemGuard(toolName string, isSubagent, hasWorkItem bool, s
 		"Write blocked: no claimed work item.\n"+
 			"  session=%s yolo=%v subagent=%v\n"+
 			"  feature=%s  claim=%s\n"+
-			"To unblock: wipnote feature start <id>  (or: wipnote feature create \"...\" --track <trk-id>)",
+			"To unblock: wipnote feature start <id>  (or: wipnote feature create \"...\" --track <trk-id> --why \"...\" --done-when \"...\")",
 		sess, isYoloMode, isSubagent,
 		feat, claim,
 	)

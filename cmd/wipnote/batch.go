@@ -31,6 +31,8 @@ type batchItem struct {
 	Title     string   `yaml:"title"`
 	Priority  string   `yaml:"priority"`
 	Steps     []string `yaml:"steps"`
+	Why       string   `yaml:"why"`       // optional: written as a Why section
+	DoneWhen  string   `yaml:"done_when"` // optional: written as Acceptance Criteria
 	BlockedBy []string `yaml:"blocked_by"`
 }
 
@@ -168,6 +170,9 @@ func executeBatchApply(data []byte, dryRun bool) (*batchResult, error) {
 		}
 		if len(fi.Steps) > 0 {
 			opts = append(opts, workitem.FeatWithSteps(fi.Steps...))
+		}
+		if fi.Why != "" || fi.DoneWhen != "" {
+			opts = append(opts, workitem.FeatWithContent(buildDescriptionWithWhy("", fi.Why, fi.DoneWhen)))
 		}
 		node, err := p.Features.Create(fi.Title, opts...)
 		if err != nil {

@@ -12,8 +12,8 @@ wipnote feature start feat-xxx  # or: wipnote bug start bug-xxx / wipnote spike 
 ```
 If none matches, run `wipnote relevant <topic>` first and attach to the closest causal node (`spawned_from`, `caused_by`, else `relates_to`; avoid broad `part_of`). Create new only if nothing fits:
 ```bash
-wipnote feature create "title" --plan <plan-id> --description "what you're implementing"
-wipnote feature create "title" --standalone "<reason>" --description "..."   # last resort
+wipnote feature create "title" --plan <plan-id> --description "what you're implementing" --why "<why>" --done-when "<done condition>"
+wipnote feature create "title" --standalone "<reason>" --description "..." --why "<why>" --done-when "<done condition>"   # last resort
 ```
 
 Include the work item ID in every subagent prompt (e.g. "Feature: feat-123"); the subagent claims it with `wipnote feature start <id>`. After it returns, check `wipnote find <id>` and run `wipnote feature complete <id>` yourself if it is still in progress.
@@ -57,8 +57,8 @@ ${AgentSkills}
 
 Each shell call spends a turn of the user's quota. Chain wipnote bookkeeping with `&&` in one call:
 ```bash
-wipnote bug create "Title A" --track trk-xxx --description "..." && \
-wipnote bug create "Title B" --track trk-xxx --description "..." && \
+wipnote bug create "Title A" --track trk-xxx --description "..." --why "..." --done-when "..." && \
+wipnote bug create "Title B" --track trk-xxx --description "..." --why "..." --done-when "..." && \
 wipnote link add feat-aaa bug-new --rel spawned_from
 ```
 Split only when a later command needs an ID printed by an earlier one: one call for the creators, one for the dependents. Track steps with `wipnote <kind> add-step <id> "desc"`.

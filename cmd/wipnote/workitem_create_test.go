@@ -1,8 +1,13 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/shakestzd/wipnote/core/workitem"
+	"github.com/shakestzd/wipnote/plan/planyaml"
 
 	"github.com/shakestzd/wipnote/core/db/dbtest"
 
@@ -193,5 +198,111 @@ func TestBugCreate_ExplicitCausedByIsHonored(t *testing.T) {
 	}
 	if causedByEdges[0].TargetID != causalFeatureID {
 		t.Errorf("caused_by target = %q, want %q", causedByEdges[0].TargetID, causalFeatureID)
+	}
+}
+
+// TestCreate_WarnsWithoutWhy: a feature or bug without --why/--done-when
+// warns on stderr naming each flag and still succeeds (warn-first release).
+func TestCreate_WarnsWithoutWhy(t *testing.T) {
+	for _, typeName := range []string{"feature", "bug"} {
+		o := &wiCreateOpts{trackID: "trk-1", description: "d"}
+		var err error
+		out := captureStderr(t, func() { err = warnMissingFields(typeName, o) })
+		if err != nil {
+			t.Fatalf("%s: warn-first must not fail: %v", typeName, err)
+		}
+		if !strings.Contains(out, "--why") || !strings.Contains(out, "--done-when") {
+			t.Errorf("%s: warning must name both flags, got %q", typeName, out)
+		}
+		o.why, o.doneWhen = "because", "it works"
+		out = captureStderr(t, func() { err = warnMissingFields(typeName, o) })
+		if err != nil || strings.Contains(out, "--why") || strings.Contains(out, "--done-when") {
+			t.Errorf("%s: no warning expected when flags given, got %q (%v)", typeName, out, err)
+		}
+	}
+}
+
+// TestSpikeCreate_NoWarning: spikes never warn about --why/--done-when.
+func TestSpikeCreate_NoWarning(t *testing.T) {
+	var err error
+	out := captureStderr(t, func() { err = warnMissingFields("spike", &wiCreateOpts{}) })
+	if err != nil || strings.Contains(out, "--why") || strings.Contains(out, "--done-when") {
+		t.Errorf("spike must not warn, got %q (%v)", out, err)
+	}
+}
+
+// TestCreate_WritesWhyAndAcceptance: --why and --done-when land in the item
+// as Why and Acceptance Criteria sections.
+func TestCreate_WritesWhyAndAcceptance(t *testing.T) {
+	const sessionID = "019ee378-abcd-7000-8000-000000000305"
+	tmpDir, hgDir := testHgDirWithDB(t, sessionID)
+	projectDirFlag = tmpDir
+	defer func() { projectDirFlag = "" }()
+	t.Setenv("WIPNOTE_SESSION_ID", sessionID)
+	t.Setenv("WIPNOTE_CACHE_DIR", tmpDir)
+	trackID := testSetupTrack(t, hgDir)
+
+	o := &wiCreateOpts{trackID: trackID, priority: "medium", description: "ctx",
+		why: "users need X", doneWhen: "X works end to end"}
+	if err := runWiCreate("bug", "Why Bug", o); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	files, _ := filepath.Glob(filepath.Join(hgDir, "bugs", "bug-*.html"))
+	if len(files) != 1 {
+		t.Fatalf("expected 1 bug, got %d", len(files))
+	}
+	b, _ := os.ReadFile(files[0])
+	html := string(b)
+	for _, want := range []string{"Why", "users need X", "Acceptance Criteria", "X works end to end"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("bug html missing %q", want)
+		}
+	}
+}
+
+// TestPromoteSlice_FillsWhyAndAcceptance: promote copies slice why and
+// done_when into the feature.
+func TestPromoteSlice_FillsWhyAndAcceptance(t *testing.T) {
+	dir := t.TempDir()
+	for _, sub := range []string{"plans", "features", "tracks"} {
+		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	p, err := workitem.Open(dir, "test-agent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	track, err := p.Tracks.Create("T")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pID := workitem.GenerateID("plan", "why promote")
+	plan := planyaml.NewPlan(pID, "Why Promote", "")
+	plan.Meta.TrackID = track.ID
+	plan.Meta.Status = "active"
+	plan.Design.Problem = "p"
+	plan.Slices = append(plan.Slices, planyaml.PlanSlice{
+		ID: workitem.GenerateID("slice", "s"), Num: 1, Title: "S", What: "Do it",
+		Why: "reason-abc", DoneWhen: []string{"criterion-one", "criterion-two"},
+	})
+	if err := planyaml.Save(filepath.Join(dir, "plans", pID+".yaml"), plan); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(dir, "plans", pID+".html"), []byte("<html></html>"), 0o644)
+	if err := storePlanFeedback(dir, pID, "slice-1", "approve", "true", ""); err != nil {
+		t.Fatal(err)
+	}
+	featID, err := promoteSliceFromYAML(dir, pID, 1, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(filepath.Join(dir, "features", featID+".html"))
+	html := string(b)
+	for _, want := range []string{"reason-abc", "Acceptance Criteria", "criterion-one", "criterion-two", "Do it"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("feature html missing %q", want)
+		}
 	}
 }

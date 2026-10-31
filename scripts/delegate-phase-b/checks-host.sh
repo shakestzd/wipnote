@@ -58,7 +58,7 @@ scratch_feature() {
     trk=$(cd "$1" && "${HARNESS_ENV[@]}" wipnote track create "phase b scratch" 2>&1 | grep -o 'trk-[0-9a-f]\{8\}' | head -1)
   fi
   (cd "$1" && "${HARNESS_ENV[@]}" wipnote feature create "phase b scratch item" --track "$trk" \
-    --description "phase b claim probe" 2>&1) | grep -o 'feat-[0-9a-f]\{8\}' | head -1
+    --description "phase b claim probe" --why "claim probe" --done-when "claim recorded" 2>&1) | grep -o 'feat-[0-9a-f]\{8\}' | head -1
 }
 
 # claim_pair ID RUN_A RUN_B DIR_A DIR_B: side A starts a feature, then side B

@@ -10,7 +10,7 @@ Ship one feature, bug fix, or spike that is attributed to a work item, researche
 
 **Work item and isolation (before anything else).** Attribution is how the next session and the dashboard know what you did.
 - Run `wipnote relevant <topic-or-file>` first so you do not create an orphan duplicate of existing work.
-- Create the item, preferring a plan link: `wipnote feature create "title" --plan <plan-id> --description "what you're building"`. Use `--standalone "<reason>"` only for hotfix or pre-plan work. Then start it so work is attributed.
+- Create the item, preferring a plan link: `wipnote feature create "title" --plan <plan-id> --description "what you're building" --why "<why>" --done-when "<done condition>"`. Use `--standalone "<reason>"` only for hotfix or pre-plan work. Then start it so work is attributed.
 - Use a git worktree per feature; never edit main directly.
 
 **CLI notes** (`wipnote help --compact` reprints the reference):

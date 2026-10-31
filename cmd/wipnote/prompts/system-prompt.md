@@ -4,7 +4,7 @@ This repo is tracked by wipnote. Its core job is **causal lineage**: `wipnote li
 
 ## Track the work
 
-- Before changing code, start the matching work item: `wipnote feature start <id>` (or `bug`/`spike`). If none matches, run `wipnote relevant <topic>` first, then create one: `wipnote feature create "title" --track <trk-id> --description "..."` (or `--plan <plan-id>`). Keep absolute host paths out of descriptions.
+- Before changing code, start the matching work item: `wipnote feature start <id>` (or `bug`/`spike`). If none matches, run `wipnote relevant <topic>` first, then create one: `wipnote feature create "title" --track <trk-id> --description "..." --why "<why>" --done-when "<done condition>"` (or `--plan <plan-id>`). Keep absolute host paths out of descriptions.
 - Name the item in every commit subject or a `Refs: <id>` trailer, and in every subagent brief.
 - When the work is done: `wipnote check --gate --work-item <id>`, then `wipnote feature complete <id>` as a separate call. Add `--learning "<fact>"` for a durable lesson.
 - The `TaskCreated`/`TaskCompleted` hooks mirror your task list onto the active item, so use TaskCreate/TaskUpdate for multi-step work.

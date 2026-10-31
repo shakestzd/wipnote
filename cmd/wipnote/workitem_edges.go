@@ -139,6 +139,8 @@ func warnMissingFields(typeName string, o *wiCreateOpts) error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	warnMissingWhyDoneWhen(typeName, o)
+
 	switch typeName {
 	case "bug", "feature":
 		// Standalone features (no plan, no track) only need --standalone reason, not --description.
@@ -152,6 +154,21 @@ func warnMissingFields(typeName string, o *wiCreateOpts) error {
 		}
 	}
 	return nil
+}
+
+// warnMissingWhyDoneWhen prints a stderr warning for each of --why and
+// --done-when that a feature or bug create omits. Warn-first: it never fails.
+// Spikes and other types are exempt.
+func warnMissingWhyDoneWhen(typeName string, o *wiCreateOpts) {
+	if typeName != "feature" && typeName != "bug" {
+		return
+	}
+	if o.why == "" {
+		fmt.Fprintf(os.Stderr, "Warning: %s created without --why (why this work matters). It will be required in a future release.\n", typeName)
+	}
+	if o.doneWhen == "" {
+		fmt.Fprintf(os.Stderr, "Warning: %s created without --done-when (observable done condition). It will be required in a future release.\n", typeName)
+	}
 }
 
 // suggestTrackFromFiles resolves file ownership for the first affected file.

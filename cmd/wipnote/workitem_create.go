@@ -32,6 +32,8 @@ type wiCreateOpts struct {
 	standaloneReason string // feature: explicit standalone reason (e.g. "pre-plan hotfix")
 	priority         string
 	description      string
+	why              string // feature/bug: why the work matters (Why section)
+	doneWhen         string // feature/bug: observable done condition (Acceptance Criteria)
 	files            string
 	steps            string // comma-separated implementation steps
 	start            bool
@@ -74,6 +76,8 @@ func wiCreateCmd(typeName, _ string) *cobra.Command {
 	cmd.Flags().StringVar(&opts.createdByCLIVersion, "created-by-cli-version", "",
 		"override the wipnote CLI version recorded as provenance (default: this binary's version)")
 	if typeName == "feature" || typeName == "bug" {
+		cmd.Flags().StringVar(&opts.why, "why", "", "why this work matters (written as a Why section)")
+		cmd.Flags().StringVar(&opts.doneWhen, "done-when", "", "observable condition for done (written as Acceptance Criteria)")
 		cmd.Flags().StringVar(&opts.changeKind, "change-kind", "",
 			"research-gate change kind: "+strings.Join(research.AllKinds, "|")+" (default: inferred from the title)")
 	}
@@ -390,14 +394,18 @@ func confirmDedupAttach(newID string, match *dbpkg.DedupCandidate) bool {
 }
 
 func createNode(p *workitem.Project, typeName, title string, o *wiCreateOpts) (*models.Node, error) {
+	content := o.description
+	if typeName == "feature" || typeName == "bug" {
+		content = buildDescriptionWithWhy(o.description, o.why, o.doneWhen)
+	}
 	switch typeName {
 	case "feature":
 		opts := []workitem.FeatureOption{workitem.FeatWithPriority(o.priority)}
 		if o.trackID != "" {
 			opts = append(opts, workitem.FeatWithTrack(o.trackID))
 		}
-		if o.description != "" {
-			opts = append(opts, workitem.FeatWithContent(o.description))
+		if content != "" {
+			opts = append(opts, workitem.FeatWithContent(content))
 		}
 		return p.Features.Create(title, opts...)
 	case "bug":
@@ -405,8 +413,8 @@ func createNode(p *workitem.Project, typeName, title string, o *wiCreateOpts) (*
 		if o.trackID != "" {
 			opts = append(opts, workitem.BugWithTrack(o.trackID))
 		}
-		if o.description != "" {
-			opts = append(opts, workitem.BugWithContent(o.description))
+		if content != "" {
+			opts = append(opts, workitem.BugWithContent(content))
 		}
 		return p.Bugs.Create(title, opts...)
 	case "spike":
