@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 14
+    version: 15
 design:
     problem: |
         spk-bdce0ef0 ran two A/B tests (plain Claude Code against wipnote claude) and
@@ -313,6 +313,7 @@ slices:
             - cmd/wipnote/prompts/gemini-system.md
             - scripts/delegate-phase-b/checks-host.sh
     - id: slice-5
+      feature_id: feat-6fe3c63a
       num: 5
       title: Comments that cite an item id also state the reason
       what: |
@@ -340,6 +341,7 @@ slices:
       comment: ""
       research_waiver: Prompt wording change only.
       approval_status: approved
+      execution_status: promoted
       critic_revisions:
         - source: local-feasibility
           severity: MEDIUM
@@ -414,3 +416,8 @@ feedback:
           value: promoted
           created_at: "2026-10-31T07:21:00Z"
           updated_at: "2026-10-31T07:21:00Z"
+        - section: slice-5
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-10-31T07:21:11Z"
+          updated_at: "2026-10-31T07:21:11Z"
