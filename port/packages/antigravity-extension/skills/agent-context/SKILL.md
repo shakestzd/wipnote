@@ -39,6 +39,7 @@ Report: files changed, lines added, test names and count, gate results, and comm
 - Batch wipnote CLI calls with `&&`; each Bash call costs a turn. Split only when a later command needs an earlier one's output.
 - Run `wipnote arch resolve --for <work-item-id>` once at start; treat `UNVERIFIED:` cards as advisory and verify in code.
 - Name the work item in every commit subject or a `Refs: <id>` trailer; a commit without it needs `wipnote <kind> link-commit <id> <sha>` or completion is refused.
+- A code comment that cites a work-item id also states the reason in plain words, so the code reads without the store. Good: `// Sort edge types so a rewrite never reorders them (bug-eb141e88).` Bad: `// See bug-eb141e88.`
 - For a change that renders in a browser (templates, CSS, dashboard pages), verify it with the `ui-stills-verification` skill (`wipnote skill show ui-stills-verification` if it is not in your list); tests alone do not show what a user sees.
 - If you stop making progress (repeated results, a third "one more check"), stop and report what you know. A partial honest report beats a run cut off at the turn limit.
 

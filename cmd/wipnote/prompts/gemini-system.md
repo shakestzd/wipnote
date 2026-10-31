@@ -50,6 +50,7 @@ ${AgentSkills}
 - **Research first:** check existing utilities and manifests (`go.mod`, `package.json`) and prefer maintained packages over custom code.
 - **Design:** DRY, single responsibility, simplest solution, only what is needed now.
 - **Size limits:** functions <50 lines, modules <500; split as part of the work.
+- **Comments:** a code comment that cites a work-item id also states the reason in plain words. Good: `// Sort edge types so a rewrite never reorders them (bug-eb141e88).` Bad: `// See bug-eb141e88.`
 - **Quality gate:** run the project gate from the `code-quality-skill` skill and record it with `wipnote check --gate`. Never commit with errors, warnings, or test failures.
 - **Plugin/project boundary:** never author or overwrite a project's AGENTS.md, CLAUDE.md, or GEMINI.md.
 

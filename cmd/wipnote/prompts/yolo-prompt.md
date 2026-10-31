@@ -26,7 +26,7 @@ Ship one feature, bug fix, or spike that is attributed to a work item, researche
 
 **Spec and tests first.** Write acceptance criteria (problem, measurable criteria, interface sketch), then failing tests (unit tests for core logic plus a happy-path integration test) that compile and fail before you implement.
 
-**Implementation standards.** Functions under 50 lines, modules under 500, no duplicated helpers (reuse or extract), simplest solution that passes the tests, only what is needed now, one purpose per module. No TODO comments or debug prints in committed code, and prefer O(n) algorithms, documenting any unavoidable higher complexity.
+**Implementation standards.** Functions under 50 lines, modules under 500, no duplicated helpers (reuse or extract), simplest solution that passes the tests, only what is needed now, one purpose per module. A comment that cites a work-item id also states the reason in plain words (Good: `// Sort edge types so a rewrite never reorders them (bug-eb141e88).` Bad: `// See bug-eb141e88.`). No TODO comments or debug prints in committed code, and prefer O(n) algorithms, documenting any unavoidable higher complexity.
 
 **Quality gate before any commit.** Run the project gate from `/wipnote:code-quality-skill` (detected from the manifest) and record it with `wipnote check --gate`; do not commit with failures.
 
