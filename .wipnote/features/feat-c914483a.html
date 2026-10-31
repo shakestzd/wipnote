@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>One commit per reconcile pass</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-c914483a"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-31T07:20:38.041544"
+             data-updated="2026-10-31T07:22:42.419267" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>One commit per reconcile pass</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/a6f978ba-e54f-413c-a365-1596eda81653.html" data-relationship="implemented_in" data-since="2026-10-31T07:22:42.419093">session a6f978ba-e54f-413c-a365-1596eda81653</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-31T07:20:38.056037">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-5ffde4d2.html" data-relationship="planned_in" data-since="2026-10-31T07:20:38.079446">plan-5ffde4d2</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>ReconcileDoneButUncommittedForProject (core/hooks/reconcile_canonical.go)
+commits each dirty done artifact separately, every 5 minutes from the writer
+daemon&#39;s drain. Commit them together once per pass, subject
+&#34;wipnote: reconcile &lt;N&gt; items&#34; with one id per body line. Then find and fix
+what rewrites done items after completion.</p>
+        </section>
+    </article>
+</body>
+</html>
