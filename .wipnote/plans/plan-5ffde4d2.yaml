@@ -1,0 +1,18 @@
+meta:
+    id: plan-5ffde4d2
+    track_id: trk-0677c709
+    title: 'Lean store: keep the records that give context, drop the noise'
+    description: 'From spk-bdce0ef0: the useful context in .wipnote is the work-item records and the item ids in commits; session telemetry, per-item bookkeeping commits and stale open items add size and noise. Keep the first, remove the rest.'
+    created_at: "2026-10-31"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
