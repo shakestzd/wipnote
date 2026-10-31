@@ -477,7 +477,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="1"></span>
         <span>#1 Stop committing session telemetry</span>
         <span class="nav-triage-badge nav-triage-issue" title="1 issue(s)">&#9888;1</span>
         <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
@@ -486,7 +486,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="2"></span>
         <span>#2 One commit per reconcile pass</span>
         <span class="nav-triage-badge nav-triage-issue" title="1 issue(s)">&#9888;1</span>
         
@@ -495,7 +495,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="3"></span>
         <span>#3 Mark stale open items</span>
         <span class="nav-triage-badge nav-triage-issue" title="1 issue(s)">&#9888;1</span>
         
@@ -504,7 +504,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="4"></span>
         <span>#4 New features and bugs state why and when they are done</span>
         <span class="nav-triage-badge nav-triage-issue" title="1 issue(s)">&#9888;1</span>
         <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
@@ -513,7 +513,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="5"></span>
         <span>#5 Comments that cite an item id also state the reason</span>
         <span class="nav-triage-badge nav-triage-issue" title="1 issue(s)">&#9888;1</span>
         
@@ -537,7 +537,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">From spk-bdce0ef0: the useful context in .wipnote is the work-item records and the item ids in commits; session telemetry, per-item bookkeeping commits and stale open items add size and noise. Keep the first, remove the rest.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 5 slices · Created 2026-10-31</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v11 · 5 slices · Created 2026-10-31</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -651,15 +651,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="Stop committing session telemetry" data-status="pending" data-deps="" data-files="4" data-issues="1" data-questions="1"></div>
-    <div data-node="2" data-name="One commit per reconcile pass" data-status="pending" data-deps="" data-files="2" data-issues="1"></div>
-    <div data-node="3" data-name="Mark stale open items" data-status="pending" data-deps="" data-files="5" data-issues="1"></div>
-    <div data-node="4" data-name="New features and bugs state why and when they are done" data-status="pending" data-deps="" data-files="12" data-issues="1" data-questions="1"></div>
-    <div data-node="5" data-name="Comments that cite an item id also state the reason" data-status="pending" data-deps="" data-files="4" data-issues="1"></div>
+    <div data-node="1" data-name="Stop committing session telemetry" data-status="approved" data-deps="" data-files="4" data-issues="1" data-questions="1"></div>
+    <div data-node="2" data-name="One commit per reconcile pass" data-status="approved" data-deps="" data-files="2" data-issues="1"></div>
+    <div data-node="3" data-name="Mark stale open items" data-status="approved" data-deps="" data-files="5" data-issues="1"></div>
+    <div data-node="4" data-name="New features and bugs state why and when they are done" data-status="approved" data-deps="" data-files="12" data-issues="1" data-questions="1"></div>
+    <div data-node="5" data-name="Comments that cite an item id also state the reason" data-status="approved" data-deps="" data-files="4" data-issues="1"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1665.6" height="104" viewBox="0 0 1665.6 104" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="24" width="323.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="185.6" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Stop committing session telem…  ⚠1  ?1</text><text class="dep-node-meta" x="185.6" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="387.19999999999993" y="24" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="530.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 One commit per reconcile pass  ⚠1</text><text class="dep-node-meta" x="530.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="714.4000000000001" y="24" width="229.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="829.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Mark stale open items  ⚠1</text><text class="dep-node-meta" x="829.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="983.9999999999999" y="24" width="323.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1145.6" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 New features and bugs state w…  ⚠1  ?1</text><text class="dep-node-meta" x="1145.6" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">12 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1347.2" y="24" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1494.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Comments that cite an item id…  ⚠1</text><text class="dep-node-meta" x="1494.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a></g></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1665.6" height="104" viewBox="0 0 1665.6 104" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-approved"><rect class="dep-node-box" x="24" y="24" width="323.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="185.6" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Stop committing session telem…  ⚠1  ?1</text><text class="dep-node-meta" x="185.6" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-approved"><rect class="dep-node-box" x="387.19999999999993" y="24" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="530.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 One commit per reconcile pass  ⚠1</text><text class="dep-node-meta" x="530.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-approved"><rect class="dep-node-box" x="714.4000000000001" y="24" width="229.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="829.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Mark stale open items  ⚠1</text><text class="dep-node-meta" x="829.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-approved"><rect class="dep-node-box" x="983.9999999999999" y="24" width="323.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1145.6" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 New features and bugs state w…  ⚠1  ?1</text><text class="dep-node-meta" x="1145.6" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">12 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-approved"><rect class="dep-node-box" x="1347.2" y="24" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1494.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Comments that cite an item id…  ⚠1</text><text class="dep-node-meta" x="1494.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -720,7 +720,7 @@ than it gives:
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
     <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
-    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 1: Stop committing session telemetry">
     <span class="slice-num">#1</span>
     <span class="slice-title-col">
@@ -731,15 +731,15 @@ than it gives:
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-1">Approved</span>
           <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" checked aria-label="Approve slice 1">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -883,7 +883,7 @@ a second run does nothing.</p>
           <textarea
             data-section="slice-1-question-q-ledgers"
             data-comment-for="slice-1-question-q-ledgers"
-            placeholder="Answer question q-ledgers..."></textarea>
+            placeholder="Answer question q-ledgers...">keep-in-git: the ledgers stay in git and in the sync allowlist for now; revisit after this plan ships</textarea>
           
         </div>
         
@@ -901,7 +901,7 @@ a second run does nothing.</p>
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 2: One commit per reconcile pass">
     <span class="slice-num">#2</span>
     <span class="slice-title-col">
@@ -913,14 +913,14 @@ a second run does nothing.</p>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
           
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-2">Approved</span>
           <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" checked aria-label="Approve slice 2">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1059,7 +1059,7 @@ git rev-list --count goes up by one and the body has the three ids.</p>
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 3: Mark stale open items">
     <span class="slice-num">#3</span>
     <span class="slice-title-col">
@@ -1071,14 +1071,14 @@ git rev-list --count goes up by one and the body has the three ids.</p>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
           
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-3">Approved</span>
           <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" checked aria-label="Approve slice 3">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1218,7 +1218,7 @@ TestReset_AcceptsStale (feature reset moves a stale item to todo). Fixture items
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 4: New features and bugs state why and when they are done">
     <span class="slice-num">#4</span>
     <span class="slice-title-col">
@@ -1230,14 +1230,14 @@ TestReset_AcceptsStale (feature reset moves a stale item to todo). Fixture items
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
           
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-4">Approved</span>
           <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" checked aria-label="Approve slice 4">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1385,7 +1385,7 @@ TestPromoteSlice_FillsWhyAndAcceptance.</p>
           <textarea
             data-section="slice-4-question-q-strict"
             data-comment-for="slice-4-question-q-strict"
-            placeholder="Answer question q-strict..."></textarea>
+            placeholder="Answer question q-strict...">yes: warn for one release, then fail; update the 33 test call sites and checks-host.sh in the release that makes it fail</textarea>
           
         </div>
         
@@ -1403,7 +1403,7 @@ TestPromoteSlice_FillsWhyAndAcceptance.</p>
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 5: Comments that cite an item id also state the reason">
     <span class="slice-num">#5</span>
     <span class="slice-title-col">
@@ -1415,14 +1415,14 @@ TestPromoteSlice_FillsWhyAndAcceptance.</p>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           <span class="badge badge-pending badge-sm badge-complexity" title="Complexity: trivial">Trivial</span>
           
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-5">Approved</span>
           <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" checked aria-label="Approve slice 5">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">

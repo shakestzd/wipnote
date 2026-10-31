@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 3
+    version: 11
 design:
     problem: |
         spk-bdce0ef0 ran two A/B tests (plain Claude Code against wipnote claude) and
@@ -53,6 +53,7 @@ design:
           accessed: "2026-10-31"
 slices:
     - id: slice-1
+      feature_id: feat-9457496e
       num: 1
       title: Stop committing session telemetry
       what: |
@@ -84,7 +85,7 @@ slices:
         in the other, run the restore pass, assert the session files are back and
         a second run does nothing.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://git-scm.com/docs/gitignore
@@ -93,9 +94,12 @@ slices:
         - url: https://git-scm.com/docs/git-rm
           claim: git rm --cached keeps the file in this working tree, but other clones that pull the commit delete it, so a restore step is needed there.
           accessed: "2026-10-31"
+      approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-ledgers
           text: Should gate-ledger.html, sessions-ledger.html, delegations-ledger.html and claims/ also leave git later? They have their own commit paths (persistLedgerWrite, gate_ledger.go) and back the completion gate and claim canonicity, so this plan keeps them in git and in the sync allowlist.
+          answer: 'keep-in-git: the ledgers stay in git and in the sync allowlist for now; revisit after this plan ships'
       critic_revisions:
         - source: local-feasibility
           severity: HIGH
@@ -147,9 +151,10 @@ slices:
         A temp repo with three dirty done artifacts; run the pass; assert
         git rev-list --count goes up by one and the body has the three ids.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Internal git usage only; a path-limited commit of several paths is already used by runSync.
+      approval_status: approved
       critic_revisions:
         - source: local-feasibility
           severity: HIGH
@@ -200,9 +205,10 @@ slices:
         TestStale_ApplyMarksAndCommitsOnce, TestStale_SkipsRecentAndDone,
         TestReset_AcceptsStale (feature reset moves a stale item to todo). Fixture items with set data-updated dates.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Internal lifecycle change that reuses the existing StatusStale value; no external dependency or standard applies.
+      approval_status: approved
       critic_revisions:
         - source: local-feasibility
           severity: MEDIUM
@@ -263,12 +269,14 @@ slices:
         TestCreate_WritesWhyAndAcceptance, TestSpikeCreate_NoWarning,
         TestPromoteSlice_FillsWhyAndAcceptance.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: CLI flag change inside this repo; no external dependency or standard applies.
+      approval_status: approved
       questions:
         - id: q-strict
           text: After the warn-first release, should a missing --why fail the command? Making it fail breaks 33 call sites in 7 test files and scripts/delegate-phase-b/checks-host.sh:60, so those must be updated in the same release.
+          answer: 'yes: warn for one release, then fail; update the 33 test call sites and checks-host.sh in the release that makes it fail'
       critic_revisions:
         - source: local-feasibility
           severity: MEDIUM
@@ -322,9 +330,10 @@ slices:
       risk: Low
       tests: ""
       complexity: trivial
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Prompt wording change only.
+      approval_status: approved
       critic_revisions:
         - source: local-feasibility
           severity: MEDIUM
@@ -340,3 +349,47 @@ slices:
             - cmd/wipnote/prompts/gemini-system.md
             - plugin/skills/agent-context/SKILL.md
 questions: []
+feedback:
+    entries:
+        - section: slice-1
+          action: approve
+          value: "true"
+          created_at: "2026-10-31T07:20:16Z"
+          updated_at: "2026-10-31T07:20:16Z"
+        - section: slice-2
+          action: approve
+          value: "true"
+          created_at: "2026-10-31T07:20:16Z"
+          updated_at: "2026-10-31T07:20:16Z"
+        - section: slice-3
+          action: approve
+          value: "true"
+          created_at: "2026-10-31T07:20:17Z"
+          updated_at: "2026-10-31T07:20:17Z"
+        - section: slice-4
+          action: approve
+          value: "true"
+          created_at: "2026-10-31T07:20:17Z"
+          updated_at: "2026-10-31T07:20:17Z"
+        - section: slice-5
+          action: approve
+          value: "true"
+          created_at: "2026-10-31T07:20:17Z"
+          updated_at: "2026-10-31T07:20:17Z"
+        - section: slice-1-question-q-ledgers
+          action: answer
+          value: 'keep-in-git: the ledgers stay in git and in the sync allowlist for now; revisit after this plan ships'
+          question_id: q-ledgers
+          created_at: "2026-10-31T07:20:18Z"
+          updated_at: "2026-10-31T07:20:18Z"
+        - section: slice-4-question-q-strict
+          action: answer
+          value: 'yes: warn for one release, then fail; update the 33 test call sites and checks-host.sh in the release that makes it fail'
+          question_id: q-strict
+          created_at: "2026-10-31T07:20:18Z"
+          updated_at: "2026-10-31T07:20:18Z"
+        - section: slice-1
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-10-31T07:20:27Z"
+          updated_at: "2026-10-31T07:20:27Z"
