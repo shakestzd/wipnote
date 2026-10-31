@@ -20,8 +20,8 @@ design:
           files with --ignored=traditional and stages them with git add -f, so 236
           session files are tracked.
         - 77% of commits in the last 90 days were bookkeeping; 1504 were
-          "wipnote: reconcile <id>", one commit per item
-          (core/hooks/session_end_reconcile.go:185).
+          "wipnote: reconcile <id>" for 727 distinct ids, one commit per item per pass
+          of the writer daemon's 5-minute drain (core/hooks/reconcile_canonical.go:76).
         - 301 items are open, 120 of them older than 90 days, 36 in-progress. Stale
           items give a reader wrong context.
         - About 28% of records state a reason and about 8% have acceptance criteria,
@@ -29,8 +29,8 @@ design:
         - Code comments cite 427 item ids. For a teammate without the store, an id
           alone points to nothing.
     goals:
-        - 'Size: after slice 1, git ls-files .wipnote/sessions is empty and the tracked .wipnote tree is at least 120 MB smaller.'
-        - 'Commit noise: one SessionEnd makes at most one reconcile commit, whatever the number of drifted items.'
+        - 'Size: after slice 1, git ls-files .wipnote/sessions is empty and the HEAD tree under .wipnote is at least 120 MB smaller. Clone size does not shrink, because history keeps the old files.'
+        - 'Commit noise: one reconcile pass makes at most one commit, and done items stop being dirtied again after completion.'
         - 'Freshness: after the one-time triage, no todo or in-progress item is older than 90 days without activity unless a person kept it.'
         - 'Record quality: every new feature and bug states why it exists and when it is done.'
         - 'Self-contained code: a comment that cites an item id also states the reason, so the code still makes sense without the store.'
@@ -56,27 +56,31 @@ slices:
       num: 1
       title: Stop committing session telemetry
       what: |
-        Change dirtyWipnoteFiles (cmd/wipnote/sync.go) to stage only an allowlist of
-        record paths: features/, bugs/, spikes/, plans/, tracks/, research/, archive/,
-        recaps/ and architecture.html. Then untrack sessions/ once with
-        git rm -r --cached .wipnote/sessions in one commit, keeping the files on disk.
+        Change dirtyWipnoteFiles (cmd/wipnote/sync.go) from a denylist to an
+        allowlist: record directories (features, bugs, spikes, plans, tracks, specs,
+        research, archive, recaps), architecture.html, and the ledgers that stay in
+        git (claims, runs, *-ledger.html, guard-profile.yaml, agents.json, .gitignore,
+        migrations except *.done). Then untrack sessions/ once with git rm --cached.
       why: |
         sessions/ is 85% of the store and gave no context in either test. It is
         already meant to be ignored; sync's force-add is the only reason it is in git.
       files:
         - cmd/wipnote/sync.go
         - cmd/wipnote/sync_test.go
+        - cmd/wipnote/migrations.go
       deps: []
       done_when:
-        - runSync with dirty files in sessions/ and features/ stages only the features/ file
-        - after the migration commit, git ls-files .wipnote/sessions prints nothing and the session files are still on disk
-        - git ls-tree -r -l HEAD .wipnote shows at least 120 MB less than before
-      effort: S
+        - runSync with dirty files in sessions/, features/ and claims/ stages features/ and claims/ but not sessions/
+        - after the migration commit, git ls-files .wipnote/sessions prints nothing and the session files are still on disk in this clone
+        - in a second clone that pulls the migration commit, the next wipnote launch restores the deleted session files from the parent of that commit
+        - git ls-tree -r -l HEAD .wipnote sums to at least 120 MB less than before
+      effort: M
       risk: Med
       tests: |
-        Unit (cmd/wipnote/sync_test.go): TestDirtyWipnoteFiles_AllowlistOnly. Make a
-        temp repo with dirty files in sessions/, claims/, features/ and plans/, and
-        assert only features/ and plans/ are returned.
+        Unit (cmd/wipnote/sync_test.go): TestDirtyWipnoteFiles_Allowlist. A temp repo
+        with dirty files in sessions/, claims/, features/, specs/ and plans/; assert
+        all but sessions/ are returned. Integration: two clones; untrack in one, pull
+        in the other, run the migration, assert the session files are back.
       complexity: standard
       approved: false
       comment: ""
@@ -84,175 +88,233 @@ slices:
         - url: https://git-scm.com/docs/gitignore
           claim: Ignore rules do not untrack tracked files; a one-time git rm --cached is required.
           accessed: "2026-10-31"
+        - url: https://git-scm.com/docs/git-rm
+          claim: git rm --cached keeps the file in this working tree, but other clones that pull the commit delete it, so a restore step is needed there.
+          accessed: "2026-10-31"
       questions:
         - id: q-ledgers
-          text: Should gate-ledger.html, sessions-ledger.html, delegations-ledger.html and claims/ also leave git? The gate ledger backs the completion gate check, and the claim ledger is canonical for claims, so moving them changes behaviour across machines.
+          text: Should gate-ledger.html, sessions-ledger.html, delegations-ledger.html and claims/ also leave git later? They have their own commit paths (persistLedgerWrite, gate_ledger.go) and back the completion gate and claim canonicity, so this plan keeps them in git and in the sync allowlist.
+      critic_revisions:
+        - source: local-feasibility
+          severity: HIGH
+          summary: 'AMENDED: the first allowlist dropped claims/, runs/, the *-ledger.html files, guard-profile.yaml, agents.json, .gitignore and specs/, which would stop sync flushing them from linked worktrees. Added them. Added the restore step for other clones, because pulling a git rm --cached commit deletes the files there. Size goal now measures the HEAD tree.'
       decisions_notes: |
-        **Trigger:** wipnote sync and SessionEnd auto-flush.
-        **Change:** an allowlist of record directories replaces the denylist.
-        **Rejected:** adding more names to isRuntimeStateFile. A denylist goes on
-        missing new telemetry files; an allowlist fails safe.
-        **Open:** the ledgers (q-ledgers) stay in git until the question is answered.
+        **Trigger:** wipnote sync, the catch-up flush for linked worktrees and the
+        deferred commit queue. Ledgers also have their own commit paths
+        (cmd/wipnote/ledger_commit.go:38, gate_ledger.go:49).
+        **Change:** an allowlist replaces the denylist, so new telemetry files cannot
+        get in by default.
+        **Safety:** session files stay in git history; the migration restores them in
+        clones where the pull deleted them. No reader uses session files from git
+        history (reindex.go:153 and session_ledger_backfill.go:199 read the tree).
+        **Rejected:** adding names to isRuntimeStateFile. A denylist keeps missing new files.
       blocks:
         - type: file-tree
           title: Files touched
           entries:
             - cmd/wipnote/sync.go
             - cmd/wipnote/sync_test.go
+            - cmd/wipnote/migrations.go
     - id: slice-2
       num: 2
-      title: One reconcile commit per session end
+      title: One commit per reconcile pass
       what: |
-        SessionEnd reconcile now commits each drifted artifact separately
-        (defaultReconcileArtifactCommit, core/hooks/session_end_reconcile.go).
-        Collect the drifted paths and commit them together once, with the subject
-        "wipnote: reconcile <N> items" and one id per line in the body. With a single
-        item, keep the subject "wipnote: reconcile <id>".
+        ReconcileDoneButUncommittedForProject (core/hooks/reconcile_canonical.go)
+        commits each dirty done artifact separately, every 5 minutes from the writer
+        daemon's drain. Commit them together once per pass, subject
+        "wipnote: reconcile <N> items" with one id per body line. Then find and fix
+        what rewrites done items after completion.
       why: |
-        1504 reconcile commits in 90 days made bookkeeping 77% of the history. That
-        hides real commits in git log and in blame for every reader.
+        1504 reconcile commits in 90 days for 727 ids made bookkeeping 77% of the
+        history. Some done items were committed four times, so items are being
+        rewritten after they are done.
       files:
-        - core/hooks/session_end_reconcile.go
-        - core/hooks/session_end_reconcile_test.go
+        - core/hooks/reconcile_canonical.go
+        - core/hooks/reconcile_canonical_test.go
       deps: []
       done_when:
-        - a SessionEnd with three drifted artifacts makes exactly one commit whose body lists the three ids
-        - 'a SessionEnd with one drifted artifact keeps the subject "wipnote: reconcile <id>"'
-        - a failed commit is still logged and never fails session exit
-      effort: S
+        - a reconcile pass with three dirty done artifacts makes exactly one commit whose body lists the three ids
+        - 'a pass with one dirty artifact keeps the subject "wipnote: reconcile <id>"'
+        - the cause of repeat dirtying of done items is named in decisions_notes and fixed, or filed as a bug with a reproduction
+      effort: M
       risk: Low
       tests: |
-        Unit (core/hooks/session_end_reconcile_test.go): TestReconcile_BatchesCommits.
-        Use a temp repo with three drifted artifacts, run reconcile, and assert
-        git rev-list --count increases by one and the body has the three ids.
+        Unit (core/hooks/reconcile_canonical_test.go, new): TestReconcile_OneCommitPerPass.
+        A temp repo with three dirty done artifacts; run the pass; assert
+        git rev-list --count goes up by one and the body has the three ids.
       complexity: standard
       approved: false
       comment: ""
-      research_waiver: Internal git usage only; a path-limited git commit with several paths is standard git behaviour already used by runSync.
+      research_waiver: Internal git usage only; a path-limited commit of several paths is already used by runSync.
+      critic_revisions:
+        - source: local-feasibility
+          severity: HIGH
+          summary: 'AMENDED: the first draft targeted SessionEnd, but SessionEnd no longer commits (session_end_reconcile.go:317 runs only reconcileCheapClasses). Reconcile commits come from the writer daemon drain (writer_daemon.go:261) and wipnote reconcile (reconcile.go:82) through reconcile_canonical.go:76. Retargeted. Nothing parses the reconcile subjects, so batching breaks no reader.'
       decisions_notes: |
-        **Trigger:** SessionEnd reconcile.
-        **Change:** collect the drifted paths, then make one path-limited commit.
-        **Constraint:** SessionEnd must finish inside Claude Code's hook window
-        (bug-1daed6d6); one commit is faster than N, so this helps.
-        **Rejected:** dropping reconcile commits and leaving the files dirty. The
-        records must stay committed to stay canonical.
+        **Trigger:** the writer daemon's reconcile drain every 5 minutes, and the
+        wipnote reconcile command. Both call ReconcileDoneButUncommittedForProject.
+        **Change:** collect the dirty paths in the existing loop, then one
+        path-limited commit. Keep reconcileArtifactCommitFn as the seam so existing
+        overrides still work.
+        **Second cause:** 727 ids took 1504 commits, so batching alone is not
+        enough; the writer that dirties done items must be found.
+        **Rejected:** dropping reconcile commits. The records must stay committed.
       blocks:
         - type: file-tree
           title: Files touched
           entries:
-            - core/hooks/session_end_reconcile.go
-            - core/hooks/session_end_reconcile_test.go
+            - core/hooks/reconcile_canonical.go
+            - core/hooks/reconcile_canonical_test.go
     - id: slice-3
       num: 3
       title: Mark stale open items
       what: |
         Add wipnote stale [--older-than 90d] [--apply]. The dry-run lists todo and
-        in-progress features, bugs and spikes with no update in that time. --apply sets
-        them to the existing StatusStale, closes their open claims and makes one commit.
-        wipnote wip show leaves stale items out unless --all is given.
+        in-progress features, bugs and spikes with no update in that time. --apply
+        sets them to StatusStale, closes open claims with the store call that claims
+        reconcile uses, and makes one commit. Snapshot and status show a stale count;
+        reset accepts stale items.
       why: |
         120 open items are older than 90 days and 36 are stuck in-progress. A session
         that reads them gets wrong context about what is planned or active.
       files:
         - cmd/wipnote/stale.go
         - cmd/wipnote/stale_test.go
+        - cmd/wipnote/feature_reset.go
+        - cmd/wipnote/snapshot.go
+        - cmd/wipnote/status.go
       deps: []
       done_when:
         - the dry-run lists only todo and in-progress items whose updated date is older than the threshold, and changes nothing
         - --apply sets those items to stale in one commit and closes their open claims
-        - wipnote wip show leaves stale items out by default
-        - after the one-time run, the repo has no todo or in-progress item older than 90 days that a person did not keep
+        - wipnote snapshot --summary and wipnote status report a stale count instead of dropping stale items
+        - feature reset moves a stale item back to todo
+        - after the one-time run on this repo, no todo or in-progress item is older than 90 days unless a person kept it
       effort: M
       risk: Low
       tests: |
         Unit (cmd/wipnote/stale_test.go): TestStale_DryRunChangesNothing,
-        TestStale_ApplyMarksAndCommitsOnce, TestStale_SkipsRecentAndDone. Use
-        fixture items with set data-updated dates.
+        TestStale_ApplyMarksAndCommitsOnce, TestStale_SkipsRecentAndDone,
+        TestReset_AcceptsStale. Fixture items with set data-updated dates.
       complexity: standard
       approved: false
       comment: ""
       research_waiver: Internal lifecycle change that reuses the existing StatusStale value; no external dependency or standard applies.
+      critic_revisions:
+        - source: local-feasibility
+          severity: MEDIUM
+          summary: 'AMENDED: StatusStale is today only a session status; snapshot.go:56 and status.go:59 would drop stale items from counts. feature reset refuses non-in-progress items (feature_reset.go:62). wip show already lists only in-progress items, so that criterion tested nothing. Added the count, the reset change and claim closing through the claims reconcile store call (claims.go:175).'
       decisions_notes: |
-        **State:** the existing StatusStale value; no new status is added.
+        **State:** the existing StatusStale value; reindex already accepts it
+        (reindex_helpers.go:22). No new status.
         **Rollout:** run it once on this repo after a person reviews the dry-run list.
         **Safety:** dry-run by default; one reviewable commit; nothing is deleted.
-        A stale item can go back to todo with the existing reset command.
         **Rejected:** auto-closing as done. That would claim the work happened and
-        corrupt lineage.
-        **Rejected:** wipnote archive. It moves only done features, and stale items
-        must stay visible with --all.
+        corrupt lineage. **Rejected:** wip reset --dead. It returns items to todo,
+        which keeps them looking planned.
       blocks:
         - type: file-tree
           title: Files touched
           entries:
             - cmd/wipnote/stale.go
             - cmd/wipnote/stale_test.go
+            - cmd/wipnote/feature_reset.go
+            - cmd/wipnote/snapshot.go
+            - cmd/wipnote/status.go
     - id: slice-4
       num: 4
       title: New features and bugs state why and when they are done
       what: |
-        Add required --why and --done-when flags to feature create and bug create
-        (cmd/wipnote/workitem_create.go); spikes keep them optional. buildDescription
-        (cmd/wipnote/related.go) writes them as a Why section and Acceptance Criteria.
-        A missing flag gives an error that names it. The agent prompt tells agents to
-        pass both.
+        Add --why and --done-when to feature create and bug create. The check lives
+        in warnMissingFields (cmd/wipnote/workitem_edges.go). createNode writes them
+        through buildDescription as Why and Acceptance Criteria sections. Plan
+        promote, plan finalize and batch creates fill both from their source. A
+        missing flag warns first, then fails after one release.
       why: |
         The record's reason is what answered the history question in test 2, but
         only about 28% of records state one and about 8% have acceptance criteria.
       files:
         - cmd/wipnote/workitem_create.go
+        - cmd/wipnote/workitem_edges.go
         - cmd/wipnote/related.go
+        - cmd/wipnote/plan_promote_slice.go
+        - cmd/wipnote/plan_finalize.go
+        - cmd/wipnote/plan_finalize_yaml.go
+        - cmd/wipnote/batch.go
         - cmd/wipnote/workitem_create_test.go
         - cmd/wipnote/prompts/system-prompt.md
+        - cmd/wipnote/prompts/yolo-prompt.md
+        - cmd/wipnote/prompts/gemini-system.md
+        - scripts/delegate-phase-b/checks-host.sh
       deps: []
       done_when:
-        - feature create and bug create without --why or --done-when exit non-zero and name the missing flag
+        - feature create and bug create without --why or --done-when print a warning that names the missing flag and still succeed
         - with both flags, the record HTML has a Why section and an Acceptance Criteria section
-        - spike create works without the flags
-      effort: M
+        - a slice promoted from a plan gets Why from the slice's why and Acceptance Criteria from its done_when
+        - spike create works without the flags and prints no warning
+        - every example create command in the prompts and help text passes both flags
+      effort: L
       risk: Med
       tests: |
-        Unit (cmd/wipnote/workitem_create_test.go): TestCreate_RequiresWhyAndDoneWhen,
-        TestCreate_WritesWhyAndAcceptanceSections, TestSpikeCreate_FlagsOptional.
+        Unit (cmd/wipnote/workitem_create_test.go): TestCreate_WarnsWithoutWhy,
+        TestCreate_WritesWhyAndAcceptance, TestSpikeCreate_NoWarning,
+        TestPromoteSlice_FillsWhyAndAcceptance.
       complexity: standard
       approved: false
       comment: ""
       research_waiver: CLI flag change inside this repo; no external dependency or standard applies.
       questions:
         - id: q-strict
-          text: Should a missing --why fail the command, or warn first for one release so that existing scripts and other harnesses can catch up?
+          text: After the warn-first release, should a missing --why fail the command? Making it fail breaks 33 call sites in 7 test files and scripts/delegate-phase-b/checks-host.sh:60, so those must be updated in the same release.
+      critic_revisions:
+        - source: local-feasibility
+          severity: MEDIUM
+          summary: 'AMENDED: the required-field check is warnMissingFields (workitem_edges.go:126), not workitem_create.go. buildDescription (related.go:146) is not on the create path. Programmatic creates (plan_promote_slice.go:259, plan_finalize.go:192, plan_finalize_yaml.go:207, batch.go:172) bypass flags. Example create commands in yolo-prompt.md, gemini-system.md, help.go, agent_init.go and pretooluse.go would go stale. Changed to warn-first.'
       decisions_notes: |
-        **Change:** two required flags on create for features and bugs.
-        **Reuse:** buildDescription already renders Acceptance Criteria; only Why is new.
+        **Change:** two flags on create for features and bugs; warn first, fail later
+        (q-strict). Programmatic creates fill them from their source.
+        **Reuse:** warnMissingFields for the check, buildDescription for rendering.
         **Rejected:** enforcing at complete time. By then the reason is
-        reconstructed after the fact, and test 2 depended on the reason that was
-        written before the work.
-        **Risk:** plan promotion (plan_promote_slice.go) creates features too. It must
-        fill both fields from the slice's why and done_when.
+        reconstructed after the fact; test 2 used the reason written before the work.
+        **Also update:** example commands in help.go:62, agent_init.go:54,
+        core/hooks/pretooluse.go:193, core/hooks/yolo_guard_claims.go:59 and
+        plugin/config/validation-config.json.
       blocks:
         - type: file-tree
           title: Files touched
           entries:
             - cmd/wipnote/workitem_create.go
+            - cmd/wipnote/workitem_edges.go
             - cmd/wipnote/related.go
+            - cmd/wipnote/plan_promote_slice.go
+            - cmd/wipnote/plan_finalize.go
+            - cmd/wipnote/plan_finalize_yaml.go
+            - cmd/wipnote/batch.go
             - cmd/wipnote/workitem_create_test.go
             - cmd/wipnote/prompts/system-prompt.md
+            - cmd/wipnote/prompts/yolo-prompt.md
+            - cmd/wipnote/prompts/gemini-system.md
+            - scripts/delegate-phase-b/checks-host.sh
     - id: slice-5
       num: 5
       title: Comments that cite an item id also state the reason
       what: |
-        Change the commit and comment guidance in the agent prompt
-        (cmd/wipnote/prompts/system-prompt.md). A code comment that cites a work-item
-        id must also state the reason in plain words. Commit messages keep the id
-        in the subject or a Refs trailer.
+        Add a rule to every prompt that guides code-writing agents: a code comment
+        that cites a work-item id must also state the reason in plain words. Commit
+        messages keep the id in the subject or a Refs trailer. Then run
+        wipnote plugin build-ports.
       why: |
         Go code cites 427 item ids in 2054 comments. They lead a wipnote user to the
         record, but for a teammate without the store an id alone says nothing.
       files:
         - cmd/wipnote/prompts/system-prompt.md
+        - cmd/wipnote/prompts/yolo-prompt.md
+        - cmd/wipnote/prompts/gemini-system.md
+        - plugin/skills/agent-context/SKILL.md
       deps: []
       done_when:
-        - the prompt has the rule and one good and one bad example
+        - the three launcher prompts and the agent-context skill have the rule with one good and one bad example
+        - wipnote plugin build-ports leaves no diff after the change is committed
       effort: S
       risk: Low
       tests: ""
@@ -260,6 +322,10 @@ slices:
       approved: false
       comment: ""
       research_waiver: Prompt wording change only.
+      critic_revisions:
+        - source: local-feasibility
+          severity: MEDIUM
+          summary: 'AMENDED: system-prompt.md covers Claude and non-yolo Codex only. Added yolo-prompt.md (yolo), gemini-system.md (Antigravity) and plugin/skills/agent-context/SKILL.md (coder subagents), plus build-ports.'
       decisions_notes: |
         Prompt-only. Existing comments are not rewritten in this plan.
       blocks:
@@ -267,4 +333,7 @@ slices:
           title: Files touched
           entries:
             - cmd/wipnote/prompts/system-prompt.md
+            - cmd/wipnote/prompts/yolo-prompt.md
+            - cmd/wipnote/prompts/gemini-system.md
+            - plugin/skills/agent-context/SKILL.md
 questions: []
