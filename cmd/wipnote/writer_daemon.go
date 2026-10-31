@@ -239,13 +239,7 @@ func startWriterMaintenance(ctx context.Context, wipnoteDir string) {
 	// One-time restore of session telemetry deleted by pulling the untrack
 	// commit (feat-9457496e). Daemon-only, off the launch path, in its own
 	// goroutine so it never delays the loops below.
-	go func() {
-		if n, err := restoreUntrackedSessions(wipnoteDir); err != nil {
-			log.Printf("sessions-restore: %v", err)
-		} else if n > 0 {
-			log.Printf("sessions-restore: restored %d file(s)", n)
-		}
-	}()
+	go runSessionsRestore(wipnoteDir)
 
 	// Retention archival: startup, then every 24h. A fresh projection per pass
 	// rather than one hydrated at daemon boot — a daemon lives for hours, and a

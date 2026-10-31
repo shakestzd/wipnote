@@ -15,50 +15,59 @@ func gitIn(t *testing.T, dir string, args ...string) {
 	}
 }
 
-// TestRestoreUntrackedSessions: clone A untracks sessions, clone B pulls (git
-// deletes the files), the pass restores them, a second run is a no-op.
-func TestRestoreUntrackedSessions(t *testing.T) {
-	tmp, err := os.MkdirTemp("/tmp", "wipnote-sess-restore-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(tmp) })
+// cloneWithIdentity clones origin into dir and sets a commit identity.
+func cloneWithIdentity(t *testing.T, tmp, origin, name string) string {
+	t.Helper()
+	dir := filepath.Join(tmp, name)
+	gitIn(t, tmp, "clone", "-q", origin, dir)
+	gitIn(t, dir, "config", "user.email", "t@t.com")
+	gitIn(t, dir, "config", "user.name", "T")
+	return dir
+}
 
-	origin := filepath.Join(tmp, "origin.git")
-	gitIn(t, tmp, "init", "--bare", "-q", origin)
-	a := filepath.Join(tmp, "a")
-	gitIn(t, tmp, "clone", "-q", origin, a)
-	for _, k := range [][]string{{"user.email", "t@t.com"}, {"user.name", "T"}} {
-		gitIn(t, a, append([]string{"config"}, k...)...)
-	}
-	sess := filepath.Join(a, ".wipnote", "sessions", "s1")
+// seedTrackedSession commits one session file in repo and pushes it.
+func seedTrackedSession(t *testing.T, repo string) {
+	t.Helper()
+	sess := filepath.Join(repo, ".wipnote", "sessions", "s1")
 	if err := os.MkdirAll(sess, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(sess, "events.ndjson"), []byte("telemetry\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gitIn(t, a, "add", "-A")
-	gitIn(t, a, "commit", "-q", "-m", "add sessions")
-	gitIn(t, a, "push", "-q", "origin", "HEAD")
+	gitIn(t, repo, "add", "-A")
+	gitIn(t, repo, "commit", "-q", "-m", "add sessions")
+	gitIn(t, repo, "push", "-q", "origin", "HEAD")
+}
 
-	b := filepath.Join(tmp, "b")
-	gitIn(t, tmp, "clone", "-q", origin, b)
-	for _, k := range [][]string{{"user.email", "t@t.com"}, {"user.name", "T"}} {
-		gitIn(t, b, append([]string{"config"}, k...)...)
+// untrackedAndPulled returns clone B's .wipnote dir after clone A untracked
+// sessions and B pulled, so git has deleted the session file from B.
+func untrackedAndPulled(t *testing.T) (wipnoteDir, sessionFile string) {
+	t.Helper()
+	tmp, err := os.MkdirTemp("/tmp", "wipnote-sess-restore-*")
+	if err != nil {
+		t.Fatal(err)
 	}
-
+	t.Cleanup(func() { os.RemoveAll(tmp) })
+	origin := filepath.Join(tmp, "origin.git")
+	gitIn(t, tmp, "init", "--bare", "-q", origin)
+	a := cloneWithIdentity(t, tmp, origin, "a")
+	seedTrackedSession(t, a)
+	b := cloneWithIdentity(t, tmp, origin, "b")
 	gitIn(t, a, "rm", "-r", "--cached", "-q", ".wipnote/sessions")
 	gitIn(t, a, "commit", "-q", "-m", "untrack sessions")
 	gitIn(t, a, "push", "-q", "origin", "HEAD")
 	gitIn(t, b, "pull", "-q")
+	return filepath.Join(b, ".wipnote"), filepath.Join(b, ".wipnote", "sessions", "s1", "events.ndjson")
+}
 
-	file := filepath.Join(b, ".wipnote", "sessions", "s1", "events.ndjson")
+// TestRestoreUntrackedSessions: clone A untracks sessions, clone B pulls (git
+// deletes the files), the pass restores them, a second run is a no-op.
+func TestRestoreUntrackedSessions(t *testing.T) {
+	wd, file := untrackedAndPulled(t)
 	if _, err := os.Stat(file); err == nil {
 		t.Fatal("precondition: pull should have deleted the session file")
 	}
-
-	wd := filepath.Join(b, ".wipnote")
 	n, err := restoreUntrackedSessions(wd)
 	if err != nil || n != 1 {
 		t.Fatalf("first run: n=%d err=%v, want 1,nil", n, err)

@@ -6,9 +6,8 @@ import (
 	"testing"
 )
 
-// TestDirtyWipnoteFiles_Allowlist verifies sync only surfaces canonical store
-// paths and never session telemetry (feat-9457496e).
-func TestDirtyWipnoteFiles_Allowlist(t *testing.T) {
+// TestIsSyncAllowedPath is a table test for the sync allowlist (feat-9457496e).
+func TestIsSyncAllowedPath(t *testing.T) {
 	cases := map[string]bool{
 		".wipnote/features/feat-1.html":       true,
 		".wipnote/bugs/bug-1.html":            true,
@@ -42,28 +41,41 @@ func TestDirtyWipnoteFiles_Allowlist(t *testing.T) {
 			t.Errorf("isSyncAllowedPath(%q) = %v, want %v", path, got, want)
 		}
 	}
+}
 
+// TestDirtyWipnoteFiles_Allowlist verifies dirtyWipnoteFiles surfaces only the
+// canonical feature file and never session telemetry (feat-9457496e).
+func TestDirtyWipnoteFiles_Allowlist(t *testing.T) {
 	tmp, err := os.MkdirTemp("/tmp", "wipnote-sync-allow-*")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(tmp) })
 	repo := setupWorktreeGitRepoIn(t, tmp)
-	wd := filepath.Join(repo, ".wipnote")
 	seedWipnoteCommit(t, repo)
-	must := func(err error) {
-		t.Helper()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	must(os.MkdirAll(filepath.Join(wd, "features"), 0o755))
-	must(os.MkdirAll(filepath.Join(wd, "sessions", "s1"), 0o755))
-	must(os.WriteFile(filepath.Join(wd, "sessions", "s1", "e.ndjson"), []byte("x"), 0o644))
-	must(os.WriteFile(filepath.Join(wd, "features", "feat-al1.html"), []byte("<article/>"), 0o644))
+	writeAllowlistFixtures(t, filepath.Join(repo, ".wipnote"))
+
 	files, err := dirtyWipnoteFiles(repo)
-	must(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(files) != 1 || files[0] != ".wipnote/features/feat-al1.html" {
 		t.Errorf("dirtyWipnoteFiles = %v, want only the feature", files)
+	}
+}
+
+func writeAllowlistFixtures(t *testing.T, wd string) {
+	t.Helper()
+	for rel, body := range map[string]string{
+		"sessions/s1/e.ndjson":   "x",
+		"features/feat-al1.html": "<article/>",
+	} {
+		full := filepath.Join(wd, rel)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

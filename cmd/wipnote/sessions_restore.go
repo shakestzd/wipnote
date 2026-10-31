@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,15 +13,24 @@ import (
 // beside the other migration sentinels; sync never commits *.done files.
 const sessionsRestoreSentinel = "sessions-restore.done"
 
+// runSessionsRestore runs the restore pass and logs the outcome. The writer
+// daemon calls it in a goroutine; it is never on the launch path.
+func runSessionsRestore(wipnoteDir string) {
+	n, err := restoreUntrackedSessions(wipnoteDir)
+	if err != nil {
+		log.Printf("sessions-restore: %v", err)
+	} else if n > 0 {
+		log.Printf("sessions-restore: restored %d file(s)", n)
+	}
+}
+
 // restoreUntrackedSessions is a one-time pass (feat-9457496e). When a pull
 // brings in the commit that untracked .wipnote/sessions, git deletes the
 // tracked session files from the working tree. Session telemetry is
 // per-machine data, so this pass restores those files from the parent of the
-// untrack commit, then writes the sentinel.
-//
-// It runs only inside the writer daemon, never on the launch path. It
-// returns the number of files restored. With no untrack commit in history it
-// does nothing and writes no sentinel, so a later pull still gets handled.
+// untrack commit, then writes the sentinel. It returns the number of files
+// restored. With no untrack commit in history it writes no sentinel, so a
+// later pull still gets handled.
 func restoreUntrackedSessions(wipnoteDir string) (int, error) {
 	migDir := filepath.Join(wipnoteDir, "migrations")
 	sentinel := filepath.Join(migDir, sessionsRestoreSentinel)
@@ -28,11 +38,23 @@ func restoreUntrackedSessions(wipnoteDir string) (int, error) {
 		return 0, nil
 	}
 	root := filepath.Dir(wipnoteDir)
-
 	commit, err := sessionsUntrackCommit(root)
 	if err != nil || commit == "" {
 		return 0, err
 	}
+	restored, err := restoreSessionFiles(root, commit)
+	if err != nil {
+		return restored, err
+	}
+	if err := os.MkdirAll(migDir, 0o755); err != nil {
+		return restored, err
+	}
+	return restored, os.WriteFile(sentinel, []byte("restored from "+commit+"^\n"), 0o644)
+}
+
+// restoreSessionFiles writes back every session file present in the parent of
+// commit but missing on disk. Existing files are never overwritten.
+func restoreSessionFiles(root, commit string) (int, error) {
 	out, err := gitOut(root, "ls-tree", "-r", "--name-only", commit+"^", "--", ".wipnote/sessions")
 	if err != nil {
 		return 0, err
@@ -59,10 +81,7 @@ func restoreUntrackedSessions(wipnoteDir string) (int, error) {
 		}
 		restored++
 	}
-	if err := os.MkdirAll(migDir, 0o755); err != nil {
-		return restored, err
-	}
-	return restored, os.WriteFile(sentinel, []byte("restored from "+commit+"^\n"), 0o644)
+	return restored, nil
 }
 
 // sessionsUntrackCommit returns the newest commit that deleted files under
