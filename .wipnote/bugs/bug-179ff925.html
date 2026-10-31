@@ -10,20 +10,29 @@
 <body>
     <article id="bug-179ff925"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-18T08:16:28.889195"
-             data-updated="2026-10-31T06:21:28.766489" data-agent-assigned="claude-code" data-track-id="trk-1db7bf72" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+             data-updated="2026-10-31T07:23:24.598122" data-agent-assigned="claude-code" data-track-id="trk-1db7bf72" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>&#39;No active work item&#39; directive repeats every prompt even after an item is active</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="6af52e01e9866337cca1c162b431f65c15c715eb.html" data-relationship="committed_in" data-since="2026-10-31T02:27:32">fix(hooks): active-item line sees claims held by family sessions (bug-179ff925)</a></li>
+                    <li><a href="f83ea1f6fed0491ea4cba11044fff49715e93930.html" data-relationship="committed_in" data-since="2026-10-31T02:27:37">wipnote: start bug-179ff925</a></li>
+                    <li><a href="992575520233a690272ceb9dc854aecdadc3aba4.html" data-relationship="committed_in" data-since="2026-10-31T02:27:32">fix(hooks): active-item line sees claims held by family sessions (bug-179ff925)</a></li>
+                    <li><a href="58614ecf661e805add06a8bcd3903ad0f848b790.html" data-relationship="committed_in" data-since="2026-10-31T02:26:15">fix(hooks): see family members&#39; claims in the per-turn prompt context</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -41,9 +50,9 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-bug-179ff925-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Reproduce in a multi-agent session</li>
-                <li data-completed="false" data-step-id="step-bug-179ff925-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fix the claim lookup used by the classifier</li>
-                <li data-completed="false" data-step-id="step-bug-179ff925-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Regression test</li>
+                <li data-completed="true" data-step-id="step-bug-179ff925-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Reproduce in a multi-agent session</li>
+                <li data-completed="true" data-step-id="step-bug-179ff925-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fix the claim lookup used by the classifier</li>
+                <li data-completed="true" data-step-id="step-bug-179ff925-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Regression test</li>
             </ol>
         </section>
 
