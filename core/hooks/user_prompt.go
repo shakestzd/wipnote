@@ -29,8 +29,9 @@ func UserPrompt(event *CloudEvent) (*HookResult, error) {
 	recordDelegateHook(event, projectDir, sessionID, "prompt")
 	// Background tasks that ended while the agent waited (feat-36658c22).
 	syncTranscriptRunsFor(event, projectDir, sessionID, runPromptPass)
-	// The open claim in the canonical claim ledger is the active work item.
-	featureID := canonicalActiveWorkItem(projectDir, sessionID)
+	// The open claim in the canonical claim ledger is the active work item. A
+	// claim held by another session in the family counts too (bug-179ff925).
+	featureID := canonicalFamilyActiveWorkItem(projectDir, sessionID)
 
 	promptSummary := sanitizePrompt(event.Prompt)
 	if promptSummary == "" || ingest.IsSystemMessage(promptSummary) {
