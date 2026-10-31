@@ -67,12 +67,13 @@ slices:
       files:
         - cmd/wipnote/sync.go
         - cmd/wipnote/sync_test.go
-        - cmd/wipnote/migrations.go
+        - cmd/wipnote/sessions_restore.go
+        - cmd/wipnote/writer_daemon.go
       deps: []
       done_when:
         - runSync with dirty files in sessions/, features/ and claims/ stages features/ and claims/ but not sessions/
         - after the migration commit, git ls-files .wipnote/sessions prints nothing and the session files are still on disk in this clone
-        - in a second clone that pulls the migration commit, the next wipnote launch restores the deleted session files from the parent of that commit
+        - in a second clone that pulls the migration commit, the writer daemon's startup pass restores the deleted session files from the parent of that commit, writes .wipnote/migrations/sessions-restore.done, and does not delay launch
         - git ls-tree -r -l HEAD .wipnote sums to at least 120 MB less than before
       effort: M
       risk: Med
@@ -80,7 +81,8 @@ slices:
         Unit (cmd/wipnote/sync_test.go): TestDirtyWipnoteFiles_Allowlist. A temp repo
         with dirty files in sessions/, claims/, features/, specs/ and plans/; assert
         all but sessions/ are returned. Integration: two clones; untrack in one, pull
-        in the other, run the migration, assert the session files are back.
+        in the other, run the restore pass, assert the session files are back and
+        a second run does nothing.
       complexity: standard
       approved: false
       comment: ""
@@ -104,8 +106,9 @@ slices:
         (cmd/wipnote/ledger_commit.go:38, gate_ledger.go:49).
         **Change:** an allowlist replaces the denylist, so new telemetry files cannot
         get in by default.
-        **Safety:** session files stay in git history; the migration restores them in
-        clones where the pull deleted them. No reader uses session files from git
+        **Safety:** session files stay in git history; a one-time writer-daemon pass
+        (the .wipnote/migrations/*.done pattern) restores them in clones where the
+        pull deleted them. It runs off the launch path, so it never delays Claude. No reader uses session files from git
         history (reindex.go:153 and session_ledger_backfill.go:199 read the tree).
         **Rejected:** adding names to isRuntimeStateFile. A denylist keeps missing new files.
       blocks:
@@ -114,7 +117,8 @@ slices:
           entries:
             - cmd/wipnote/sync.go
             - cmd/wipnote/sync_test.go
-            - cmd/wipnote/migrations.go
+            - cmd/wipnote/sessions_restore.go
+            - cmd/wipnote/writer_daemon.go
     - id: slice-2
       num: 2
       title: One commit per reconcile pass
@@ -188,14 +192,13 @@ slices:
         - the dry-run lists only todo and in-progress items whose updated date is older than the threshold, and changes nothing
         - --apply sets those items to stale in one commit and closes their open claims
         - wipnote snapshot --summary and wipnote status report a stale count instead of dropping stale items
-        - feature reset moves a stale item back to todo
         - after the one-time run on this repo, no todo or in-progress item is older than 90 days unless a person kept it
       effort: M
       risk: Low
       tests: |
         Unit (cmd/wipnote/stale_test.go): TestStale_DryRunChangesNothing,
         TestStale_ApplyMarksAndCommitsOnce, TestStale_SkipsRecentAndDone,
-        TestReset_AcceptsStale. Fixture items with set data-updated dates.
+        TestReset_AcceptsStale (feature reset moves a stale item to todo). Fixture items with set data-updated dates.
       complexity: standard
       approved: false
       comment: ""

@@ -568,7 +568,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <ul class="file-list">
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/sync.go</code></li>
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/sync_test.go</code></li>
-    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/migrations.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/sessions_restore.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/writer_daemon.go</code></li>
     
   </ul>
 </div></div>
@@ -650,7 +651,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="Stop committing session telemetry" data-status="pending" data-deps="" data-files="3" data-issues="1" data-questions="1"></div>
+    <div data-node="1" data-name="Stop committing session telemetry" data-status="pending" data-deps="" data-files="4" data-issues="1" data-questions="1"></div>
     <div data-node="2" data-name="One commit per reconcile pass" data-status="pending" data-deps="" data-files="2" data-issues="1"></div>
     <div data-node="3" data-name="Mark stale open items" data-status="pending" data-deps="" data-files="5" data-issues="1"></div>
     <div data-node="4" data-name="New features and bugs state why and when they are done" data-status="pending" data-deps="" data-files="12" data-issues="1" data-questions="1"></div>
@@ -658,7 +659,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1665.6" height="104" viewBox="0 0 1665.6 104" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="24" width="323.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="185.6" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Stop committing session telem…  ⚠1  ?1</text><text class="dep-node-meta" x="185.6" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="387.19999999999993" y="24" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="530.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 One commit per reconcile pass  ⚠1</text><text class="dep-node-meta" x="530.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="714.4000000000001" y="24" width="229.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="829.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Mark stale open items  ⚠1</text><text class="dep-node-meta" x="829.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="983.9999999999999" y="24" width="323.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1145.6" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 New features and bugs state w…  ⚠1  ?1</text><text class="dep-node-meta" x="1145.6" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">12 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1347.2" y="24" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1494.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Comments that cite an item id…  ⚠1</text><text class="dep-node-meta" x="1494.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a></g></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1665.6" height="104" viewBox="0 0 1665.6 104" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="24" width="323.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="185.6" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Stop committing session telem…  ⚠1  ?1</text><text class="dep-node-meta" x="185.6" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="387.19999999999993" y="24" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="530.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 One commit per reconcile pass  ⚠1</text><text class="dep-node-meta" x="530.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="714.4000000000001" y="24" width="229.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="829.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Mark stale open items  ⚠1</text><text class="dep-node-meta" x="829.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="983.9999999999999" y="24" width="323.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1145.6" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 New features and bugs state w…  ⚠1  ?1</text><text class="dep-node-meta" x="1145.6" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">12 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1347.2" y="24" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1494.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Comments that cite an item id…  ⚠1</text><text class="dep-node-meta" x="1494.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -788,13 +789,13 @@ already meant to be ignored; sync&#39;s force-add is the only reason it is in gi
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>cmd/wipnote/sync.go, cmd/wipnote/sync_test.go, cmd/wipnote/migrations.go</code></div>
+        <div class="slice-field-value"><code>cmd/wipnote/sync.go, cmd/wipnote/sync_test.go, cmd/wipnote/sessions_restore.go, cmd/wipnote/writer_daemon.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>runSync with dirty files in sessions/, features/ and claims/ stages features/ and claims/ but not sessions/</li><li>after the migration commit, git ls-files .wipnote/sessions prints nothing and the session files are still on disk in this clone</li><li>in a second clone that pulls the migration commit, the next wipnote launch restores the deleted session files from the parent of that commit</li><li>git ls-tree -r -l HEAD .wipnote sums to at least 120 MB less than before</li></ul>
+        <ul class="slice-done-list"><li>runSync with dirty files in sessions/, features/ and claims/ stages features/ and claims/ but not sessions/</li><li>after the migration commit, git ls-files .wipnote/sessions prints nothing and the session files are still on disk in this clone</li><li>in a second clone that pulls the migration commit, the writer daemon&#39;s startup pass restores the deleted session files from the parent of that commit, writes .wipnote/migrations/sessions-restore.done, and does not delay launch</li><li>git ls-tree -r -l HEAD .wipnote sums to at least 120 MB less than before</li></ul>
       </div>
       
     
@@ -810,8 +811,9 @@ deferred commit queue. Ledgers also have their own commit paths
 (cmd/wipnote/ledger_commit.go:38, gate_ledger.go:49).
 <strong>Change:</strong> an allowlist replaces the denylist, so new telemetry files cannot
 get in by default.
-<strong>Safety:</strong> session files stay in git history; the migration restores them in
-clones where the pull deleted them. No reader uses session files from git
+<strong>Safety:</strong> session files stay in git history; a one-time writer-daemon pass
+(the .wipnote/migrations/*.done pattern) restores them in clones where the
+pull deleted them. It runs off the launch path, so it never delays Claude. No reader uses session files from git
 history (reindex.go:153 and session_ledger_backfill.go:199 read the tree).
 <strong>Rejected:</strong> adding names to isRuntimeStateFile. A denylist keeps missing new files.</p>
 </div>
@@ -828,7 +830,8 @@ history (reindex.go:153 and session_ledger_backfill.go:199 read the tree).
   <ul class="file-list">
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/sync.go</code></li>
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/sync_test.go</code></li>
-    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/migrations.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/sessions_restore.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/writer_daemon.go</code></li>
     
   </ul>
 </div></div>
@@ -845,7 +848,8 @@ history (reindex.go:153 and session_ledger_backfill.go:199 read the tree).
         <div class="markdown-block slice-tests"><p>Unit (cmd/wipnote/sync_test.go): TestDirtyWipnoteFiles_Allowlist. A temp repo
 with dirty files in sessions/, claims/, features/, specs/ and plans/; assert
 all but sessions/ are returned. Integration: two clones; untrack in one, pull
-in the other, run the migration, assert the session files are back.</p>
+in the other, run the restore pass, assert the session files are back and
+a second run does nothing.</p>
 </div>
         
       </div>
@@ -1130,7 +1134,7 @@ that reads them gets wrong context about what is planned or active.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>the dry-run lists only todo and in-progress items whose updated date is older than the threshold, and changes nothing</li><li>--apply sets those items to stale in one commit and closes their open claims</li><li>wipnote snapshot --summary and wipnote status report a stale count instead of dropping stale items</li><li>feature reset moves a stale item back to todo</li><li>after the one-time run on this repo, no todo or in-progress item is older than 90 days unless a person kept it</li></ul>
+        <ul class="slice-done-list"><li>the dry-run lists only todo and in-progress items whose updated date is older than the threshold, and changes nothing</li><li>--apply sets those items to stale in one commit and closes their open claims</li><li>wipnote snapshot --summary and wipnote status report a stale count instead of dropping stale items</li><li>after the one-time run on this repo, no todo or in-progress item is older than 90 days unless a person kept it</li></ul>
       </div>
       
     
@@ -1180,7 +1184,7 @@ which keeps them looking planned.</p>
         
         <div class="markdown-block slice-tests"><p>Unit (cmd/wipnote/stale_test.go): TestStale_DryRunChangesNothing,
 TestStale_ApplyMarksAndCommitsOnce, TestStale_SkipsRecentAndDone,
-TestReset_AcceptsStale. Fixture items with set data-updated dates.</p>
+TestReset_AcceptsStale (feature reset moves a stale item to todo). Fixture items with set data-updated dates.</p>
 </div>
         
       </div>
