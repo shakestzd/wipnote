@@ -55,7 +55,7 @@ func untrackedAndPulled(t *testing.T) (wipnoteDir, sessionFile string) {
 	seedTrackedSession(t, a)
 	b := cloneWithIdentity(t, tmp, origin, "b")
 	gitIn(t, a, "rm", "-r", "--cached", "-q", ".wipnote/sessions")
-	gitIn(t, a, "commit", "-q", "-m", "untrack sessions")
+	gitIn(t, a, "commit", "-q", "-m", "untrack sessions", "-m", "Wipnote-Untrack: sessions")
 	gitIn(t, a, "push", "-q", "origin", "HEAD")
 	gitIn(t, b, "pull", "-q")
 	return filepath.Join(b, ".wipnote"), filepath.Join(b, ".wipnote", "sessions", "s1", "events.ndjson")
@@ -86,5 +86,33 @@ func TestRestoreUntrackedSessions(t *testing.T) {
 	}
 	if _, err := os.Stat(file); err == nil {
 		t.Error("second run must be a no-op")
+	}
+}
+
+// TestRestoreUntrackedSessions_NoTrailer: an ordinary commit that deleted a
+// session file is not an untrack commit. Nothing is restored, no sentinel.
+func TestRestoreUntrackedSessions_NoTrailer(t *testing.T) {
+	tmp, err := os.MkdirTemp("/tmp", "wipnote-sess-notrailer-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(tmp) })
+	origin := filepath.Join(tmp, "origin.git")
+	gitIn(t, tmp, "init", "--bare", "-q", origin)
+	a := cloneWithIdentity(t, tmp, origin, "a")
+	seedTrackedSession(t, a)
+	gitIn(t, a, "rm", "-q", ".wipnote/sessions/s1/events.ndjson")
+	gitIn(t, a, "commit", "-q", "-m", "wipnote: sync 1 items")
+
+	wd := filepath.Join(a, ".wipnote")
+	n, err := restoreUntrackedSessions(wd)
+	if err != nil || n != 0 {
+		t.Fatalf("n=%d err=%v, want 0,nil", n, err)
+	}
+	if _, err := os.Stat(filepath.Join(wd, "sessions", "s1", "events.ndjson")); err == nil {
+		t.Error("deleted session file must not be restored")
+	}
+	if _, err := os.Stat(filepath.Join(wd, "migrations", sessionsRestoreSentinel)); err == nil {
+		t.Error("no sentinel may be written without a trailer commit")
 	}
 }

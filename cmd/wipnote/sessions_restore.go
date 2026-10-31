@@ -52,10 +52,11 @@ func restoreUntrackedSessions(wipnoteDir string) (int, error) {
 	return restored, os.WriteFile(sentinel, []byte("restored from "+commit+"^\n"), 0o644)
 }
 
-// restoreSessionFiles writes back every session file present in the parent of
-// commit but missing on disk. Existing files are never overwritten.
+// restoreSessionFiles writes back every session file that commit itself removed,
+// taken from its parent, when missing on disk. Existing files are never
+// overwritten.
 func restoreSessionFiles(root, commit string) (int, error) {
-	out, err := gitOut(root, "ls-tree", "-r", "--name-only", commit+"^", "--", ".wipnote/sessions")
+	out, err := gitOut(root, "show", "--diff-filter=D", "--name-only", "--format=", commit, "--", ".wipnote/sessions")
 	if err != nil {
 		return 0, err
 	}
@@ -84,10 +85,16 @@ func restoreSessionFiles(root, commit string) (int, error) {
 	return restored, nil
 }
 
-// sessionsUntrackCommit returns the newest commit that deleted files under
-// .wipnote/sessions from the index, or "" when there is none.
+// sessionsUntrackCommit returns the commit that untracked .wipnote/sessions,
+// or "" when there is none. The commit is identified by an explicit trailer
+// line in its message, never by "any commit that deleted a session file":
+//
+//	Wipnote-Untrack: sessions
+//
+// The human who makes the `git rm -r --cached .wipnote/sessions` commit must
+// add that exact line to the message.
 func sessionsUntrackCommit(root string) (string, error) {
-	out, err := gitOut(root, "log", "--diff-filter=D", "--format=%H", "-1", "--", ".wipnote/sessions")
+	out, err := gitOut(root, "log", "--grep=^Wipnote-Untrack: sessions$", "--format=%H", "-1")
 	if err != nil {
 		return "", err
 	}
