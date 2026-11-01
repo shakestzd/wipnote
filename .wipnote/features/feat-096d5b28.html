@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>devcontainer: provision the herdr CLI in post-create</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-096d5b28"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-01T19:30:51.814343"
+             data-updated="2026-11-01T19:30:52.563598" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.86.0-29-g2b7b8c191" data-affected_files=".devcontainer/post-create.sh,.devcontainer/README.md" data-change_kind="chore" data-created_in_session="a6f978ba-e54f-413c-a365-1596eda81653">
+
+        <header>
+            <h1>devcontainer: provision the herdr CLI in post-create</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-11-01T19:30:52.072204">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>post-create.sh installs roborev, uv, oh-my-posh, oh-my-zsh and the agent CLIs but never installed herdr. The herdr CLI 0.9.5 (protocol 22) exists in the dev container only because it sits in the wipnote-local-bin named volume, installed by hand. delegate doctor&#39;s herdrCheck requires herdr on PATH and HERDR_ENV=1, so if that volume is ever recreated, delegate spawn breaks with no installer to restore it. Install via the herdr.dev installer, which ships the herdr CLI and honours HERDR_INSTALL_DIR. Do NOT use the releases.herdr.dev app installer: that ships the separate herdr-app GUI plus herdr-core/hc, which wipnote does not use and which are absent from this container. Also drop the stale ttyd row from the devcontainer README: ttyd left post-create when the web dashboard and wipnote serve were removed, so the table documents a tool the bootstrap no longer installs.
+Why
+Delegation silently breaks on a volume recreate because the devcontainer cannot reprovision its own herdr dependency.
+Acceptance Criteria
+A fresh post-create run installs the herdr CLI into the local bin dir and herdr is on PATH; the devcontainer README toolchain table lists herdr and no longer lists ttyd; shellcheck passes on post-create.sh.</p>
+        </section>
+    </article>
+</body>
+</html>
