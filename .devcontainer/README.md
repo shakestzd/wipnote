@@ -30,7 +30,7 @@ work across other projects. The two are fully independent.
 | `uv` | `.devcontainer/post-create.sh` via Astral installer |
 | MkDocs + Material + pymdown extensions | `.devcontainer/post-create.sh` via `uv tool install` |
 | Oh My Posh | `.devcontainer/post-create.sh` via upstream installer |
-| `ttyd` | `.devcontainer/post-create.sh` via upstream release binary |
+| `herdr` | `.devcontainer/post-create.sh` via official `herdr.dev` installer |
 | Oh My Zsh, Powerlevel10k, zsh plugins | `.devcontainer/post-create.sh` |
 
 ## Start

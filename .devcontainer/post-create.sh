@@ -133,6 +133,31 @@ if [ -f "$REPO_ROOT/.git/hooks/post-commit" ] && ! grep -q 'feat-1915300d' "$REP
   chmod +x "$REPO_ROOT/.git/hooks/post-commit"
 fi
 
+echo "==> Installing herdr..."
+# The herdr CLI backs `wipnote delegate spawn` panes, and delegate doctor's
+# herdr check needs it on PATH. It installs into $HOME/.local/bin, a named
+# volume, so this is a no-op on a normal rebuild and reprovisions herdr if that
+# volume is ever recreated (feat-096d5b28).
+# Use the herdr.dev installer: it ships the `herdr` CLI and honours
+# HERDR_INSTALL_DIR. The releases.herdr.dev app installer is a different
+# product -- herdr-app (GUI) plus herdr-core/hc -- which wipnote does not use.
+if ! command -v herdr >/dev/null 2>&1; then
+  mkdir -p "$HOME/.local/bin"
+  tmp_herdr="$(mktemp)"
+  retry curl -fsSL https://herdr.dev/install.sh -o "$tmp_herdr"
+  HERDR_INSTALL_DIR="$HOME/.local/bin" sh "$tmp_herdr"
+  rm -f "$tmp_herdr"
+fi
+
+echo "==> Installing herdr agent integrations..."
+# Re-running is how herdr updates these hooks, so this is safe on every boot.
+# Non-fatal: the hooks live in the .claude/.codex volumes and agent
+# authentication may not be complete on first boot.
+if command -v herdr >/dev/null 2>&1; then
+  herdr integration install claude || echo "herdr integration install claude failed; run it by hand" >&2
+  herdr integration install codex || echo "herdr integration install codex failed; run it by hand" >&2
+fi
+
 echo "==> Ensuring \$HOME/.local/bin is on PATH in shell rc files..."
 for _rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
   if [ -f "$_rc" ] && ! grep -q '.local/bin' "$_rc"; then
@@ -217,6 +242,7 @@ claude --version || true
 codex --version || true
 copilot --version || true
 roborev version || true
+herdr --version || true
 wipnote version || true
 oh-my-posh --version || true
 
