@@ -367,7 +367,7 @@ func (e *env) setAlive(pid int, start string) {
 func (e *env) opts(name string) SpawnOptions {
 	return SpawnOptions{
 		Name: name, Harness: HarnessClaude, WorkItem: itemFor(name), CallerSession: "sess-caller",
-		CallerPane: "w1:p1", Brief: "Do the thing.\nIn detail.", Cwd: e.dir,
+		CallerPane: "w1:p1", Brief: "Do the thing.\nIn detail.", Cwd: e.dir, Profile: ProfileFull, // lean has its own tests
 		BootLine:  func(run string) string { return BootLine("/bin/wipnote", e.dir, run, "sess-caller") },
 		ShellWait: time.Second, Poll: 5 * time.Millisecond,
 	}

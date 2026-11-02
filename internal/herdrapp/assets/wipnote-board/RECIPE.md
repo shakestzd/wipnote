@@ -7,7 +7,11 @@ A Herdr layout for projects tracked by wipnote. A side board lists every agent b
 Two columns, left to right, in your own theme:
 
 1. **The board**, 320px wide (resizable, 200 to 560px). A "WORK" heading, then groups in this order: Needs you, Failed, Working, Done and Idle. An empty group is not shown. Each group has its name and count. Each agent is one row: a 3px status stripe, the program icon, the work item on the first line (12px), and the worker's name and space on the second line (11px, muted). With no agents it says "No agents are running."
-2. **The work area**, the rest. Herdr's own tab bar (30px), then the active tab's terminals as cards.
+2. **The work area**, the rest. Herdr's own tab bar (30px), then the active tab's terminals as cards, each under a 30px header (see below). A tab's only pane gets a card and header too.
+
+## The pane header
+
+A second mod (`mods/wipnote-pane-header/`) draws each pane's header, left to right: the program icon, the worker's name (`wipnote.worker` label), the work item (`wipnote.title` label, muted, truncated), and the status on the right (spinner when working, "Needs you" when blocked, a dot when done). A pane with no wipnote labels shows what Herdr's own header shows: the program name or title, and the folder. Clicking focuses the pane. It has no split, zoom or close buttons, because closing a worker's pane kills it. The layout turns it on with `header` and `lone: true` on the `main` block's `pane`.
 
 ## How it behaves
 
@@ -27,7 +31,7 @@ The first line of a row is the terminal's `wipnote.title` label, or the tab name
 
 The layout (`layouts/wipnote-board.json`): a root row with a divider. It holds a `block` showing the mod, and a column with the shipped `tabs` mod and a `{ "tab": "active" }` block. It sets no theme or colors.
 
-One mod (`mods/wipnote-board/`), with `place: "none"`.
+Two mods, each with `place: "none"`: `mods/wipnote-board/` and `mods/wipnote-pane-header/`.
 
 Data: `agents()`, `terminals()` for labels and `spaces()` for folders. `theme()` gives every color.
 
@@ -51,4 +55,4 @@ A terminal started with `wipnote claude` while a work item is claimed shows that
 
 Clicking a row shows that agent's terminals.
 
-`herdr-app check mods/wipnote-board` passes, and switching to another layout and back works.
+`herdr-app check` passes on both mods, and switching to another layout and back works.

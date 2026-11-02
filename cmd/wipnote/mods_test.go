@@ -287,3 +287,21 @@ func TestRetiredModExempt(t *testing.T) {
 		}
 	}
 }
+
+// A lean delegate worker is not an orchestrator: no orchestrator prompt and no
+// research routing, but the mods' rules stay.
+func TestComposeSystemPrompt_NoOrchestratorKeepsMods(t *testing.T) {
+	dir := t.TempDir()
+	writeMod(t, dir, "a")
+	if err := os.WriteFile(filepath.Join(dir, "a", modsPromptFile), []byte("Rule A."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	full := composeSystemPrompt(LaunchOpts{InjectSystemPrompt: true, ModsDir: dir})
+	if !strings.Contains(full, strings.TrimSpace(researchRoutingContent)) || !strings.HasSuffix(strings.TrimSpace(full), "Rule A.") {
+		t.Fatalf("full prompt lacks routing or the mod rule")
+	}
+	lean := composeSystemPrompt(LaunchOpts{InjectSystemPrompt: true, NoOrchestrator: true, ModsDir: dir})
+	if lean != "Rule A.\n" {
+		t.Fatalf("lean prompt = %q, want only the mod rule", lean)
+	}
+}

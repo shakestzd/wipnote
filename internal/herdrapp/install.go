@@ -30,13 +30,17 @@ func Home(getenv func(string) string, userHome string) string {
 	return filepath.Join(userHome, ".config", "herdr-app")
 }
 
+// HeaderMod is the pane header mod the layout names.
+const HeaderMod = "wipnote-pane-header"
+
 // Paths are the home's entries Install writes, relative to the home. Only
-// these two: the recipe describes the build and stays out, as Herdr's own guide
+// these three: the recipe describes the build and stays out, as Herdr's own guide
 // for adding a layout says.
 func Paths() []string {
 	return []string{
 		path.Join("layouts", LayoutName+".json"),
 		path.Join("mods", LayoutName),
+		path.Join("mods", HeaderMod),
 	}
 }
 
@@ -47,7 +51,7 @@ func (c *Conflict) Error() string {
 	return fmt.Sprintf("%s already exists: nothing was written. It may hold your edits; move it aside to install again", c.Path)
 }
 
-// Install copies the layout and mod into home. It never overwrites: if any
+// Install copies the layout and its mods into home. It never overwrites: if any
 // target exists it returns a *Conflict and writes nothing, because the home's
 // files are the person's. It returns the paths it wrote.
 func Install(home string) ([]string, error) {

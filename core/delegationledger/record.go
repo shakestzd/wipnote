@@ -108,6 +108,9 @@ type Record struct {
 	ResumedFrom    string // dlg- id of the run this one resumed
 	// Model is the model the run asked for; empty means the harness's default.
 	Model string
+	// Setup is a Claude worker's chosen profile and capabilities, as
+	// "profile=simple;effort=low;tools=Grep;mcp=Notion;plugins=x" (names only).
+	Setup string
 }
 
 // IsOpen reports whether the run has no recorded end. An imported row

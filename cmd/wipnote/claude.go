@@ -33,6 +33,9 @@ type LaunchOpts struct {
 	// InjectSystemPrompt, when true, appends the embedded system prompt via
 	// --append-system-prompt-file. Ignored when SystemPromptFile is set.
 	InjectSystemPrompt bool
+	// NoOrchestrator drops the embedded orchestrator prompt and research
+	// routing (a lean delegate worker is not an orchestrator). Mod rules stay.
+	NoOrchestrator bool
 	// SystemPromptFile, if set, reads this file and appends it as system prompt.
 	// Takes precedence over InjectSystemPrompt.
 	SystemPromptFile string
@@ -66,7 +69,7 @@ func claudeCmd() *cobra.Command {
 	var resumeID, name string
 	// Isolation flags (slice-2). --no-worktree and --in-place are mutually equivalent;
 	// --in-place is the preferred semantic name going forward.
-	var noWorktree, inPlace bool
+	var noWorktree, inPlace, noOrchestrator bool
 	var workItem, baseBranch, workDir string
 
 	cmd := &cobra.Command{
@@ -101,7 +104,7 @@ func claudeCmd() *cobra.Command {
 			case continue_:
 				return launchClaudeContinue(args, resumeID)
 			default:
-				return launchClaudeDefault(args, resumeID, name, workItem, workDir, effectiveInPlace)
+				return launchClaudeDefault(args, resumeID, name, workItem, workDir, effectiveInPlace, noOrchestrator)
 			}
 		},
 	}
@@ -116,6 +119,8 @@ func claudeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "Session label shown in Claude TUI (default: <project>-<timestamp>)")
 	cmd.Flags().StringVar(&workItem, "work-item", "", "Work item ID for isolation planning (e.g. feat-15c458aa, trk-3719d8f3)")
 	addWorkDirFlag(cmd, &workDir)
+	cmd.Flags().BoolVar(&noOrchestrator, "no-orchestrator-prompt", false, "Leave out the orchestrator and research-routing system prompt (lean delegate workers)")
+	_ = cmd.Flags().MarkHidden("no-orchestrator-prompt")
 	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch for managed worktree (advanced; default: current HEAD)")
 	cmd.Flags().BoolVar(&allowNonInteractive, allowNonInteractiveFlag, false,
 		"Launch even when stdin is not a terminal (default: refuse; env "+allowNonTTYEnv+"=1 is equivalent)")
@@ -235,27 +240,10 @@ func launchClaude(opts LaunchOpts) error {
 	// so its startup overlaps the rest of the launch (bug-06d2c91d).
 	daemonEnsure := startDaemonEnsure(markerRoot)
 
-	// SystemPromptFile takes precedence over InjectSystemPrompt.
-	var systemPrompt string
-	if opts.SystemPromptFile != "" {
-		if data, err := os.ReadFile(opts.SystemPromptFile); err == nil {
-			systemPrompt = string(data)
-		}
-	} else if opts.InjectSystemPrompt {
-		systemPrompt = systemPromptContent
-	}
-	// Append the shared research-routing disposition exactly once. Source of
-	// truth: cmd/wipnote/prompts/research-routing.md (mirrored for subagents in
-	// the agent-context skill).
-	if systemPrompt != "" {
-		systemPrompt = strings.TrimSpace(systemPrompt) + "\n\n" + strings.TrimSpace(researchRoutingContent) + "\n"
-	}
 	if opts.ModsDir == "" {
 		opts.ModsDir = resolveModsDir(opts.PluginDir)
 	}
-	if rules := modsSystemPrompt(opts.ModsDir); rules != "" {
-		systemPrompt = strings.TrimSpace(systemPrompt+"\n\n"+rules) + "\n"
-	}
+	systemPrompt := composeSystemPrompt(opts)
 
 	// Pass the prompt by file, not argv: large prompts fail as a single argv
 	// element, and Claude Code's guidance for wrappers is
@@ -466,4 +454,29 @@ func writeLaunchMarker(mode, projectRoot string) {
 	dir := filepath.Join(projectRoot, ".wipnote")
 	os.MkdirAll(dir, 0755)                                       //nolint:errcheck
 	os.WriteFile(filepath.Join(dir, ".launch-mode"), data, 0644) //nolint:errcheck
+}
+
+// composeSystemPrompt is the text appended to Claude's system prompt: the
+// prompt file or the embedded orchestrator prompt with research routing
+// (neither for a NoOrchestrator launch), then the mods' rules.
+func composeSystemPrompt(opts LaunchOpts) string {
+	var systemPrompt string
+	// SystemPromptFile takes precedence over InjectSystemPrompt.
+	if opts.SystemPromptFile != "" {
+		if data, err := os.ReadFile(opts.SystemPromptFile); err == nil {
+			systemPrompt = string(data)
+		}
+	} else if opts.InjectSystemPrompt && !opts.NoOrchestrator {
+		systemPrompt = systemPromptContent
+	}
+	// Append the shared research-routing disposition exactly once. Source of
+	// truth: cmd/wipnote/prompts/research-routing.md (mirrored for subagents in
+	// the agent-context skill).
+	if systemPrompt != "" {
+		systemPrompt = strings.TrimSpace(systemPrompt) + "\n\n" + strings.TrimSpace(researchRoutingContent) + "\n"
+	}
+	if rules := modsSystemPrompt(opts.ModsDir); rules != "" {
+		systemPrompt = strings.TrimSpace(systemPrompt+"\n\n"+rules) + "\n"
+	}
+	return systemPrompt
 }

@@ -18,7 +18,7 @@ const ledgerHeader = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Delegation Runs</title></head><body>
 <main>
 <table data-delegation-ledger="true">
-<thead><tr><th>Run</th><th>Mode</th><th>Harness</th><th>Name</th><th>Label</th><th>Work Item</th><th>Link</th><th>Caller Session</th><th>Worker Sessions</th><th>Host</th><th>Started</th><th>Ended</th><th>Exit</th><th>End Reason</th><th>Input</th><th>Cached</th><th>Output</th><th>Reasoning</th><th>Resumed From</th><th>Model</th></tr></thead>
+<thead><tr><th>Run</th><th>Mode</th><th>Harness</th><th>Name</th><th>Label</th><th>Work Item</th><th>Link</th><th>Caller Session</th><th>Worker Sessions</th><th>Host</th><th>Started</th><th>Ended</th><th>Exit</th><th>End Reason</th><th>Input</th><th>Cached</th><th>Output</th><th>Reasoning</th><th>Resumed From</th><th>Model</th><th>Setup</th></tr></thead>
 <tbody>
 `
 
@@ -67,6 +67,7 @@ func columns(r Record) []column {
 		{"usage-reasoning", strconv.Itoa(r.UsageReasoning)},
 		{"resumed-from", r.ResumedFrom},
 		{"model", r.Model},
+		{"setup", r.Setup},
 	}
 }
 
@@ -112,7 +113,7 @@ func parseRow(row *goquery.Selection) (Record, bool) {
 		ID: a("run-id"), Mode: a("mode"), Harness: a("harness"), Name: a("name"),
 		Label: htmlledger.Attr(row, "data-label"), WorkItem: a("work-item"), Link: a("link"),
 		CallerSession: a("caller-session"), WorkerSessions: strings.Fields(a("worker-sessions")),
-		Host: a("host"), EndReason: a("end-reason"), ResumedFrom: a("resumed-from"), Model: a("model"),
+		Host: a("host"), EndReason: a("end-reason"), ResumedFrom: a("resumed-from"), Model: a("model"), Setup: a("setup"),
 	}
 	if len(r.WorkerSessions) == 0 {
 		r.WorkerSessions = nil

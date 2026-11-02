@@ -9,16 +9,16 @@ import (
 	"testing"
 )
 
-func TestInstall_WritesLayoutAndModOnly(t *testing.T) {
+func TestInstall_WritesLayoutAndModsOnly(t *testing.T) {
 	home := t.TempDir()
 	wrote, err := Install(home)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(wrote) != 2 {
+	if len(wrote) != 3 {
 		t.Fatalf("wrote = %q", wrote)
 	}
-	for _, rel := range []string{"layouts/wipnote-board.json", "mods/wipnote-board/main.js", "mods/wipnote-board/mod.json"} {
+	for _, rel := range []string{"layouts/wipnote-board.json", "mods/wipnote-board/main.js", "mods/wipnote-board/mod.json", "mods/wipnote-pane-header/main.js", "mods/wipnote-pane-header/mod.json"} {
 		if _, err := os.Stat(filepath.Join(home, rel)); err != nil {
 			t.Errorf("%s: %v", rel, err)
 		}
@@ -29,7 +29,7 @@ func TestInstall_WritesLayoutAndModOnly(t *testing.T) {
 }
 
 func TestInstall_NeverOverwrites(t *testing.T) {
-	for _, rel := range []string{"layouts/wipnote-board.json", "mods/wipnote-board"} {
+	for _, rel := range []string{"layouts/wipnote-board.json", "mods/wipnote-board", "mods/wipnote-pane-header"} {
 		t.Run(rel, func(t *testing.T) {
 			home := t.TempDir()
 			target := filepath.Join(home, rel)
@@ -48,7 +48,7 @@ func TestInstall_NeverOverwrites(t *testing.T) {
 				t.Fatalf("the person's file changed to %q", data)
 			}
 			// All or nothing: the other target must not appear either.
-			entries, _ := filepath.Glob(filepath.Join(home, "*", "wipnote-board*"))
+			entries, _ := filepath.Glob(filepath.Join(home, "*", "wipnote-*"))
 			if len(entries) != 1 {
 				t.Fatalf("a refused install wrote files: %q", entries)
 			}
@@ -85,4 +85,45 @@ func TestLayout_NamesItsModAndNoLook(t *testing.T) {
 	if !strings.Contains(string(data), `"mod": "`+LayoutName+`"`) {
 		t.Error("layout does not show its mod")
 	}
+}
+
+// The layout frames every pane, a lone one too, with the header mod it ships.
+func TestLayout_HeaderOnEveryPane(t *testing.T) {
+	data, err := assets.ReadFile(assetRoot + "/layouts/" + LayoutName + ".json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var root struct {
+		Children []struct {
+			Children []struct {
+				ID      string `json:"id"`
+				Content struct {
+					Pane struct {
+						Lone   bool `json:"lone"`
+						Header struct {
+							Content  map[string]string `json:"content"`
+							Position string            `json:"position"`
+							Reveal   string            `json:"reveal"`
+						} `json:"header"`
+					} `json:"pane"`
+				} `json:"content"`
+			} `json:"children"`
+		} `json:"children"`
+	}
+	if err := json.Unmarshal(data, &root); err != nil {
+		t.Fatal(err)
+	}
+	for _, col := range root.Children {
+		for _, b := range col.Children {
+			if b.ID != "main" {
+				continue
+			}
+			p := b.Content.Pane
+			if !p.Lone || p.Header.Content["mod"] != HeaderMod || p.Header.Position != "top" || p.Header.Reveal != "always" {
+				t.Fatalf("main pane = %+v", p)
+			}
+			return
+		}
+	}
+	t.Fatal("no main block")
 }

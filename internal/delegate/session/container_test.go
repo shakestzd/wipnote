@@ -40,6 +40,9 @@ func containerEnv(t *testing.T) (*env, *containertest.Stub, string) {
 func (e *env) containerOpts(name, harness string) SpawnOptions {
 	o := e.opts(name)
 	o.Harness, o.Container, o.Root = harness, true, e.dir
+	if harness == HarnessCodex {
+		o.Profile = ""
+	}
 	return o
 }
 

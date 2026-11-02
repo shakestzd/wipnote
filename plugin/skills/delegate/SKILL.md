@@ -91,25 +91,39 @@ wipnote delegate result api-fix
 wipnote delegate stop api-fix
 ```
 
-**`wipnote delegate spawn [NAME] (--harness claude|codex | --resume OLD)`** starts a worker and returns at once with `{run, name, pane, harness, status}`. Status is `starting`.
+**`wipnote delegate spawn [NAME] (--harness claude|codex | --resume OLD)`** starts a worker and returns at once with `{run, name, pane, harness, status, profile, model, effort, tools, mcp, plugins}`. Status is `starting`.
 
-- NAME is optional. Without it, the worker is named `<item-id>-<slug of its title>`, cut to 32 characters. A NAME is `[a-z0-9-]`, 1 to 32 characters, starts with a letter and is unique among live workers.
+- NAME is optional. Without it, the worker is named `<item-id>-<slug of its title>`, cut to 32 characters. A NAME is `[a-z0-9-]`, 1 to 32 characters, starts with a letter and is unique among live workers. Name a worker after its task, or omit the name to get one from the work item.
 - `--work-item ID` sets the item. The default is your active claim. Without one, spawn refuses.
 - `--brief TEXT` or `--brief-file PATH` (`-` for stdin) is the first task. It goes by file, never on the typed line.
 - `--container` starts the worker in the project's devcontainer. A Codex worker there needs this host in `delegate.codex.dangerFullAccessHosts`.
 - `--resume OLD` continues the stopped worker OLD on its last harness session, in its folder and place. NAME is required with `--resume`. It refuses while OLD is live, when OLD's run folder was swept, when no session id was recorded, when another run already continues that session, and for a Codex resume with a brief.
 
-**Choose the worker's model and tools.** The default is the harness's default model, so pick a cheaper one for small work.
+**Choose the worker's setup, per task.** You pick it at spawn; spawn never guesses from the brief. A Claude worker starts lean: no `~/.claude/CLAUDE.md`, MCP, auto memory, skills, subagents, Chrome or git status in the prompt, and only Bash, Read, Edit and Write. That is about a fifth of the usual first-request prompt (14k against 75k tokens); on four small tasks it cost 11% to 40% less than a native subagent on the same model (`docs/design/delegate-token-benchmark.md`). The prompt cache lives 5m, which suits short workers; use `--cache-ttl 1h` for a worker that will sit idle between tasks. Add only what the task needs.
+
+| Task | Use |
+|---|---|
+| Small, well-defined edit, a lookup, a typo | `--profile simple` (haiku, low effort) |
+| Normal coding, tests, a review | the default, `--profile standard` (sonnet, medium) |
+| Hard design, a tricky bug, a large refactor | `--profile deep` (opus, high) |
+| It must behave as your own session (your CLAUDE.md, MCP, skills, orchestrating) | `--profile full` |
+| Search across files, fetching a page, running subagents | `--tool Grep`, `--tool WebFetch`, `--tool Agent` |
+| It needs one MCP server or connector | `--mcp NAME` (a `claude.ai Notion` connector, a `plugin:x:y` server, or a local server) |
+| It needs one plugin's skills | `--plugin NAME` (or `name@marketplace`) |
+| It must follow your global rules | `--user-rules`, or better, put the rule in the brief |
 
 ```bash
-wipnote delegate spawn fix-typo --harness claude --model haiku --effort low --brief "Fix the typo in README.md"
-wipnote delegate spawn review --harness claude --model haiku --brief "List the MCP tools" -- --mcp-config m.json --strict-mcp-config --allowedTools mcp__x__y
+wipnote delegate spawn fix-typo --harness claude --profile simple --brief "Fix the typo in README.md"
+wipnote delegate spawn notes --harness claude --mcp "claude.ai Notion" --brief "Summarize the Q3 page"
+wipnote delegate spawn review --harness claude --profile deep --tool Grep --brief "Review core/slug for races"
 ```
 
-- `--model` and `--effort` work for Claude and Codex. Other harness flags go after `--`. A one-shot takes them in its argv: `wipnote delegate run -- claude -p "..." --model haiku`.
+- `~/.claude/CLAUDE.md` is off in every profile but `full` (or with `--user-rules`), so the brief must carry any rule the worker needs.
+- `--model` and `--effort` override the profile and also work for Codex. Codex refuses `--profile`, `--tool`, `--mcp`, `--plugin` and `--user-rules`. Other harness flags go after `--` and win over the profile, for example `--tools`, `--settings`, `--mcp-config`. A one-shot takes them in its argv: `wipnote delegate run -- claude -p "..." --model haiku`.
+- An unknown profile, MCP server or plugin refuses the spawn and lists the valid names. `--mcp` and `--plugin` turn on exactly what you name. ToolSearch is added with any MCP server and Skill with any plugin.
 - `-p`, `--resume`, `--session-id` and `--name` are refused, because they break the worker's session. Giving the model twice is refused.
-- `--strict-mcp-config` drops the MCP servers from your configs, the wipnote plugin and claude.ai. It does not drop the IDE connection or tools that a plugin registers. Name those in `--disallowedTools`.
-- The model is on the ledger row and in `delegate list`. A `--resume` with none of these flags keeps the old run's flags.
+- Your own profiles go in `~/.wipnote/config.json` under `delegate.claude.profiles.<name>` with `{model, effort, tools, mcp, plugins, userRules, cacheTTL}`. A profile of a built-in's name replaces it. `delegate.claude.defaultProfile` picks the default.
+- spawn prints the `profile`, `model`, `effort`, `tools`, `mcp` and `plugins` the worker got. They are on the ledger row too, and a `--resume` with none of these flags keeps the old run's setup.
 
 **`wipnote delegate send NAME [TEXT | --file PATH|-]`** gives a live worker a task. The task goes to the worker's inbox first, then herdr types a hint. It is refused, and writes nothing, unless the worker accepts input and its input line holds no draft.
 
@@ -160,7 +174,7 @@ A stopped worker's claim ends as `abandoned`. When a worker crashed or lost its 
 
 ## See agents in the Herdr app
 
-**`wipnote delegate install-board`** copies the `wipnote-board` layout and mod into the Herdr app's home. The board lists every agent by what it needs from you, with its work item. It never overwrites a file, and your own layout stays as it is. It prints the `herdr-app check` and `layout.switch` commands to run next.
+**`wipnote delegate install-board`** copies the `wipnote-board` layout and its mods (the board and a pane header) into the Herdr app's home. The board lists every agent by what it needs from you, with its work item. It never overwrites a file, and your own layout stays as it is. It prints the `herdr-app check` and `layout.switch` commands to run next.
 
 ## Settings
 

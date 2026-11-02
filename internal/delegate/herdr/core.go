@@ -159,7 +159,7 @@ func (c *Core) startShell(ctx context.Context, cwd, space, tab string) (PaneID, 
 		}
 	}
 	var w wireTerminal
-	if err := c.call(ctx, &w, args...); err != nil {
+	if err := c.runNamed(ctx, &w, args); err != nil {
 		return "", err
 	}
 	if w.Address == "" {
@@ -178,6 +178,9 @@ func (c *Core) TabCreate(ctx context.Context, workspace, label, cwd string) (Tab
 	pane, err := c.startShell(ctx, cwd, workspace, tab)
 	if err != nil {
 		return "", "", err
+	}
+	if workspace != "" {
+		nameTab(ctx, tab, label)
 	}
 	return TabID(tab), pane, nil
 }
