@@ -32,7 +32,7 @@ func routeCoders(event *CloudEvent, getenv func(string) string) *guardOutcome {
 	}
 	return block(fmt.Sprintf(`Inside Herdr, coding work goes to a lean worker instead of %s. Run:
   wipnote delegate spawn NAME --harness claude --work-item ID --brief-file PATH
-then wipnote delegate wait NAME, wipnote delegate result NAME and wipnote delegate stop NAME.
+then wipnote delegate wait NAME --timeout 10m, wipnote delegate result NAME and wipnote delegate stop NAME.
 Choose its model with --profile simple, standard or deep, and add --worktree when workers edit overlapping files.
 A worker does not load this project's rules by default, so put any rule that must hold in its brief.
 If spawn refuses, for example at the cap of 6 workers, do the work in this session. wipnote skill show delegate has the details.`, agent))

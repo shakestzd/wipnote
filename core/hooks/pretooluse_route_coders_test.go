@@ -34,7 +34,7 @@ func TestRouteCoders(t *testing.T) {
 				t.Fatalf("outcome %+v, want deny=%v", out, c.deny)
 			}
 			if c.deny {
-				for _, want := range []string{"wipnote delegate spawn", c.agent, "brief"} {
+				for _, want := range []string{"wipnote delegate spawn", "wipnote delegate wait NAME --timeout", c.agent, "brief"} {
 					if !strings.Contains(out.result.Reason, want) {
 						t.Errorf("reason lacks %q:\n%s", want, out.result.Reason)
 					}
