@@ -57,6 +57,9 @@ func resumeOptions(d Deps, o *SpawnOptions, from string) error {
 	if o.WorkItem == "" {
 		o.WorkItem = old.WorkItem
 	}
+	if o.Model == "" && o.Effort == "" && len(o.Extra) == 0 {
+		o.Model, o.Flags = info.Model, info.Flags // stay on the old run's model
+	}
 	if info.Place == PlaceContainer {
 		o.Container, o.Root = true, info.Root
 	}

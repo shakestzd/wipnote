@@ -124,18 +124,23 @@ func containerBrief(store *runstore.Store, rf *runstore.RunFolder, info Info) (s
 // place. A Codex worker gets exactly one --sandbox, danger-full-access (its
 // host opted in at spawn), so the launcher's own fallback never decides.
 func containerArgv(info Info, brief string) []string {
+	flags := info.Flags
+	info.Flags = nil // they follow the brief, as on the host
 	argv := BootArgv("wipnote", info, "")
 	if info.Harness == HarnessCodex {
 		argv = append(argv, "--", "--sandbox", string(codex.DangerFullAccess))
 		if brief != "" {
 			argv = append(argv, brief)
 		}
-		return argv
+		return append(argv, flags...)
+	}
+	if brief != "" || len(flags) > 0 {
+		argv = append(argv, "--")
 	}
 	if brief != "" {
-		argv = append(argv, "--", brief)
+		argv = append(argv, brief)
 	}
-	return argv
+	return append(argv, flags...)
 }
 
 // termEnv is what scripts/devcontainer.sh passes for an interactive shell.

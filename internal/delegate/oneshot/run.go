@@ -15,6 +15,7 @@ import (
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/render"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
+	"github.com/shakestzd/wipnote/internal/delegate/session"
 )
 
 // Options are one `wipnote delegate run`.
@@ -83,7 +84,7 @@ func Run(ctx context.Context, o Options) (Result, error) {
 	}
 	rec, err := o.Ledger.Open(delegationledger.Record{
 		Mode: delegationledger.ModeOneshot, Harness: string(r.Kind), Label: strings.TrimSpace(o.Label),
-		WorkItem: o.WorkItem, CallerSession: o.CallerSession, Host: ledgerHost(o, r),
+		WorkItem: o.WorkItem, CallerSession: o.CallerSession, Host: ledgerHost(o, r), Model: session.FlagValue(r.Argv),
 	})
 	if err != nil {
 		return Result{}, err
@@ -178,7 +179,9 @@ func codexHome() string {
 	return filepath.Join(home, ".codex")
 }
 
-// inHerdr: a pane needs HERDR_ENV=1, a client and the herdr binary.
+// inHerdr: a pane needs a herdr or hc context, a client and its binary. Core
+// reports its own missing binary on the first call, and placePane then runs
+// the job headless.
 func (o Options) inHerdr() bool {
 	if o.NoPane || o.Herdr == nil || !o.HerdrEnv.InHerdr {
 		return false

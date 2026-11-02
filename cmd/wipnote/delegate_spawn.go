@@ -23,10 +23,10 @@ import (
 // (plan-28b4a7f6 slice 10): an interactive worker in the caller's workers
 // tab. It returns within seconds with status starting.
 func delegateSpawnCmd() *cobra.Command {
-	var harness, workItem, brief, briefFile, resumeFrom string
+	var harness, workItem, brief, briefFile, resumeFrom, model, effort string
 	var inContainer bool
 	cmd := &cobra.Command{
-		Use:   "spawn [NAME] (--harness claude|codex | --resume OLD) [--work-item ID] [--brief TEXT | --brief-file PATH] [--container]",
+		Use:   "spawn [NAME] (--harness claude|codex | --resume OLD) [--work-item ID] [--brief TEXT | --brief-file PATH] [--model M] [--effort E] [--container] [-- HARNESS_FLAGS]",
 		Short: "Start an interactive Claude or Codex worker in the caller's herdr workers tab",
 		Long: `Starts an interactive worker under wipnote claude or wipnote codex in a split of
 the caller's workers tab (one tab per caller, at most 6 workers). spawn types one
@@ -53,19 +53,29 @@ unless this host is in delegate.codex.dangerFullAccessHosts.
 given. NAME is required with --resume. The new run's ledger row has
 resumed_from set. It refuses while OLD is live, when OLD's run folder was swept,
 when no session id was recorded, when another run already continues that
-session, and a Codex resume with a brief.`,
-		Args: cobra.RangeArgs(0, 1),
+session, and a Codex resume with a brief.
+
+--model picks the worker's model, so small work can go to a cheaper one, and
+--effort its reasoning effort. Other harness flags go after --, such as
+--mcp-config m.json --strict-mcp-config --allowedTools mcp__x__y. A flag that
+ends the interactive session or sets its identity (-p, --resume, --session-id,
+--name) is refused. A resume with none of these keeps the old run's. The model
+is recorded on the run's ledger row.`,
+		Args: func(cmd *cobra.Command, args []string) error {
+			return cobra.MaximumNArgs(1)(cmd, spawnNameArgs(cmd, args))
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			text, err := readBrief(brief, briefFile, cmd.InOrStdin())
 			if err != nil {
 				return err
 			}
 			name := ""
-			if len(args) == 1 {
-				name = args[0]
+			names := spawnNameArgs(cmd, args)
+			if len(names) == 1 {
+				name = names[0]
 			}
 			return runDelegateSpawn(cmd, spawnArgs{name: name, harness: harness, workItem: workItem,
-				brief: text, container: inContainer, resume: resumeFrom})
+				brief: text, container: inContainer, resume: resumeFrom, model: model, effort: effort, extra: args[len(names):]})
 		},
 	}
 	cmd.Flags().StringVar(&harness, "harness", "", "claude or codex")
@@ -73,8 +83,19 @@ session, and a Codex resume with a brief.`,
 	cmd.Flags().StringVar(&brief, "brief", "", "the worker's first task")
 	cmd.Flags().StringVar(&briefFile, "brief-file", "", "read the first task from a file (- for stdin)")
 	cmd.Flags().BoolVar(&inContainer, "container", false, "start the worker in the project's own devcontainer")
+	cmd.Flags().StringVar(&model, "model", "", "the worker's model, such as haiku")
+	cmd.Flags().StringVar(&effort, "effort", "", "the worker's reasoning effort, such as low")
 	cmd.Flags().StringVar(&resumeFrom, "resume", "", "continue the stopped worker OLD's last session, in its folder and place")
 	return cmd
+}
+
+// spawnNameArgs is the positional words before --; those after it are harness
+// flags.
+func spawnNameArgs(cmd *cobra.Command, args []string) []string {
+	if dash := cmd.ArgsLenAtDash(); dash >= 0 {
+		return args[:dash]
+	}
+	return args
 }
 
 func readBrief(text, file string, stdin io.Reader) (string, error) {
@@ -94,6 +115,8 @@ func readBrief(text, file string, stdin io.Reader) (string, error) {
 // spawnArgs is one spawn command's flags.
 type spawnArgs struct {
 	name, harness, workItem, brief, resume string
+	model, effort                          string
+	extra                                  []string
 	container                              bool
 }
 
@@ -125,7 +148,7 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	}
 	o := session.SpawnOptions{
 		Name: a.name, Harness: a.harness, WorkItem: a.workItem, WorkTitle: title, CallerSession: caller, CallerPane: env.CallerPane,
-		Brief: a.brief, Cwd: cwd, Container: a.container, Root: projectDir,
+		Brief: a.brief, Cwd: cwd, Container: a.container, Root: projectDir, Model: a.model, Effort: a.effort, Extra: a.extra,
 		CodexOptIn: (a.container || a.resume != "") && hostOptedIn(projectDir),
 		BootLine:   func(run string) string { return session.BootLine(exe, projectDir, run, caller) },
 	}
@@ -169,7 +192,7 @@ func delegateSessionDeps(wipnoteDir string) (session.Deps, herdr.Env, error) {
 		ResolveWorkItem: func(id string) (string, error) { return resolveSpawnWorkItem(wipnoteDir, id) }}
 	env := herdr.EnvFrom(os.Getenv)
 	if env.InHerdr {
-		d.Herdr = herdr.New(env)
+		d.Herdr = herdr.NewClient(env, 0)
 	}
 	return d, env, nil
 }

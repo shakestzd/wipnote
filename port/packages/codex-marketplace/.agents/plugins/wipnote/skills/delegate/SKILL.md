@@ -13,6 +13,8 @@ disable-model-invocation: true
 
 Do not call `codex exec`, `codex review`, `claude -p` or `ccx task` directly. In the Bash tool, a bare call is denied, and the denial names the `wipnote delegate run` form to use. A command that starts with `wipnote delegate` is never denied.
 
+Do not start Claude or Codex with `hc run` or `herdr agent start`, even when `hc --skill` or `herdr --skill` shows that form. It is denied and the denial names `wipnote delegate spawn`. Use `hc` itself for plain programs: tests, builds and servers.
+
 **Chained commands skip the ledger until v2.** A pipe, `;`, `&&`, a command fed on stdin or `dev exec` is not redirected. It runs as typed and gets no ledger row. `delegate run` refuses such an argv.
 
 ## Run one call
@@ -54,7 +56,7 @@ Rules:
 - `claude -p` must not set its own `--output-format`. The run adds `--output-format stream-json --verbose`.
 - `codex exec` always gets one `--sandbox`: `read-only`, or `workspace-write` with `--write`. `danger-full-access` is passed only on a host listed in `delegate.codex.dangerFullAccessHosts` in `~/.wipnote/config.json`.
 - A bare `ccx task` in the Bash tool is denied. The denial names `wipnote delegate run --container -- <task words>` when the task is plain words and the project has its own devcontainer; otherwise (ccx flags such as `--resume`, or no devcontainer) it names `wipnote delegate run -- ccx task ...`. Run the form it names.
-- Inside herdr (`HERDR_ENV=1`) the call runs in a herdr pane. Otherwise it runs headless.
+- Inside the herdr TUI (`HERDR_ENV=1`) the call runs in a herdr pane. Inside the Herdr app or bare `hc` (`HC_TERMINAL_ID`) it runs in an hc terminal. Otherwise it runs headless.
 - The command exits with the tool's exit status, or 130 when its pane was closed.
 - A long run blocks until it ends. Run it in the background when the harness lets you.
 
@@ -62,7 +64,13 @@ One-shot runs do not claim a work item and do not count as a worker.
 
 ## Run an interactive worker
 
-Workers need herdr (`HERDR_ENV=1`). Each caller gets one workers tab, with at most 6 workers.
+Workers need the herdr TUI (`HERDR_ENV=1`) or an hc terminal (`HC_TERMINAL_ID`). Each caller gets one workers tab, with at most 6 workers.
+
+In an hc terminal, a pane is a terminal address such as `t7`:
+
+- In the Herdr app, workers appear in one new tab in your space. The app arranges them. Under bare `hc` they are children of your terminal: see them with `hc ls`, take one over with `hc attach t7`.
+- A worker outlives its caller and types no notes into the caller. Hear from it with `wait`, as in the TUI.
+- Claude reports its status to `hc`, so the app shows it as an agent.
 
 ```
 Delegate worker:
@@ -90,6 +98,18 @@ wipnote delegate stop api-fix
 - `--brief TEXT` or `--brief-file PATH` (`-` for stdin) is the first task. It goes by file, never on the typed line.
 - `--container` starts the worker in the project's devcontainer. A Codex worker there needs this host in `delegate.codex.dangerFullAccessHosts`.
 - `--resume OLD` continues the stopped worker OLD on its last harness session, in its folder and place. NAME is required with `--resume`. It refuses while OLD is live, when OLD's run folder was swept, when no session id was recorded, when another run already continues that session, and for a Codex resume with a brief.
+
+**Choose the worker's model and tools.** The default is the harness's default model, so pick a cheaper one for small work.
+
+```bash
+wipnote delegate spawn fix-typo --harness claude --model haiku --effort low --brief "Fix the typo in README.md"
+wipnote delegate spawn review --harness claude --model haiku --brief "List the MCP tools" -- --mcp-config m.json --strict-mcp-config --allowedTools mcp__x__y
+```
+
+- `--model` and `--effort` work for Claude and Codex. Other harness flags go after `--`. A one-shot takes them in its argv: `wipnote delegate run -- claude -p "..." --model haiku`.
+- `-p`, `--resume`, `--session-id` and `--name` are refused, because they break the worker's session. Giving the model twice is refused.
+- `--strict-mcp-config` drops the MCP servers from your configs, the wipnote plugin and claude.ai. It does not drop the IDE connection or tools that a plugin registers. Name those in `--disallowedTools`.
+- The model is on the ledger row and in `delegate list`. A `--resume` with none of these flags keeps the old run's flags.
 
 **`wipnote delegate send NAME [TEXT | --file PATH|-]`** gives a live worker a task. The task goes to the worker's inbox first, then herdr types a hint. It is refused, and writes nothing, unless the worker accepts input and its input line holds no draft.
 
@@ -137,6 +157,10 @@ A stopped worker's claim ends as `abandoned`. When a worker crashed or lost its 
 - **The run page** (`run.html`) is the full run as one HTML page. Show it to the user, or give them its path.
 - **The run folder** is `.wipnote/delegate/runs/<run-id>/`. It is not committed. Finished runs are removed after `keepDays` (7 days by default).
 - **The delegations ledger** is `.wipnote/delegations-ledger.html`. It is committed. Each run is one row: run id (`dlg-...`), mode, harness, label, work item, start and end, exit, end reason and token counts. Never edit it by hand.
+
+## See agents in the Herdr app
+
+**`wipnote delegate install-board`** copies the `wipnote-board` layout and mod into the Herdr app's home. The board lists every agent by what it needs from you, with its work item. It never overwrites a file, and your own layout stays as it is. It prints the `herdr-app check` and `layout.switch` commands to run next.
 
 ## Settings
 

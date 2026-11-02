@@ -57,7 +57,7 @@ func BootArgv(exe string, info Info, brief string) []string {
 	if info.ResumeSession == "" && info.Harness == HarnessClaude {
 		argv = append(argv, "--name", info.Name)
 	}
-	if brief != "" || len(info.Args) > 0 {
+	if brief != "" || len(info.Args) > 0 || len(info.Flags) > 0 {
 		argv = append(argv, "--")
 	}
 	if brief != "" {
@@ -65,7 +65,7 @@ func BootArgv(exe string, info Info, brief string) []string {
 	}
 	// The prompt goes before the launch args: a variadic flag such as
 	// --mcp-config would read a later prompt as one of its values.
-	return append(argv, info.Args...)
+	return append(append(argv, info.Args...), info.Flags...)
 }
 
 // claudeDirArgs tell the Claude launcher where claude runs (--work-dir,

@@ -50,9 +50,14 @@ type SpawnOptions struct {
 	// recorded with them in session.json.
 	LaunchArgs                     func(rf *runstore.RunFolder) ([]string, error)
 	SessionID, Transcript, WorkDir string
-	ProjectDir                     string        // with WorkDir: the run store's project (Info.ProjectDir)
-	ShellWait                      time.Duration // DefaultShellWait when zero
-	Poll                           time.Duration // DefaultPoll when zero
+	// Model and Effort are the harness's --model and effort; Extra are other
+	// harness flags (--mcp-config, --allowedTools). Spawn turns them into Flags,
+	// which boot passes and a resume inherits (see harnessFlags).
+	Model, Effort string
+	Extra, Flags  []string
+	ProjectDir    string        // with WorkDir: the run store's project (Info.ProjectDir)
+	ShellWait     time.Duration // DefaultShellWait when zero
+	Poll          time.Duration // DefaultPoll when zero
 }
 
 // Spawned is spawn's payload: {run, name, pane, harness, status}.
@@ -62,6 +67,7 @@ type Spawned struct {
 	Pane    string `json:"pane"`
 	Harness string `json:"harness"`
 	Status  string `json:"status"`
+	Model   string `json:"model,omitempty"`
 }
 
 // Spawn starts a worker and returns with status starting. Refusals come
@@ -95,7 +101,7 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 		})
 		return Spawned{}, err
 	}
-	return Spawned{Run: info.Run, Name: info.Name, Pane: info.Pane, Harness: info.Harness, Status: StatusStarting}, nil
+	return Spawned{Run: info.Run, Name: info.Name, Pane: info.Pane, Harness: info.Harness, Status: StatusStarting, Model: info.Model}, nil
 }
 
 // placeWorker runs under the caller's workers lock: lost workers are swept
@@ -167,6 +173,9 @@ func prepareSpawn(d Deps, o *SpawnOptions) error {
 	if o.Name == "" {
 		o.Name = slug.WorkerName(o.WorkItem, o.WorkTitle)
 	}
+	if err := harnessFlags(o); err != nil {
+		return err
+	}
 	return checkSpawn(d, *o)
 }
 
@@ -218,7 +227,7 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	row, err := d.Ledger.Open(delegationledger.Record{
 		Mode: delegationledger.ModeInteractive, Harness: o.Harness, Name: o.Name, WorkItem: o.WorkItem,
 		Link: "tag", CallerSession: o.CallerSession, Host: placeOf(o), Started: d.now(),
-		ResumedFrom: o.ResumedFrom,
+		ResumedFrom: o.ResumedFrom, Model: o.Model,
 	})
 	if err != nil {
 		return Info{}, nil, err
@@ -226,7 +235,7 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	info := Info{
 		Run: row.ID, Name: o.Name, Harness: o.Harness, WorkItem: o.WorkItem, Caller: o.CallerSession,
 		CallerPane: string(o.CallerPane), Cwd: o.Cwd, Place: placeOf(o), Created: d.now().Format(time.RFC3339),
-		ResumedFrom: o.ResumedFrom, ResumeSession: o.ResumeSession,
+		ResumedFrom: o.ResumedFrom, ResumeSession: o.ResumeSession, Model: o.Model, Flags: o.Flags,
 	}
 	if o.Container {
 		info.Root = o.Root

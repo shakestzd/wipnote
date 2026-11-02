@@ -49,6 +49,10 @@ type Info struct {
 	// SessionID and Transcript the session id they fix and its transcript
 	// file: a Claude one-shot run's launch (slice 22).
 	Args []string `json:"args,omitempty"`
+	// Flags are the harness flags the spawn chose, which a resume inherits,
+	// and Model the model among them.
+	Flags []string `json:"flags,omitempty"`
+	Model string   `json:"model,omitempty"`
 	// WorkDir is where the launcher runs claude (--work-dir): the caller's
 	// own cwd, a linked worktree too, rather than the project's main root.
 	WorkDir string `json:"work_dir,omitempty"`

@@ -106,6 +106,8 @@ type Record struct {
 	// harnesses that do not report it and for rows written before it.
 	UsageReasoning int
 	ResumedFrom    string // dlg- id of the run this one resumed
+	// Model is the model the run asked for; empty means the harness's default.
+	Model string
 }
 
 // IsOpen reports whether the run has no recorded end. An imported row
