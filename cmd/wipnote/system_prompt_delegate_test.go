@@ -11,6 +11,8 @@ func TestSystemPrompt_DelegateGuidance(t *testing.T) {
 	for _, want := range []string{
 		"wipnote delegate run", "wipnote delegate spawn", "wipnote skill show delegate",
 		"Do not call `codex exec`, `codex review`, `claude -p` or `ccx task` directly",
+		"Inside herdr or the Herdr app, hand coding work to a `wipnote delegate spawn` worker",
+		"Use a subagent when spawn refuses because you are outside Herdr",
 	} {
 		if !strings.Contains(systemPromptContent, want) {
 			t.Errorf("system prompt lacks %q", want)

@@ -1,12 +1,12 @@
 ---
 name: delegate
-description: "Hands work to another harness with wipnote delegate: one codex exec, codex review, claude -p or ccx task call with run, or an interactive Claude or Codex worker with spawn, send, wait, result and stop. Covers the claim rules, the run page and the delegations ledger. Use when handing a prompt, a review or a work item to another harness."
+description: "Hands work to a worker with wipnote delegate: one codex exec, codex review, claude -p or ccx task call with run, or an interactive Claude or Codex worker with spawn, send, wait, result and stop. Covers worker setup, parallel worktrees, the claim rules, the run page and the delegations ledger. Use for coding work inside Herdr, or when handing a prompt, a review or a work item to another harness."
 disable-model-invocation: true
 ---
 
 # wipnote delegate
 
-`wipnote delegate` is the one way to hand work to another harness. Every run is a row in the delegations ledger.
+`wipnote delegate` is the one way to hand work to another harness, and inside herdr or the Herdr app it is the first choice for coding work, ahead of a `wipnote:*-coder` subagent. Every run is a row in the delegations ledger.
 
 - **One call:** `wipnote delegate run`. It starts the tool, waits for it and prints the answer.
 - **A worker:** `wipnote delegate spawn`. It starts an interactive Claude or Codex session in a herdr pane. You give it tasks with `send` and read its answers with `wait` and `result`.
@@ -99,7 +99,7 @@ wipnote delegate stop api-fix
 - `--container` starts the worker in the project's devcontainer. A Codex worker there needs this host in `delegate.codex.dangerFullAccessHosts`.
 - `--resume OLD` continues the stopped worker OLD on its last harness session, in its folder and place. NAME is required with `--resume`. It refuses while OLD is live, when OLD's run folder was swept, when no session id was recorded, when another run already continues that session, and for a Codex resume with a brief.
 
-**Choose the worker's setup, per task.** You pick it at spawn; spawn never guesses from the brief. A Claude worker starts lean: no `~/.claude/CLAUDE.md`, MCP, auto memory, skills, subagents, Chrome or git status in the prompt, and only Bash, Read, Edit, Write, Grep and Glob. That is about a fifth of the usual first-request prompt (14k against 75k tokens); on short tasks it cost 19% to 51% less than a native subagent on the same model and effort. On one longer multi-file edit it cost about 33% less at low effort and about the same at medium, in a small sample (`docs/design/delegate-token-benchmark.md`). Pick the lowest effort that suits the task. The prompt cache lives 5m, which suits short workers; use `--cache-ttl 1h` for a worker that will sit idle between tasks. Add only what the task needs.
+**Choose the worker's setup, per task.** You pick it at spawn; spawn never guesses from the brief. A Claude worker starts lean: no `~/.claude/CLAUDE.md`, MCP, auto memory, skills, subagents, Chrome or git status in the prompt, and only Bash, Read, Edit, Write, Grep and Glob. That is about a fifth of the usual first-request prompt (14k against 75k tokens); on short tasks it cost 19% to 51% less than a native subagent on the same model and effort. On one longer multi-file edit, the default worker cost about 35% less than a native `wipnote-feature-coder`, in a small sample of three runs each on a repository with large rules (`docs/design/delegate-token-benchmark.md`). Pick the lowest effort that suits the task. The prompt cache lives 5m, which suits short workers; use `--cache-ttl 1h` for a worker that will sit idle between tasks. Add only what the task needs.
 
 | Task | Use |
 |---|---|
