@@ -108,7 +108,11 @@ func (o *SpawnOptions) addLeanFlags(ctx context.Context) error {
 	if o.Container {
 		home = "" // the container has its own home
 	}
-	spec := LeanSpec{Home: home, UserRules: o.UserRules, Tools: o.Tools, Plugins: plugins,
+	var roots []string
+	if !o.ProjectRules && !o.Container {
+		roots = []string{root, o.Cwd}
+	}
+	spec := LeanSpec{Home: home, UserRules: o.UserRules, RulesRoots: roots, Tools: o.Tools, Plugins: plugins,
 		Deny: plan.Deny, Open: plan.Open, MCP: len(o.MCP) > 0, CacheTTL: o.CacheTTL}
 	o.Flags = append(o.Flags, LeanFlags(o.Extra, spec)...)
 	if len(plan.Servers) > 0 {

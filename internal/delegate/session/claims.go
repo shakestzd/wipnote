@@ -27,10 +27,19 @@ func ClaimLine(workItem string) string {
 	return fmt.Sprintf("First claim your work item: run `wipnote %s start %s`.\n", workitem.KindForID(workItem), workItem)
 }
 
+// rulesLine tells a lean worker its project rules were not loaded, so a task
+// that depends on them can read them.
+func rulesLine(info Info) string {
+	if !info.Lean || info.Setup.ProjectRules || info.Place == PlaceContainer {
+		return ""
+	}
+	return "This project's CLAUDE.md and rules are not loaded. Read them only if the task depends on project conventions.\n"
+}
+
 // TaskPreamble is what goes before a task's text, in the brief and in every
 // sent task: the claim, then the result preamble.
 func TaskPreamble(info Info, mailDir string) string {
-	return ClaimLine(info.WorkItem) + Preamble(info, mailDir)
+	return ClaimLine(info.WorkItem) + rulesLine(info) + Preamble(info, mailDir)
 }
 
 // paneWindow bounds how long a spawn may take from opening its row to

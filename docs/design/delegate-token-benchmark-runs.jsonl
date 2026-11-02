@@ -51,3 +51,15 @@
 {"run":"nl-1","side":"native-low","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":11,"in":22,"w5":42301,"w1h":0,"cr":328285,"out":5545,"first_cw":23303,"first_cr":0}
 {"run":"nl-2","side":"native-low","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":14,"in":28,"w5":49132,"w1h":0,"cr":486075,"out":7425,"first_cw":23298,"first_cr":0}
 {"run":"nl-3","side":"native-low","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":16,"in":32,"w5":45132,"w1h":0,"cr":542408,"out":7203,"first_cw":23298,"first_cr":0}
+{"run":"sq5-c1","side":"sq-c","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":15,"in":32,"w5":34587,"w1h":0,"cr":464898,"out":5714,"first_cw":9977,"first_cr":7684}
+{"run":"sq5-p1","side":"sq-p","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":21,"in":44,"w5":38990,"w1h":0,"cr":686007,"out":8189,"first_cw":9994,"first_cr":6268}
+{"run":"sq5-r1","side":"sq-r","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":14,"in":28,"w5":20104,"w1h":0,"cr":253284,"out":5204,"first_cw":2139,"first_cr":6268}
+{"run":"sq5-c2","side":"sq-c","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":24,"in":50,"w5":39717,"w1h":0,"cr":835360,"out":9257,"first_cw":9994,"first_cr":7684}
+{"run":"sq5-p2","side":"sq-p","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":15,"in":32,"w5":35979,"w1h":0,"cr":467896,"out":5977,"first_cw":9988,"first_cr":6268}
+{"run":"sq5-r2","side":"sq-r","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":14,"in":28,"w5":22111,"w1h":0,"cr":265109,"out":5141,"first_cw":2139,"first_cr":6268}
+{"run":"sq5-s1","side":"sq-s","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":13,"in":26,"w5":20589,"w1h":0,"cr":242630,"out":7045,"first_cw":3147,"first_cr":7684}
+{"run":"sq5-s2","side":"sq-s","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":12,"in":26,"w5":24702,"w1h":0,"cr":244514,"out":5202,"first_cw":3137,"first_cr":7684}
+{"run":"n5-1","side":"sq-n","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":11,"in":22,"w5":40585,"w1h":0,"cr":313264,"out":5774,"first_cw":20880,"first_cr":0}
+{"run":"n5-2","side":"sq-n","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":11,"in":22,"w5":40293,"w1h":0,"cr":312634,"out":5679,"first_cw":20880,"first_cr":0}
+{"run":"sq5-s3","side":"sq-s","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":12,"in":26,"w5":22339,"w1h":0,"cr":235757,"out":5069,"first_cw":3138,"first_cr":7684}
+{"run":"n5-3","side":"sq-n","task":"t5","check":"pass","model":"claude-sonnet-5-5","reqs":17,"in":34,"w5":46505,"w1h":0,"cr":562685,"out":8549,"first_cw":20880,"first_cr":0}

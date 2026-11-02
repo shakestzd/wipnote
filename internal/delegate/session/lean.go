@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 // ErrBadSetup refuses a profile, MCP server, plugin or flag the worker's
@@ -29,14 +31,15 @@ func hasFlag(args []string, flag string) bool {
 // LeanSpec is what the lean flags are built from; the zero value is the
 // bare lean worker.
 type LeanSpec struct {
-	Home      string          // for the CLAUDE.md exclude; "" omits it
-	UserRules bool            // keep ~/.claude/CLAUDE.md
-	Tools     []string        // built-in tools beyond Bash, Read, Edit, Write, Grep, Glob
-	Plugins   map[string]bool // enabledPlugins overlay (name@marketplace)
-	Deny      []string        // MCP servers to deny by exact name
-	Open      bool            // drop --strict-mcp-config (connector or plugin servers)
-	MCP       bool            // any MCP server is on: adds ToolSearch
-	CacheTTL  string          // prompt cache lifetime, "5m" (default) or "1h"
+	Home       string          // for the CLAUDE.md exclude; "" omits it
+	UserRules  bool            // keep ~/.claude/CLAUDE.md
+	RulesRoots []string        // folders whose CLAUDE.md and rules the worker does not load
+	Tools      []string        // built-in tools beyond Bash, Read, Edit, Write, Grep, Glob
+	Plugins    map[string]bool // enabledPlugins overlay (name@marketplace)
+	Deny       []string        // MCP servers to deny by exact name
+	Open       bool            // drop --strict-mcp-config (connector or plugin servers)
+	MCP        bool            // any MCP server is on: adds ToolSearch
+	CacheTTL   string          // prompt cache lifetime, "5m" (default) or "1h"
 }
 
 // Prompt cache lifetimes a worker can take. A subscription main conversation
@@ -80,12 +83,18 @@ func (s LeanSpec) settings() string {
 		"remoteControlAtStartup": false,
 		"includeGitInstructions": false,
 		"promptCacheTtl":         CacheTTL5m,
+		// A worker has no one at its input box, so these only spend tokens:
+		// a suggestion after each response, a recap once it sits unfocused,
+		// and a compaction of an idle conversation.
+		"promptSuggestionEnabled": false,
+		"awaySummaryEnabled":      false,
+		"idleCompaction":          false,
 	}
 	if s.CacheTTL != "" {
 		m["promptCacheTtl"] = s.CacheTTL
 	}
-	if s.Home != "" && !s.UserRules {
-		m["claudeMdExcludes"] = []string{strings.TrimRight(s.Home, "/") + "/.claude/CLAUDE.md"}
+	if ex := s.mdExcludes(); len(ex) > 0 {
+		m["claudeMdExcludes"] = ex
 	}
 	if len(s.Plugins) > 0 {
 		m["enabledPlugins"] = s.Plugins
@@ -99,6 +108,31 @@ func (s LeanSpec) settings() string {
 	}
 	data, _ := json.Marshal(m) // strings, bools and maps of them cannot fail
 	return string(data)
+}
+
+// mdExcludes is the claudeMdExcludes list: ~/.claude/CLAUDE.md unless the worker
+// keeps it, then the project files under each root. A root is also tried with
+// symlinks resolved, because the exclude matches the real path. Project rules
+// were about half of a worker's first request on this repository.
+func (s LeanSpec) mdExcludes() []string {
+	var ex []string
+	if s.Home != "" && !s.UserRules {
+		ex = append(ex, strings.TrimRight(s.Home, "/")+"/.claude/CLAUDE.md")
+	}
+	seen := map[string]bool{"": true}
+	for _, r := range s.RulesRoots {
+		for _, root := range []string{r, paths.EvalSymlinksBestEffort(r)} {
+			root = strings.TrimRight(root, "/")
+			if seen[root] {
+				continue
+			}
+			seen[root] = true
+			for _, f := range []string{"/**/CLAUDE.md", "/**/CLAUDE.local.md", "/**/AGENTS.md", "/.claude/CLAUDE.md", "/.claude/rules/**"} {
+				ex = append(ex, root+f)
+			}
+		}
+	}
+	return ex
 }
 
 // LeanFlags are the default flags of a Claude worker. A flag the user passed

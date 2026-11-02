@@ -65,6 +65,7 @@ type SpawnOptions struct {
 	Profile             string
 	Tools, MCP, Plugins []string
 	UserRules           bool
+	ProjectRules        bool         // keep the project CLAUDE.md and rules; off in simple and standard
 	CacheTTL            string       // "5m" (default) or "1h"; --cache-ttl beats the profile
 	Config              ClaudeConfig // delegate.claude from the user's config
 	mcpConfig           []byte       // the generated --mcp-config, written to the run folder

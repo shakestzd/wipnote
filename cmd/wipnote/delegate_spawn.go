@@ -26,7 +26,7 @@ import (
 // tab. It returns within seconds with status starting.
 func delegateSpawnCmd() *cobra.Command {
 	var harness, workItem, brief, briefFile, resumeFrom, model, effort string
-	var inContainer, userRules, inWorktree bool
+	var inContainer, userRules, projectRules, inWorktree bool
 	var base string
 	var profile, cacheTTL string
 	var tools, mcp, plugins []string
@@ -48,10 +48,10 @@ func delegateSpawnCmd() *cobra.Command {
 				name = names[0]
 			}
 			return runDelegateSpawn(cmd, spawnArgs{name: name, harness: harness, workItem: workItem,
-				brief: text, container: inContainer, resume: resumeFrom, model: model, effort: effort, profile: profile, tools: tools, mcp: mcp, plugins: plugins, userRules: userRules, cacheTTL: cacheTTL, extra: args[len(names):], worktree: inWorktree, base: base})
+				brief: text, container: inContainer, resume: resumeFrom, model: model, effort: effort, profile: profile, tools: tools, mcp: mcp, plugins: plugins, userRules: userRules, projectRules: projectRules, cacheTTL: cacheTTL, extra: args[len(names):], worktree: inWorktree, base: base})
 		},
 	}
-	registerSpawnFlags(cmd, &spawnFlagVars{harness: &harness, workItem: &workItem, brief: &brief, briefFile: &briefFile, inContainer: &inContainer, model: &model, profile: &profile, tools: &tools, mcp: &mcp, plugins: &plugins, userRules: &userRules, cacheTTL: &cacheTTL, effort: &effort, resumeFrom: &resumeFrom, inWorktree: &inWorktree, base: &base})
+	registerSpawnFlags(cmd, &spawnFlagVars{harness: &harness, workItem: &workItem, brief: &brief, briefFile: &briefFile, inContainer: &inContainer, model: &model, profile: &profile, tools: &tools, mcp: &mcp, plugins: &plugins, userRules: &userRules, projectRules: &projectRules, cacheTTL: &cacheTTL, effort: &effort, resumeFrom: &resumeFrom, inWorktree: &inWorktree, base: &base})
 	return cmd
 }
 
@@ -118,12 +118,14 @@ Write, Grep and Glob: about a fifth of the usual first-request prompt. --model a
 override the profile. Add only what the task needs: --tool T (WebFetch,
 Agent...), --mcp NAME (a local server, a "claude.ai Notion" connector or a
 plugin:x:y server; ToolSearch is added), --plugin NAME (Skill is added),
---user-rules (keep ~/.claude/CLAUDE.md; otherwise put the rules in the brief).
+--user-rules (keep ~/.claude/CLAUDE.md; otherwise put the rules in the brief),
+--project-rules (keep the project CLAUDE.md and rules, which simple and standard
+leave out: the worker is told, and can read them if the task needs them).
 The prompt cache lives 5m by default, which suits short workers; use --cache-ttl 1h
 for a worker that will sit idle between tasks.
 An unknown profile, server or plugin refuses the spawn and lists the valid ones.
 Your own profiles go in ~/.wipnote/config.json under delegate.claude.profiles
-(model, effort, tools, mcp, plugins, userRules, cacheTTL), and delegate.claude.defaultProfile
+(model, effort, tools, mcp, plugins, userRules, projectRules, cacheTTL), and delegate.claude.defaultProfile
 picks the default. A --tools, --chrome, --settings or --strict-mcp-config after
 -- replaces its default (your --settings replaces the whole overlay). A resume
 that gives none of these keeps the old run's setup. The result shows profile,
@@ -133,7 +135,7 @@ and delegate run are unchanged.`
 // spawnFlagVars points at the variables the spawn flags fill.
 type spawnFlagVars struct {
 	harness, workItem, brief, briefFile, model, profile, cacheTTL, effort, resumeFrom, base *string
-	inContainer, userRules, inWorktree                                                      *bool
+	inContainer, userRules, projectRules, inWorktree                                        *bool
 	tools, mcp, plugins                                                                     *[]string
 }
 
@@ -151,6 +153,7 @@ func registerSpawnFlags(cmd *cobra.Command, v *spawnFlagVars) {
 	f.StringArrayVar(v.mcp, "mcp", nil, "turn on exactly this MCP server (repeatable); claude.ai connectors and plugin servers by their `claude mcp list` name")
 	f.StringArrayVar(v.plugins, "plugin", nil, "turn on exactly this Claude plugin (repeatable), name or name@marketplace")
 	f.BoolVar(v.userRules, "user-rules", false, "keep ~/.claude/CLAUDE.md for the worker")
+	f.BoolVar(v.projectRules, "project-rules", false, "keep the project CLAUDE.md and rules (off in simple and standard)")
 	f.StringVar(v.cacheTTL, "cache-ttl", "", "prompt cache lifetime, 5m (default) or 1h; 1h for a worker that sits idle between tasks")
 	f.StringVar(v.effort, "effort", "", "the worker's reasoning effort, such as low")
 	f.BoolVar(v.inWorktree, "worktree", false, "give the worker its own git worktree and branch delegate/NAME, so workers can share a work item")
@@ -188,6 +191,7 @@ type spawnArgs struct {
 	profile                                string
 	tools, mcp, plugins                    []string
 	userRules                              bool
+	projectRules                           bool
 	cacheTTL                               string
 	extra                                  []string
 	container                              bool
@@ -230,7 +234,7 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	}
 	o := session.SpawnOptions{
 		Name: a.name, Harness: a.harness, WorkItem: a.workItem, WorkTitle: title, CallerSession: caller, CallerPane: env.CallerPane,
-		Brief: a.brief, Cwd: cwd, Container: a.container, Root: projectDir, Model: a.model, Effort: a.effort, Profile: a.profile, Tools: a.tools, MCP: a.mcp, Plugins: a.plugins, UserRules: a.userRules, CacheTTL: a.cacheTTL,
+		Brief: a.brief, Cwd: cwd, Container: a.container, Root: projectDir, Model: a.model, Effort: a.effort, Profile: a.profile, Tools: a.tools, MCP: a.mcp, Plugins: a.plugins, UserRules: a.userRules, ProjectRules: a.projectRules, CacheTTL: a.cacheTTL,
 		Config: session.LoadClaudeConfig(paths.UserConfigPath()), Extra: a.extra, Worktree: a.worktree, Base: a.base,
 		CodexOptIn: (a.container || a.resume != "") && hostOptedIn(projectDir),
 		BootLine:   func(run string) string { return session.BootLine(exe, projectDir, run, caller) },

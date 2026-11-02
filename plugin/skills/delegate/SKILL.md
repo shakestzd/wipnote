@@ -111,6 +111,7 @@ wipnote delegate stop api-fix
 | It needs one MCP server or connector | `--mcp NAME` (a `claude.ai Notion` connector, a `plugin:x:y` server, or a local server) |
 | It needs one plugin's skills | `--plugin NAME` (or `name@marketplace`) |
 | It must follow your global rules | `--user-rules`, or better, put the rule in the brief |
+| It must follow project conventions | `--project-rules`, or better, put the rules that matter in the brief |
 
 ```bash
 wipnote delegate spawn fix-typo --harness claude --profile simple --brief "Fix the typo in README.md"
@@ -119,7 +120,8 @@ wipnote delegate spawn review --harness claude --profile deep --tool WebFetch --
 ```
 
 - `~/.claude/CLAUDE.md` is off in every profile but `full` (or with `--user-rules`), so the brief must carry any rule the worker needs.
-- `--model` and `--effort` override the profile and also work for Codex. Codex refuses `--profile`, `--tool`, `--mcp`, `--plugin` and `--user-rules`. Other harness flags go after `--` and win over the profile, for example `--tools`, `--settings`, `--mcp-config`. A one-shot takes them in its argv: `wipnote delegate run -- claude -p "..." --model haiku`.
+- The project's `CLAUDE.md` and `.claude/rules/` are off in `simple` and `standard` (keep them with `--project-rules`). This is the largest saving on a repository with long rules. The worker is told and can read them, but put any rule that must hold, such as a safety rule or a quality gate, in the brief.
+- `--model` and `--effort` override the profile and also work for Codex. Codex refuses `--profile`, `--tool`, `--mcp`, `--plugin`, `--user-rules` and `--project-rules`. Other harness flags go after `--` and win over the profile, for example `--tools`, `--settings`, `--mcp-config`. A one-shot takes them in its argv: `wipnote delegate run -- claude -p "..." --model haiku`.
 - An unknown profile, MCP server or plugin refuses the spawn and lists the valid names. `--mcp` and `--plugin` turn on exactly what you name. ToolSearch is added with any MCP server and Skill with any plugin.
 - `-p`, `--resume`, `--session-id` and `--name` are refused, because they break the worker's session. Giving the model twice is refused.
 - Your own profiles go in `~/.wipnote/config.json` under `delegate.claude.profiles.<name>` with `{model, effort, tools, mcp, plugins, userRules, cacheTTL}`. A profile of a built-in's name replaces it. `delegate.claude.defaultProfile` picks the default.

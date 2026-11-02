@@ -44,7 +44,7 @@ func TestLeanFlags_Defaults(t *testing.T) {
 	if ex := s["claudeMdExcludes"].([]any); len(ex) != 1 || ex[0] != "/home/u/.claude/CLAUDE.md" {
 		t.Errorf("claudeMdExcludes = %v", ex)
 	}
-	for _, k := range []string{"autoMemoryEnabled", "syncClaudeAiPlugins", "remoteControlAtStartup", "includeGitInstructions"} {
+	for _, k := range []string{"autoMemoryEnabled", "syncClaudeAiPlugins", "remoteControlAtStartup", "promptSuggestionEnabled", "awaySummaryEnabled", "idleCompaction", "includeGitInstructions"} {
 		if s[k] != false {
 			t.Errorf("%s = %v, want false", k, s[k])
 		}
@@ -438,5 +438,54 @@ func TestHarnessFlags_BadCacheTTLRefused(t *testing.T) {
 	o = SpawnOptions{Harness: HarnessCodex, CacheTTL: "1h"}
 	if err := harnessFlags(ctxBG, &o); !errors.Is(err, ErrBadSetup) {
 		t.Fatalf("codex: err = %v", err)
+	}
+}
+
+func TestLeanSpec_MdExcludesTheProjectNotTheUser(t *testing.T) {
+	root := t.TempDir()
+	ex := LeanSpec{Home: "/h", UserRules: true, RulesRoots: []string{root, root, ""}}.mdExcludes()
+	joined := strings.Join(ex, "\n")
+	if strings.Contains(joined, "/h/") {
+		t.Fatalf("--user-rules must keep the user's file: %q", ex)
+	}
+	for _, want := range []string{root + "/**/CLAUDE.md", root + "/.claude/rules/**"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("no %q in %q", want, ex)
+		}
+	}
+	n := 0
+	for _, e := range ex {
+		if e == root+"/**/CLAUDE.md" {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("root listed %d times: %q", n, ex)
+	}
+	if got := (LeanSpec{}).mdExcludes(); len(got) != 0 {
+		t.Errorf("zero spec excludes %q", got)
+	}
+}
+
+func TestBuiltinProfiles_ProjectRulesOnlyInDeep(t *testing.T) {
+	for name, want := range map[string]bool{"simple": false, "standard": false, "deep": true} {
+		if builtinProfiles[name].ProjectRules != want {
+			t.Errorf("%s: ProjectRules = %v, want %v", name, !want, want)
+		}
+	}
+}
+
+func TestRulesLine(t *testing.T) {
+	lean := Info{Lean: true}
+	if rulesLine(lean) == "" {
+		t.Error("a lean worker without rules must be told")
+	}
+	kept := Info{Lean: true}
+	kept.Setup.ProjectRules = true
+	box := Info{Lean: true, Place: PlaceContainer}
+	for name, i := range map[string]Info{"not lean": {}, "kept": kept, "container": box} {
+		if got := rulesLine(i); got != "" {
+			t.Errorf("%s: %q", name, got)
+		}
 	}
 }

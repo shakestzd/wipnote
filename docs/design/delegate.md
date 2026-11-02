@@ -291,11 +291,13 @@ like every close) with its run folder finished and its claim episodes expired.
 task; spawn never infers it from the brief. `--profile` is one of `simple` (haiku, low), `standard`
 (sonnet, medium; the default), `deep` (opus, high) or `full` (Claude's own start: no lean flags, the
 user's model and effort, the orchestrator prompt). A user profile in `~/.wipnote/config.json`
-(`delegate.claude.profiles.<name>`: model, effort, tools, mcp, plugins, userRules) replaces a built-in
+(`delegate.claude.profiles.<name>`: model, effort, tools, mcp, plugins, userRules, projectRules) replaces a built-in
 of the same name, and `delegate.claude.defaultProfile` picks the default. `--model`, `--effort`,
-`--tool T`, `--mcp NAME`, `--plugin NAME` and `--user-rules` add to or override the profile; raw flags
+`--tool T`, `--mcp NAME`, `--plugin NAME`, `--user-rules` and `--project-rules` add to or override the profile; raw flags
 after `--` win. Codex refuses all but `--model` and `--effort`. Lean workers cache for 5 minutes
-(`promptCacheTtl`) unless `--cache-ttl 1h` or a profile's `cacheTTL` says otherwise. Measured results
+(`promptCacheTtl`) unless `--cache-ttl 1h` or a profile's `cacheTTL` says otherwise. `simple` and `standard`
+leave out the project's `CLAUDE.md` and rules, and tell the worker so; `deep` and `--project-rules` keep them.
+A managed policy `CLAUDE.md` cannot be excluded. Measured results
 against native subagents, and their limits, are in
 [delegate-token-benchmark.md](delegate-token-benchmark.md).
 
