@@ -127,8 +127,12 @@ func codexSandboxOptions(projectDir string, write bool) sandboxSetup {
 	return sandboxSetup{SandboxOptions: oneshot.SandboxOptions{Write: write, Host: host, OptIn: hosts, Preflight: pf.Result}, notes: notes}
 }
 
+// preflightGOOS is the platform the bwrap preflight assumes; empty means
+// runtime.GOOS. Tests set it to "linux" so the stub probe runs on any host.
+var preflightGOOS string
+
 func codexPreflight(projectDir, host string) codex.Preflight {
-	pf := codex.Preflight{Host: host}
+	pf := codex.Preflight{Host: host, GOOS: preflightGOOS}
 	if projectDir != "" {
 		pf.Dir = filepath.Join(projectDir, ".wipnote", runstore.DirName)
 	}
