@@ -50,7 +50,7 @@ const paneWindow = 5 * time.Minute
 // interactive row holds while its worker lives (one worker per item, v1). A
 // lost worker (workerLost: pane gone, pane reused, or harness exited) is
 // closed first and no longer counts; it is returned so the spawn can unplace
-// it (checkLive runs under the caller's workers lock and namesLock, so it
+// it (checkLive runs under the project's workers lock and namesLock, so it
 // must take neither). So is a row that never recorded a pane within
 // paneWindow (its spawn died before placing). Running
 // under namesLock (claimName) means two spawns cannot both pass for one item.

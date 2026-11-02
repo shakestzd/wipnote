@@ -12,7 +12,7 @@ import (
 // Worker lifecycle (feat-f1171e59). A worker's pane is its own only while it
 // holds the terminal pinned at spawn: every key typed and every close checks
 // that first (ownPane), so a pane id herdr gave to someone else is never
-// touched. A lost worker (workerLost) leaves the caller's workers record by
+// touched. A lost worker (workerLost) leaves the project's workers record by
 // run; an exited harness's own shell-only pane is closed and the tab released
 // after the last worker, as stop does; a gone or reused pane is left alone.
 
@@ -59,7 +59,7 @@ func closeOwnPane(ctx context.Context, c herdr.Client, info Info) bool {
 // never touched.
 func loseWorker(ctx context.Context, d Deps, r delegationledger.Record, rf *runstore.RunFolder, info Info, ob Observation) {
 	if info.Run != "" {
-		_ = withWorkers(d.Store, info.CallerPane, func(w *Workers) error {
+		_ = withWorkers(d.Store, func(w *Workers) error {
 			unplace(ctx, d, w, info, ob)
 			return nil
 		})
@@ -80,7 +80,7 @@ func unplace(ctx context.Context, d Deps, w *Workers, info Info, ob Observation)
 	}
 }
 
-// sweepLost runs under the caller's workers lock before the cap is checked:
+// sweepLost runs under the project's workers lock before the cap is checked:
 // each recorded worker is observed, a lost one is unplaced and closed, and an
 // entry whose row is no longer open is dropped. So no lost worker counts
 // toward the cap or becomes a split target.

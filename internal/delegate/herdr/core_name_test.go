@@ -80,8 +80,7 @@ func TestCore_TabRenamedWithIDAndName(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := calls(t, app)
-	want := []string{"do tab.rename --id wipnote-workers-t1 --name workers", "do tab.settle --id wipnote-workers-t1"}
-	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+	if len(got) != 1 || got[0] != "do tab.rename --id wipnote-workers-t1 --name workers" {
 		t.Fatalf("herdr-app calls = %q", got)
 	}
 }
@@ -96,8 +95,8 @@ echo '{"ok": true}'`)
 	if _, _, err := c.TabCreate(bg, "s3", "workers", "/repo"); err != nil {
 		t.Fatal(err)
 	}
-	if got := calls(t, app); len(got) != 4 || !strings.HasPrefix(got[3], "do tab.settle") {
-		t.Fatalf("herdr-app calls = %q, want 3 renames then a settle", got)
+	if got := calls(t, app); len(got) != 3 {
+		t.Fatalf("herdr-app calls = %q, want 3 renames", got)
 	}
 }
 
@@ -135,16 +134,45 @@ func TestCore_MissingAppDoesNotFailOrWait(t *testing.T) {
 	}
 }
 
-// The workers tab is put away (settled) only once it has its name, and a failed
-// settle never fails the spawn.
-func TestCore_SettleFailureIsQuiet(t *testing.T) {
-	fastRetry(t)
+// The workers tab stays in the tab bar: spawn names it and never settles it.
+func TestCore_WorkersTabIsNeverSettled(t *testing.T) {
 	c, log := installHC(t, runReply)
-	app := installApp(t, log, `case "$*" in *tab.settle*) exit 1;; esac; echo '{"ok": true}'`)
+	app := installApp(t, log, "echo '{\"ok\": true}'")
 	if _, _, err := c.TabCreate(bg, "s3", "workers", "/repo"); err != nil {
-		t.Fatalf("a failed settle must not fail spawn: %v", err)
+		t.Fatal(err)
 	}
-	if got := calls(t, app); len(got) < 2 || !strings.HasPrefix(got[len(got)-1], "do tab.settle") {
-		t.Fatalf("herdr-app calls = %q", got)
+	for _, call := range calls(t, app) {
+		if strings.Contains(call, "tab.settle") {
+			t.Fatalf("herdr-app call %q settles the tab", call)
+		}
+	}
+}
+
+// One caller spawning in two projects gets two tabs; a key replaces its pane.
+func TestTabCreate_WorkersKeyNamesTheTab(t *testing.T) {
+	c, _ := installHC(t, runReply)
+	installApp(t, t.TempDir()+"/app.log", "echo '{\"ok\": true}'")
+	one, _, err := c.TabCreate(WithWorkersKey(bg, "proj-a"), "s3", "workers", "/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	two, _, err := c.TabCreate(WithWorkersKey(bg, "proj-b"), "s3", "workers", "/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if one == two || one != "wipnote-workers-proj-a" {
+		t.Fatalf("tabs %q and %q", one, two)
+	}
+}
+
+// A worker's terminal is labelled when it starts.
+func TestCore_WorkerLabelOnStart(t *testing.T) {
+	c, log := installHC(t, runReply)
+	if _, _, err := c.TabCreate(WithWorkerLabel(bg, "w1"), "s3", "workers", "/repo"); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(calls(t, log), "\n")
+	if !strings.Contains(got, "run --label wipnote.worker=w1") {
+		t.Fatalf("no worker label in:\n%s", got)
 	}
 }

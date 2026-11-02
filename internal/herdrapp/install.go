@@ -13,10 +13,10 @@ import (
 	"path/filepath"
 )
 
-// LayoutName is the layout and mod this package installs.
-const LayoutName = "wipnote-board"
+// LayoutName is the layout this package installs.
+const LayoutName = "wipnote-main"
 
-//go:embed all:assets/wipnote-board
+//go:embed all:assets/wipnote-main
 var assets embed.FS
 
 const assetRoot = "assets/" + LayoutName
@@ -33,19 +33,18 @@ func Home(getenv func(string) string, userHome string) string {
 // HeaderMod is the pane header mod the layout names.
 const HeaderMod = "wipnote-pane-header"
 
-// TabsMod is the tab bar mod the layout names: Herdr's own with settled tabs
-// left out.
-const TabsMod = "wipnote-tabs"
+// AgentsMod is the agents list the layout names: Herdr's own, keeping only the
+// nested row of a worker that has both a pane and a parent.
+const AgentsMod = "wipnote-agents"
 
 // Paths are the home's entries Install writes, relative to the home. Only
-// these four: the recipe describes the build and stays out, as Herdr's own guide
+// these three: the recipe describes the build and stays out, as Herdr's own guide
 // for adding a layout says.
 func Paths() []string {
 	return []string{
 		path.Join("layouts", LayoutName+".json"),
-		path.Join("mods", LayoutName),
+		path.Join("mods", AgentsMod),
 		path.Join("mods", HeaderMod),
-		path.Join("mods", TabsMod),
 	}
 }
 
@@ -53,7 +52,7 @@ func Paths() []string {
 type Conflict struct{ Path string }
 
 func (c *Conflict) Error() string {
-	return fmt.Sprintf("%s already exists: nothing was written. It may hold your edits; move it aside to install again", c.Path)
+	return fmt.Sprintf("%s already exists: nothing was written. It may hold your edits; use --replace to move it aside and install again", c.Path)
 }
 
 // Install copies the layout and its mods into home. It never overwrites: if any
@@ -76,6 +75,33 @@ func Install(home string) ([]string, error) {
 		}
 	}
 	return wrote, nil
+}
+
+// Replace moves the home's existing entries into a new folder named after stamp,
+// then installs. It returns the paths written and the folder, "" when nothing
+// had to move. The folder sits outside mods/ and layouts/, so the app does not
+// load what was moved.
+func Replace(home, stamp string) ([]string, string, error) {
+	aside := filepath.Join(home, "wipnote-replaced-"+stamp)
+	moved := ""
+	for _, rel := range Paths() {
+		target := filepath.Join(home, filepath.FromSlash(rel))
+		if _, err := os.Lstat(target); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return nil, moved, err
+		}
+		to := filepath.Join(aside, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+			return nil, moved, err
+		}
+		if err := os.Rename(target, to); err != nil {
+			return nil, moved, err
+		}
+		moved = aside
+	}
+	wrote, err := Install(home)
+	return wrote, moved, err
 }
 
 // copyTree copies one embedded file, or a folder and all it holds.

@@ -48,7 +48,7 @@ func TestList_LiveOrUnknownForegroundIsNotGone(t *testing.T) {
 }
 
 // An exited harness in a live pane is a worker loss for wait too: the run
-// leaves the caller's workers record, so it no longer takes a worker slot
+// leaves the project's workers record, so it no longer takes a worker slot
 // (PR 292 review). Only its own shell-only pane is closed.
 func TestWait_ExitedHarnessLeavesWorkersRecord(t *testing.T) {
 	e := newEnv(t)

@@ -2,28 +2,30 @@ package session
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 
 	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
 
-// workersDir holds one file per caller pane: its workers tab and its live
-// worker panes in spawn order (decision L: one workers tab per caller).
+// workersDir holds the project's workers record: its one workers tab and its
+// live worker panes in spawn order. The store belongs to one project, so every
+// delegator in that project shares the tab and the cap.
 const workersDir = "workers"
 
-// WorkerPane is one worker pane of a caller's workers tab.
+// WorkerPane is one worker pane of the project's workers tab.
 type WorkerPane struct {
 	Pane herdr.PaneID `json:"pane"`
 	Run  string       `json:"run"`
 }
 
-// Workers is a caller's workers tab record.
+// Workers is the project's workers tab record.
 type Workers struct {
 	Tab   *herdr.WorkersTab `json:"tab,omitempty"`
 	Panes []WorkerPane      `json:"panes"`
@@ -48,20 +50,21 @@ func (w *Workers) dropRun(run string) {
 	w.Panes = keep
 }
 
-var unsafeKey = regexp.MustCompile(`[^A-Za-z0-9_.-]`)
-
-func workersPath(store *runstore.Store, callerPane string) string {
-	key := unsafeKey.ReplaceAllString(callerPane, "_")
-	if key == "" {
-		key = "cur"
-	}
-	return filepath.Join(store.Root(), workersDir, key+".json")
+func workersPath(store *runstore.Store) string {
+	return filepath.Join(store.Root(), workersDir, "project.json")
 }
 
-// withWorkers runs fn on the caller's record under its lock and saves the
+// workersKey names the project in its workers tab id. The store's root is the
+// project's, so a linked worktree of the same repository gets the same tab.
+func workersKey(store *runstore.Store) string {
+	sum := sha256.Sum256([]byte(store.Root()))
+	return hex.EncodeToString(sum[:6])
+}
+
+// withWorkers runs fn on the project's record under its lock and saves the
 // record when fn returns nil.
-func withWorkers(store *runstore.Store, callerPane string, fn func(*Workers) error) error {
-	path := workersPath(store, callerPane)
+func withWorkers(store *runstore.Store, fn func(*Workers) error) error {
+	path := workersPath(store)
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("delegate: workers record: %w", err)
 	}
@@ -107,12 +110,12 @@ func prune(ctx context.Context, c herdr.Client, w *Workers) error {
 // B run 6: "at cap" is its own outcome).
 func checkCap(w *Workers) error {
 	if n := len(w.Panes); n >= herdr.MaxWorkers {
-		return fmt.Errorf("%w: %d live workers in this caller's workers tab (cap %d); stop one first", ErrAtCap, n, herdr.MaxWorkers)
+		return fmt.Errorf("%w: %d live workers in this project's workers tab (cap %d); stop one first", ErrAtCap, n, herdr.MaxWorkers)
 	}
 	return nil
 }
 
-// place gives the next worker a pane in the caller's workers tab and records
+// place gives the next worker a pane in the project's workers tab and records
 // it. herdr.Place creates the tab for the first worker and splits it after.
 func place(ctx context.Context, c herdr.Client, w *Workers, run, cwd string) (herdr.PaneID, error) {
 	tab, pane, err := herdr.Place(ctx, c, w.Tab, w.paneIDs(), "workers", cwd)

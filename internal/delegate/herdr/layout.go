@@ -13,8 +13,8 @@ import (
 // splits pane 1 down, n=2 pane 1 right, n=3 pane 2 right (a 2x2 grid beside
 // the caller), n>=4 the newest pane down; at the cap the run gets no pane.
 //
-// Interactive workers share ONE workers tab per caller, in the caller's
-// workspace (Place). The first worker creates the tab and uses its root pane;
+// Interactive workers share ONE workers tab per project, in the workspace of the
+// caller that started the first one (Place). The first worker creates the tab and uses its root pane;
 // the 2nd splits the first pane right, the 3rd the first pane down, the 4th
 // the second pane down, the 5th and 6th the largest pane. The caller's own tab
 // is never split, and at most MaxWorkers workers live in the tab.
@@ -97,7 +97,7 @@ func largest(live []PaneID, sizes []PaneRect) Placement {
 	return Placement{Target: best.Pane, Dir: Down}
 }
 
-// WorkersTab is the one tab delegate created for a caller's workers. Only a
+// WorkersTab is the one tab delegate created for a project's workers. Only a
 // tab recorded here is ever closed.
 type WorkersTab struct {
 	ID        TabID
