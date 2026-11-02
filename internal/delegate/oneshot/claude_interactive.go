@@ -137,7 +137,7 @@ func spawnWorker(ctx context.Context, o Options, plan claudePlan) (*worker, erro
 		fmt.Fprintf(o.Stderr, "wipnote: warning: workspace trust was not pre-seeded: %v\n", err)
 	}
 	so := session.SpawnOptions{
-		Harness: session.HarnessClaude, WorkItem: o.WorkItem, WorkTitle: o.WorkTitle, CallerSession: o.CallerSession,
+		Harness: session.HarnessClaude, Profile: session.ProfileFull, WorkItem: o.WorkItem, WorkTitle: o.WorkTitle, CallerSession: o.CallerSession,
 		CallerPane: o.HerdrEnv.CallerPane, Brief: plan.Prompt, Cwd: o.Cwd, Root: o.Root, BootLine: w.BootLine,
 		Model: session.FlagValue(plan.Args), SessionID: sid, Transcript: TranscriptPath(firstNonEmpty(w.ClaudeDir, ClaudeDataDir()), dir, sid), WorkDir: dir, ProjectDir: o.Root,
 		LaunchArgs: func(rf *runstore.RunFolder) ([]string, error) { return launchArgs(rf, o, plan, sid) },

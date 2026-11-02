@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/shakestzd/wipnote/internal/delegate/codex"
@@ -80,6 +81,9 @@ func ContainerBoot(ctx context.Context, store *runstore.Store, run, caller strin
 	if err != nil {
 		return nil, err
 	}
+	if info.Flags, err = mapMCPConfig(m, info.Flags); err != nil {
+		return nil, err
+	}
 	env := append(container.WorkerEnv(run, caller), termEnv()...)
 	return container.ExecArgv(info.Root, env, container.InDir(cwd, up.RemoteWorkspaceFolder, containerArgv(info, brief))), nil
 }
@@ -118,6 +122,30 @@ func containerBrief(store *runstore.Store, rf *runstore.RunFolder, info Info) (s
 		return "", err
 	}
 	return inside + strings.TrimPrefix(string(brief), host), nil
+}
+
+// mapMCPConfig maps the value of --mcp-config (or --mcp-config=PATH) to its
+// place in the container. Other flags are left alone: --settings may hold
+// JSON, so Mapper.Argv is not used here.
+func mapMCPConfig(m container.Mapper, flags []string) ([]string, error) {
+	out := slices.Clone(flags)
+	for i, f := range out {
+		switch {
+		case f == "--mcp-config" && i+1 < len(out):
+			p, err := m.Path(out[i+1])
+			if err != nil {
+				return nil, err
+			}
+			out[i+1] = p
+		case strings.HasPrefix(f, "--mcp-config="):
+			p, err := m.Path(strings.TrimPrefix(f, "--mcp-config="))
+			if err != nil {
+				return nil, err
+			}
+			out[i] = "--mcp-config=" + p
+		}
+	}
+	return out, nil
 }
 
 // containerArgv is the launcher inside: the container's own wipnote, in
