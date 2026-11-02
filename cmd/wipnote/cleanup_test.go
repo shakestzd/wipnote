@@ -71,28 +71,28 @@ func writeMinimalSessionHTML(t *testing.T, dir, sessionID string) {
 
 // ---------- shared helpers ----------
 
-// setupHTMLGraphDir creates a .wipnote/ directory tree with an SQLite DB
+// setupWipnoteDirWithDB creates a .wipnote/ directory tree with an SQLite DB
 // at the given root, and returns the wipnoteDir path.
-func setupHTMLGraphDir(t *testing.T) (string, *sql.DB) {
+func setupWipnoteDirWithDB(t *testing.T) (string, *sql.DB) {
 	t.Helper()
 	root := t.TempDir()
-	hgDir := filepath.Join(root, ".wipnote")
-	sessionsDir := filepath.Join(hgDir, "sessions")
+	wipnoteDir := filepath.Join(root, ".wipnote")
+	sessionsDir := filepath.Join(wipnoteDir, "sessions")
 	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
 
-	if err := os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, ".db"), 0o755); err != nil {
 		t.Fatalf("mkdir .db: %v", err)
 	}
-	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
+	dbPath := filepath.Join(wipnoteDir, ".db", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { database.Close() })
-	return hgDir, database
+	return wipnoteDir, database
 }
 
 // captureStdout captures os.Stdout during fn() and returns what was printed.
@@ -202,13 +202,13 @@ func makeOrphanSessionDir(t *testing.T, wipnoteDir, sessionID string, age time.D
 // TestRunCleanupOrphanSessions_ListDoesNotDelete verifies that --list (no
 // --delete) prints candidates but does not remove any directories.
 func TestRunCleanupOrphanSessions_ListDoesNotDelete(t *testing.T) {
-	hgDir, database := setupHTMLGraphDir(t)
+	wipnoteDir, database := setupWipnoteDirWithDB(t)
 	// Create an orphan session directory (no DB row).
-	orphanDir := makeOrphanSessionDir(t, hgDir, "orphan-list-cli-01", 20*24*time.Hour)
+	orphanDir := makeOrphanSessionDir(t, wipnoteDir, "orphan-list-cli-01", 20*24*time.Hour)
 	database.Close()
 
 	origFlag := projectDirFlag
-	projectDirFlag = filepath.Dir(hgDir)
+	projectDirFlag = filepath.Dir(wipnoteDir)
 	defer func() { projectDirFlag = origFlag }()
 
 	output := captureStdout(t, func() {
@@ -232,12 +232,12 @@ func TestRunCleanupOrphanSessions_ListDoesNotDelete(t *testing.T) {
 // TestRunCleanupOrphanSessions_DeleteRequiresYes verifies --delete without
 // --yes returns an error.
 func TestRunCleanupOrphanSessions_DeleteRequiresYes(t *testing.T) {
-	hgDir, database := setupHTMLGraphDir(t)
-	makeOrphanSessionDir(t, hgDir, "orphan-noyes-01", 20*24*time.Hour)
+	wipnoteDir, database := setupWipnoteDirWithDB(t)
+	makeOrphanSessionDir(t, wipnoteDir, "orphan-noyes-01", 20*24*time.Hour)
 	database.Close()
 
 	origFlag := projectDirFlag
-	projectDirFlag = filepath.Dir(hgDir)
+	projectDirFlag = filepath.Dir(wipnoteDir)
 	defer func() { projectDirFlag = origFlag }()
 
 	err := runCleanupOrphanSessions(true /* delete */, false /* yes */)
@@ -249,17 +249,17 @@ func TestRunCleanupOrphanSessions_DeleteRequiresYes(t *testing.T) {
 // TestRunCleanupOrphanSessions_DeleteWithYesRemovesEligible verifies that
 // --delete --yes removes orphan directories older than OrphanRetentionDays.
 func TestRunCleanupOrphanSessions_DeleteWithYesRemovesEligible(t *testing.T) {
-	hgDir, database := setupHTMLGraphDir(t)
+	wipnoteDir, database := setupWipnoteDirWithDB(t)
 
 	// Old orphan (20 days > 14-day retention, no recent writes after chtimes).
-	oldOrphanDir := makeOrphanSessionDir(t, hgDir, "old-orphan-del-01", 20*24*time.Hour)
+	oldOrphanDir := makeOrphanSessionDir(t, wipnoteDir, "old-orphan-del-01", 20*24*time.Hour)
 	// Young orphan (5 days < 14-day retention) — must NOT be deleted.
-	youngOrphanDir := makeOrphanSessionDir(t, hgDir, "young-orphan-del-01", 5*24*time.Hour)
+	youngOrphanDir := makeOrphanSessionDir(t, wipnoteDir, "young-orphan-del-01", 5*24*time.Hour)
 
 	database.Close()
 
 	origFlag := projectDirFlag
-	projectDirFlag = filepath.Dir(hgDir)
+	projectDirFlag = filepath.Dir(wipnoteDir)
 	defer func() { projectDirFlag = origFlag }()
 
 	err := runCleanupOrphanSessions(true /* delete */, true /* yes */)
@@ -281,7 +281,7 @@ func TestRunCleanupOrphanSessions_DeleteWithYesRemovesEligible(t *testing.T) {
 // TestRunCleanupOrphanSessions_NoOrphans verifies clean output when there
 // are no orphan directories.
 func TestRunCleanupOrphanSessions_NoOrphans(t *testing.T) {
-	hgDir, database := setupHTMLGraphDir(t)
+	wipnoteDir, database := setupWipnoteDirWithDB(t)
 	database.Close()
 
 	// A session is "known" when the CANONICAL session ledger says so. This
@@ -289,11 +289,11 @@ func TestRunCleanupOrphanSessions_NoOrphans(t *testing.T) {
 	// now reads a projection hydrated from the ledger, so seeding the table
 	// directly seeded a database nothing opens and the known session read as
 	// an orphan (feat-fc3cc9e0).
-	seedSessionLedgerEntry(t, hgDir, "3f6b1c2e-8a44-4d9b-9f21-77c0de5a1b34")
-	makeOrphanSessionDir(t, hgDir, "3f6b1c2e-8a44-4d9b-9f21-77c0de5a1b34", 0)
+	seedSessionLedgerEntry(t, wipnoteDir, "3f6b1c2e-8a44-4d9b-9f21-77c0de5a1b34")
+	makeOrphanSessionDir(t, wipnoteDir, "3f6b1c2e-8a44-4d9b-9f21-77c0de5a1b34", 0)
 
 	origFlag := projectDirFlag
-	projectDirFlag = filepath.Dir(hgDir)
+	projectDirFlag = filepath.Dir(wipnoteDir)
 	defer func() { projectDirFlag = origFlag }()
 
 	output := captureStdout(t, func() {
