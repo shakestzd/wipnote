@@ -14,7 +14,7 @@ var ErrBadSetup = errors.New("delegate: bad worker setup")
 // Lean Claude workers start with these built-in tools and nothing else the
 // user's setup would add. Measured on real workers (first request, cache write
 // tokens): 75,100 with Claude's defaults, 15,134 lean.
-var leanTools = []string{"Bash", "Read", "Edit", "Write"}
+var leanTools = []string{"Bash", "Read", "Edit", "Write", "Grep", "Glob"}
 
 // hasFlag reports whether args hold flag, bare or as flag=value.
 func hasFlag(args []string, flag string) bool {
@@ -31,7 +31,7 @@ func hasFlag(args []string, flag string) bool {
 type LeanSpec struct {
 	Home      string          // for the CLAUDE.md exclude; "" omits it
 	UserRules bool            // keep ~/.claude/CLAUDE.md
-	Tools     []string        // built-in tools beyond Bash, Read, Edit, Write
+	Tools     []string        // built-in tools beyond Bash, Read, Edit, Write, Grep, Glob
 	Plugins   map[string]bool // enabledPlugins overlay (name@marketplace)
 	Deny      []string        // MCP servers to deny by exact name
 	Open      bool            // drop --strict-mcp-config (connector or plugin servers)

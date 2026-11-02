@@ -55,24 +55,39 @@ var (
 	tabRenameCall  = 2 * time.Second
 )
 
-// nameTab names the tab best effort with the app's tab.rename. It does
-// nothing without herdr-app on PATH and never reports a failure.
+// nameTab names the tab best effort with the app's tab.rename and, once it
+// has a name, puts it away with tab.settle: the tab keeps running but lists
+// that honour settled hide it, so the board shows workers nested under their
+// caller instead. It does nothing without herdr-app on PATH and never reports
+// a failure.
 func nameTab(ctx context.Context, tab, name string) {
 	path, err := exec.LookPath("herdr-app")
 	if err != nil || tab == "" || name == "" {
 		return
 	}
+	if appDo(ctx, path, "tab.rename", "--id", tab, "--name", name) {
+		appDo(ctx, path, "tab.settle", "--id", tab)
+	}
+}
+
+// appDo runs `herdr-app do args...`, retrying while the app has not learned of
+// the tab yet. It reports whether a try succeeded.
+func appDo(ctx context.Context, path string, args ...string) bool {
 	for i := 0; i < tabRenameTries; i++ {
 		cctx, cancel := context.WithTimeout(ctx, tabRenameCall)
-		err := exec.CommandContext(cctx, path, "do", "tab.rename", "--id", tab, "--name", name).Run()
+		err := exec.CommandContext(cctx, path, append([]string{"do"}, args...)...).Run()
 		cancel()
-		if err == nil || ctx.Err() != nil || i == tabRenameTries-1 {
-			return
+		if err == nil {
+			return true
+		}
+		if ctx.Err() != nil || i == tabRenameTries-1 {
+			return false
 		}
 		select {
 		case <-ctx.Done():
-			return
+			return false
 		case <-time.After(tabRenameEvery):
 		}
 	}
+	return false
 }

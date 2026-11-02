@@ -66,6 +66,12 @@ type Info struct {
 	// launcher as --project-dir with WorkDir: the wipnote root (hooks, the
 	// launch marker) stays the run store's wherever claude runs.
 	ProjectDir string `json:"project_dir,omitempty"`
+	// Worktree, Branch and BaseSHA are a --worktree worker's own checkout,
+	// its new branch and the commit it was cut from. A resume of a stopped
+	// worker runs there when the folder is still present (feat-4310a889).
+	Worktree   string `json:"worktree,omitempty"`
+	Branch     string `json:"branch,omitempty"`
+	BaseSHA    string `json:"base_sha,omitempty"`
 	SessionID  string `json:"session_id,omitempty"`
 	Transcript string `json:"transcript,omitempty"`
 	Created    string `json:"created"`

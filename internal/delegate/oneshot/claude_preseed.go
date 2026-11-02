@@ -48,6 +48,13 @@ func preseedClaude(path string, dirs ...string) error {
 	return fmt.Errorf("claude config %s kept changing; trust was not pre-seeded", path)
 }
 
+// PreseedTrust marks dir trusted in Claude Code's global config (the same
+// seed the one-shot interactive path does), for a spawn that runs a worker
+// in a folder of its own.
+func PreseedTrust(dir string) error {
+	return preseedClaude(ClaudeConfigPath(), filepath.Clean(dir))
+}
+
 // lockClaudeConfig takes <path>.lock as Claude Code does (mkdir), waiting
 // up to preseedLockWait. It never breaks another holder's lock.
 func lockClaudeConfig(path string) (func(), error) {

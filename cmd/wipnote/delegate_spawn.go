@@ -15,6 +15,7 @@ import (
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/internal/delegate/codex"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
+	"github.com/shakestzd/wipnote/internal/delegate/oneshot"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 	"github.com/shakestzd/wipnote/internal/delegate/session"
 	"github.com/shakestzd/wipnote/internal/gate"
@@ -25,11 +26,12 @@ import (
 // tab. It returns within seconds with status starting.
 func delegateSpawnCmd() *cobra.Command {
 	var harness, workItem, brief, briefFile, resumeFrom, model, effort string
-	var inContainer, userRules bool
+	var inContainer, userRules, inWorktree bool
+	var base string
 	var profile, cacheTTL string
 	var tools, mcp, plugins []string
 	cmd := &cobra.Command{
-		Use:   "spawn [NAME] (--harness claude|codex | --resume OLD) [--work-item ID] [--brief TEXT | --brief-file PATH] [--model M] [--effort E] [--profile P] [--tool T] [--mcp S] [--plugin P] [--user-rules] [--cache-ttl 5m|1h] [--container] [-- HARNESS_FLAGS]",
+		Use:   "spawn [NAME] (--harness claude|codex | --resume OLD) [--work-item ID] [--brief TEXT | --brief-file PATH] [--model M] [--effort E] [--profile P] [--tool T] [--mcp S] [--plugin P] [--user-rules] [--cache-ttl 5m|1h] [--container | --worktree [--base REF]] [-- HARNESS_FLAGS]",
 		Short: "Start an interactive Claude or Codex worker in the caller's herdr workers tab",
 		Long:  delegateSpawnLong,
 		Args: func(cmd *cobra.Command, args []string) error {
@@ -46,16 +48,21 @@ func delegateSpawnCmd() *cobra.Command {
 				name = names[0]
 			}
 			return runDelegateSpawn(cmd, spawnArgs{name: name, harness: harness, workItem: workItem,
-				brief: text, container: inContainer, resume: resumeFrom, model: model, effort: effort, profile: profile, tools: tools, mcp: mcp, plugins: plugins, userRules: userRules, cacheTTL: cacheTTL, extra: args[len(names):]})
+				brief: text, container: inContainer, resume: resumeFrom, model: model, effort: effort, profile: profile, tools: tools, mcp: mcp, plugins: plugins, userRules: userRules, cacheTTL: cacheTTL, extra: args[len(names):], worktree: inWorktree, base: base})
 		},
 	}
-	registerSpawnFlags(cmd, &spawnFlagVars{harness: &harness, workItem: &workItem, brief: &brief, briefFile: &briefFile, inContainer: &inContainer, model: &model, profile: &profile, tools: &tools, mcp: &mcp, plugins: &plugins, userRules: &userRules, cacheTTL: &cacheTTL, effort: &effort, resumeFrom: &resumeFrom})
+	registerSpawnFlags(cmd, &spawnFlagVars{harness: &harness, workItem: &workItem, brief: &brief, briefFile: &briefFile, inContainer: &inContainer, model: &model, profile: &profile, tools: &tools, mcp: &mcp, plugins: &plugins, userRules: &userRules, cacheTTL: &cacheTTL, effort: &effort, resumeFrom: &resumeFrom, inWorktree: &inWorktree, base: &base})
 	return cmd
 }
 
 // delegateSpawnLong is the long help text of delegate spawn.
 const delegateSpawnLong = `Starts an interactive worker under wipnote claude or wipnote codex in a split of
-the caller's workers tab (one tab per caller, at most 6 workers). spawn types one
+the caller's workers tab (one tab per caller, at most 6 workers). In the Herdr app
+the tab is put away (tab.settle) so it does not show as its own tab: the wipnote
+board layout hides settled tabs and lists the workers in a tree under their caller;
+click a worker, or run terminal.peek, to see it (hc read works too). Herdr's own
+main layout and agents mod ignore settled, so there the tab and a second row per
+worker still show. spawn types one
 short boot line into the new pane and returns {run, name, pane, harness, status}
 with status "starting"; the worker's hooks bind its session, and the next
 delegate list renames and pins its herdr agent.
@@ -66,6 +73,19 @@ a preamble that tells the worker where to write its result. NAME is [a-z0-9-],
 Without NAME the worker is named <item-id>-<slug of its title>, cut to 32; the
 name is both its mailbox name and its Claude session name (--name). The
 work item defaults to the caller's active claim; spawn refuses without one.
+
+--worktree gives the worker its own git worktree at
+<root>/.claude/worktrees/<name> on a new branch delegate/<name>, cut from --base
+(default HEAD), and runs it there; hooks and the ledger stay on the project root.
+Because each worker has its own checkout, several workers may share one work item
+(without --worktree there is one live worker per item). The cap of 6 still holds.
+Use it when workers edit overlapping files; each branch is merged on its own.
+A taken name or branch refuses the spawn. It is for Claude workers and refuses
+--container and --resume. delegate stop removes the worktree and branch when they
+have no changes, no untracked files and no commits; otherwise it keeps them and
+reports {worktree, branch, kept}. A resume of a stopped worktree worker runs in its
+worktree while that folder still exists. A worker spawned from a linked worktree
+runs in that worktree.
 
 --container starts the worker in the project's own devcontainer: the boot in
 the pane runs devcontainer up, then devcontainer exec --workspace-folder <root>
@@ -93,9 +113,9 @@ A Claude worker starts lean, and YOU choose its setup per task:
 medium; the default), deep (opus, high) or full (Claude's own start: your model
 and effort, ~/.claude/CLAUDE.md, MCP, skills, orchestrator prompt). Lean drops
 ~/.claude/CLAUDE.md, MCP servers, auto memory, skills, subagents, Chrome, git
-status in the prompt and the orchestrator prompt, and gives only Bash, Read, Edit
-and Write: about a fifth of the usual first-request prompt. --model and --effort
-override the profile. Add only what the task needs: --tool T (Grep, WebFetch,
+status in the prompt and the orchestrator prompt, and gives only Bash, Read, Edit,
+Write, Grep and Glob: about a fifth of the usual first-request prompt. --model and --effort
+override the profile. Add only what the task needs: --tool T (WebFetch,
 Agent...), --mcp NAME (a local server, a "claude.ai Notion" connector or a
 plugin:x:y server; ToolSearch is added), --plugin NAME (Skill is added),
 --user-rules (keep ~/.claude/CLAUDE.md; otherwise put the rules in the brief).
@@ -112,9 +132,9 @@ and delegate run are unchanged.`
 
 // spawnFlagVars points at the variables the spawn flags fill.
 type spawnFlagVars struct {
-	harness, workItem, brief, briefFile, model, profile, cacheTTL, effort, resumeFrom *string
-	inContainer, userRules                                                            *bool
-	tools, mcp, plugins                                                               *[]string
+	harness, workItem, brief, briefFile, model, profile, cacheTTL, effort, resumeFrom, base *string
+	inContainer, userRules, inWorktree                                                      *bool
+	tools, mcp, plugins                                                                     *[]string
 }
 
 // registerSpawnFlags registers the delegate spawn flags on cmd.
@@ -127,12 +147,14 @@ func registerSpawnFlags(cmd *cobra.Command, v *spawnFlagVars) {
 	f.BoolVar(v.inContainer, "container", false, "start the worker in the project's own devcontainer")
 	f.StringVar(v.model, "model", "", "the worker's model, such as haiku")
 	f.StringVar(v.profile, "profile", "", "Claude worker profile: simple, standard (default), deep, full, or one from delegate.claude.profiles")
-	f.StringArrayVar(v.tools, "tool", nil, "add a built-in Claude tool to Bash,Read,Edit,Write (repeatable), such as Grep")
+	f.StringArrayVar(v.tools, "tool", nil, "add a built-in Claude tool to Bash,Read,Edit,Write,Grep,Glob (repeatable), such as WebFetch")
 	f.StringArrayVar(v.mcp, "mcp", nil, "turn on exactly this MCP server (repeatable); claude.ai connectors and plugin servers by their `claude mcp list` name")
 	f.StringArrayVar(v.plugins, "plugin", nil, "turn on exactly this Claude plugin (repeatable), name or name@marketplace")
 	f.BoolVar(v.userRules, "user-rules", false, "keep ~/.claude/CLAUDE.md for the worker")
 	f.StringVar(v.cacheTTL, "cache-ttl", "", "prompt cache lifetime, 5m (default) or 1h; 1h for a worker that sits idle between tasks")
 	f.StringVar(v.effort, "effort", "", "the worker's reasoning effort, such as low")
+	f.BoolVar(v.inWorktree, "worktree", false, "give the worker its own git worktree and branch delegate/NAME, so workers can share a work item")
+	f.StringVar(v.base, "base", "", "with --worktree: the ref the branch is cut from (default HEAD)")
 	f.StringVar(v.resumeFrom, "resume", "", "continue the stopped worker OLD's last session, in its folder and place")
 }
 
@@ -169,6 +191,8 @@ type spawnArgs struct {
 	cacheTTL                               string
 	extra                                  []string
 	container                              bool
+	worktree                               bool
+	base                                   string
 }
 
 func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
@@ -181,6 +205,7 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	if err != nil {
 		return err
 	}
+	d.PreseedTrust = oneshot.PreseedTrust
 	caller := hooks.EnvSessionID("")
 	if a.workItem == "" && a.resume == "" { // a resume defaults to the old run's item
 		a.workItem = gate.ActiveWorkItemForGate(projectDir, caller, db.NormaliseAgentID(os.Getenv("WIPNOTE_AGENT_ID")))
@@ -195,6 +220,9 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	} else if a.workItem != "" {
 		_, title = workItemTitle(wipnoteDir, a.workItem)
 	}
+	if a.base != "" && !a.worktree {
+		return fmt.Errorf("delegate spawn: --base needs --worktree")
+	}
 	cwd, _ := os.Getwd()
 	exe, err := os.Executable()
 	if err != nil {
@@ -203,7 +231,7 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	o := session.SpawnOptions{
 		Name: a.name, Harness: a.harness, WorkItem: a.workItem, WorkTitle: title, CallerSession: caller, CallerPane: env.CallerPane,
 		Brief: a.brief, Cwd: cwd, Container: a.container, Root: projectDir, Model: a.model, Effort: a.effort, Profile: a.profile, Tools: a.tools, MCP: a.mcp, Plugins: a.plugins, UserRules: a.userRules, CacheTTL: a.cacheTTL,
-		Config: session.LoadClaudeConfig(paths.UserConfigPath()), Extra: a.extra,
+		Config: session.LoadClaudeConfig(paths.UserConfigPath()), Extra: a.extra, Worktree: a.worktree, Base: a.base,
 		CodexOptIn: (a.container || a.resume != "") && hostOptedIn(projectDir),
 		BootLine:   func(run string) string { return session.BootLine(exe, projectDir, run, caller) },
 	}

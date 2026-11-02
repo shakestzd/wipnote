@@ -83,7 +83,7 @@ fixed.
     row's `caller_session` or its root (the worker can claim beside the orchestrator).
 
   An unrelated live session is still refused. An unreadable delegations ledger fails open.
-- **Concurrency (q-concurrent-workers: one worker per item in v1).** `spawn` refuses when an open
+- **Concurrency (q-concurrent-workers: one worker per item in v1; `spawn --worktree` lifts it, since each worker has its own checkout).** `spawn` refuses when an open
   interactive row for the item has a live worker (its pane lives, or its run folder cannot be
   read). A row whose pane is gone goes through the worker-loss path first. One-shot runs do not
   claim and do not count.
@@ -137,3 +137,45 @@ Claude Code 2.1.310, codex-cli 0.164.0).
 - **Not run:** B9, D8a and D8b need the owner at the keyboard. Slice 17 waits on B9; Codex idle
   detection waits on D8b.
 - Runs 2 to 5 failed on script bugs and on bug-5333ea49, fixed before run 6.
+
+## 3. Files
+
+| Data | Where | Committed | Writer |
+|---|---|---|---|
+| One row per run | `.wipnote/delegations-ledger.html` | yes, canonical | `delegate run`, `run-pane`, `import-orch`; later spawn, stop, wait and list |
+| Run folders, events, mailbox | `.wipnote/delegate/` | no, gitignored | the caller, the pane worker and the worker's hooks |
+| Claim episodes | `.wipnote/claims/` | yes, unchanged format | each session for itself |
+| Tool and prompt events | `agent_events` | as today | wipnote hooks; not copied |
+
+No absolute host path, user name or home folder enters a ledger row. The writer refuses one.
+
+**Ledger row** (`core/delegationledger`): `id` (`dlg-` plus at least 12 hex), `mode`
+(`oneshot` or `interactive`), `harness` (`claude`, `claude-print`, `codex`, `codex-review`, `ccx`),
+`name`, `label`, `work_item`, `link` (`tag` or `sid`), `caller_session`, `worker_sessions` (the
+harness's own ids, oldest first), `host` (`host` or `container`), `started`, `ended`, `exit`,
+`end_reason` (`exit`, `stop`, `pane_closed`, `gone`, `imported`), usage counts and `resumed_from`.
+
+**Readers** (slice 13): `wipnote lineage <work-item>` and `wipnote feature show <id>` list the item's
+rows (`delegations[]` in `lineage --json`), and `wipnote lineage dlg-<id>` shows one run. Each row
+lists its workers' claim episodes, joined from `.wipnote/claims/` on worker session id; a worker
+episode that overlaps a caller episode on the same item is a co-claim named by the `dlg-` id. The
+read-only orch reader (`internal/orchlink`) and lineage's `orch_sessions` are gone: orch history
+arrives through `import-orch`.
+
+**Run folder** (`.wipnote/delegate/runs/<run-id>/`, the feat-a1df60c2 contract): `raw.log`,
+`clean.log`, `clean.md`, `last.md`, `usage`, `start`, `end`, `exit` (its presence ends the run),
+`label`, `host`, `run.html`, and `events-<writer>.ndjson`. A container run also holds `container.json`,
+`up.log` and the worker's own `session-<id>.json` and `gate-<id>.json` (section 2.7). A one-shot run also uses `job.json` (what
+the pane worker runs) and, for ccx, `out.txt`. An interactive run also holds `session.json` (name,
+harness, pane, pinned terminal id, caller pane, cwd, place, first task id), `brief.md` and
+`state.json` (the state and group `list` last observed). A caller's
+workers tab and its worker panes are kept in `.wipnote/delegate/workers/<caller-pane>.json`.
+
+**Mailbox** (`.wipnote/delegate/mail/<name>/`): `inbox/` (written by the caller), `outbox/` (written by
+the worker; results are `<task-id>-result.json`, questions `<task-id>-q<n>.json`) and `ack/<msg-id>`
+(touched by the worker when it starts a task). Message files are `<seq>-<msg-id>.json`.
+
+**One writer per file.** Each message is its own file, written by temp file, fsync and rename. Each
+process appends only to its own events file. There is no shared append and no lock across the bind
+mount. Phase B B7 confirms that this is required (section 8 of [delegate-history.md](delegate-history.md)).
+

@@ -344,3 +344,59 @@ func newestFile(t *testing.T, files []string) string {
 	}
 	return best
 }
+
+// feat-4310a889: two --worktree workers of one caller claim one item. Each
+// is family of the other, or the second worker's `start` would be refused.
+func TestLiveForeignClaims_SiblingWorkersOnOneItemAreFamily(t *testing.T) {
+	dir := newDelegateClaimDir(t)
+	dgOpenEpisode(t, dir, dgCaller)
+	dgOpenEpisode(t, dir, dgWorker)
+	runA := dgOpenRow(t, dir, delegationledger.ModeInteractive, dgCaller, dgWorker)
+	runB := dgOpenRow(t, dir, delegationledger.ModeInteractive, dgCaller, dgClear)
+	t.Setenv(delegateRunEnv, runB)
+	if got := dgForeign(t, dir, dgClear); len(got) != 0 {
+		t.Fatalf("a sibling worker and the caller are family, got foreign %v", got)
+	}
+	// Other side: a worker of ANOTHER caller's row is still foreign.
+	other := dgOpenRow(t, dir, delegationledger.ModeInteractive, dgOther, "019ee378-abcd-7000-8000-00000000d0b1")
+	t.Setenv(delegateRunEnv, other)
+	if got := dgForeign(t, dir, "019ee378-abcd-7000-8000-00000000d0b1"); !got[dgWorker] || !got[dgCaller] {
+		t.Fatalf("another caller's worker sees %v", got)
+	}
+	_ = runA
+}
+
+// TestSpawn_SameItemSiblingBoundBySessionStart is the spawn --worktree race:
+// two workers of one caller start at once and the second `feature start` meets
+// the first's claim before any delegate list has bound the first's session.
+// SessionStart must bind it on the ledger row itself, so the gate sees a
+// sibling; a worker of another caller and a foreign session stay refused.
+func TestSpawn_SameItemSiblingBoundBySessionStart(t *testing.T) {
+	dir := newDelegateClaimDir(t)
+	project := filepath.Dir(dir)
+	runA := dgOpenRow(t, dir, delegationledger.ModeInteractive, dgCaller)
+	runB := dgOpenRow(t, dir, delegationledger.ModeInteractive, dgCaller)
+	runX := dgOpenRow(t, dir, delegationledger.ModeInteractive, dgOther)
+	// Sibling B starts its session (no delegate list runs) and claims the item.
+	t.Setenv(delegateRunEnv, runB)
+	if _, err := hooks.SessionStart(&hooks.CloudEvent{SessionID: dgClear, CWD: project,
+		HookEventName: "SessionStart", Source: "startup"}, project); err != nil {
+		t.Fatal(err)
+	}
+	dgOpenEpisode(t, dir, dgClear)
+	// Worker A's gate.
+	t.Setenv(delegateRunEnv, runA)
+	if err := checkLiveCollisionGate(dir, dgItem, dgWorker); err != nil {
+		t.Fatalf("a just-started sibling refused the worker: %v", err)
+	}
+	// A worker of a different caller is still refused.
+	t.Setenv(delegateRunEnv, runX)
+	if err := checkLiveCollisionGate(dir, dgItem, dgWorker); err == nil {
+		t.Fatal("a worker of another caller was let in beside the sibling")
+	}
+	// So is a plain foreign session.
+	t.Setenv(delegateRunEnv, "")
+	if err := checkLiveCollisionGate(dir, dgItem, dgOther); err == nil {
+		t.Fatal("a foreign session was let in")
+	}
+}

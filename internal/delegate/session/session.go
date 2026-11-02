@@ -102,6 +102,9 @@ type Deps struct {
 	// canonical id, after a resume's default and before the one-worker-per-
 	// item check (slice 16); nil keeps the id as given.
 	ResolveWorkItem func(id string) (string, error)
+	// PreseedTrust marks a folder's workspace trust accepted in the
+	// harness config before a Claude worker starts there; nil skips it.
+	PreseedTrust func(dir string) error
 }
 
 func (d Deps) now() time.Time {

@@ -37,7 +37,7 @@ func TestLeanFlags_Defaults(t *testing.T) {
 			t.Errorf("missing %s in %q", f, got)
 		}
 	}
-	if argAfter(got, "--tools") != "Bash,Read,Edit,Write" {
+	if argAfter(got, "--tools") != "Bash,Read,Edit,Write,Grep,Glob" {
 		t.Errorf("--tools = %q: want one comma-joined value", argAfter(got, "--tools"))
 	}
 	s := settingsOf(t, got)
@@ -94,11 +94,11 @@ func TestLeanFlags_UserFlagsReplaceDefaults(t *testing.T) {
 }
 
 func TestLeanFlags_ToolSearchWithAnyMCPAndSkillWithPlugins(t *testing.T) {
-	if got := argAfter(LeanFlags(nil, LeanSpec{MCP: true, Tools: []string{"Grep"}}), "--tools"); got != "Bash,Read,Edit,Write,Grep,ToolSearch" {
+	if got := argAfter(LeanFlags(nil, LeanSpec{MCP: true, Tools: []string{"WebFetch", "Grep"}}), "--tools"); got != "Bash,Read,Edit,Write,Grep,Glob,WebFetch,ToolSearch" {
 		t.Errorf("--tools = %q", got)
 	}
 	got := LeanFlags(nil, LeanSpec{Plugins: map[string]bool{"a@m": true}})
-	if argAfter(got, "--tools") != "Bash,Read,Edit,Write,Skill" {
+	if argAfter(got, "--tools") != "Bash,Read,Edit,Write,Grep,Glob,Skill" {
 		t.Errorf("--tools = %q", argAfter(got, "--tools"))
 	}
 	if p := settingsOf(t, got)["enabledPlugins"].(map[string]any); p["a@m"] != true {
@@ -161,7 +161,7 @@ func TestHarnessFlags_UserConfigProfilesOverrideBuiltIns(t *testing.T) {
 	if err := harnessFlags(ctxBG, &o); err != nil {
 		t.Fatal(err)
 	}
-	if o.Profile != "mine" || o.Model != "opus" || !o.UserRules || argAfter(o.Flags, "--tools") != "Bash,Read,Edit,Write,Grep,WebFetch" {
+	if o.Profile != "mine" || o.Model != "opus" || !o.UserRules || argAfter(o.Flags, "--tools") != "Bash,Read,Edit,Write,Grep,Glob,WebFetch" {
 		t.Fatalf("%+v", o)
 	}
 	o = SpawnOptions{Harness: HarnessClaude, Config: cfg, Profile: "simple"}

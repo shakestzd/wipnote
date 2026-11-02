@@ -31,6 +31,9 @@ func Resume(ctx context.Context, d Deps, o SpawnOptions, from string) (Spawned, 
 	if d.Herdr == nil {
 		return Spawned{}, ErrNotInHerdr
 	}
+	if o.Worktree {
+		return Spawned{}, checkWorktree(SpawnOptions{Worktree: true, ResumedFrom: from, Harness: o.Harness, Root: o.Root})
+	}
 	if err := resumeOptions(d, &o, from); err != nil {
 		return Spawned{}, err
 	}
@@ -64,6 +67,7 @@ func resumeOptions(d Deps, o *SpawnOptions, from string) error {
 		o.Full = info.Setup.Profile == ProfileFull
 		o.inherited = true
 	}
+	o.wt = wtInfo{Path: info.Worktree, Branch: info.Branch, BaseSHA: info.BaseSHA}
 	if info.Place == PlaceContainer {
 		o.Container, o.Root = true, info.Root
 	}

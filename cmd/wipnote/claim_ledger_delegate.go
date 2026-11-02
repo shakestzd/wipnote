@@ -47,6 +47,7 @@ func delegationFamily(wipnoteDir, callerSessionID, runID string) (map[string]boo
 		add(r)
 		if r.CallerSession != "" {
 			family[r.CallerSession] = true
+			addSiblings(open, r, add) // workers of one caller may share an item (spawn --worktree)
 		}
 	}
 	return family, true
@@ -73,6 +74,17 @@ func expireDelegateWorkerClaims(wipnoteDir string) func(sessionID string) {
 	return func(sessionID string) {
 		if _, err := hooks.CloseClaimEpisodesForSession(wipnoteDir, sessionID, claimledger.OutcomeExpired); err != nil {
 			claimLedgerWarn("expire claims of lost worker session %s: %v", sessionID, err)
+		}
+	}
+}
+
+// addSiblings adds the other open interactive workers of r's caller to the
+// family: with spawn --worktree two of them can hold one item, and neither
+// may be refused by the other's claim.
+func addSiblings(open delegationledger.OpenRuns, r delegationledger.Record, add func(delegationledger.Record)) {
+	for _, o := range open.Interactive() {
+		if o.CallerSession == r.CallerSession {
+			add(o)
 		}
 	}
 }

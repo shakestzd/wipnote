@@ -16,7 +16,7 @@ func delegateInstallBoardCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "install-board",
 		Short: "Copy the wipnote-board layout and mod into the Herdr app's home",
-		Long: `Copies the wipnote-board layout and its mods (the board and a pane header) into ~/.config/herdr-app, or
+		Long: `Copies the wipnote-board layout and its mods (the board, a pane header and a tab bar that hides settled tabs) into ~/.config/herdr-app, or
 $HERDR_APP_HOME when set. Your own layout stays as it is. Switch between them
 with ctrl-shift-l. It never overwrites: if any target exists, it writes
 nothing. To remove the board, delete the paths it prints.
@@ -38,7 +38,7 @@ space. It reads no other files and makes no network calls.`,
 			for _, p := range wrote {
 				fmt.Fprintln(out, "wrote", p)
 			}
-			for _, mod := range []string{herdrapp.LayoutName, herdrapp.HeaderMod} {
+			for _, mod := range []string{herdrapp.LayoutName, herdrapp.HeaderMod, herdrapp.TabsMod} {
 				fmt.Fprintf(out, "next: herdr-app check %s\n", filepath.Join(home, "mods", mod))
 			}
 			fmt.Fprintf(out, "then: herdr-app do layout.switch --name %s\n", herdrapp.LayoutName)

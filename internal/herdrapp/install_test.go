@@ -15,10 +15,10 @@ func TestInstall_WritesLayoutAndModsOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(wrote) != 3 {
+	if len(wrote) != 4 {
 		t.Fatalf("wrote = %q", wrote)
 	}
-	for _, rel := range []string{"layouts/wipnote-board.json", "mods/wipnote-board/main.js", "mods/wipnote-board/mod.json", "mods/wipnote-pane-header/main.js", "mods/wipnote-pane-header/mod.json"} {
+	for _, rel := range []string{"layouts/wipnote-board.json", "mods/wipnote-board/main.js", "mods/wipnote-board/mod.json", "mods/wipnote-pane-header/main.js", "mods/wipnote-pane-header/mod.json", "mods/wipnote-tabs/main.js", "mods/wipnote-tabs/mod.json", "mods/wipnote-tabs/win-min.svg"} {
 		if _, err := os.Stat(filepath.Join(home, rel)); err != nil {
 			t.Errorf("%s: %v", rel, err)
 		}
@@ -29,7 +29,7 @@ func TestInstall_WritesLayoutAndModsOnly(t *testing.T) {
 }
 
 func TestInstall_NeverOverwrites(t *testing.T) {
-	for _, rel := range []string{"layouts/wipnote-board.json", "mods/wipnote-board", "mods/wipnote-pane-header"} {
+	for _, rel := range []string{"layouts/wipnote-board.json", "mods/wipnote-board", "mods/wipnote-pane-header", "mods/wipnote-tabs"} {
 		t.Run(rel, func(t *testing.T) {
 			home := t.TempDir()
 			target := filepath.Join(home, rel)
@@ -98,6 +98,7 @@ func TestLayout_HeaderOnEveryPane(t *testing.T) {
 			Children []struct {
 				ID      string `json:"id"`
 				Content struct {
+					Mod  string `json:"mod"`
 					Pane struct {
 						Lone   bool `json:"lone"`
 						Header struct {
@@ -115,6 +116,9 @@ func TestLayout_HeaderOnEveryPane(t *testing.T) {
 	}
 	for _, col := range root.Children {
 		for _, b := range col.Children {
+			if b.ID == "tabs" && b.Content.Mod != TabsMod {
+				t.Fatalf("tabs block = %+v, want mod %s", b.Content, TabsMod)
+			}
 			if b.ID != "main" {
 				continue
 			}
@@ -126,4 +130,16 @@ func TestLayout_HeaderOnEveryPane(t *testing.T) {
 		}
 	}
 	t.Fatal("no main block")
+}
+
+// The tabs mod is Herdr's own with one change: it leaves out settled tabs, so
+// the workers tab delegate puts away does not show.
+func TestTabsMod_HidesSettledTabs(t *testing.T) {
+	data, err := assets.ReadFile(assetRoot + "/mods/" + TabsMod + "/main.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "!c.settled") || strings.Contains(string(data), "mods/tabs/") {
+		t.Fatal("wipnote-tabs must filter settled tabs and use its own asset paths")
+	}
 }

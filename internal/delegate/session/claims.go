@@ -53,7 +53,7 @@ func checkLive(ctx context.Context, d Deps, o SpawnOptions) ([]lostWorker, error
 	}
 	var lost []lostWorker
 	for _, r := range open.Interactive() {
-		sameName, sameItem := r.Name == o.Name, r.WorkItem == o.WorkItem
+		sameName, sameItem := r.Name == o.Name, r.WorkItem == o.WorkItem && !o.parallel() // own checkouts may share an item
 		if !sameName && !sameItem {
 			continue
 		}

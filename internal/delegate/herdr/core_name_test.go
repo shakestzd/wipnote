@@ -80,7 +80,8 @@ func TestCore_TabRenamedWithIDAndName(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := calls(t, app)
-	if len(got) != 1 || got[0] != "do tab.rename --id wipnote-workers-t1 --name workers" {
+	want := []string{"do tab.rename --id wipnote-workers-t1 --name workers", "do tab.settle --id wipnote-workers-t1"}
+	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("herdr-app calls = %q", got)
 	}
 }
@@ -95,8 +96,8 @@ echo '{"ok": true}'`)
 	if _, _, err := c.TabCreate(bg, "s3", "workers", "/repo"); err != nil {
 		t.Fatal(err)
 	}
-	if got := calls(t, app); len(got) != 3 {
-		t.Fatalf("herdr-app calls = %q, want 3", got)
+	if got := calls(t, app); len(got) != 4 || !strings.HasPrefix(got[3], "do tab.settle") {
+		t.Fatalf("herdr-app calls = %q, want 3 renames then a settle", got)
 	}
 }
 
@@ -131,5 +132,19 @@ func TestCore_MissingAppDoesNotFailOrWait(t *testing.T) {
 	}
 	if time.Since(start) > time.Second {
 		t.Fatal("a missing herdr-app must not delay spawn")
+	}
+}
+
+// The workers tab is put away (settled) only once it has its name, and a failed
+// settle never fails the spawn.
+func TestCore_SettleFailureIsQuiet(t *testing.T) {
+	fastRetry(t)
+	c, log := installHC(t, runReply)
+	app := installApp(t, log, `case "$*" in *tab.settle*) exit 1;; esac; echo '{"ok": true}'`)
+	if _, _, err := c.TabCreate(bg, "s3", "workers", "/repo"); err != nil {
+		t.Fatalf("a failed settle must not fail spawn: %v", err)
+	}
+	if got := calls(t, app); len(got) < 2 || !strings.HasPrefix(got[len(got)-1], "do tab.settle") {
+		t.Fatalf("herdr-app calls = %q", got)
 	}
 }

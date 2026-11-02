@@ -190,7 +190,8 @@ func (c *Core) TabCreate(ctx context.Context, workspace, label, cwd string) (Tab
 func (c *Core) TabClose(context.Context, TabID) error { return nil }
 
 // Split starts a terminal in the same place as target (the caller when empty).
-// The direction is ignored: the app arranges labelled terminals itself.
+// The direction is ignored: splitGrid picks the pane and direction itself and
+// falls back to labels, which the app arranges by halving the last pane.
 func (c *Core) Split(ctx context.Context, target PaneID, _ Direction, cwd string) (PaneID, error) {
 	if target == "" {
 		target = c.Env.CallerPane
@@ -202,7 +203,16 @@ func (c *Core) Split(ctx context.Context, target PaneID, _ Direction, cwd string
 	if err != nil {
 		return "", err
 	}
-	return c.startShell(ctx, cwd, t.Labels[labelSpace], t.Labels[labelTab])
+	if t.Labels[labelSpace] == "" {
+		return c.startShell(ctx, cwd, "", "")
+	}
+	tab := t.Labels[labelTab]
+	saved, ok := saveFocus(ctx)
+	defer restoreFocus(ctx, saved, ok, tab)
+	if pane, ok := c.splitGrid(ctx, cwd, tab); ok {
+		return pane, nil
+	}
+	return c.startShell(ctx, cwd, t.Labels[labelSpace], tab)
 }
 
 // Run pastes a shell line and presses Enter: `hc send`.

@@ -33,14 +33,19 @@ func Home(getenv func(string) string, userHome string) string {
 // HeaderMod is the pane header mod the layout names.
 const HeaderMod = "wipnote-pane-header"
 
+// TabsMod is the tab bar mod the layout names: Herdr's own with settled tabs
+// left out.
+const TabsMod = "wipnote-tabs"
+
 // Paths are the home's entries Install writes, relative to the home. Only
-// these three: the recipe describes the build and stays out, as Herdr's own guide
+// these four: the recipe describes the build and stays out, as Herdr's own guide
 // for adding a layout says.
 func Paths() []string {
 	return []string{
 		path.Join("layouts", LayoutName+".json"),
 		path.Join("mods", LayoutName),
 		path.Join("mods", HeaderMod),
+		path.Join("mods", TabsMod),
 	}
 }
 
