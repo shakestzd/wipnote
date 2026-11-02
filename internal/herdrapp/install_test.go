@@ -137,3 +137,28 @@ func TestAgentsMod_NestsWorkersOnly(t *testing.T) {
 		t.Fatal("wipnote-agents must filter nested workers after building this.listed")
 	}
 }
+
+// A backup folder that already exists is refused, with the installed files and
+// the earlier backup untouched.
+func TestReplace_RefusesAnExistingBackupFolder(t *testing.T) {
+	home := t.TempDir()
+	if _, _, err := Replace(home, "stamp"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := Replace(home, "stamp"); err != nil {
+		t.Fatal(err)
+	}
+	backup := filepath.Join(home, "wipnote-replaced-stamp", "mods", AgentsMod, "main.js")
+	if err := os.WriteFile(backup, []byte("kept"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := Replace(home, "stamp"); err == nil {
+		t.Fatal("a second replace into one folder must be refused")
+	}
+	if data, _ := os.ReadFile(backup); string(data) != "kept" {
+		t.Fatalf("the backup changed to %q", data)
+	}
+	if _, err := os.Stat(filepath.Join(home, "mods", AgentsMod, "main.js")); err != nil {
+		t.Fatalf("the installed mod was moved: %v", err)
+	}
+}

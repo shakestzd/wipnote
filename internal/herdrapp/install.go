@@ -80,28 +80,37 @@ func Install(home string) ([]string, error) {
 // Replace moves the home's existing entries into a new folder named after stamp,
 // then installs. It returns the paths written and the folder, "" when nothing
 // had to move. The folder sits outside mods/ and layouts/, so the app does not
-// load what was moved.
+// load what was moved. A folder that already exists is refused before anything
+// moves, so an earlier backup is never overwritten.
 func Replace(home, stamp string) ([]string, string, error) {
-	aside := filepath.Join(home, "wipnote-replaced-"+stamp)
-	moved := ""
+	var existing []string
 	for _, rel := range Paths() {
-		target := filepath.Join(home, filepath.FromSlash(rel))
-		if _, err := os.Lstat(target); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return nil, moved, err
+		_, err := os.Lstat(filepath.Join(home, filepath.FromSlash(rel)))
+		if err == nil {
+			existing = append(existing, rel)
+		} else if !os.IsNotExist(err) {
+			return nil, "", err
 		}
+	}
+	if len(existing) == 0 {
+		wrote, err := Install(home)
+		return wrote, "", err
+	}
+	aside := filepath.Join(home, "wipnote-replaced-"+stamp)
+	if err := os.Mkdir(aside, 0o755); err != nil {
+		return nil, "", fmt.Errorf("backup folder: %w", err)
+	}
+	for _, rel := range existing {
 		to := filepath.Join(aside, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
-			return nil, moved, err
+			return nil, aside, err
 		}
-		if err := os.Rename(target, to); err != nil {
-			return nil, moved, err
+		if err := os.Rename(filepath.Join(home, filepath.FromSlash(rel)), to); err != nil {
+			return nil, aside, err
 		}
-		moved = aside
 	}
 	wrote, err := Install(home)
-	return wrote, moved, err
+	return wrote, aside, err
 }
 
 // copyTree copies one embedded file, or a folder and all it holds.

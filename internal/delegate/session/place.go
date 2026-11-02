@@ -71,11 +71,14 @@ func withWorkers(store *runstore.Store, fn func(*Workers) error) error {
 	release := filelock.Guard(path)
 	defer release()
 	var w Workers
+	var legacy []string
 	if data, err := os.ReadFile(path); err == nil {
 		if err := json.Unmarshal(data, &w); err != nil {
 			return fmt.Errorf("delegate: unreadable workers record %s: %w", path, err)
 		}
-	} else if !os.IsNotExist(err) {
+	} else if os.IsNotExist(err) {
+		w, legacy = legacyWorkers(filepath.Dir(path))
+	} else {
 		return err
 	}
 	if err := fn(&w); err != nil {
@@ -85,7 +88,38 @@ func withWorkers(store *runstore.Store, fn func(*Workers) error) error {
 	if err != nil {
 		return err
 	}
-	return filelock.WriteFileAtomic(path, append(data, '\n'), 0o600)
+	if err := filelock.WriteFileAtomic(path, append(data, '\n'), 0o600); err != nil {
+		return err
+	}
+	for _, old := range legacy { // their workers are in the project's record now
+		_ = os.Remove(old)
+	}
+	return nil
+}
+
+// legacyWorkers merges the per-caller records older versions wrote, so workers
+// still running across an upgrade keep their slots under the cap. It returns the
+// merged record and the files it read; an unreadable file is left alone.
+func legacyWorkers(dir string) (Workers, []string) {
+	var w Workers
+	var read []string
+	files, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		var old Workers
+		if json.Unmarshal(data, &old) != nil {
+			continue
+		}
+		read = append(read, f)
+		w.Panes = append(w.Panes, old.Panes...)
+		if w.Tab == nil && len(old.Panes) > 0 {
+			w.Tab = old.Tab
+		}
+	}
+	return w, read
 }
 
 // prune drops the panes herdr says are gone. Any other lookup failure is
