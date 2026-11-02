@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Lean delegate workers: control model and startup load to beat native subagents on tokens</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-d6db84fc"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-02T01:28:12.982124"
+             data-updated="2026-11-02T17:20:32.4164" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="capability" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Delegator-chosen profiles plus per-capability flags&#34;,&#34;exists&#34;:&#34;delegate spawn already passed --model, --effort and raw harness flags through; no profiles or lean defaults&#34;,&#34;findings&#34;:&#34;Live runs measured: --tools and --no-chrome remove most of the startup. MCP without ToolSearch loads every tool in full (159k). deniedMcpServers by exact name enables one connector; allowedMcpServers removes all of them. --setting-sources project can hang a worker on an imports dialog.&#34;,&#34;gaps&#34;:[&#34;Docs do not state token costs of tool definitions; costs here are measured, not documented&#34;],&#34;options&#34;:[&#34;Fixed lean default&#34;,&#34;Delegator-chosen profiles plus per-capability flags&#34;],&#34;queries&#34;:[&#34;delegate model effort harness flags&#34;],&#34;question&#34;:&#34;Which documented Claude Code controls let a delegator set a worker&#39;s model and startup load per task, and how do they compare with native subagents?&#34;,&#34;rejected&#34;:[{&#34;option&#34;:&#34;Fixed lean default&#34;,&#34;reason&#34;:&#34;one setup cannot fit simple tasks and tasks that need a connector&#34;}],&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-01&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/sub-agents&#34;},{&#34;retrieved&#34;:&#34;2026-11-01&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/cli-reference&#34;},{&#34;retrieved&#34;:&#34;2026-11-01&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/costs&#34;},{&#34;retrieved&#34;:&#34;2026-11-01&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/prompt-caching&#34;},{&#34;retrieved&#34;:&#34;2026-11-01&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/model-config&#34;}]}}">
+
+        <header>
+            <h1>Lean delegate workers: control model and startup load to beat native subagents on tokens</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="837bec7b1185d47bd0030490c65157847b87f720.html" data-relationship="committed_in" data-since="2026-11-02T09:41:24">Leave project rules out of lean workers by default (feat-d6db84fc)</a></li>
+                    <li><a href="433f011c32aa2aa3f678de0ac83f05fa6ce9e573.html" data-relationship="committed_in" data-since="2026-11-01T23:47:27">docs(delegate): larger token benchmark: lean workers win short tasks, not a long edit (feat-d6db84fc)</a></li>
+                    <li><a href="13cf86581744b1364cb381fab1f6d7185bef6bfa.html" data-relationship="committed_in" data-since="2026-11-01T23:21:13">fix(delegate): keep one-shot runs out of lean, map --mcp-config into containers (feat-d6db84fc)</a></li>
+                    <li><a href="25578d0e8fde18b1e9cca55496d797f84dd814f0.html" data-relationship="committed_in" data-since="2026-11-01T22:01:43">feat(delegate): lean, delegator-configured workers with informative names (feat-d6db84fc, bug-1385b2e0)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/ec83b015-89cc-4cc2-afb8-c784a8ec2473.html" data-relationship="implemented_in" data-since="2026-11-02T01:33:13.325837">session ec83b015-89cc-4cc2-afb8-c784a8ec2473</a></li>
+                    <li><a href="../sessions/2527402b-bef4-4150-ba0e-fcb0a3210e18.html" data-relationship="implemented_in" data-since="2026-11-02T01:34:22.404353">session 2527402b-bef4-4150-ba0e-fcb0a3210e18</a></li>
+                    <li><a href="../sessions/1152287e-8545-4fd6-8a4a-80a3ddddc61a.html" data-relationship="implemented_in" data-since="2026-11-02T01:35:24.015775">session 1152287e-8545-4fd6-8a4a-80a3ddddc61a</a></li>
+                    <li><a href="../sessions/d0b0a3a6-f73a-4e7b-8201-b2cd4265a79b.html" data-relationship="implemented_in" data-since="2026-11-02T01:36:26.098799">session d0b0a3a6-f73a-4e7b-8201-b2cd4265a79b</a></li>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-02T01:38:09.842495">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                    <li><a href="../sessions/2e4a88b0-f2ca-4d64-964c-4e62591f6fb7.html" data-relationship="implemented_in" data-since="2026-11-02T01:59:08.988929">session 2e4a88b0-f2ca-4d64-964c-4e62591f6fb7</a></li>
+                    <li><a href="../sessions/65685457-d239-4e06-805c-ba9437606d7d.html" data-relationship="implemented_in" data-since="2026-11-02T02:00:28.119463">session 65685457-d239-4e06-805c-ba9437606d7d</a></li>
+                    <li><a href="../sessions/71073f24-0f7e-48b7-86f4-67ccf425056d.html" data-relationship="implemented_in" data-since="2026-11-02T02:08:17.279126">session 71073f24-0f7e-48b7-86f4-67ccf425056d</a></li>
+                    <li><a href="../sessions/0a431a2a-86fd-4d36-929b-e0b15ab75402.html" data-relationship="implemented_in" data-since="2026-11-02T02:11:46.677798">session 0a431a2a-86fd-4d36-929b-e0b15ab75402</a></li>
+                    <li><a href="../sessions/533692cd-cfe2-4bce-977c-dab38be94b63.html" data-relationship="implemented_in" data-since="2026-11-02T02:13:20.049897">session 533692cd-cfe2-4bce-977c-dab38be94b63</a></li>
+                    <li><a href="../sessions/8807ef24-2a7e-4f26-aa04-d0a0cbd46247.html" data-relationship="implemented_in" data-since="2026-11-02T02:14:59.199175">session 8807ef24-2a7e-4f26-aa04-d0a0cbd46247</a></li>
+                    <li><a href="../sessions/b7202357-ca01-44f3-b6a6-e0b3102fba45.html" data-relationship="implemented_in" data-since="2026-11-02T02:15:49.392034">session b7202357-ca01-44f3-b6a6-e0b3102fba45</a></li>
+                    <li><a href="../sessions/abdd8e46-5b52-497d-8076-2f717caad2e0.html" data-relationship="implemented_in" data-since="2026-11-02T02:20:49.552456">session abdd8e46-5b52-497d-8076-2f717caad2e0</a></li>
+                    <li><a href="../sessions/01a9303c-79b7-480e-9a86-119d8c1b0b99.html" data-relationship="implemented_in" data-since="2026-11-02T02:22:17.790787">session 01a9303c-79b7-480e-9a86-119d8c1b0b99</a></li>
+                    <li><a href="../sessions/dbee7320-01fa-4ff4-abb6-be0e922af13a.html" data-relationship="implemented_in" data-since="2026-11-02T02:23:02.5647">session dbee7320-01fa-4ff4-abb6-be0e922af13a</a></li>
+                    <li><a href="../sessions/81dba02c-7a99-4d2c-b346-b622da4bf2bc.html" data-relationship="implemented_in" data-since="2026-11-02T02:23:33.327291">session 81dba02c-7a99-4d2c-b346-b622da4bf2bc</a></li>
+                    <li><a href="../sessions/dd55e6da-5224-4ceb-8b55-58af9c735c74.html" data-relationship="implemented_in" data-since="2026-11-02T02:24:14.623377">session dd55e6da-5224-4ceb-8b55-58af9c735c74</a></li>
+                    <li><a href="../sessions/db0bf7f3-8f30-4a81-8bc1-00fa4b41c9dc.html" data-relationship="implemented_in" data-since="2026-11-02T02:32:25.531576">session db0bf7f3-8f30-4a81-8bc1-00fa4b41c9dc</a></li>
+                    <li><a href="../sessions/25258ba3-5004-4a59-95d0-8a2cd6d6eff9.html" data-relationship="implemented_in" data-since="2026-11-02T02:33:15.397335">session 25258ba3-5004-4a59-95d0-8a2cd6d6eff9</a></li>
+                    <li><a href="../sessions/2ff01cd0-da51-4a24-81db-4e8a93a1a4e3.html" data-relationship="implemented_in" data-since="2026-11-02T02:52:45.04172">session 2ff01cd0-da51-4a24-81db-4e8a93a1a4e3</a></li>
+                    <li><a href="../sessions/5a80a3b7-f90d-418e-9b2b-a7c3e0d4a4c9.html" data-relationship="implemented_in" data-since="2026-11-02T04:13:37.657533">session 5a80a3b7-f90d-418e-9b2b-a7c3e0d4a4c9</a></li>
+                    <li><a href="../sessions/c49586d1-b0ec-4519-93e6-8dbfae720301.html" data-relationship="implemented_in" data-since="2026-11-02T04:22:23.687826">session c49586d1-b0ec-4519-93e6-8dbfae720301</a></li>
+                    <li><a href="../sessions/0a9563da-0d3e-4d06-b781-940030181a31.html" data-relationship="implemented_in" data-since="2026-11-02T04:22:58.782903">session 0a9563da-0d3e-4d06-b781-940030181a31</a></li>
+                    <li><a href="../sessions/7a780616-3076-4b35-aef2-7f284dead7cf.html" data-relationship="implemented_in" data-since="2026-11-02T04:23:41.523032">session 7a780616-3076-4b35-aef2-7f284dead7cf</a></li>
+                    <li><a href="../sessions/79cb5afb-5b5e-4518-8821-44cd3b0fc99a.html" data-relationship="implemented_in" data-since="2026-11-02T04:24:18.628615">session 79cb5afb-5b5e-4518-8821-44cd3b0fc99a</a></li>
+                    <li><a href="../sessions/56de5d6f-862c-42aa-a7e5-ab25bbc8406d.html" data-relationship="implemented_in" data-since="2026-11-02T04:26:11.701001">session 56de5d6f-862c-42aa-a7e5-ab25bbc8406d</a></li>
+                    <li><a href="../sessions/eacd5347-ea91-48a2-a7b4-2f3a57c3c6eb.html" data-relationship="implemented_in" data-since="2026-11-02T04:26:36.879633">session eacd5347-ea91-48a2-a7b4-2f3a57c3c6eb</a></li>
+                    <li><a href="../sessions/8c75af06-9af0-4385-9603-bc315360481e.html" data-relationship="implemented_in" data-since="2026-11-02T04:27:15.424296">session 8c75af06-9af0-4385-9603-bc315360481e</a></li>
+                    <li><a href="../sessions/9b641fcd-c9e2-4743-9402-e5e3798bb79d.html" data-relationship="implemented_in" data-since="2026-11-02T04:27:51.975001">session 9b641fcd-c9e2-4743-9402-e5e3798bb79d</a></li>
+                    <li><a href="../sessions/8e3ac31c-b807-4299-ab26-2179e9c0177b.html" data-relationship="implemented_in" data-since="2026-11-02T04:31:27.202309">session 8e3ac31c-b807-4299-ab26-2179e9c0177b</a></li>
+                    <li><a href="../sessions/d0a259f7-051c-4883-84dc-75e661c59695.html" data-relationship="implemented_in" data-since="2026-11-02T04:31:59.270615">session d0a259f7-051c-4883-84dc-75e661c59695</a></li>
+                    <li><a href="../sessions/0bb9caa4-0da1-46d4-8b24-3fc272aeae8a.html" data-relationship="implemented_in" data-since="2026-11-02T04:32:39.55871">session 0bb9caa4-0da1-46d4-8b24-3fc272aeae8a</a></li>
+                    <li><a href="../sessions/5d3b5466-2bf6-4e9c-b239-e250b5e2e591.html" data-relationship="implemented_in" data-since="2026-11-02T04:33:20.696203">session 5d3b5466-2bf6-4e9c-b239-e250b5e2e591</a></li>
+                    <li><a href="../sessions/76f00582-8e88-4201-b8ea-0903c3410d2c.html" data-relationship="implemented_in" data-since="2026-11-02T04:36:24.627787">session 76f00582-8e88-4201-b8ea-0903c3410d2c</a></li>
+                    <li><a href="../sessions/769d24c2-0cc1-42f5-9d1a-4509b64fb6a3.html" data-relationship="implemented_in" data-since="2026-11-02T04:37:01.387531">session 769d24c2-0cc1-42f5-9d1a-4509b64fb6a3</a></li>
+                    <li><a href="../sessions/feda417c-718a-4c85-80d8-863299ce0718.html" data-relationship="implemented_in" data-since="2026-11-02T04:37:42.235691">session feda417c-718a-4c85-80d8-863299ce0718</a></li>
+                    <li><a href="../sessions/85370103-19e1-4df9-a9f4-57d2cf671d5c.html" data-relationship="implemented_in" data-since="2026-11-02T04:49:50.542679">session 85370103-19e1-4df9-a9f4-57d2cf671d5c</a></li>
+                    <li><a href="../sessions/d86fd835-e8aa-4c8e-a7a0-6b8a721785f4.html" data-relationship="implemented_in" data-since="2026-11-02T04:52:20.586221">session d86fd835-e8aa-4c8e-a7a0-6b8a721785f4</a></li>
+                    <li><a href="../sessions/c6d592c9-a028-40c4-8851-92cc35b1667a.html" data-relationship="implemented_in" data-since="2026-11-02T04:54:17.861593">session c6d592c9-a028-40c4-8851-92cc35b1667a</a></li>
+                    <li><a href="../sessions/ed8a5d38-0b5d-431b-9354-6a0ea0505ea5.html" data-relationship="implemented_in" data-since="2026-11-02T04:56:27.048437">session ed8a5d38-0b5d-431b-9354-6a0ea0505ea5</a></li>
+                    <li><a href="../sessions/0d735034-e099-4186-b687-89fc2731b3c1.html" data-relationship="implemented_in" data-since="2026-11-02T04:59:23.727348">session 0d735034-e099-4186-b687-89fc2731b3c1</a></li>
+                    <li><a href="../sessions/fd217938-0431-484b-adf3-3be2ad0ac1ea.html" data-relationship="implemented_in" data-since="2026-11-02T05:01:26.362897">session fd217938-0431-484b-adf3-3be2ad0ac1ea</a></li>
+                    <li><a href="../sessions/0370b112-4cec-4870-a453-73647a0e4e37.html" data-relationship="implemented_in" data-since="2026-11-02T05:03:18.44918">session 0370b112-4cec-4870-a453-73647a0e4e37</a></li>
+                    <li><a href="../sessions/2620b6d4-a482-466b-abe6-bdb878d12ee9.html" data-relationship="implemented_in" data-since="2026-11-02T05:05:34.805706">session 2620b6d4-a482-466b-abe6-bdb878d12ee9</a></li>
+                    <li><a href="../sessions/d7a3e358-7797-4bff-bd45-2ae419cc1388.html" data-relationship="implemented_in" data-since="2026-11-02T05:09:04.158985">session d7a3e358-7797-4bff-bd45-2ae419cc1388</a></li>
+                    <li><a href="../sessions/ffe0b2ba-f083-4dc7-beb9-375a968230ea.html" data-relationship="implemented_in" data-since="2026-11-02T05:12:15.141257">session ffe0b2ba-f083-4dc7-beb9-375a968230ea</a></li>
+                    <li><a href="../sessions/fffc1d9d-cc5c-4710-bb56-ba320c93dc29.html" data-relationship="implemented_in" data-since="2026-11-02T05:29:57.401453">session fffc1d9d-cc5c-4710-bb56-ba320c93dc29</a></li>
+                    <li><a href="../sessions/fd3a968c-8d2f-4a27-bf1a-c412ddfe2c29.html" data-relationship="implemented_in" data-since="2026-11-02T12:00:42.827349">session fd3a968c-8d2f-4a27-bf1a-c412ddfe2c29</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-02T01:28:13.008744">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>A delegate worker&#39;s first request loads about 75k tokens against about 19k for a native subagent. Default spawn to a lean startup and an explicit model and effort, with an opt-out.
+Acceptance Criteria
+Measured on the same task and model, a delegate worker uses fewer total tokens than a native subagent, including what each adds to the parent.</p>
+        </section>
+    </article>
+</body>
+</html>

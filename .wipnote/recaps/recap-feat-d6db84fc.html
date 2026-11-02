@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="wipnote-recap" content="1.0">
+<title>Recap: Lean delegate workers: control model and startup load to beat native subagents on tokens</title>
+<style>
+:root{
+  --bg:#0f0f13;--bg-card:#18181c;--bg-input:#222228;--text:#f0f0ed;--text-dim:#d0d0cc;
+  --text-muted:#9898a0;--border:#3a3a42;--accent:#cdff00;
+  --add:#22c55e;--modify:#f59e0b;--delete:#ef4444;--pivot:#a78bfa;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono','Cascadia Code',monospace;
+  --sans:'DM Sans','Inter',system-ui,-apple-system,sans-serif;
+  --radius:8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.6;padding:32px;max-width:1100px;margin:0 auto}
+h1{font-size:1.5rem;font-weight:700;margin-bottom:4px}
+.recap-sub{color:var(--text-muted);font-size:.85rem;font-family:var(--mono);margin-bottom:24px}
+.recap-sub code{color:var(--text-dim)}
+.recap-zone{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+.recap-zone-title{font-size:1.05rem;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.recap-zone-note{color:var(--text-muted);font-size:.8rem;margin-bottom:12px;font-style:italic}
+.recap-count{background:var(--bg-input);color:var(--text-muted);font-size:.72rem;font-family:var(--mono);padding:1px 7px;border-radius:10px}
+.outcome-narrative{font-size:1rem;color:var(--text-dim)}
+/* shared block + file list */
+.block{margin:0}
+.file-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.file-entry{font-family:var(--mono);font-size:.85rem;display:flex;align-items:center;gap:8px}
+.file-path{color:var(--text-dim)}
+.file-change{font-size:.68rem;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:4px;font-family:var(--mono)}
+.file-change-add{background:rgba(34,197,94,.12);color:var(--add)}
+.file-change-modify{background:rgba(245,158,11,.12);color:var(--modify)}
+.file-change-delete{background:rgba(239,68,68,.12);color:var(--delete)}
+.block-table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:8px}
+.block-table th,.block-table td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--border)}
+.block-header{display:flex;align-items:center;gap:8px;font-size:.85rem}
+.block-kind{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;color:var(--text-muted);background:var(--bg-input);padding:1px 6px;border-radius:4px}
+.api-method{font-family:var(--mono);font-weight:700;font-size:.72rem;padding:1px 6px;border-radius:4px;background:var(--accent);color:#000}
+/* diagram block (pure HTML/CSS flow) */
+.block-diagram .diagram-flow{display:flex;gap:8px;flex-wrap:wrap}
+.diagram-lr{flex-direction:row;align-items:center}
+.diagram-tb{flex-direction:column;align-items:flex-start}
+.diagram-node{background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:7px 13px;font-family:var(--mono);font-size:.8rem;color:var(--text);white-space:nowrap}
+.diagram-arrow{color:var(--accent);font-family:var(--mono)}
+.diagram-tb .diagram-arrow{margin-left:16px}
+/* tabs block (pure CSS, no JS; up to 8 tabs toggle) */
+.block-tabs .tabs{position:relative}
+.tab-radio{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.tab-labels{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+.tab-label{padding:6px 12px;font-family:var(--mono);font-size:.78rem;color:var(--text-muted);cursor:pointer;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;margin-bottom:-1px}
+.tab-label:hover{color:var(--text)}
+.tab-panels{padding:12px 2px}
+.tab-panel{display:none;font-size:.88rem;color:var(--text-dim);white-space:pre-wrap;font-family:var(--sans)}
+.tabs .tab-radio:nth-of-type(1):checked~.tab-labels .tab-label:nth-child(1),.tabs .tab-radio:nth-of-type(2):checked~.tab-labels .tab-label:nth-child(2),.tabs .tab-radio:nth-of-type(3):checked~.tab-labels .tab-label:nth-child(3),.tabs .tab-radio:nth-of-type(4):checked~.tab-labels .tab-label:nth-child(4),.tabs .tab-radio:nth-of-type(5):checked~.tab-labels .tab-label:nth-child(5),.tabs .tab-radio:nth-of-type(6):checked~.tab-labels .tab-label:nth-child(6),.tabs .tab-radio:nth-of-type(7):checked~.tab-labels .tab-label:nth-child(7),.tabs .tab-radio:nth-of-type(8):checked~.tab-labels .tab-label:nth-child(8){color:var(--text);border-color:var(--border);background:var(--bg-card)}
+.tabs .tab-radio:nth-of-type(1):checked~.tab-panels .tab-panel:nth-child(1),.tabs .tab-radio:nth-of-type(2):checked~.tab-panels .tab-panel:nth-child(2),.tabs .tab-radio:nth-of-type(3):checked~.tab-panels .tab-panel:nth-child(3),.tabs .tab-radio:nth-of-type(4):checked~.tab-panels .tab-panel:nth-child(4),.tabs .tab-radio:nth-of-type(5):checked~.tab-panels .tab-panel:nth-child(5),.tabs .tab-radio:nth-of-type(6):checked~.tab-panels .tab-panel:nth-child(6),.tabs .tab-radio:nth-of-type(7):checked~.tab-panels .tab-panel:nth-child(7),.tabs .tab-radio:nth-of-type(8):checked~.tab-panels .tab-panel:nth-child(8){display:block}
+/* annotated diff */
+.annotated-diff{border:1px solid var(--border);border-radius:6px;margin-bottom:14px;overflow:hidden}
+.diff-file-header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg-input);font-family:var(--mono);font-size:.82rem;cursor:pointer;user-select:none;list-style:none}
+.diff-file-header::-webkit-details-marker{display:none}
+.diff-file-header::before{content:"▾";font-size:.7rem;color:var(--text-muted);transition:transform .15s ease;display:inline-block}
+.diff-file:not([open])>.diff-file-header::before{transform:rotate(-90deg)}
+.diff-file-header:hover{background:var(--border)}
+.diff-hunk-count{margin-left:auto;font-size:.7rem;color:var(--text-muted);font-family:var(--mono)}
+.diff-hunk{border-top:1px solid var(--border)}
+.hunk-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 12px;background:rgba(255,255,255,.02)}
+.hunk-header{font-family:var(--mono);font-size:.74rem;color:var(--text-muted)}
+.hunk-summary{font-size:.72rem;color:var(--text-muted);font-family:var(--mono)}
+.diff-pre{margin:0;padding:10px 0;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.5;white-space:pre}
+.diff-pre code{font-family:var(--mono);background:none;padding:0}
+.dl{display:block;padding:0 12px}
+.dl-add{background:rgba(34,197,94,.12);color:var(--add)}
+.dl-del{background:rgba(239,68,68,.12);color:var(--delete)}
+.dl-ctx{color:var(--text-muted)}
+.hunk-cols{display:grid;grid-template-columns:1fr 1fr}
+.hunk-col-before{border-right:1px solid var(--border);background:rgba(239,68,68,.04)}
+.hunk-col-after{background:rgba(34,197,94,.04)}
+/* embedded diff sits flush inside a file station */
+.annotated-diff.embedded{border:none;border-radius:0;margin:0;border-top:1px solid var(--border)}
+/* lineage spine */
+.lin-legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:.68rem;color:var(--text-muted);margin-bottom:16px}
+.lin-dir{display:flex;align-items:center;gap:6px}
+.lin-swatch{width:18px;height:2px;border-radius:2px}
+.lin-swatch.past{background:var(--border)}
+.lin-swatch.now{background:var(--accent)}
+/* nested tree: each branch indents under its parent with its own guide rail */
+.lin-tree{position:relative}
+.lin-branch{position:relative;margin-left:15px;padding-left:22px;border-left:2px solid var(--border)}
+.lin-branch.produced-branch{border-left-color:rgba(205,255,0,.4)}
+.lin-node{position:relative;padding:6px 0;display:flex;align-items:flex-start}
+/* connector tick from the branch rail to each node glyph */
+.lin-node::before{content:"";position:absolute;left:-22px;top:18px;width:18px;height:2px;background:var(--border)}
+.lin-branch.produced-branch>.lin-node::before{background:rgba(205,255,0,.4)}
+.lin-glyph{position:absolute;left:-33px;top:7px;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);color:var(--text-muted);z-index:2}
+.lin-glyph svg{width:12px;height:12px;display:block}
+.lin-card{flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin-left:4px}
+.lin-id{font-family:var(--mono);font-size:.72rem;color:var(--text-muted);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.lin-id code{color:var(--text-dim)}
+.lin-kind{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);border:1px solid var(--border);border-radius:4px;padding:0 5px}
+.lin-rel{font-family:var(--mono);font-size:.62rem;color:var(--text-muted);text-transform:lowercase}
+.lin-rel.produced{color:var(--accent)}
+.lin-ttl{font-size:.9rem;color:var(--text);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lin-when{color:var(--text-muted)}
+.lin-node.up .lin-glyph{border-style:dashed}
+.lin-node.up .lin-card{background:transparent}
+.lin-node.up .lin-ttl{color:var(--text-muted)}
+.lin-node.pivot{padding:10px 0}
+.lin-node.pivot::before{background:var(--accent)}
+.lin-node.pivot .lin-glyph{left:-35px;top:6px;width:28px;height:28px;background:var(--accent);border-color:var(--accent);color:#000;box-shadow:0 0 0 4px rgba(205,255,0,.14),0 0 18px rgba(205,255,0,.3)}
+.lin-node.pivot .lin-card{border-color:rgba(205,255,0,.45);box-shadow:0 0 0 1px rgba(205,255,0,.14)}
+.lin-node.pivot .lin-id code{color:var(--accent)}
+.lin-node.pivot .lin-ttl{white-space:normal;font-weight:600;font-size:.98rem}
+.lin-node.pivot .lin-kind{color:var(--accent);border-color:rgba(205,255,0,.45)}
+.lin-node.down .lin-glyph{border-color:rgba(205,255,0,.45);color:var(--accent)}
+.lin-file{flex:1;min-width:0;margin-left:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.lin-file>summary{display:flex;align-items:center;gap:9px;padding:8px 12px;cursor:pointer;list-style:none;font-family:var(--mono);font-size:.78rem}
+.lin-file>summary::-webkit-details-marker{display:none}
+.lin-file>summary::before{content:"▸";color:var(--text-muted);font-size:.66rem;transition:transform .15s ease;display:inline-block}
+.lin-file[open]>summary::before{transform:rotate(90deg)}
+.lin-file>summary:hover{background:var(--bg-input)}
+.lin-file-path{color:var(--text-dim)}
+.lin-file-stat{margin-left:auto;color:var(--text-muted)}
+.lin-file-stat .plus{color:var(--add)}.lin-file-stat .minus{color:var(--delete)}
+code{font-family:var(--mono)}
+</style>
+</head>
+<body data-recap-kind="work-item" data-recap-input="feat-d6db84fc" data-recap-git-range="" data-recap-grounded="1" data-recap-outcome="Lean delegate workers: control model and startup load to beat native subagents on tokens" data-recap-title="Lean delegate workers: control model and startup load to beat native subagents on tokens">
+<header>
+  <h1>Lean delegate workers: control model and startup load to beat native subagents on tokens</h1>
+  <div class="recap-sub">
+    <code>work-item</code>
+    &middot; <code>feat-d6db84fc</code>
+    
+    &middot; grounded
+  </div>
+</header>
+<section class="recap-zone recap-zone-outcome" id="outcome">
+  <h2 class="recap-zone-title">Outcome</h2>
+  <p class="outcome-narrative">Lean delegate workers: control model and startup load to beat native subagents on tokens</p>
+</section>
+<section class="recap-zone recap-zone-lineage" id="lineage">
+  <h2 class="recap-zone-title">Lineage</h2>
+  <p class="recap-zone-note">Causal provenance as a tree: containers hold the work item, which holds the commit it produced, which holds the files it changed.</p>
+  
+  <div class="lin-legend">
+    <span class="lin-dir"><span class="lin-swatch past"></span> ancestry — what holds this work</span>
+    <span class="lin-dir"><span class="lin-swatch now"></span> produced — what it changed</span>
+  </div>
+  
+
+  <div class="lin-tree">
+  
+    <div class="lin-branch">
+    
+    
+    <div class="lin-node up">
+      <span class="lin-glyph"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>
+      <div class="lin-card">
+        <div class="lin-id"><span class="lin-kind">track</span><code>trk-0677c709</code><span class="lin-rel">contains</span></div>
+        <div class="lin-ttl">Launch Readiness — close pitch/reality gaps before LinkedIn launch</div>
+      </div>
+    </div>
+    
+
+    
+    <div class="lin-branch">
+      
+      <div class="lin-node pivot">
+        <span class="lin-glyph"><svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" transform="rotate(45 12 12)" fill="currentColor"/></svg></span>
+        <div class="lin-card">
+          <div class="lin-id"><span class="lin-kind">feature</span><code>feat-d6db84fc</code></div>
+          <div class="lin-ttl">Lean delegate workers: control model and startup load to beat native subagents on tokens</div>
+        </div>
+      </div>
+      
+
+      
+      <div class="lin-branch produced-branch">
+        
+
+        
+        
+
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>ec83b015-89cc-4cc2-afb8-c784a8ec2473</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 01:33 · ec83b015</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>2527402b-bef4-4150-ba0e-fcb0a3210e18</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 01:34 · 2527402b</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>1152287e-8545-4fd6-8a4a-80a3ddddc61a</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 01:35 · 1152287e</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>d0b0a3a6-f73a-4e7b-8201-b2cd4265a79b</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 01:36 · d0b0a3a6</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>9f779398-7075-492a-84d8-dd0084878788</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 00:40 · 9f779398</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>2e4a88b0-f2ca-4d64-964c-4e62591f6fb7</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 01:59 · 2e4a88b0</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>65685457-d239-4e06-805c-ba9437606d7d</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:00 · 65685457</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>71073f24-0f7e-48b7-86f4-67ccf425056d</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:08 · 71073f24</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>0a431a2a-86fd-4d36-929b-e0b15ab75402</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:11 · 0a431a2a</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>533692cd-cfe2-4bce-977c-dab38be94b63</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:13 · 533692cd</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>8807ef24-2a7e-4f26-aa04-d0a0cbd46247</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:14 · 8807ef24</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>b7202357-ca01-44f3-b6a6-e0b3102fba45</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:15 · b7202357</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>abdd8e46-5b52-497d-8076-2f717caad2e0</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:20 · abdd8e46</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>01a9303c-79b7-480e-9a86-119d8c1b0b99</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:22 · 01a9303c</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>dbee7320-01fa-4ff4-abb6-be0e922af13a</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:22 · dbee7320</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>81dba02c-7a99-4d2c-b346-b622da4bf2bc</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:23 · 81dba02c</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>dd55e6da-5224-4ceb-8b55-58af9c735c74</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:24 · dd55e6da</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>db0bf7f3-8f30-4a81-8bc1-00fa4b41c9dc</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:32 · db0bf7f3</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>25258ba3-5004-4a59-95d0-8a2cd6d6eff9</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:32 · 25258ba3</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>2ff01cd0-da51-4a24-81db-4e8a93a1a4e3</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 02:52 · 2ff01cd0</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>5a80a3b7-f90d-418e-9b2b-a7c3e0d4a4c9</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:13 · 5a80a3b7</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>c49586d1-b0ec-4519-93e6-8dbfae720301</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:22 · c49586d1</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>0a9563da-0d3e-4d06-b781-940030181a31</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:22 · 0a9563da</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>7a780616-3076-4b35-aef2-7f284dead7cf</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:23 · 7a780616</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>79cb5afb-5b5e-4518-8821-44cd3b0fc99a</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:24 · 79cb5afb</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>56de5d6f-862c-42aa-a7e5-ab25bbc8406d</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:26 · 56de5d6f</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>eacd5347-ea91-48a2-a7b4-2f3a57c3c6eb</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:26 · eacd5347</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>8c75af06-9af0-4385-9603-bc315360481e</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:27 · 8c75af06</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>9b641fcd-c9e2-4743-9402-e5e3798bb79d</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:27 · 9b641fcd</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>8e3ac31c-b807-4299-ab26-2179e9c0177b</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:31 · 8e3ac31c</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>d0a259f7-051c-4883-84dc-75e661c59695</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:31 · d0a259f7</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>0bb9caa4-0da1-46d4-8b24-3fc272aeae8a</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:32 · 0bb9caa4</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>5d3b5466-2bf6-4e9c-b239-e250b5e2e591</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:33 · 5d3b5466</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>76f00582-8e88-4201-b8ea-0903c3410d2c</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:36 · 76f00582</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>769d24c2-0cc1-42f5-9d1a-4509b64fb6a3</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:36 · 769d24c2</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>feda417c-718a-4c85-80d8-863299ce0718</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:37 · feda417c</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>85370103-19e1-4df9-a9f4-57d2cf671d5c</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:49 · 85370103</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>d86fd835-e8aa-4c8e-a7a0-6b8a721785f4</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:52 · d86fd835</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>c6d592c9-a028-40c4-8851-92cc35b1667a</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:54 · c6d592c9</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>ed8a5d38-0b5d-431b-9354-6a0ea0505ea5</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:56 · ed8a5d38</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>0d735034-e099-4186-b687-89fc2731b3c1</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 04:59 · 0d735034</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>fd217938-0431-484b-adf3-3be2ad0ac1ea</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 05:01 · fd217938</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>0370b112-4cec-4870-a453-73647a0e4e37</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 05:03 · 0370b112</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>2620b6d4-a482-466b-abe6-bdb878d12ee9</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 05:05 · 2620b6d4</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>d7a3e358-7797-4bff-bd45-2ae419cc1388</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 05:08 · d7a3e358</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>ffe0b2ba-f083-4dc7-beb9-375a968230ea</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 05:12 · ffe0b2ba</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>fffc1d9d-cc5c-4710-bb56-ba320c93dc29</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 05:29 · fffc1d9d</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">unknown</span><code>fd3a968c-8d2f-4a27-bf1a-c412ddfe2c29</code><span class="lin-rel produced">implemented in</span></div>
+            <div class="lin-ttl">claude 2026-11-02 12:00 · fd3a968c</div>
+          </div>
+        </div>
+        
+        <div class="lin-node down">
+          <span class="lin-glyph"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>
+          <div class="lin-card">
+            <div class="lin-id"><span class="lin-kind">track</span><code>trk-0677c709</code><span class="lin-rel produced">part of</span></div>
+            <div class="lin-ttl">Launch Readiness — close pitch/reality gaps before LinkedIn launch</div>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    </div>
+  
+  </div>
+</section>
+
+</body>
+</html>
