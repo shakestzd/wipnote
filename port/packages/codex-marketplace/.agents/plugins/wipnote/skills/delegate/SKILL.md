@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # wipnote delegate
 
-`wipnote delegate` is the one way to hand work to another harness, and inside herdr or the Herdr app it is the first choice for coding work, ahead of a `wipnote:*-coder` subagent. Every run is a row in the delegations ledger.
+`wipnote delegate` is the one way to hand work to another harness, and inside herdr or the Herdr app it is the first choice for coding work: a `wipnote:*-coder` subagent call is denied there, and the denial names the spawn command. `WIPNOTE_NATIVE_CODERS=1` in the session's environment turns that off. Every run is a row in the delegations ledger.
 
 - **One call:** `wipnote delegate run`. It starts the tool, waits for it and prints the answer.
 - **A worker:** `wipnote delegate spawn`. It starts an interactive Claude or Codex session in a herdr pane. You give it tasks with `send` and read its answers with `wait` and `result`.
