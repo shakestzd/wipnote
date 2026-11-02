@@ -1,7 +1,7 @@
 #!/bin/sh
 # Pre-commit hook: Go quality gates
 #
-# Install: htmlgraph install-hooks
+# Install: wipnote install-hooks
 #          (sets core.hooksPath = .githooks)
 
 set -e
@@ -30,11 +30,11 @@ if git diff --cached --name-only | grep -q '\.go$' || [ -f "$REPO_ROOT/go.mod" ]
         # Scope tests to the packages containing staged Go files (reverse deps
         # are NOT expanded — CI runs the full suite). The full 'go test ./...'
         # run takes 5-8 min in ARM64 Codespaces and routinely stalls parallel
-        # commits (bug-85675e04). Set HTMLGRAPH_HOOK_FULL_TESTS=1 to force the
+        # commits (bug-85675e04). Set WIPNOTE_HOOK_FULL_TESTS=1 to force the
         # legacy full run.
         # Unset GIT_DIR/GIT_INDEX_FILE so tests that create real git repos
         # (e.g. TestBranchForFilePath) are not polluted by the pre-commit env.
-        if [ -n "${HTMLGRAPH_HOOK_FULL_TESTS:-}" ]; then
+        if [ -n "${WIPNOTE_HOOK_FULL_TESTS:-}" ]; then
             TEST_TARGETS="./..."
         else
             STAGED_PKGS=$(git diff --cached --name-only --diff-filter=ACMR -- '*.go' \
@@ -52,7 +52,7 @@ if git diff --cached --name-only | grep -q '\.go$' || [ -f "$REPO_ROOT/go.mod" ]
         if [ -n "$TEST_TARGETS" ]; then
             if ! (cd "$REPO_ROOT" && env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE go test $TEST_TARGETS) ; then
                 echo "FAIL: go test failed. Fix failing tests before committing."
-                echo "      (scoped to staged packages; run 'go test ./...' locally or set HTMLGRAPH_HOOK_FULL_TESTS=1 for the full suite.)"
+                echo "      (scoped to staged packages; run 'go test ./...' locally or set WIPNOTE_HOOK_FULL_TESTS=1 for the full suite.)"
                 exit 1
             fi
         fi
@@ -83,16 +83,16 @@ if git diff --cached --name-only \
     fi
 fi
 
-# Reject stray htmlgraph binary at repo root (use `htmlgraph build` instead)
-if git diff --cached --name-only | grep -q '^htmlgraph$'; then
-    echo "FAIL: A binary named 'htmlgraph' is staged at the repo root."
-    echo "      Run 'htmlgraph build' instead — it outputs to plugin/hooks/bin/htmlgraph."
-    echo "      Unstage it with: git reset HEAD htmlgraph"
+# Reject stray wipnote binary at repo root (use `wipnote build` instead)
+if git diff --cached --name-only | grep -q '^wipnote$'; then
+    echo "FAIL: A binary named 'wipnote' is staged at the repo root."
+    echo "      Run 'wipnote build' instead — it outputs to ~/.local/bin/wipnote."
+    echo "      Unstage it with: git reset HEAD wipnote"
     exit 1
 fi
 
-# Scan staged .htmlgraph/ and .claude/ artifacts for host-local absolute paths
-if git diff --cached --name-only | grep -qE '^(\.htmlgraph/|\.claude/)'; then
+# Scan staged .wipnote/ and .claude/ artifacts for host-local absolute paths
+if git diff --cached --name-only | grep -qE '^(\.wipnote/|\.claude/)'; then
     echo "  -> check-host-paths (staged)..."
     if ! "$REPO_ROOT/scripts/check-host-paths.sh" --staged ; then
         echo "FAIL: host-local paths found in staged files. See output above."
