@@ -38,6 +38,10 @@ func staleGit(t *testing.T, root string, args ...string) string {
 func staleInitRepo(t *testing.T, root string) {
 	t.Helper()
 	staleGit(t, root, "init", "-q")
+	// wipnote's own commits run plain git, so the identity must be in the repo.
+	staleGit(t, root, "config", "user.name", "t")
+	staleGit(t, root, "config", "user.email", "t@t")
+	staleGit(t, root, "config", "commit.gpgsign", "false")
 	staleGit(t, root, "add", "-A")
 	staleGit(t, root, "commit", "-q", "-m", "fixture")
 }
