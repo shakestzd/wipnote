@@ -13,6 +13,7 @@ func TestPreToolUse_GuardOrder(t *testing.T) {
 		"wipnote-write",
 		"bash-cwd",
 		"delegate-redirect",
+		"route-coders",
 		"plan-mode-bypass",
 		"orchestrator-research-advisory",
 		"orchestrator-strict",
