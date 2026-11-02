@@ -121,12 +121,23 @@ func TestSweep_ExcludesSelfAndAncestors(t *testing.T) {
 	}
 }
 
-func TestSweep_CommandIsTrimmed(t *testing.T) {
+// The sweep must not cap: a project path cut in two can't be cleaned later.
+func TestSweep_CommandStaysWhole(t *testing.T) {
 	long := "node " + strings.Repeat("x", 300)
-	res := sweepOne(t, fakeTable(raw(106, long, map[string]string{"CLAUDE_CODE_SESSION_ID": liveSession})))
+	res := sweepOne(t, fakeTable(raw(106, "  "+long+"  ", map[string]string{"CLAUDE_CODE_SESSION_ID": liveSession})))
 	p, _ := byPID(res, 106)
-	if len([]rune(p.Command)) > maxCommandRunes {
-		t.Fatalf("command not trimmed: %d runes", len([]rune(p.Command)))
+	if p.Command != long {
+		t.Fatalf("command = %q, want whitespace collapsed and nothing cut", p.Command)
+	}
+}
+
+func TestCapCommand(t *testing.T) {
+	long := strings.Repeat("x", 300)
+	if got := CapCommand(long); len([]rune(got)) != maxCommandRunes || !strings.HasSuffix(got, "…") {
+		t.Fatalf("long command capped to %d runes: %q", len([]rune(got)), got)
+	}
+	if got := CapCommand("vite --watch"); got != "vite --watch" {
+		t.Fatalf("short command changed: %q", got)
 	}
 }
 

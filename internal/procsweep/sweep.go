@@ -92,7 +92,7 @@ func Sweep(ctx context.Context, projects []Project, opts Options) (Result, error
 			continue
 		}
 		res.Procs = append(res.Procs, Proc{
-			PID: rp.PID, Command: trimCommand(rp.Command), SessionID: id,
+			PID: rp.PID, Command: collapseCommand(rp.Command), SessionID: id,
 			Project: s.project, StartedAt: rp.StartedAt, Orphan: s.orphans(rp.StartedAt),
 			StopHint: stopHint(rp.PID),
 		})

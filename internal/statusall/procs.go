@@ -71,7 +71,7 @@ func projectOrphans(ps procsState, e registry.Entry) []procsweep.Proc {
 	out := []procsweep.Proc{}
 	for _, p := range ps.byID[e.ID] {
 		p.Project = e.Name
-		p.Command = runledger.Clean(p.Command, e.ProjectDir)
+		p.Command = procsweep.CapCommand(runledger.Clean(p.Command, e.ProjectDir))
 		out = append(out, p)
 	}
 	return out
