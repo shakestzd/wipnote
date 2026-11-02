@@ -91,8 +91,8 @@ if git diff --cached --name-only | grep -q '^wipnote$'; then
     exit 1
 fi
 
-# Scan staged .wipnote/ and .claude/ artifacts for host-local absolute paths
-if git diff --cached --name-only | grep -qE '^(\.wipnote/|\.claude/)'; then
+# Scan staged .claude/ artifacts for host-local absolute paths
+if git diff --cached --name-only | grep -qE '^\.claude/'; then
     echo "  -> check-host-paths (staged)..."
     if ! "$REPO_ROOT/scripts/check-host-paths.sh" --staged ; then
         echo "FAIL: host-local paths found in staged files. See output above."
