@@ -12,6 +12,7 @@ type Row struct {
 	Mode     string   `json:"mode"`
 	Name     string   `json:"name,omitempty"`
 	Harness  string   `json:"harness"`
+	Model    string   `json:"model,omitempty"`
 	WorkItem string   `json:"work_item,omitempty"`
 	Pane     string   `json:"pane,omitempty"`
 	State    State    `json:"state"`
@@ -49,7 +50,7 @@ func List(ctx context.Context, d Deps, all bool) ([]Row, error) {
 }
 
 func listRow(ctx context.Context, d Deps, r delegationledger.Record) Row {
-	row := Row{Run: r.ID, Mode: r.Mode, Name: r.Name, Harness: r.Harness, WorkItem: r.WorkItem,
+	row := Row{Run: r.ID, Mode: r.Mode, Name: r.Name, Harness: r.Harness, Model: r.Model, WorkItem: r.WorkItem,
 		Sessions: r.WorkerSessions, Open: r.IsOpen()}
 	if !r.IsOpen() || r.Mode != delegationledger.ModeInteractive {
 		row.State = RunStateOf(r.IsOpen(), r.Exit, r.EndReason)

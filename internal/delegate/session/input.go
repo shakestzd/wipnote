@@ -215,4 +215,7 @@ func extendedGrey(rest []string) (bool, int) {
 	return false, 0
 }
 
-var _ StyledReader = (*herdr.CLI)(nil)
+var (
+	_ StyledReader = (*herdr.CLI)(nil)
+	_ StyledReader = (*herdr.Core)(nil)
+)

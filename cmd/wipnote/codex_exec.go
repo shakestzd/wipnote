@@ -244,6 +244,11 @@ func buildCodexArgs(opts codexLaunchOpts, otelPort int, instructionArgs []string
 	var args []string
 	args = append(args, buildCodexOtelConfigArgs(otelPort)...)
 	args = append(args, instructionArgs...)
+	// herdr-core's manual: Codex must run with --no-daemon in an hc terminal,
+	// or its commands execute in the shared server, outside that terminal.
+	if os.Getenv("HC_TERMINAL_ID") != "" {
+		args = append(args, "--no-daemon")
+	}
 	if opts.Yolo {
 		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
 		args = append(args, "--dangerously-bypass-hook-trust")

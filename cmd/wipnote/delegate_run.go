@@ -25,7 +25,7 @@ var delegateRunExit = os.Exit
 // delegateRunLong is delegate run's help.
 const delegateRunLong = `Runs one tool call (codex exec or review, claude -p, ccx task) as a recorded
 delegation: a row in .wipnote/delegations-ledger.html, a run folder under
-.wipnote/delegate/runs/, and a herdr pane when HERDR_ENV=1 (headless otherwise,
+.wipnote/delegate/runs/, and a herdr pane or hc terminal when inside one (headless otherwise,
 or with --no-pane). Inside herdr a claude -p run is an interactive worker
 instead: wipnote claude in a workers-tab pane with the prompt as its brief, a
 known --session-id, workspace trust pre-seeded and a status line that records
@@ -124,7 +124,7 @@ func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, f
 		HerdrEnv: env, PaneLine: delegatePaneLine(projectDir), Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
 	}
 	if env.InHerdr {
-		o.Herdr = herdr.New(env)
+		o.Herdr = herdr.NewClient(env, 0)
 		o.Worker = delegateWorkerOptions(wipnoteDir, session)
 	}
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
@@ -166,7 +166,7 @@ func delegateRunPaneCmd() *cobra.Command {
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			code := oneshot.RunPane(ctx, oneshot.PaneOptions{
-				Store: store, RunID: args[0], Herdr: herdr.New(herdr.EnvFrom(os.Getenv)), Out: cmd.OutOrStdout(),
+				Store: store, RunID: args[0], Herdr: herdr.NewClient(herdr.EnvFrom(os.Getenv), 0), Out: cmd.OutOrStdout(),
 				Ledger: delegationledger.NewStore(wipnoteDir),
 			})
 			if code != 0 {

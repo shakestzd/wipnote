@@ -50,9 +50,28 @@ type SpawnOptions struct {
 	// recorded with them in session.json.
 	LaunchArgs                     func(rf *runstore.RunFolder) ([]string, error)
 	SessionID, Transcript, WorkDir string
-	ProjectDir                     string        // with WorkDir: the run store's project (Info.ProjectDir)
-	ShellWait                      time.Duration // DefaultShellWait when zero
-	Poll                           time.Duration // DefaultPoll when zero
+	// Model and Effort are the harness's --model and effort; Extra are other
+	// harness flags (--mcp-config, --allowedTools). Spawn turns them into Flags,
+	// which boot passes and a resume inherits (see harnessFlags).
+	Model, Effort string
+	Extra, Flags  []string
+	// Full turns the lean Claude defaults off (see LeanFlags). Lean is what
+	// harnessFlags decided, which a resume inherits; inherited marks a resume
+	// that chose nothing and so keeps the old run's Flags as they are.
+	Full, Lean, inherited bool
+	// Profile names the worker's profile ("" is the default); Tools, MCP and
+	// Plugins add built-in tools, MCP servers and plugins to it; UserRules
+	// keeps ~/.claude/CLAUDE.md. Claude only (see applyProfile, LeanFlags).
+	Profile             string
+	Tools, MCP, Plugins []string
+	UserRules           bool
+	CacheTTL            string       // "5m" (default) or "1h"; --cache-ttl beats the profile
+	Config              ClaudeConfig // delegate.claude from the user's config
+	mcpConfig           []byte       // the generated --mcp-config, written to the run folder
+
+	ProjectDir string        // with WorkDir: the run store's project (Info.ProjectDir)
+	ShellWait  time.Duration // DefaultShellWait when zero
+	Poll       time.Duration // DefaultPoll when zero
 }
 
 // Spawned is spawn's payload: {run, name, pane, harness, status}.
@@ -62,13 +81,21 @@ type Spawned struct {
 	Pane    string `json:"pane"`
 	Harness string `json:"harness"`
 	Status  string `json:"status"`
+	Model   string `json:"model,omitempty"`
+	// Setup is what the worker was given (Claude): profile, effort, tools,
+	// MCP servers and plugins, so the delegator sees it.
+	Profile string   `json:"profile,omitempty"`
+	Effort  string   `json:"effort,omitempty"`
+	Tools   []string `json:"tools,omitempty"`
+	MCP     []string `json:"mcp,omitempty"`
+	Plugins []string `json:"plugins,omitempty"`
 }
 
 // Spawn starts a worker and returns with status starting. Refusals come
 // before anything is written: a bad name or harness, no work item, a live
 // name, a live worker on the item, and a full workers tab ("at cap").
 func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
-	if err := prepareSpawn(d, &o); err != nil {
+	if err := prepareSpawn(ctx, d, &o); err != nil {
 		return Spawned{}, err
 	}
 	var info Info
@@ -95,7 +122,8 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 		})
 		return Spawned{}, err
 	}
-	return Spawned{Run: info.Run, Name: info.Name, Pane: info.Pane, Harness: info.Harness, Status: StatusStarting}, nil
+	return Spawned{Run: info.Run, Name: info.Name, Pane: info.Pane, Harness: info.Harness, Status: StatusStarting, Model: info.Model,
+		Profile: info.Setup.Profile, Effort: info.Setup.Effort, Tools: info.Setup.Tools, MCP: info.Setup.MCP, Plugins: info.Setup.Plugins}, nil
 }
 
 // placeWorker runs under the caller's workers lock: lost workers are swept
@@ -121,7 +149,7 @@ func placeWorker(ctx context.Context, d Deps, o SpawnOptions, w *Workers) (Info,
 		return Info{}, nil, lost, err
 	}
 	tabBefore := w.Tab
-	pane, err := place(ctx, d.Herdr, w, info.Run, o.Cwd)
+	pane, err := place(herdr.WithTerminalName(ctx, terminalName(info.Name, o.WorkTitle)), d.Herdr, w, info.Run, o.Cwd)
 	if err != nil {
 		abandon(d, info.Run, rf, Info{})
 		return Info{}, nil, lost, fmt.Errorf("delegate: no pane for %s: %w", o.Name, err)
@@ -156,7 +184,7 @@ func closeNewPane(ctx context.Context, d Deps, w *Workers, tabBefore *herdr.Work
 // prepareSpawn resolves the work item (Deps.ResolveWorkItem, so a resume's
 // defaulted item is resolved too), names an unnamed worker after it, and
 // runs the refusals that need no lock.
-func prepareSpawn(d Deps, o *SpawnOptions) error {
+func prepareSpawn(ctx context.Context, d Deps, o *SpawnOptions) error {
 	if d.ResolveWorkItem != nil && o.WorkItem != "" {
 		id, err := d.ResolveWorkItem(o.WorkItem)
 		if err != nil {
@@ -166,6 +194,9 @@ func prepareSpawn(d Deps, o *SpawnOptions) error {
 	}
 	if o.Name == "" {
 		o.Name = slug.WorkerName(o.WorkItem, o.WorkTitle)
+	}
+	if err := harnessFlags(ctx, o); err != nil {
+		return err
 	}
 	return checkSpawn(d, *o)
 }
@@ -218,7 +249,7 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	row, err := d.Ledger.Open(delegationledger.Record{
 		Mode: delegationledger.ModeInteractive, Harness: o.Harness, Name: o.Name, WorkItem: o.WorkItem,
 		Link: "tag", CallerSession: o.CallerSession, Host: placeOf(o), Started: d.now(),
-		ResumedFrom: o.ResumedFrom,
+		ResumedFrom: o.ResumedFrom, Model: o.Model, Setup: o.setup().String(),
 	})
 	if err != nil {
 		return Info{}, nil, err
@@ -226,7 +257,7 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	info := Info{
 		Run: row.ID, Name: o.Name, Harness: o.Harness, WorkItem: o.WorkItem, Caller: o.CallerSession,
 		CallerPane: string(o.CallerPane), Cwd: o.Cwd, Place: placeOf(o), Created: d.now().Format(time.RFC3339),
-		ResumedFrom: o.ResumedFrom, ResumeSession: o.ResumeSession,
+		ResumedFrom: o.ResumedFrom, ResumeSession: o.ResumeSession, Model: o.Model, Flags: o.Flags, Lean: o.Lean, Setup: o.setup(),
 	}
 	if o.Container {
 		info.Root = o.Root
@@ -235,6 +266,9 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	rf, err := d.Store.CreateRun(row.ID)
 	if err == nil && o.LaunchArgs != nil {
 		info.Args, err = o.LaunchArgs(rf)
+	}
+	if err == nil {
+		err = writeMCPConfig(rf, &info, o.mcpConfig)
 	}
 	if err == nil {
 		err = writeRunFiles(d, rf, &info, o.Brief)
@@ -341,4 +375,19 @@ func sleepCtx(ctx context.Context, d time.Duration) error {
 	case <-t.C:
 		return nil
 	}
+}
+
+// writeMCPConfig writes the generated MCP config to the run folder, mode 0600
+// (entries can hold secrets), and adds --mcp-config <path> to the flags. The
+// path is on argv; the content never is.
+func writeMCPConfig(rf *runstore.RunFolder, info *Info, config []byte) error {
+	if len(config) == 0 {
+		return nil
+	}
+	path := filepath.Join(rf.Dir(), "mcp.json")
+	if err := os.WriteFile(path, config, 0o600); err != nil {
+		return err
+	}
+	info.Flags = append(info.Flags, "--mcp-config", path)
+	return nil
 }

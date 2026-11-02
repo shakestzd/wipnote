@@ -117,9 +117,12 @@ func ownWords(text string) string {
 // leaves alone (q-chained). A backslash-newline joins lines of one command, so
 // it is no separator (the mod has no case for it).
 func Standalone(command string) bool {
-	if Find(command) == None {
-		return false
-	}
+	return Find(command) != None && singleCommand(command)
+}
+
+// singleCommand reports whether command holds no separator outside its quoted
+// text, heredoc bodies and redirections.
+func singleCommand(command string) bool {
 	text := strings.ReplaceAll(Blank(command), "\\\n", " ")
 	text = strings.TrimSpace(redirectRe.ReplaceAllString(text, " "))
 	return !chainRe.MatchString(text)

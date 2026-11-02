@@ -62,9 +62,9 @@ func printRows(cmd *cobra.Command, rows []session.Row) error {
 		return err
 	}
 	tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "RUN\tNAME\tHARNESS\tWORK ITEM\tPANE\tGROUP\tSTATE\tDETAIL")
+	fmt.Fprintln(tw, "RUN\tNAME\tHARNESS\tMODEL\tWORK ITEM\tPANE\tGROUP\tSTATE\tDETAIL")
 	for _, r := range rows {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", r.Run, r.Name, r.Harness, r.WorkItem, r.Pane, r.Group.Label(), r.State, r.Detail)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", r.Run, r.Name, r.Harness, r.Model, r.WorkItem, r.Pane, r.Group.Label(), r.State, r.Detail)
 	}
 	return tw.Flush()
 }

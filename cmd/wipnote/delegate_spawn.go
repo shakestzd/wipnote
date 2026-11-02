@@ -11,6 +11,7 @@ import (
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/internal/delegate/codex"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
@@ -23,12 +24,37 @@ import (
 // (plan-28b4a7f6 slice 10): an interactive worker in the caller's workers
 // tab. It returns within seconds with status starting.
 func delegateSpawnCmd() *cobra.Command {
-	var harness, workItem, brief, briefFile, resumeFrom string
-	var inContainer bool
+	var harness, workItem, brief, briefFile, resumeFrom, model, effort string
+	var inContainer, userRules bool
+	var profile, cacheTTL string
+	var tools, mcp, plugins []string
 	cmd := &cobra.Command{
-		Use:   "spawn [NAME] (--harness claude|codex | --resume OLD) [--work-item ID] [--brief TEXT | --brief-file PATH] [--container]",
+		Use:   "spawn [NAME] (--harness claude|codex | --resume OLD) [--work-item ID] [--brief TEXT | --brief-file PATH] [--model M] [--effort E] [--profile P] [--tool T] [--mcp S] [--plugin P] [--user-rules] [--cache-ttl 5m|1h] [--container] [-- HARNESS_FLAGS]",
 		Short: "Start an interactive Claude or Codex worker in the caller's herdr workers tab",
-		Long: `Starts an interactive worker under wipnote claude or wipnote codex in a split of
+		Long:  delegateSpawnLong,
+		Args: func(cmd *cobra.Command, args []string) error {
+			return cobra.MaximumNArgs(1)(cmd, spawnNameArgs(cmd, args))
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			text, err := readBrief(brief, briefFile, cmd.InOrStdin())
+			if err != nil {
+				return err
+			}
+			name := ""
+			names := spawnNameArgs(cmd, args)
+			if len(names) == 1 {
+				name = names[0]
+			}
+			return runDelegateSpawn(cmd, spawnArgs{name: name, harness: harness, workItem: workItem,
+				brief: text, container: inContainer, resume: resumeFrom, model: model, effort: effort, profile: profile, tools: tools, mcp: mcp, plugins: plugins, userRules: userRules, cacheTTL: cacheTTL, extra: args[len(names):]})
+		},
+	}
+	registerSpawnFlags(cmd, &spawnFlagVars{harness: &harness, workItem: &workItem, brief: &brief, briefFile: &briefFile, inContainer: &inContainer, model: &model, profile: &profile, tools: &tools, mcp: &mcp, plugins: &plugins, userRules: &userRules, cacheTTL: &cacheTTL, effort: &effort, resumeFrom: &resumeFrom})
+	return cmd
+}
+
+// delegateSpawnLong is the long help text of delegate spawn.
+const delegateSpawnLong = `Starts an interactive worker under wipnote claude or wipnote codex in a split of
 the caller's workers tab (one tab per caller, at most 6 workers). spawn types one
 short boot line into the new pane and returns {run, name, pane, harness, status}
 with status "starting"; the worker's hooks bind its session, and the next
@@ -53,28 +79,70 @@ unless this host is in delegate.codex.dangerFullAccessHosts.
 given. NAME is required with --resume. The new run's ledger row has
 resumed_from set. It refuses while OLD is live, when OLD's run folder was swept,
 when no session id was recorded, when another run already continues that
-session, and a Codex resume with a brief.`,
-		Args: cobra.RangeArgs(0, 1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			text, err := readBrief(brief, briefFile, cmd.InOrStdin())
-			if err != nil {
-				return err
-			}
-			name := ""
-			if len(args) == 1 {
-				name = args[0]
-			}
-			return runDelegateSpawn(cmd, spawnArgs{name: name, harness: harness, workItem: workItem,
-				brief: text, container: inContainer, resume: resumeFrom})
-		},
+session, and a Codex resume with a brief.
+
+--model picks the worker's model, so small work can go to a cheaper one, and
+--effort its reasoning effort. Other harness flags go after --, such as
+--mcp-config m.json --strict-mcp-config --allowedTools mcp__x__y. A flag that
+ends the interactive session or sets its identity (-p, --resume, --session-id,
+--name) is refused. A resume with none of these keeps the old run's. The model
+is recorded on the run's ledger row.
+
+A Claude worker starts lean, and YOU choose its setup per task:
+--profile simple (haiku, low effort: small, well-defined work), standard (sonnet,
+medium; the default), deep (opus, high) or full (Claude's own start: your model
+and effort, ~/.claude/CLAUDE.md, MCP, skills, orchestrator prompt). Lean drops
+~/.claude/CLAUDE.md, MCP servers, auto memory, skills, subagents, Chrome, git
+status in the prompt and the orchestrator prompt, and gives only Bash, Read, Edit
+and Write: about a fifth of the usual first-request prompt. --model and --effort
+override the profile. Add only what the task needs: --tool T (Grep, WebFetch,
+Agent...), --mcp NAME (a local server, a "claude.ai Notion" connector or a
+plugin:x:y server; ToolSearch is added), --plugin NAME (Skill is added),
+--user-rules (keep ~/.claude/CLAUDE.md; otherwise put the rules in the brief).
+The prompt cache lives 5m by default, which suits short workers; use --cache-ttl 1h
+for a worker that will sit idle between tasks.
+An unknown profile, server or plugin refuses the spawn and lists the valid ones.
+Your own profiles go in ~/.wipnote/config.json under delegate.claude.profiles
+(model, effort, tools, mcp, plugins, userRules, cacheTTL), and delegate.claude.defaultProfile
+picks the default. A --tools, --chrome, --settings or --strict-mcp-config after
+-- replaces its default (your --settings replaces the whole overlay). A resume
+that gives none of these keeps the old run's setup. The result shows profile,
+model, effort, tools, mcp, plugins and cacheTTL. Codex workers (which refuse these flags)
+and delegate run are unchanged.`
+
+// spawnFlagVars points at the variables the spawn flags fill.
+type spawnFlagVars struct {
+	harness, workItem, brief, briefFile, model, profile, cacheTTL, effort, resumeFrom *string
+	inContainer, userRules                                                            *bool
+	tools, mcp, plugins                                                               *[]string
+}
+
+// registerSpawnFlags registers the delegate spawn flags on cmd.
+func registerSpawnFlags(cmd *cobra.Command, v *spawnFlagVars) {
+	f := cmd.Flags()
+	f.StringVar(v.harness, "harness", "", "claude or codex")
+	f.StringVar(v.workItem, "work-item", "", "work item id (default: the caller's active claim)")
+	f.StringVar(v.brief, "brief", "", "the worker's first task")
+	f.StringVar(v.briefFile, "brief-file", "", "read the first task from a file (- for stdin)")
+	f.BoolVar(v.inContainer, "container", false, "start the worker in the project's own devcontainer")
+	f.StringVar(v.model, "model", "", "the worker's model, such as haiku")
+	f.StringVar(v.profile, "profile", "", "Claude worker profile: simple, standard (default), deep, full, or one from delegate.claude.profiles")
+	f.StringArrayVar(v.tools, "tool", nil, "add a built-in Claude tool to Bash,Read,Edit,Write (repeatable), such as Grep")
+	f.StringArrayVar(v.mcp, "mcp", nil, "turn on exactly this MCP server (repeatable); claude.ai connectors and plugin servers by their `claude mcp list` name")
+	f.StringArrayVar(v.plugins, "plugin", nil, "turn on exactly this Claude plugin (repeatable), name or name@marketplace")
+	f.BoolVar(v.userRules, "user-rules", false, "keep ~/.claude/CLAUDE.md for the worker")
+	f.StringVar(v.cacheTTL, "cache-ttl", "", "prompt cache lifetime, 5m (default) or 1h; 1h for a worker that sits idle between tasks")
+	f.StringVar(v.effort, "effort", "", "the worker's reasoning effort, such as low")
+	f.StringVar(v.resumeFrom, "resume", "", "continue the stopped worker OLD's last session, in its folder and place")
+}
+
+// spawnNameArgs is the positional words before --; those after it are harness
+// flags.
+func spawnNameArgs(cmd *cobra.Command, args []string) []string {
+	if dash := cmd.ArgsLenAtDash(); dash >= 0 {
+		return args[:dash]
 	}
-	cmd.Flags().StringVar(&harness, "harness", "", "claude or codex")
-	cmd.Flags().StringVar(&workItem, "work-item", "", "work item id (default: the caller's active claim)")
-	cmd.Flags().StringVar(&brief, "brief", "", "the worker's first task")
-	cmd.Flags().StringVar(&briefFile, "brief-file", "", "read the first task from a file (- for stdin)")
-	cmd.Flags().BoolVar(&inContainer, "container", false, "start the worker in the project's own devcontainer")
-	cmd.Flags().StringVar(&resumeFrom, "resume", "", "continue the stopped worker OLD's last session, in its folder and place")
-	return cmd
+	return args
 }
 
 func readBrief(text, file string, stdin io.Reader) (string, error) {
@@ -94,6 +162,12 @@ func readBrief(text, file string, stdin io.Reader) (string, error) {
 // spawnArgs is one spawn command's flags.
 type spawnArgs struct {
 	name, harness, workItem, brief, resume string
+	model, effort                          string
+	profile                                string
+	tools, mcp, plugins                    []string
+	userRules                              bool
+	cacheTTL                               string
+	extra                                  []string
 	container                              bool
 }
 
@@ -114,9 +188,12 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	if a.resume != "" && a.name == "" {
 		return fmt.Errorf("delegate spawn: --resume needs NAME for the new worker")
 	}
+	// The title also goes into the terminal name, so a named worker needs it too.
 	title := ""
 	if a.name == "" {
 		a.workItem, title = workItemTitle(wipnoteDir, a.workItem)
+	} else if a.workItem != "" {
+		_, title = workItemTitle(wipnoteDir, a.workItem)
 	}
 	cwd, _ := os.Getwd()
 	exe, err := os.Executable()
@@ -125,7 +202,8 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	}
 	o := session.SpawnOptions{
 		Name: a.name, Harness: a.harness, WorkItem: a.workItem, WorkTitle: title, CallerSession: caller, CallerPane: env.CallerPane,
-		Brief: a.brief, Cwd: cwd, Container: a.container, Root: projectDir,
+		Brief: a.brief, Cwd: cwd, Container: a.container, Root: projectDir, Model: a.model, Effort: a.effort, Profile: a.profile, Tools: a.tools, MCP: a.mcp, Plugins: a.plugins, UserRules: a.userRules, CacheTTL: a.cacheTTL,
+		Config: session.LoadClaudeConfig(paths.UserConfigPath()), Extra: a.extra,
 		CodexOptIn: (a.container || a.resume != "") && hostOptedIn(projectDir),
 		BootLine:   func(run string) string { return session.BootLine(exe, projectDir, run, caller) },
 	}
@@ -169,7 +247,7 @@ func delegateSessionDeps(wipnoteDir string) (session.Deps, herdr.Env, error) {
 		ResolveWorkItem: func(id string) (string, error) { return resolveSpawnWorkItem(wipnoteDir, id) }}
 	env := herdr.EnvFrom(os.Getenv)
 	if env.InHerdr {
-		d.Herdr = herdr.New(env)
+		d.Herdr = herdr.NewClient(env, 0)
 	}
 	return d, env, nil
 }

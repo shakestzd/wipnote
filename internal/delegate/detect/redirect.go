@@ -37,6 +37,9 @@ func RedirectAt(command, cwd string) string {
 	if !mentionsTool(command) || delegateRunRe.MatchString(command) {
 		return ""
 	}
+	if why := agentLaunchReason(command); why != "" {
+		return why
+	}
 	if !Standalone(command) {
 		return ""
 	}

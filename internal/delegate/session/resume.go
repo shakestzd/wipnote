@@ -57,6 +57,13 @@ func resumeOptions(d Deps, o *SpawnOptions, from string) error {
 	if o.WorkItem == "" {
 		o.WorkItem = old.WorkItem
 	}
+	if o.Model == "" && o.Effort == "" && len(o.Extra) == 0 && o.Profile == "" && !o.choseSetup() {
+		o.Model, o.Flags, o.Lean = info.Model, info.Flags, info.Lean // stay on the old run's model
+		o.Profile, o.Effort, o.Tools, o.MCP, o.Plugins, o.UserRules = info.Setup.Profile, info.Setup.Effort, info.Setup.Tools, info.Setup.MCP, info.Setup.Plugins, info.Setup.UserRules
+		o.CacheTTL = info.Setup.CacheTTL
+		o.Full = info.Setup.Profile == ProfileFull
+		o.inherited = true
+	}
 	if info.Place == PlaceContainer {
 		o.Container, o.Root = true, info.Root
 	}

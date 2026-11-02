@@ -215,7 +215,7 @@ func launchClaudeContinue(extraArgs []string, resumeID string) error {
 	})
 }
 
-func launchClaudeDefault(extraArgs []string, resumeID, name, workItem, workDir string, inPlace bool) error {
+func launchClaudeDefault(extraArgs []string, resumeID, name, workItem, workDir string, inPlace, noOrchestrator bool) error {
 	// The canonical main repo root when CWD is a linked worktree (slice-3),
 	// or a delegate worker's project when it runs in its own --work-dir;
 	// "" when no override is needed.
@@ -249,6 +249,7 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem, workDir s
 		Resume:             lctx.intentResult.browse,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
+		NoOrchestrator:     noOrchestrator,
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
 		ProjectRoot:        lctx.childDir,

@@ -126,8 +126,11 @@ func observe(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info) (Ob
 	evs, _ := rf.ReadEvents()
 	f := factsOf(evs)
 	o := Observation{Bound: len(f.sessions) > 0, Turn: f.turn, Question: f.question, ShellRunning: f.shell}
-	o.TaskPending, o.TaskAnswered = taskFacts(d.Store, info.Name, info.Run)
+	// Questions before the result: a result hides its task's questions, so read
+	// the other way round, one landing between the reads shows neither the
+	// question nor the answer (bug-7dd6f937).
 	o.Question = o.Question || len(pendingQFiles(d.Store, info.Name, info.Run)) > 0 // D7
+	o.TaskPending, o.TaskAnswered = taskFacts(d.Store, info.Name, info.Run)
 	if d.Herdr == nil || info.Pane == "" {
 		return o, f
 	}

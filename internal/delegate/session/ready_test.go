@@ -2,6 +2,7 @@ package session
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -161,5 +162,32 @@ func TestTrustDialog_Labels(t *testing.T) {
 		if (want == "") != (got == "") || (want != "" && got[:len(want)] != want) {
 			t.Fatalf("%q: got %q want %q", screen, got, want)
 		}
+	}
+}
+
+// The paint below is real: hc attach --observe on a Claude Code 2.1 worker.
+func TestParseInput_HcObserverPaint(t *testing.T) {
+	rule := "\x1b[0m\x1b[38;2;136;136;136m\u2500\u2500\u2500\u2500\x1b[0m\r\n"
+	suggestion := rule + "\u276f\u00a0\x1b[0m\x1b[2mcheck the cited files\x1b[0m\r\n" + rule
+	if in := ParseInput(suggestion); !in.Read || in.Draft() {
+		t.Fatalf("a dim suggestion read as a draft: %+v", in)
+	}
+	typed := rule + "\u276f\u00a0\x1b[0mrun the linter\x1b[0m\r\n" + rule
+	if in := ParseInput(typed); !in.Read || !in.Draft() {
+		t.Fatalf("typed text did not read as a draft: %+v", in)
+	}
+	empty := rule + "\u276f\u00a0\x1b[0m\r\n" + rule
+	if in := ParseInput(empty); !in.Read || in.Draft() {
+		t.Fatalf("an empty line read as a draft: %+v", in)
+	}
+}
+
+func TestTrustDialog_CodexSignIn(t *testing.T) {
+	screen := "Welcome to Codex, OpenAI's command-line coding agent\n\n> 1. Sign in with ChatGPT\n"
+	if got := TrustDialog(screen); !strings.Contains(got, "codex is not signed in") {
+		t.Fatalf("TrustDialog = %q", got)
+	}
+	if got := TrustDialog("Sign in with ChatGPT was mentioned in a transcript"); got != "" {
+		t.Fatalf("one label must not match: %q", got)
 	}
 }

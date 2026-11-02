@@ -57,7 +57,7 @@ func BootArgv(exe string, info Info, brief string) []string {
 	if info.ResumeSession == "" && info.Harness == HarnessClaude {
 		argv = append(argv, "--name", info.Name)
 	}
-	if brief != "" || len(info.Args) > 0 {
+	if brief != "" || len(info.Args) > 0 || len(info.Flags) > 0 {
 		argv = append(argv, "--")
 	}
 	if brief != "" {
@@ -65,10 +65,14 @@ func BootArgv(exe string, info Info, brief string) []string {
 	}
 	// The prompt goes before the launch args: a variadic flag such as
 	// --mcp-config would read a later prompt as one of its values.
-	return append(argv, info.Args...)
+	return append(append(argv, info.Args...), info.Flags...)
 }
 
-// claudeDirArgs tell the Claude launcher where claude runs (--work-dir,
+// NoOrchestratorFlag is the launcher flag that leaves the orchestrator and
+// research-routing prompt out of a lean worker: it is not an orchestrator.
+const NoOrchestratorFlag = "--no-orchestrator-prompt"
+
+// claudeDirArgs (plus NoOrchestratorFlag for a lean worker) tell the Claude launcher where claude runs (--work-dir,
 // every boot, a resume too: a session is found only from its own dir) and
 // which project is the wipnote root (--project-dir, the run store's).
 func claudeDirArgs(info Info) []string {
@@ -78,6 +82,9 @@ func claudeDirArgs(info Info) []string {
 	}
 	if info.WorkDir != "" && info.ProjectDir != "" {
 		out = append(out, "--project-dir", info.ProjectDir)
+	}
+	if info.Lean {
+		out = append(out, NoOrchestratorFlag)
 	}
 	return out
 }
@@ -92,7 +99,9 @@ func Preamble(info Info, mailDir string) string {
 When you finish the task below, give your final answer with
   wipnote delegate reply --task %s "<your answer>"
 (for a long answer, pipe it in: wipnote delegate reply --task %s --file -).
-Then end your turn and wait for the next task.
+Then end your turn with one short line such as "Replied." and wait for the next
+task: do not repeat your answer, the caller reads only the reply.
+Read only what the task needs: search first, then print the ranges you need, not whole files.
 If you need an answer from your caller first, run
   wipnote delegate reply --task %s --ask --option "<choice>" "<question>"
 and end your turn; the answer is typed to you.

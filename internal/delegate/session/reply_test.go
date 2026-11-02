@@ -78,7 +78,7 @@ func TestReply_Refuses(t *testing.T) {
 
 func TestPreamble_NamesDelegateReply(t *testing.T) {
 	p := Preamble(Info{Name: "w1", Run: "dlg-0123456789ab", Task: "msg-0123456789ab"}, "/mail/w1")
-	for _, want := range []string{"wipnote delegate reply --task msg-0123456789ab \"", "--ask", "/mail/w1/outbox/msg-0123456789ab-result.json"} {
+	for _, want := range []string{"wipnote delegate reply --task msg-0123456789ab \"", "--ask", "Replied.", "do not repeat your answer", "Read only what the task needs", "/mail/w1/outbox/msg-0123456789ab-result.json"} {
 		if !strings.Contains(p, want) {
 			t.Errorf("preamble lacks %q:\n%s", want, p)
 		}

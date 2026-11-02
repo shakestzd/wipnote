@@ -173,6 +173,15 @@ func settle(ctx context.Context, d Deps, res WaitResult, o Observation, f eventF
 		res.Outcome = OutcomeDone
 	case o.Question:
 		res.Outcome, res.Asks = OutcomeAsks, pendingQuestions(d.Store, res.Name, res.Run, f)
+		if len(res.Asks) == 0 {
+			// The question went away after o was read: never report asks with
+			// nothing to answer (bug-7dd6f937). Its result is the usual reason.
+			res.Outcome = ""
+			if _, answered := taskFacts(d.Store, res.Name, res.Run); !answered {
+				return res, false
+			}
+			res.Outcome = OutcomeDone
+		}
 	case o.Dialog != "": // a trust dialog holds the first task unacked
 		res.Outcome, res.Detail = OutcomeBlocked, Ready(o).Detail
 	case o.TaskPending && unacked: // only stale turn signals are rejected

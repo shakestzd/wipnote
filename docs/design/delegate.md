@@ -19,7 +19,7 @@ withdrawn. One path now covers both:
   one run store, one herdr adapter and one record type.
 - The `codex-herdr-pane` mod is absorbed into `wipnote delegate run` and is removed in the release
   that ships `delegate run` and the Bash redirect (q-mod-removal, slice 14).
-- The `wipnote-orchestra` mod is merged into delegate (section 7).
+- The `wipnote-orchestra` mod is merged into delegate (section 7 of [delegate-history.md](delegate-history.md)).
 - orch is the reference, not a dependency (q-adopt-vs-port: port orch natively in Go).
 - There is no daemon. Every verb is a short CLI process, a bounded wait, or a process in a herdr
   pane. A hook writes one small file and returns.
@@ -264,12 +264,45 @@ NAME's recorded cwd and place, with NAME's harness and work item unless given. T
 live NAME, a swept run folder, no recorded session id, a gone working folder, `--harness` or
 `--container` that disagree with the old run, a run already resumed, and a Codex resume with a brief.
 
-Slice 16 adds the claim rules of section 5: spawn also refuses a second live worker on the same
+Slice 16 adds the claim rules of section 5 of [delegate-history.md](delegate-history.md): spawn also refuses a second live worker on the same
 work item (its id resolved first, after a resume's default), the brief and every sent task begin
 with the worker's own claim line, and list, stop, wait and spawn close a lost worker (folded first,
 like every close) with its run folder finished and its claim episodes expired.
 
-Planned on top: `--write` (slice 12), `--tools`, `--plugin`, `--mcp` (slice 27).
+**Worker setup (feat-d6db84fc).** A Claude worker starts lean, and the delegator chooses its setup per
+task; spawn never infers it from the brief. `--profile` is one of `simple` (haiku, low), `standard`
+(sonnet, medium; the default), `deep` (opus, high) or `full` (Claude's own start: no lean flags, the
+user's model and effort, the orchestrator prompt). A user profile in `~/.wipnote/config.json`
+(`delegate.claude.profiles.<name>`: model, effort, tools, mcp, plugins, userRules) replaces a built-in
+of the same name, and `delegate.claude.defaultProfile` picks the default. `--model`, `--effort`,
+`--tool T`, `--mcp NAME`, `--plugin NAME` and `--user-rules` add to or override the profile; raw flags
+after `--` win. Codex refuses all but `--model` and `--effort`. Lean workers cache for 5 minutes
+(`promptCacheTtl`) unless `--cache-ttl 1h` or a profile's `cacheTTL` says otherwise. Measured results
+against native subagents, and their limits, are in
+[delegate-token-benchmark.md](delegate-token-benchmark.md).
+
+What lean drops, and the flags that do it (they follow the brief, as BootArgv requires; `--tools` is
+one comma-joined value because the flag is variadic): no `~/.claude/CLAUDE.md`, auto memory, git
+status in the prompt or plugin sync (the `--settings` overlay, with `claudeMdExcludes` JSON-encoded
+from the OS home); no MCP servers (`--strict-mcp-config`); no skills or subagents and only Bash,
+Read, Edit, Write (`--tools`); no Chrome (`--no-chrome`); no orchestrator or research-routing prompt
+(the hidden launcher flag `--no-orchestrator-prompt`; the mods' rules stay). `--setting-sources` is
+not used: `project` hangs a worker on an "Allow external CLAUDE.md file imports?" dialog.
+Measured first request (cache write tokens): 75,100 default, 19,043 native subagent, 15,134 lean.
+
+`--mcp`: a local server (`~/.claude.json` `mcpServers`, its `projects[<root>]`, or `.mcp.json`) stays
+under `--strict-mcp-config` with a generated `mcp.json` in the run folder (mode 0600; only the path is
+on argv). A claude.ai connector (`claude.ai NAME`) or plugin server (`plugin:x:y`) cannot load under
+strict, so strict is dropped and every other server `claude mcp list` shows is denied by exact name
+(`deniedMcpServers` in the settings; `allowedMcpServers` removes all connectors). ToolSearch is added
+to `--tools` with any MCP server (159,656 tokens of definitions without it, 18,474 with). `--plugin`:
+`enabledPlugins` only overlays, so every plugin in `~/.claude/settings.json` is set false except the
+requested ones, and Skill is added. An unknown profile, server or plugin refuses the spawn and lists
+the valid names. The setup is in spawn's JSON, in `session.json`, and in the ledger's `setup` column
+(names only); a `--resume` that chooses nothing keeps it. Container workers get no
+`claudeMdExcludes` (the container's home is not the host's).
+
+Planned on top: `--write` (slice 12).
 
 ### 2.6 Mailbox verbs (available, slice 11)
 
@@ -443,143 +476,12 @@ the worker; results are `<task-id>-result.json`, questions `<task-id>-q<n>.json`
 
 **One writer per file.** Each message is its own file, written by temp file, fsync and rename. Each
 process appends only to its own events file. There is no shared append and no lock across the bind
-mount. Phase B B7 confirms that this is required (section 8).
+mount. Phase B B7 confirms that this is required (section 8 of [delegate-history.md](delegate-history.md)).
 
-## 4. Owner decisions
+## 4 to 8. Decisions, claims, parity, orchestra and Phase B results
 
-**Round 3 (2026-10-25):**
-
-- **R. Result.** The worker writes `outbox/<task-id>-result.json`, as a preamble on the brief tells it.
-  The Stop hook only signals "turn ended"; no assistant message or transcript text is stored
-  (slices 5, 10, 11).
-- **S. Codex sandbox.** Read-only by default; `--write` gives workspace-write; danger-full-access only
-  for a host named in the user config `delegate.codex.dangerFullAccessHosts`, never a committed file.
-  A failed bwrap probe refuses with its output (slice 12; q-codex-sandbox).
-- **C. Container.** ccx means container Claude. `--container` runs the worker in the project's own
-  devcontainer (`.devcontainer/devcontainer.json`, through `devcontainer up` and `devcontainer exec`),
-  never an ad-hoc image. There is no second-account gate (slice 21; q-container-image).
-- **L. Layout.** Exactly as orch: one workers tab per caller in the caller's workspace. Each new
-  worker is a split inside it, cap 6. The caller's own tab is never split (slices 6, 10, 19;
-  q-worker-layout).
-- **D. orch defects become two-sided regression tests.** D1 and D1b (a result file or a stop ends
-  wait) and D3 (result returns the newest file) in slice 11. D2 (one readiness predicate) and D8 (a
-  grey next-prompt suggestion reads as empty, never as working) in slices 10 and 11. D6 (a fresh
-  worker is ready at once) in slice 11. D4 (only real Agent or Task sub-agent pairs count) in slice 5.
-  D5 (stop states what it closed and why not) in slice 10. D7 (an outbox question file is pending) in
-  slices 11 and 17.
-- **E. Resume.** `spawn NAME2 --resume NAME` relaunches the recorded session. Parking an idle worker
-  is rejected; stop-when-done stays the rule (slice 20; q-resume-mode).
-- **P. Projects.** delegate plus herdr is a multi-harness Projects harness. wipnote plans stay the
-  durable layer (slices 23 to 25).
-
-**2026-10-26:**
-
-- **Codex workers run interactively.** Inside herdr, a Codex run is an interactive TUI worker, as for
-  Claude; outside herdr, `codex exec` stays (slice 26; q-codex-workers). Phase B C1 to C3, B3b, B4 and
-  B5 met the condition slice 22 set. Idle detection for a Codex worker still waits on D8b.
-- **Lean default profile.** Workers start with a small built-in tool set, the wipnote plugin only, and
-  only the MCP servers the task names. Claude: Read, Edit, Write, Glob, Grep, Bash. Codex: shell and
-  apply_patch on; web search, view_image, image_generation, browser_use, apps, multi_agent and plugins
-  off (q-lean-tools). The task widens it with `--tools`, `--plugin` and `--mcp`, named items only, and
-  the run folder records the widened set (q-lean-widen). OAuth users are never put on `--bare`
-  (slice 27).
-- **Container workers write only files they alone own.** Their own `events-<writer>.ndjson`, result
-  file and claim file, replaced by rename. Never a shared `.wipnote/` file such as the sessions or
-  gate ledger. wipnote on the host folds them in. The worker's sessions-ledger row reaches the host
-  ledger through that fold, with `host=container` and the real harness (slice 21; Phase B B7).
-- **Container login.** The owner logs in to Claude Code inside the container once with `/login`. The
-  repo's named volume for the Claude config folder keeps the login. `delegate doctor` checks the login
-  and that the folder is writable, and names the fix. A launcher-passed token and mounted host
-  credentials are rejected for now (slice 21; Phase B B6).
-- **Phase B B2 is read-only.** B2 reads orch's registry and each session's `events.ndjson` and
-  spawns, sends and stops nothing (slice 2).
-- **A `wipnote claude` session is a root session.** Each interactive session started by
-  `wipnote claude` is a root session and is recorded with its real harness, never `human`
-  (bug-5333ea49). `spawn` scrubs the inherited `WIPNOTE_PARENT_SESSION`, `WIPNOTE_PARENT_EVENT` and
-  `WIPNOTE_NESTING_DEPTH`, so a worker is its own root. The caller link travels in
-  `WIPNOTE_DELEGATE_CALLER` and the ledger (slice 10).
-
-Other answered questions: q-command-name (`wipnote delegate`), q-live-store (`.wipnote/delegate/`,
-gitignored), q-intercept (deny-redirect), q-label (explicit only), q-viewer (Go viewer), q-chained
-(v2), q-orch-import (import, then delete orchlink), q-orch-source (README and inventory only),
-q-answer-questions (answer by typing into the pane), q-mod-removal (same release), q-antigravity (no),
-q-claude-pane (orchestra), q-worker-claim (the worker claims), q-claim-handoff and
-q-concurrent-workers (section 5).
-
-## 5. Claims
-
-A spawned worker claims its work item through the existing claim-episode model (q-worker-claim:
-the worker claims). No claim store or outcome is added. Available (slice 16). Liveness is the
-sessions-ledger rule (a session is live until its row records an end), now that bug-01f182e5 is
-fixed.
-
-- **How the worker claims.** Its brief begins with `wipnote <kind> start <id>` (the kind follows
-  the id's prefix). The item lock, the collision gate and the ledger write run unchanged. Planned:
-  `wait` and `list` report it when the episode did not appear.
-- **Handoff (q-claim-handoff: co-claim, workers count as family).** The orchestrator keeps its
-  episode while the worker holds its own, so the claim never leaves the orchestrator and nothing has
-  to return. The claim gate (`liveForeignClaims` and `checkLiveCollisionGate`) treats an episode as
-  family in two cases:
-  - it is held by a session in `worker_sessions` of an open interactive row whose `caller_session` is
-    the caller (the orchestrator can re-start or review);
-  - the caller is a worker (`WIPNOTE_DELEGATE_RUN` names an open row) and the episode is held by that
-    row's `caller_session` or its root (the worker can claim beside the orchestrator).
-
-  An unrelated live session is still refused. An unreadable delegations ledger fails open.
-- **Concurrency (q-concurrent-workers: one worker per item in v1).** `spawn` refuses when an open
-  interactive row for the item has a live worker (its pane lives, or its run folder cannot be
-  read). A row whose pane is gone goes through the worker-loss path first. One-shot runs do not
-  claim and do not count.
-- **Stop.** The worker's own SessionEnd closes its episode as `abandoned`; the row records
-  `end_reason=stop`.
-- **Crash or lost pane.** When herdr reports the pane absent (or holding another terminal), `list`,
-  `stop` and `spawn` close the row as `gone`, then close only that worker's sessions' episodes as
-  `expired` (`worker_sessions` plus sessions bound in events that no `list` has moved yet). The
-  caller's episode is never touched. `wipnote claims reconcile` stays the backstop.
-- **wait timeout.** It changes no claim.
-- **Orchestrator ends first.** Its SessionEnd closes only its own rows; workers keep their claims.
-- **Completion.** Whoever completes the item closes every open episode on it. So stop the worker
-  before completing; `<kind> complete` warns (never refuses) while an open interactive row exists
-  for the item.
-- **After `/clear`.** The new worker session still carries `WIPNOTE_DELEGATE_RUN`, so it is family of
-  the caller and of the run's earlier worker sessions, and its next `<kind> start` reopens its
-  episode. The next `list` adds it to `worker_sessions`, so the caller's gate treats it as family
-  too.
-
-## 6. Interactive parity (spike spk-87139e0e)
-
-Full record: [delegate-interactive-parity.md](delegate-interactive-parity.md).
-
-- **Load controls: parity.** An interactive launch honours every load control a headless launch
-  does, in both harnesses.
-- **Result, exit status and cost: no parity out of the box.** wipnote collects them from hooks, the
-  status line and transcript files.
-- **Claude Code: conditional GO.** Inside herdr, a Claude run becomes an interactive worker with the
-  spike's wrapper (slice 22). Outside herdr, `claude -p` stays with the same report.
-- **Codex: HOLD at the time of the spike, now lifted.** Phase B C1 to C3 passed, and the owner
-  decided on 2026-10-26 that Codex runs inside herdr become interactive workers (slice 26).
-
-## 7. wipnote-orchestra merges into delegate
-
-Decision (q-claude-pane: orchestra; slice 19): the `wipnote-orchestra` mod is part of delegate. Its
-code and release move under the delegate feature. Slice 19 is merged on main: the band reads
-`.wipnote/delegate/runs/` and shows one row per live or ended run, one-shot and interactive, with the
-first line of `last.md`. It works outside herdr and never writes to the run store. It replaces the
-`codex-herdr-pane` mod's Claude Code run pane.
-
-## 8. Phase B results
-
-Full record: [delegate-phase-b.md](delegate-phase-b.md) (runs 1 to 9, 2026-10-26; herdr 0.9.5,
-Claude Code 2.1.310, codex-cli 0.164.0).
-
-- **PASS:** H1 to H9, B1, B2 (run 8, read-only), B3a and B3b (run 6), B4, B5, B7L, B8L, B8 (run 9)
-  and C1 to C3.
-- **FAIL:** B7 (run 9): across the bind mount, flock is not exclusive and appends from both sides lost
-  lines; rename is atomic. This is the source of the container rule in section 4. B6 (run 9) failed
-  on the environment: no Claude login in the container and an unwritable Claude config folder.
-- **Not run:** B9, D8a and D8b need the owner at the keyboard. Slice 17 waits on B9; Codex idle
-  detection waits on D8b.
-- Runs 2 to 5 failed on script bugs and on bug-5333ea49, fixed before run 6.
+Moved to [delegate-history.md](delegate-history.md): section 4 Owner decisions, 5 Claims, 6 Interactive
+parity, 7 wipnote-orchestra merges into delegate, 8 Phase B results. Section numbers there are unchanged.
 
 ## 9. Open
 

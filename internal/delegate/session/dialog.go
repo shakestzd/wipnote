@@ -14,11 +14,26 @@ var trustDialogs = []struct {
 	{HarnessCodex, [2]string{"1. Trust and continue", "2. Quit"}},
 }
 
-// TrustDialog names the folder-trust dialog on screen, or returns "".
+// loginScreens are a harness's first-run sign-in screens. A worker there never
+// binds a session, and without this wait reports only a timeout (Codex 0.166.0).
+var loginScreens = []struct {
+	harness string
+	labels  [2]string
+}{
+	{HarnessCodex, [2]string{"Welcome to Codex", "Sign in with ChatGPT"}},
+}
+
+// TrustDialog names the folder-trust dialog or sign-in screen on screen, or
+// returns "".
 func TrustDialog(screen string) string {
 	for _, d := range trustDialogs {
 		if strings.Contains(screen, d.labels[0]) && strings.Contains(screen, d.labels[1]) {
 			return d.harness + ` folder-trust dialog ("` + d.labels[0] + `" / "` + d.labels[1] + `")`
+		}
+	}
+	for _, d := range loginScreens {
+		if strings.Contains(screen, d.labels[0]) && strings.Contains(screen, d.labels[1]) {
+			return d.harness + " is not signed in: run `" + d.harness + " login`, or sign in in the pane"
 		}
 	}
 	return ""

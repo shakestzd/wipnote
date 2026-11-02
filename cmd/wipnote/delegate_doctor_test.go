@@ -26,6 +26,15 @@ func optInThisHost(t *testing.T) {
 	}
 }
 
+// probeAsLinux makes the bwrap preflight probe the stub even on macOS,
+// where the real check is skipped.
+func probeAsLinux(t *testing.T) {
+	t.Helper()
+	old := preflightGOOS
+	preflightGOOS = "linux"
+	t.Cleanup(func() { preflightGOOS = old })
+}
+
 func runDoctor(t *testing.T) (string, error) {
 	t.Helper()
 	var out bytes.Buffer
@@ -41,6 +50,7 @@ func runDoctor(t *testing.T) (string, error) {
 // that did not opt in and warns on one that did.
 func TestDelegateDoctor_NamesEachCheck(t *testing.T) {
 	delegateRunProject(t)
+	probeAsLinux(t)
 	t.Setenv("STUB_BWRAP_EXIT", "1")
 	t.Setenv("STUB_BWRAP_OUT", "bwrap: No permissions to create new namespace")
 	out, err := runDoctor(t)
@@ -62,6 +72,7 @@ func TestDelegateDoctor_NamesEachCheck(t *testing.T) {
 // output, and runs it once the user config opts this host in.
 func TestDelegateRun_SandboxPreflight(t *testing.T) {
 	dir := delegateRunProject(t)
+	probeAsLinux(t)
 	argv := filepath.Join(t.TempDir(), "argv")
 	t.Setenv("STUB_ARGV", argv)
 	t.Setenv("STUB_BWRAP_EXIT", "1")

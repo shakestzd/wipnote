@@ -38,7 +38,7 @@ func stoppedWorker(t *testing.T, e *env, o SpawnOptions, sids ...string) string 
 // (resume must ignore it) and no harness or work item.
 func (e *env) resumeOpts(name string) SpawnOptions {
 	o := e.opts(name)
-	o.Harness, o.WorkItem, o.Cwd = "", "", otherDir(e)
+	o.Harness, o.WorkItem, o.Cwd, o.Profile = "", "", otherDir(e), "" // a resume that chooses nothing
 	return o
 }
 
@@ -116,7 +116,7 @@ func TestResume_ClaudeUsesLastSessionID(t *testing.T) {
 func TestResume_CodexUsesResumeID(t *testing.T) {
 	e := newEnv(t)
 	o := e.opts("w1")
-	o.Harness = HarnessCodex
+	o.Harness, o.Profile = HarnessCodex, ""
 	stoppedWorker(t, e, o, "thr-1")
 	r := e.resumeOpts("w2")
 	r.Brief = ""
@@ -129,7 +129,7 @@ func TestResume_CodexUsesResumeID(t *testing.T) {
 	// it is refused with that reason and nothing is written.
 	e2 := newEnv(t)
 	o2 := e2.opts("w1")
-	o2.Harness = HarnessCodex
+	o2.Harness, o2.Profile = HarnessCodex, ""
 	stoppedWorker(t, e2, o2, "thr-1")
 	refuseResume(t, e2, e2.resumeOpts("w2"), "w1", "delegate send")
 	// --harness must match the recorded run.

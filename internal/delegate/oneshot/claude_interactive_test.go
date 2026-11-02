@@ -306,3 +306,26 @@ func TestClaudeRun_PlanModeModelWarning(t *testing.T) {
 		t.Fatalf("no plan mode, no warning: %s", w2.p.stderr.String())
 	}
 }
+
+// delegate run is unchanged by the lean profile: a one-shot interactive
+// worker carries none of the lean flags and no default model or effort.
+func TestClaudeRun_NoLeanFlags(t *testing.T) {
+	w := newWorkerRun(t, stubClaude{cost: 0.05}, "claude", "-p", "say the answer")
+	res := w.run(t)
+	rf, err := w.p.store.Run(res.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := session.ReadInfo(rf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"--strict-mcp-config", "--tools", "--no-chrome", "--settings", "--effort"} {
+		if slices.Contains(info.Flags, f) {
+			t.Fatalf("one-shot worker has lean flag %s: %v", f, info.Flags)
+		}
+	}
+	if info.Lean {
+		t.Fatalf("one-shot worker is lean: %+v", info)
+	}
+}

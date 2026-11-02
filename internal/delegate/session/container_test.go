@@ -40,6 +40,9 @@ func containerEnv(t *testing.T) (*env, *containertest.Stub, string) {
 func (e *env) containerOpts(name, harness string) SpawnOptions {
 	o := e.opts(name)
 	o.Harness, o.Container, o.Root = harness, true, e.dir
+	if harness == HarnessCodex {
+		o.Profile = ""
+	}
 	return o
 }
 
@@ -395,5 +398,25 @@ func TestInfo_BootAndAdoptRaceKeepsWorkspace(t *testing.T) {
 			t.Errorf("%s racing the boot: info %+v, want the workspace folder %s and the adoption both kept", verb, info, remote)
 		}
 		infoLoaded = nil
+	}
+}
+
+func TestMapMCPConfig(t *testing.T) {
+	m := container.Mapper{Root: "/host/proj", Remote: "/workspaces/proj"}
+	settings := `{"a":"/host/proj/x"}`
+	got, err := mapMCPConfig(m, []string{"--settings", settings, "--mcp-config", "/host/proj/.wipnote/run/mcp.json"})
+	if err != nil || got[1] != settings || got[3] != "/workspaces/proj/.wipnote/run/mcp.json" {
+		t.Fatalf("got %v, %v", got, err)
+	}
+	got, err = mapMCPConfig(m, []string{"--mcp-config=/host/proj/m.json"})
+	if err != nil || got[0] != "--mcp-config=/workspaces/proj/m.json" {
+		t.Fatalf("got %v, %v", got, err)
+	}
+	in := []string{"--settings", settings, "--tools", "Bash"}
+	if got, err = mapMCPConfig(m, in); err != nil || !slices.Equal(got, in) {
+		t.Fatalf("unchanged: got %v, %v", got, err)
+	}
+	if _, err = mapMCPConfig(m, []string{"--mcp-config", "/elsewhere/m.json"}); err == nil {
+		t.Fatal("a path outside the workspace must be refused")
 	}
 }
