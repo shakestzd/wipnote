@@ -46,8 +46,8 @@ func parentOf(path string) string {
 }
 
 // RemoveIfClean removes the worktree and its branch only when the worktree
-// has no changes, no untracked files and the branch no commit beyond
-// baseSHA. Otherwise it removes nothing and returns kept with the reason.
+// has no changes, no untracked files, its HEAD still at baseSHA and the branch
+// no commit beyond baseSHA. Otherwise it removes nothing and returns kept with the reason.
 // It never forces: git worktree remove without --force refuses a dirty
 // tree, and the branch is deleted with a compare against its own tip.
 // A worktree folder that is already gone is not kept.
@@ -62,6 +62,11 @@ func RemoveIfClean(repoRoot, path, branch, baseSHA string) (kept bool, why strin
 	tip, err := git(repoRoot, "rev-parse", "--verify", "-q", "refs/heads/"+branch)
 	if err != nil || tip != baseSHA {
 		return true, "the branch has commits beyond its base"
+	}
+	// A clean checkout can still hold the only copy of commits on a detached HEAD:
+	// the branch stays at its base, and git worktree remove would lose them.
+	if head, err := git(path, "rev-parse", "HEAD"); err != nil || head != baseSHA {
+		return true, "the worktree's HEAD has moved from its base"
 	}
 	if out, err := git(repoRoot, "worktree", "remove", path); err != nil {
 		return true, "git would not remove the worktree: " + out

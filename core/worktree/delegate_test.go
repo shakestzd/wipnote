@@ -121,3 +121,22 @@ func TestRemoveIfClean_GoneIsNotKept(t *testing.T) {
 		t.Fatal("a missing worktree reported as kept")
 	}
 }
+
+// Commits on a detached HEAD leave the branch at its base and the checkout
+// clean, so only HEAD shows them. Removing the worktree would lose them.
+func TestRemoveIfClean_KeepsCommitsOnDetachedHead(t *testing.T) {
+	repo := newRepo(t)
+	base := gitRun(t, repo, "rev-parse", "HEAD")
+	path := filepath.Join(t.TempDir(), "wt")
+	gitRun(t, repo, "worktree", "add", "-q", "-b", "delegate/d", path, base)
+	gitRun(t, path, "checkout", "-q", "--detach")
+	gitRun(t, path, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "only here")
+
+	kept, why := RemoveIfClean(repo, path, "delegate/d", base)
+	if !kept || !strings.Contains(why, "HEAD") {
+		t.Fatalf("kept = %v, why = %q; want the worktree kept", kept, why)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("worktree was removed: %v", err)
+	}
+}

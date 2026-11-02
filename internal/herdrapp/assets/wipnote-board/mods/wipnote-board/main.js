@@ -23,7 +23,7 @@ const POLL_MS = 5000; // run state only changes when a worker does; poll gently
 
 // buildTree returns the top-level nodes {agent, kids, urgent}: an agent whose
 // parent is not itself a listed agent is top level, and its children are the
-// agents naming it as parent. urgent is the best rank in the whole subtree.
+// agents below it at any depth. urgent is the best rank in the whole subtree.
 function buildTree(list, parents) {
   const byAddr = new Set(list.map((a) => a.address));
   const kids = {};
@@ -33,8 +33,15 @@ function buildTree(list, parents) {
     if (p && byAddr.has(p)) (kids[p] ??= []).push(a);
     else top.push(a);
   }
+  // Every descendant, flat: a worker's own workers show under the delegator, so
+  // they stay on the board and their status still reaches the top-level row.
+  const under = (a, seen) => (kids[a.address] ?? []).flatMap((k) => {
+    if (seen.has(k.address)) return [];
+    seen.add(k.address);
+    return [k, ...under(k, seen)];
+  });
   const node = (a) => {
-    const ks = kids[a.address] ?? [];
+    const ks = under(a, new Set([a.address]));
     return { agent: a, kids: ks, urgent: Math.min(rank(a.status), ...ks.map((k) => rank(k.status))) };
   };
   return top.map(node);
