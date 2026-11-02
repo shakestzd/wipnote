@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>delegate spawn: choose the worker&#39;s model, effort, MCP servers and tools</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-e600decf"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-01T23:41:11.039469"
+             data-updated="2026-11-02T00:15:56.917182" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="0.86.0-32-g351b0c65e" data-change_kind="capability" data-created_in_session="74c60f13-cb06-4eed-9e06-484a790bcde3">
+
+        <header>
+            <h1>delegate spawn: choose the worker&#39;s model, effort, MCP servers and tools</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/74c60f13-cb06-4eed-9e06-484a790bcde3.html" data-relationship="implemented_in" data-since="2026-11-01T23:43:16.664587">session 74c60f13-cb06-4eed-9e06-484a790bcde3</a></li>
+                    <li><a href="../sessions/456da462-4cb2-4cc8-863e-58cd57e5ba8c.html" data-relationship="implemented_in" data-since="2026-11-01T23:45:52.722333">session 456da462-4cb2-4cc8-863e-58cd57e5ba8c</a></li>
+                    <li><a href="../sessions/902dd1e6-9296-4aed-9aac-74792c9160f7.html" data-relationship="implemented_in" data-since="2026-11-01T23:47:11.335927">session 902dd1e6-9296-4aed-9aac-74792c9160f7</a></li>
+                    <li><a href="../sessions/be968e86-3590-46df-a15a-123c02df36c4.html" data-relationship="implemented_in" data-since="2026-11-01T23:47:38.893043">session be968e86-3590-46df-a15a-123c02df36c4</a></li>
+                    <li><a href="../sessions/ea7b0d02-88f0-4c63-8382-e0cded7e2b5b.html" data-relationship="implemented_in" data-since="2026-11-01T23:49:45.680338">session ea7b0d02-88f0-4c63-8382-e0cded7e2b5b</a></li>
+                    <li><a href="../sessions/01a19994-123a-7343-b764-e69d2cc60e5f.html" data-relationship="implemented_in" data-since="2026-11-02T00:06:30.69187">session 01a19994-123a-7343-b764-e69d2cc60e5f</a></li>
+                    <li><a href="../sessions/01a1999a-680d-7a03-91ae-51feadeba836.html" data-relationship="implemented_in" data-since="2026-11-02T00:13:31.378596">session 01a1999a-680d-7a03-91ae-51feadeba836</a></li>
+                    <li><a href="../sessions/01a1999c-bca6-75b1-b55e-d295430406ab.html" data-relationship="implemented_in" data-since="2026-11-02T00:15:56.91699">session 01a1999c-bca6-75b1-b55e-d295430406ab</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-11-01T23:41:11.06359">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>delegate spawn gives no way to set harness flags, so every spawned worker takes the default model. Add --model and --effort, and pass other harness flags after --. Record the model on the run.
+Why
+Delegating small work to cheaper models needs the caller to choose the model, and lineage should show which model did the work.
+Acceptance Criteria
+A spawned Claude worker&#39;s transcript shows the requested model; a worker given --mcp-config calls that server and a strict config excludes others; flags that break the worker lifecycle are refused; go test passes.</p>
+        </section>
+    </article>
+</body>
+</html>
