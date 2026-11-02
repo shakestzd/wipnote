@@ -4,8 +4,66 @@ Measured 2026-11-01 on Claude Code 2.1.316, herdr-app 0.1.11, hc 0.1.16, macOS.
 
 ## Result
 
-On three read-only tasks and one small edit, a lean `wipnote delegate` worker cost less than a native
-`wipnote:feature-coder` subagent on the same model (Sonnet 5.5), by list-price weighting.
+**Lean workers are cheaper than a native subagent on short tasks, and showed no saving on a longer edit.**
+The startup saving is fixed at about 9k tokens per run, so it dominates a short run and gets outweighed
+on a long one, where output tokens and the number of requests decide the cost.
+
+The larger benchmark below ran on one commit, with three runs per side, each edit in a clean worktree, and
+effort passed explicitly on both sides. Native means `wipnote:feature-coder`. The figures are cost units
+weighted by list price: lower is cheaper.
+
+| Task | Model, effort | Worker range | Native range | Worker mean vs native mean |
+|---|---|---|---|---|
+| 2. Read 2 files | Sonnet, medium | 22,040–22,418 | 28,992–40,627 | 33% less |
+| 3. Trace across 8 files | Sonnet, medium | 37,526–39,348 | 42,875–50,410 | 19% less |
+| 4. Add a function and test | Sonnet, medium | 25,533–25,849 | 35,299–46,658 | 36% less |
+| 4. Add a function and test | Haiku, low | 33,983–40,880 | 72,046–76,597 | 51% less |
+| **5. Add a CLI filter across files, with tests** | **Sonnet, medium** | **88,487–144,338** | **69,221–107,466** | **24% more** |
+
+The ranges do not overlap on the short tasks. They overlap on task 5, so three runs cannot say a worker is
+really worse there, but they show no saving. Use `--profile full` or a native subagent freely for long
+work: the case for a lean worker is short, well-defined tasks.
+
+The sections after "Larger benchmark" record the earlier, smaller benchmark that shaped the design.
+
+## Larger benchmark
+
+Run 2026-11-02 at commit `0da96c07d`. All 9 worker edit runs and all 9 native edit runs passed the same
+check afterwards (the code present, and build, vet and tests passing). Each row in
+[delegate-token-benchmark-runs.jsonl](delegate-token-benchmark-runs.jsonl) is one run.
+
+| Task | Side | Mean units | Mean raw tokens | Requests | First request |
+|---|---|---|---|---|---|
+| 2 | Worker | 22,242 | 52,735 | 3, 3, 3 | 13,998 |
+| 2 | Native | 32,990 | 52,918 | 2, 2, 2 | 23,050 |
+| 3 | Worker | 38,624 | 114,603 | 6, 6, 5 | 13,974 |
+| 3 | Native | 47,666 | 140,043 | 5, 5, 4 | 23,044 |
+| 4 | Worker | 25,719 | 79,353 | 5, 5, 5 | 14,109 |
+| 4 | Native | 40,164 | 129,761 | 5, 5, 5 | 23,170 |
+| 4, Haiku | Worker | 36,595 | 85,978 | 5, 6, 5 | 13,384 |
+| 4, Haiku | Native | 74,833 | 249,643 | 8, 10, 8 | 23,181 |
+| 5 | Worker | 114,645 | 585,162 | 17, 21, 24 | 14,213 |
+| 5 | Native | 92,680 | 432,906 | 14, 14, 8 | 23,272 |
+
+Haiku units use Haiku's cache-read weight (0.1). They are not comparable to Sonnet units: at list price, the
+Haiku worker on task 4 cost about $0.0037 and the Sonnet worker about $0.051.
+
+**Why task 5 went the other way.** Workers wrote more output (6,148–12,232 tokens against 4,252–7,594, at
+5x input price), and made more requests, each re-reading the growing context. The worst worker run spent
+24 requests, several fixing its own test. The sample cannot separate how much of this comes from the lean
+setup, such as the preamble's "search first" line and the reply step, and how much is run-to-run variance.
+
+**Usage limits.** The 7-day `utilization` read 0.04 at the start and end of both phases: 15 worker runs in
+16 minutes and 15 native runs in 7 minutes moved it less than the 1% it can show. Other sessions and the
+coordinating session were also using the limit. It still cannot separate the two sides.
+
+**Remaining limits.** Native effort was passed to the Agent tool, but no transcript or metadata confirms it
+was applied. Native runs ran in parallel groups of five and workers one at a time, which changes who can
+read whose cache. Output quality was judged only by the checks above. Task 1 was not repeated.
+
+## Earlier benchmark
+
+One to two runs per side, native effort not controlled.
 
 | Task | Worker cost units | Native cost units | Worker saving |
 |---|---|---|---|
@@ -13,9 +71,6 @@ On three read-only tasks and one small edit, a lean `wipnote delegate` worker co
 | 2. Read 2 files | 22,085 | 34,187 / 34,010 | about 35% |
 | 3. Trace across 8 files | 40,335 | 42,355 / 48,765 | about 11% |
 | 4. Add a function and its table test, run the test | 25,013 / 24,307 | 35,189 / 38,129 | about 33% |
-
-**Treat this as a small sample, not a general claim.** It covers four small tasks and few runs. On raw
-tokens the worker is not always lower (see Limits). A long task that edits many files is untested.
 
 ## Metrics
 
