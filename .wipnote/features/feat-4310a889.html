@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Parallel delegate workers: isolated worktrees and same-item parallel spawn</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-4310a889"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-02T05:08:04.7008"
+             data-updated="2026-11-02T17:20:33.739826" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="capability" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;wipnote creates the worktree and uses --work-dir&#34;,&#34;exists&#34;:&#34;spawn allows different items in parallel up to 6 per caller; Info.WorkDir and --work-dir exist for one-shot runs; preseedClaude seeds workspace trust&#34;,&#34;findings&#34;:&#34;Interactive sessions need workspace trust in a new directory. Worktrees share .git. Sessions in different directories do not share prompt cache.&#34;,&#34;options&#34;:[&#34;claude --worktree&#34;,&#34;wipnote creates the worktree and uses --work-dir&#34;],&#34;queries&#34;:[&#34;delegate worktree work-dir claim&#34;],&#34;question&#34;:&#34;How should delegate workers run in parallel without colliding?&#34;,&#34;rejected&#34;:[{&#34;option&#34;:&#34;claude --worktree&#34;,&#34;reason&#34;:&#34;Claude Code picks the base, location and cleanup prompts, and an exit prompt would hang a worker&#34;}],&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-02&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/worktrees&#34;},{&#34;retrieved&#34;:&#34;2026-11-02&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/prompt-caching&#34;}]}}">
+
+        <header>
+            <h1>Parallel delegate workers: isolated worktrees and same-item parallel spawn</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="4232a3301ab9090e9a3395a5aff6964a8fae5e4e.html" data-relationship="committed_in" data-since="2026-11-02T10:04:52">Keep detached commits on stop and show nested workers on the board (feat-4310a889)</a></li>
+                    <li><a href="0bb92ac0721ed007b1308c9e9bbd5997a06b17c1.html" data-relationship="committed_in" data-since="2026-11-02T08:52:56">Run delegate workers in parallel in their own worktrees (feat-4310a889)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/69aa1398-e4ed-448f-929e-8b0ebc35b741.html" data-relationship="implemented_in" data-since="2026-11-02T05:08:19.746723">session 69aa1398-e4ed-448f-929e-8b0ebc35b741</a></li>
+                    <li><a href="../sessions/88b95db0-418b-4fbc-bb49-cab06b35f5fb.html" data-relationship="implemented_in" data-since="2026-11-02T05:30:00.936961">session 88b95db0-418b-4fbc-bb49-cab06b35f5fb</a></li>
+                    <li><a href="../sessions/e2802a7c-ddf5-44c2-843b-c349ed42ac54.html" data-relationship="implemented_in" data-since="2026-11-02T05:30:04.960298">session e2802a7c-ddf5-44c2-843b-c349ed42ac54</a></li>
+                    <li><a href="../sessions/b882d808-2b12-4037-b44f-74650ca2927e.html" data-relationship="implemented_in" data-since="2026-11-02T05:30:06.132632">session b882d808-2b12-4037-b44f-74650ca2927e</a></li>
+                    <li><a href="../sessions/0f6369f3-0c1d-4daf-af66-1f42d6be531f.html" data-relationship="implemented_in" data-since="2026-11-02T12:00:46.134308">session 0f6369f3-0c1d-4daf-af66-1f42d6be531f</a></li>
+                    <li><a href="../sessions/ce3369bb-0933-4170-9a10-486ce6441f86.html" data-relationship="implemented_in" data-since="2026-11-02T12:05:19.182078">session ce3369bb-0933-4170-9a10-486ce6441f86</a></li>
+                    <li><a href="../sessions/2112b419-41cf-46e8-a4f8-3a589ded05a2.html" data-relationship="implemented_in" data-since="2026-11-02T12:20:24.628239">session 2112b419-41cf-46e8-a4f8-3a589ded05a2</a></li>
+                    <li><a href="../sessions/a1203512-8270-4352-a71f-1adfd0d045a2.html" data-relationship="implemented_in" data-since="2026-11-02T12:20:30.682082">session a1203512-8270-4352-a71f-1adfd0d045a2</a></li>
+                    <li><a href="../sessions/2b6dd5d5-4bc5-4471-98ac-1feb534b5687.html" data-relationship="implemented_in" data-since="2026-11-02T12:20:44.792339">session 2b6dd5d5-4bc5-4471-98ac-1feb534b5687</a></li>
+                    <li><a href="../sessions/9f05de2e-5461-4424-9309-d6fb7ca212f1.html" data-relationship="implemented_in" data-since="2026-11-02T12:20:47.337079">session 9f05de2e-5461-4424-9309-d6fb7ca212f1</a></li>
+                    <li><a href="../sessions/d5549354-e5da-47cf-8e46-2abbc3dd1696.html" data-relationship="implemented_in" data-since="2026-11-02T12:21:03.978418">session d5549354-e5da-47cf-8e46-2abbc3dd1696</a></li>
+                    <li><a href="../sessions/4264738b-a0f7-4a73-9369-4d163b0cddde.html" data-relationship="implemented_in" data-since="2026-11-02T12:42:45.168349">session 4264738b-a0f7-4a73-9369-4d163b0cddde</a></li>
+                    <li><a href="../sessions/444447e7-0c30-446d-9356-4a5cd6c51a4b.html" data-relationship="implemented_in" data-since="2026-11-02T12:49:55.688038">session 444447e7-0c30-446d-9356-4a5cd6c51a4b</a></li>
+                    <li><a href="../sessions/64c61f11-9abc-4315-a94e-4266557fc0f9.html" data-relationship="implemented_in" data-since="2026-11-02T12:50:08.927041">session 64c61f11-9abc-4315-a94e-4266557fc0f9</a></li>
+                    <li><a href="../sessions/c718f6b8-66dd-4e1c-9425-147352e56097.html" data-relationship="implemented_in" data-since="2026-11-02T12:50:27.201117">session c718f6b8-66dd-4e1c-9425-147352e56097</a></li>
+                    <li><a href="../sessions/fedb88ba-9393-4924-9d43-57bc596d55f9.html" data-relationship="implemented_in" data-since="2026-11-02T12:50:30.16552">session fedb88ba-9393-4924-9d43-57bc596d55f9</a></li>
+                    <li><a href="../sessions/fd3412dd-a0d1-4a6a-a40d-f30d7fbfb6c1.html" data-relationship="implemented_in" data-since="2026-11-02T12:50:37.73274">session fd3412dd-a0d1-4a6a-a40d-f30d7fbfb6c1</a></li>
+                    <li><a href="../sessions/5da54d13-962d-4c3f-9bdc-7834410016cf.html" data-relationship="implemented_in" data-since="2026-11-02T12:54:01.317118">session 5da54d13-962d-4c3f-9bdc-7834410016cf</a></li>
+                    <li><a href="../sessions/dfa59667-e548-4bde-9726-f466ac998646.html" data-relationship="implemented_in" data-since="2026-11-02T13:07:38.842033">session dfa59667-e548-4bde-9726-f466ac998646</a></li>
+                    <li><a href="../sessions/b08a4c73-2ce0-4c10-a64e-79e8e153a473.html" data-relationship="implemented_in" data-since="2026-11-02T13:07:44.47473">session b08a4c73-2ce0-4c10-a64e-79e8e153a473</a></li>
+                    <li><a href="../sessions/2c03c850-4534-47cc-ad0e-0021a7e85982.html" data-relationship="implemented_in" data-since="2026-11-02T13:07:49.57576">session 2c03c850-4534-47cc-ad0e-0021a7e85982</a></li>
+                    <li><a href="../sessions/49ef0f5e-5245-48a1-b285-37a8cbe9cc90.html" data-relationship="implemented_in" data-since="2026-11-02T13:07:55.797753">session 49ef0f5e-5245-48a1-b285-37a8cbe9cc90</a></li>
+                    <li><a href="../sessions/d0ddfda1-407d-40d1-b613-2cf92d04876b.html" data-relationship="implemented_in" data-since="2026-11-02T13:07:55.815158">session d0ddfda1-407d-40d1-b613-2cf92d04876b</a></li>
+                    <li><a href="../sessions/efc8c2d6-5d01-462b-af94-c6f44c205fa5.html" data-relationship="implemented_in" data-since="2026-11-02T13:08:12.033026">session efc8c2d6-5d01-462b-af94-c6f44c205fa5</a></li>
+                    <li><a href="../sessions/150de887-3452-42a1-9517-d122ec361af5.html" data-relationship="implemented_in" data-since="2026-11-02T14:02:06.433365">session 150de887-3452-42a1-9517-d122ec361af5</a></li>
+                    <li><a href="../sessions/5f275f81-3b07-4ae6-8492-43969ca318fa.html" data-relationship="implemented_in" data-since="2026-11-02T14:02:08.702553">session 5f275f81-3b07-4ae6-8492-43969ca318fa</a></li>
+                    <li><a href="../sessions/7bdc23a5-d3ac-4569-9aae-5a3f85fd0975.html" data-relationship="implemented_in" data-since="2026-11-02T14:02:23.14756">session 7bdc23a5-d3ac-4569-9aae-5a3f85fd0975</a></li>
+                    <li><a href="../sessions/5e3eeee0-7007-4728-a412-12207d095aef.html" data-relationship="implemented_in" data-since="2026-11-02T14:02:46.204503">session 5e3eeee0-7007-4728-a412-12207d095aef</a></li>
+                    <li><a href="../sessions/9c74ac42-8a71-49c2-a2d5-1e768f812eb7.html" data-relationship="implemented_in" data-since="2026-11-02T14:02:59.973351">session 9c74ac42-8a71-49c2-a2d5-1e768f812eb7</a></li>
+                    <li><a href="../sessions/2f7751ed-5b88-43a6-b3ca-0e4d324ebfa5.html" data-relationship="implemented_in" data-since="2026-11-02T14:03:25.122913">session 2f7751ed-5b88-43a6-b3ca-0e4d324ebfa5</a></li>
+                    <li><a href="../sessions/e979b901-bfd0-4a74-9105-6ca9d12522b1.html" data-relationship="implemented_in" data-since="2026-11-02T14:17:20.737717">session e979b901-bfd0-4a74-9105-6ca9d12522b1</a></li>
+                    <li><a href="../sessions/6489a25a-50f7-479b-90b1-b269745c262b.html" data-relationship="implemented_in" data-since="2026-11-02T14:17:21.078013">session 6489a25a-50f7-479b-90b1-b269745c262b</a></li>
+                    <li><a href="../sessions/8dd2bcdc-9015-4b9f-b1fd-32d17fb6722c.html" data-relationship="implemented_in" data-since="2026-11-02T14:17:21.137718">session 8dd2bcdc-9015-4b9f-b1fd-32d17fb6722c</a></li>
+                    <li><a href="../sessions/ab48b697-d7a6-4ff7-a402-8897914af0b0.html" data-relationship="implemented_in" data-since="2026-11-02T14:17:21.301143">session ab48b697-d7a6-4ff7-a402-8897914af0b0</a></li>
+                    <li><a href="../sessions/9cc2ad20-ca14-474b-8202-5067eff19828.html" data-relationship="implemented_in" data-since="2026-11-02T14:17:23.318796">session 9cc2ad20-ca14-474b-8202-5067eff19828</a></li>
+                    <li><a href="../sessions/583b0573-b164-415d-a225-eac328d965ab.html" data-relationship="implemented_in" data-since="2026-11-02T14:17:30.32728">session 583b0573-b164-415d-a225-eac328d965ab</a></li>
+                    <li><a href="../sessions/ec7d61de-e02b-4528-a1e6-ecc69590ccc2.html" data-relationship="implemented_in" data-since="2026-11-02T14:29:30.231662">session ec7d61de-e02b-4528-a1e6-ecc69590ccc2</a></li>
+                    <li><a href="../sessions/bf51ab05-bb88-46b5-b0a7-cfe9599124c1.html" data-relationship="implemented_in" data-since="2026-11-02T14:29:31.631048">session bf51ab05-bb88-46b5-b0a7-cfe9599124c1</a></li>
+                    <li><a href="../sessions/f9c6c258-5309-47b1-98b0-5859a5666ec8.html" data-relationship="implemented_in" data-since="2026-11-02T14:29:37.552356">session f9c6c258-5309-47b1-98b0-5859a5666ec8</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-02T05:08:04.720531">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Spawn refuses a second live worker on an item and never gives workers their own checkout. Add --worktree so parallel workers can edit without colliding, and make a worker started from a linked worktree stay there.
+Acceptance Criteria
+Several workers started at once, on different items and on one item with --worktree, all finish in their own checkouts, measured live in the app.</p>
+        </section>
+    </article>
+</body>
+</html>
