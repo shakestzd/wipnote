@@ -3,6 +3,7 @@ package hooks
 import (
 	"encoding/json"
 	"github.com/shakestzd/wipnote/core/containerwrite"
+	"github.com/shakestzd/wipnote/core/delegationledger"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -160,6 +161,9 @@ func recordDelegateHook(event *CloudEvent, projectDir, sessionID, kind string) {
 		return
 	}
 	RecordDelegateEvent(projectDir, DelegateEvent{Kind: kind, SID: sessionID, AgentID: event.AgentID, AgentType: event.AgentType})
+	if kind == "session_start" {
+		bindDelegateSession(projectDir, sessionID)
+	}
 	if kind == "prompt" {
 		delegateAckNewestTask(projectDir) // after the prompt event: no gap reads as an older turn
 	}
@@ -174,4 +178,19 @@ func recordDelegateEnd(event *CloudEvent, projectDir, sessionID, kind, summary s
 		return
 	}
 	RecordDelegateEvent(projectDir, DelegateEvent{Kind: kind, SID: sessionID, Summary: summary})
+}
+
+// bindDelegateSession records the worker's session on its run's ledger row
+// at SessionStart, before the worker can make its first claim. The event line
+// alone is folded into worker_sessions only by the next delegate list/wait, so
+// the claim gate would not yet see a just-spawned sibling as family and would
+// refuse a same-item worker as foreign. Fail-open: an unreadable ledger or a
+// closed row changes nothing, and the later fold still binds the session.
+func bindDelegateSession(projectDir, sessionID string) {
+	run := strings.TrimSpace(os.Getenv(DelegateRunEnv))
+	if run == "" || projectDir == "" || !delegateRunRe.MatchString(run) || !delegateWriterRe.MatchString(sessionID) {
+		return
+	}
+	_, _ = delegationledger.NewStore(filepath.Join(projectDir, ".wipnote")).
+		EnrichIfOpen(run, delegationledger.Enrichment{WorkerSessions: []string{sessionID}})
 }

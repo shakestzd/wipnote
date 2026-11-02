@@ -172,9 +172,16 @@ wipnote delegate list [--all] [--json]
 wipnote delegate tree [--all] [--json]
 ```
 
-**spawn** needs herdr (`HERDR_ENV=1`). It places the worker in the caller's workers tab (the
-first worker creates the tab in the caller's workspace, later ones split it; cap 6; the caller's
-own tab is never split), waits until the new pane's shell is positively a bare shell, types one
+**spawn** needs herdr (`HERDR_ENV=1`). It places the worker in the caller's workers tab (the first
+worker creates the tab, later ones split it; cap 6; the caller's own tab is never split). In the
+Herdr app (hc) the Core client labels each worker terminal herdr.space and herdr.tab, names the tab
+(tab.rename) and then puts it away with `herdr-app do tab.settle`, best effort; hc also records the
+caller as the worker's parent. The wipnote board layout (`wipnote delegate install-board`) hides settled
+tabs (mods/wipnote-tabs, Herdr's tabs mod with that one change) and its board mod draws a tree from
+the parent field: the delegator, a "workers" row with the count, one row per worker. A click on a
+worker runs terminal.peek, since showing a settled tab brings it back; `hc read` works too.
+**Limit:** Herdr's own main layout and its tabs and agents mods ignore settled, so there the
+workers tab and a second Agents row per worker still show. It waits until the new pane's shell is positively a bare shell, types one
 short line (`WIPNOTE_DELEGATE_RUN=<run> WIPNOTE_DELEGATE_CALLER=<sid> <wipnote> delegate boot
 --project-dir <dir> <run>`) and prints `{run, name, pane, harness, status}` with status
 `starting`. The brief is posted as the first inbox task and written to the run folder's
@@ -231,6 +238,17 @@ nothing and closes nothing, and the row closes as gone. The name check and the r
 project-wide lock (`.wipnote/delegate/names.lock`), so concurrent spawns of one name from any callers
 yield one worker.
 
+**Parallel worktree workers (feat-4310a889).** `spawn --worktree [--base REF]` creates a git
+worktree at `<root>/.claude/worktrees/<name>` on a new branch `delegate/<name>` before placing the
+worker, under `.wipnote/delegate/worktrees.lock`, and runs the worker there through `--work-dir`
+and `--project-dir` (hooks and the ledger stay on the root; workspace trust is pre-seeded). A taken
+name or branch refuses the spawn; any later failure removes the fresh worktree. Because each worker
+has its own checkout, the one-worker-per-item rule does not apply to it, and the sibling workers of
+one caller are family for the claim gate; the cap of 6 and the per-session episode close are
+unchanged. `stop` removes the worktree and branch only when untouched (no changes, no untracked
+files, no commits past the recorded base) and never forces; else it reports `worktree`, `branch`
+and `kept`. A worker spawned from a linked worktree likewise runs in it (WorkDir = cwd).
+
 | Exit | When |
 |---|---|
 | 0 | spawn, list and tree succeeded; stop closed the pane |
@@ -273,11 +291,13 @@ like every close) with its run folder finished and its claim episodes expired.
 task; spawn never infers it from the brief. `--profile` is one of `simple` (haiku, low), `standard`
 (sonnet, medium; the default), `deep` (opus, high) or `full` (Claude's own start: no lean flags, the
 user's model and effort, the orchestrator prompt). A user profile in `~/.wipnote/config.json`
-(`delegate.claude.profiles.<name>`: model, effort, tools, mcp, plugins, userRules) replaces a built-in
+(`delegate.claude.profiles.<name>`: model, effort, tools, mcp, plugins, userRules, projectRules) replaces a built-in
 of the same name, and `delegate.claude.defaultProfile` picks the default. `--model`, `--effort`,
-`--tool T`, `--mcp NAME`, `--plugin NAME` and `--user-rules` add to or override the profile; raw flags
+`--tool T`, `--mcp NAME`, `--plugin NAME`, `--user-rules` and `--project-rules` add to or override the profile; raw flags
 after `--` win. Codex refuses all but `--model` and `--effort`. Lean workers cache for 5 minutes
-(`promptCacheTtl`) unless `--cache-ttl 1h` or a profile's `cacheTTL` says otherwise. Measured results
+(`promptCacheTtl`) unless `--cache-ttl 1h` or a profile's `cacheTTL` says otherwise. `simple` and `standard`
+leave out the project's `CLAUDE.md` and rules, and tell the worker so; `deep` and `--project-rules` keep them.
+A managed policy `CLAUDE.md` cannot be excluded. Measured results
 against native subagents, and their limits, are in
 [delegate-token-benchmark.md](delegate-token-benchmark.md).
 
@@ -437,48 +457,7 @@ passes, an option number is refused with that reason. Exit codes: not set in the
 Related planned commands outside `delegate`: `wipnote doctor --project-thread` (slice 23).
 `wipnote plan project-instructions <plan-id>` is on main (slice 24).
 
-## 3. Files
-
-| Data | Where | Committed | Writer |
-|---|---|---|---|
-| One row per run | `.wipnote/delegations-ledger.html` | yes, canonical | `delegate run`, `run-pane`, `import-orch`; later spawn, stop, wait and list |
-| Run folders, events, mailbox | `.wipnote/delegate/` | no, gitignored | the caller, the pane worker and the worker's hooks |
-| Claim episodes | `.wipnote/claims/` | yes, unchanged format | each session for itself |
-| Tool and prompt events | `agent_events` | as today | wipnote hooks; not copied |
-
-No absolute host path, user name or home folder enters a ledger row. The writer refuses one.
-
-**Ledger row** (`core/delegationledger`): `id` (`dlg-` plus at least 12 hex), `mode`
-(`oneshot` or `interactive`), `harness` (`claude`, `claude-print`, `codex`, `codex-review`, `ccx`),
-`name`, `label`, `work_item`, `link` (`tag` or `sid`), `caller_session`, `worker_sessions` (the
-harness's own ids, oldest first), `host` (`host` or `container`), `started`, `ended`, `exit`,
-`end_reason` (`exit`, `stop`, `pane_closed`, `gone`, `imported`), usage counts and `resumed_from`.
-
-**Readers** (slice 13): `wipnote lineage <work-item>` and `wipnote feature show <id>` list the item's
-rows (`delegations[]` in `lineage --json`), and `wipnote lineage dlg-<id>` shows one run. Each row
-lists its workers' claim episodes, joined from `.wipnote/claims/` on worker session id; a worker
-episode that overlaps a caller episode on the same item is a co-claim named by the `dlg-` id. The
-read-only orch reader (`internal/orchlink`) and lineage's `orch_sessions` are gone: orch history
-arrives through `import-orch`.
-
-**Run folder** (`.wipnote/delegate/runs/<run-id>/`, the feat-a1df60c2 contract): `raw.log`,
-`clean.log`, `clean.md`, `last.md`, `usage`, `start`, `end`, `exit` (its presence ends the run),
-`label`, `host`, `run.html`, and `events-<writer>.ndjson`. A container run also holds `container.json`,
-`up.log` and the worker's own `session-<id>.json` and `gate-<id>.json` (section 2.7). A one-shot run also uses `job.json` (what
-the pane worker runs) and, for ccx, `out.txt`. An interactive run also holds `session.json` (name,
-harness, pane, pinned terminal id, caller pane, cwd, place, first task id), `brief.md` and
-`state.json` (the state and group `list` last observed). A caller's
-workers tab and its worker panes are kept in `.wipnote/delegate/workers/<caller-pane>.json`.
-
-**Mailbox** (`.wipnote/delegate/mail/<name>/`): `inbox/` (written by the caller), `outbox/` (written by
-the worker; results are `<task-id>-result.json`, questions `<task-id>-q<n>.json`) and `ack/<msg-id>`
-(touched by the worker when it starts a task). Message files are `<seq>-<msg-id>.json`.
-
-**One writer per file.** Each message is its own file, written by temp file, fsync and rename. Each
-process appends only to its own events file. There is no shared append and no lock across the bind
-mount. Phase B B7 confirms that this is required (section 8 of [delegate-history.md](delegate-history.md)).
-
-## 4 to 8. Decisions, claims, parity, orchestra and Phase B results
+## 3 to 8. Decisions, claims, parity, orchestra and Phase B results
 
 Moved to [delegate-history.md](delegate-history.md): section 4 Owner decisions, 5 Claims, 6 Interactive
 parity, 7 wipnote-orchestra merges into delegate, 8 Phase B results. Section numbers there are unchanged.

@@ -58,6 +58,13 @@ type StopResult struct {
 	// ExitTyped: the exit command was typed and the agent did not exit in
 	// time (the pane stays open). Only then may a one-shot run signal it.
 	ExitTyped bool `json:"exit_typed,omitempty"`
+	// Worktree and Branch are a --worktree worker's checkout. Kept: it has
+	// changes, untracked files or commits (or a process still runs in it),
+	// so it and its branch stay; WorktreeRemoved: it was untouched and is gone.
+	Worktree        string `json:"worktree,omitempty"`
+	Branch          string `json:"branch,omitempty"`
+	Kept            bool   `json:"kept,omitempty"`
+	WorktreeRemoved bool   `json:"worktree_removed,omitempty"`
 }
 
 type recorded struct {
@@ -105,6 +112,7 @@ func Stop(ctx context.Context, d Deps, name string, o StopOptions) (StopResult, 
 	res.Survivors = survivors(d, info, procs)
 	checkInside(ctx, d, info, inside, &res)
 	endStop(ctx, d, r, rf, info, ob, &res, o.Exit)
+	settleWorktree(&res, info)
 	return res, nil
 }
 
@@ -150,12 +158,14 @@ func stopUnreachable(ctx context.Context, d Deps, r delegationledger.Record, rf 
 		res.Why = ob.GoneWhy + " (the worker's pinned terminal); nothing was typed or closed, and the run is closed as gone and its claims as expired"
 		loseWorker(ctx, d, r, rf, info, ob)
 		res.Ended = endedOf(d, r.ID)
+		settleWorktree(res, info)
 		return
 	}
 	res.Why = ob.GoneWhy + " already; the run is closed as gone and its claims as expired"
 	if finishStop(ctx, d, rf, info, res, delegationledger.EndGone, nil) {
 		expireWorkerClaims(d, r, rf)
 	}
+	settleWorktree(res, info)
 }
 
 // exitAgent records the pids, asks the agent to exit and waits for a bare

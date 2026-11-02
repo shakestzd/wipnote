@@ -17,13 +17,14 @@ const DefaultProfile = "standard"
 
 // Profile is a named worker setup. Flags add to or override it.
 type Profile struct {
-	Model     string   `json:"model,omitempty"`
-	Effort    string   `json:"effort,omitempty"`
-	Tools     []string `json:"tools,omitempty"`
-	MCP       []string `json:"mcp,omitempty"`
-	Plugins   []string `json:"plugins,omitempty"`
-	UserRules bool     `json:"userRules,omitempty"`
-	CacheTTL  string   `json:"cacheTTL,omitempty"`
+	Model        string   `json:"model,omitempty"`
+	Effort       string   `json:"effort,omitempty"`
+	Tools        []string `json:"tools,omitempty"`
+	MCP          []string `json:"mcp,omitempty"`
+	Plugins      []string `json:"plugins,omitempty"`
+	UserRules    bool     `json:"userRules,omitempty"`
+	ProjectRules bool     `json:"projectRules,omitempty"`
+	CacheTTL     string   `json:"cacheTTL,omitempty"`
 }
 
 // builtinProfiles are the profiles every install has. full is special: it
@@ -31,7 +32,7 @@ type Profile struct {
 var builtinProfiles = map[string]Profile{
 	"simple":    {Model: "haiku", Effort: "low"},
 	"standard":  {Model: "sonnet", Effort: "medium"},
-	"deep":      {Model: "opus", Effort: "high"},
+	"deep":      {Model: "opus", Effort: "high", ProjectRules: true},
 	ProfileFull: {},
 }
 
@@ -97,14 +98,15 @@ func (c ClaudeConfig) Resolve(name string) (string, Profile, error) {
 
 // Setup is what a Claude worker was given, as spawn reports and records it.
 type Setup struct {
-	Profile   string   `json:"profile,omitempty"`
-	Model     string   `json:"model,omitempty"`
-	Effort    string   `json:"effort,omitempty"`
-	Tools     []string `json:"tools,omitempty"`
-	MCP       []string `json:"mcp,omitempty"`
-	Plugins   []string `json:"plugins,omitempty"`
-	UserRules bool     `json:"user_rules,omitempty"`
-	CacheTTL  string   `json:"cache_ttl,omitempty"`
+	Profile      string   `json:"profile,omitempty"`
+	Model        string   `json:"model,omitempty"`
+	Effort       string   `json:"effort,omitempty"`
+	Tools        []string `json:"tools,omitempty"`
+	MCP          []string `json:"mcp,omitempty"`
+	Plugins      []string `json:"plugins,omitempty"`
+	UserRules    bool     `json:"user_rules,omitempty"`
+	ProjectRules bool     `json:"project_rules,omitempty"`
+	CacheTTL     string   `json:"cache_ttl,omitempty"`
 }
 
 // String is the ledger's setup column: names only.
@@ -124,18 +126,21 @@ func (s Setup) String() string {
 	if s.UserRules {
 		add("user-rules", "yes")
 	}
+	if s.ProjectRules {
+		add("project-rules", "yes")
+	}
 	return strings.Join(parts, ";")
 }
 
 // setup is the Setup a spawn chose.
 func (o SpawnOptions) setup() Setup {
 	return Setup{Profile: o.Profile, Model: o.Model, Effort: o.Effort, Tools: o.Tools, MCP: o.MCP,
-		Plugins: o.Plugins, UserRules: o.UserRules, CacheTTL: o.CacheTTL}
+		Plugins: o.Plugins, UserRules: o.UserRules, ProjectRules: o.ProjectRules, CacheTTL: o.CacheTTL}
 }
 
 // applyProfile merges a profile with a spawn's flags into the options harnessFlags
 // reads. A model or effort the user passed after -- (raw) wins over the profile,
-// and --model/--effort win over both. Lists add; --user-rules ORs.
+// and --model/--effort win over both. Lists add; --user-rules and --project-rules OR.
 func applyProfile(o *SpawnOptions, name string, p Profile) {
 	o.Profile = name
 	o.Full = name == ProfileFull
@@ -149,6 +154,7 @@ func applyProfile(o *SpawnOptions, name string, p Profile) {
 	o.MCP = unionNames(p.MCP, o.MCP)
 	o.Plugins = unionNames(p.Plugins, o.Plugins)
 	o.UserRules = p.UserRules || o.UserRules
+	o.ProjectRules = p.ProjectRules || o.ProjectRules
 	if o.CacheTTL == "" {
 		o.CacheTTL = p.CacheTTL
 	}
@@ -174,13 +180,13 @@ func checkSetup(o SpawnOptions) error {
 	if o.Harness != HarnessCodex {
 		return nil
 	}
-	if (o.Profile != "" && o.Profile != DefaultProfile) || len(o.Tools)+len(o.MCP)+len(o.Plugins) > 0 || o.UserRules || o.CacheTTL != "" {
-		return fmt.Errorf("%w: --profile, --tool, --mcp, --plugin, --user-rules and --cache-ttl are for Claude workers; --model and --effort work on Codex", ErrBadSetup)
+	if (o.Profile != "" && o.Profile != DefaultProfile) || len(o.Tools)+len(o.MCP)+len(o.Plugins) > 0 || o.UserRules || o.ProjectRules || o.CacheTTL != "" {
+		return fmt.Errorf("%w: --profile, --tool, --mcp, --plugin, --user-rules, --project-rules and --cache-ttl are for Claude workers; --model and --effort work on Codex", ErrBadSetup)
 	}
 	return nil
 }
 
 // choseSetup reports that the spawn asked for capabilities itself.
 func (o SpawnOptions) choseSetup() bool {
-	return len(o.Tools)+len(o.MCP)+len(o.Plugins) > 0 || o.UserRules || o.CacheTTL != ""
+	return len(o.Tools)+len(o.MCP)+len(o.Plugins) > 0 || o.UserRules || o.ProjectRules || o.CacheTTL != ""
 }

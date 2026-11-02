@@ -68,7 +68,7 @@ Workers need the herdr TUI (`HERDR_ENV=1`) or an hc terminal (`HC_TERMINAL_ID`).
 
 In an hc terminal, a pane is a terminal address such as `t7`:
 
-- In the Herdr app, workers appear in one new tab in your space. The app arranges them. Under bare `hc` they are children of your terminal: see them with `hc ls`, take one over with `hc attach t7`.
+- In the Herdr app the workers tab exists but is put away (`tab.settle`), and each worker is a child of your terminal. The wipnote board layout (`wipnote delegate install-board`) hides settled tabs and shows a tree: you, a "workers" row with the count, then one row per worker. Click a worker, or run `terminal.peek`, to see it; `hc read t7` works too. Limit: Herdr's own main layout and agents mod ignore settled, so there the tab and a second row per worker still show. Under bare `hc`, see workers with `hc ls` and take one over with `hc attach t7`.
 - A worker outlives its caller and types no notes into the caller. Hear from it with `wait`, as in the TUI.
 - Claude reports its status to `hc`, so the app shows it as an agent.
 
@@ -99,7 +99,7 @@ wipnote delegate stop api-fix
 - `--container` starts the worker in the project's devcontainer. A Codex worker there needs this host in `delegate.codex.dangerFullAccessHosts`.
 - `--resume OLD` continues the stopped worker OLD on its last harness session, in its folder and place. NAME is required with `--resume`. It refuses while OLD is live, when OLD's run folder was swept, when no session id was recorded, when another run already continues that session, and for a Codex resume with a brief.
 
-**Choose the worker's setup, per task.** You pick it at spawn; spawn never guesses from the brief. A Claude worker starts lean: no `~/.claude/CLAUDE.md`, MCP, auto memory, skills, subagents, Chrome or git status in the prompt, and only Bash, Read, Edit and Write. That is about a fifth of the usual first-request prompt (14k against 75k tokens); on short tasks it cost 19% to 51% less than a native subagent on the same model and effort, but it showed no saving on a longer multi-file edit, where it averaged 24% more (`docs/design/delegate-token-benchmark.md`). Choose a lean worker for short, well-defined work. The prompt cache lives 5m, which suits short workers; use `--cache-ttl 1h` for a worker that will sit idle between tasks. Add only what the task needs.
+**Choose the worker's setup, per task.** You pick it at spawn; spawn never guesses from the brief. A Claude worker starts lean: no `~/.claude/CLAUDE.md`, MCP, auto memory, skills, subagents, Chrome or git status in the prompt, and only Bash, Read, Edit, Write, Grep and Glob. That is about a fifth of the usual first-request prompt (14k against 75k tokens); on short tasks it cost 19% to 51% less than a native subagent on the same model and effort. On one longer multi-file edit it cost about 33% less at low effort and about the same at medium, in a small sample (`docs/design/delegate-token-benchmark.md`). Pick the lowest effort that suits the task. The prompt cache lives 5m, which suits short workers; use `--cache-ttl 1h` for a worker that will sit idle between tasks. Add only what the task needs.
 
 | Task | Use |
 |---|---|
@@ -107,19 +107,21 @@ wipnote delegate stop api-fix
 | Normal coding, tests, a review | the default, `--profile standard` (sonnet, medium) |
 | Hard design, a tricky bug, a large refactor | `--profile deep` (opus, high) |
 | It must behave as your own session (your CLAUDE.md, MCP, skills, orchestrating) | `--profile full` |
-| Search across files, fetching a page, running subagents | `--tool Grep`, `--tool WebFetch`, `--tool Agent` |
+| Fetching a page, running subagents | `--tool WebFetch`, `--tool Agent` |
 | It needs one MCP server or connector | `--mcp NAME` (a `claude.ai Notion` connector, a `plugin:x:y` server, or a local server) |
 | It needs one plugin's skills | `--plugin NAME` (or `name@marketplace`) |
 | It must follow your global rules | `--user-rules`, or better, put the rule in the brief |
+| It must follow project conventions | `--project-rules`, or better, put the rules that matter in the brief |
 
 ```bash
 wipnote delegate spawn fix-typo --harness claude --profile simple --brief "Fix the typo in README.md"
 wipnote delegate spawn notes --harness claude --mcp "claude.ai Notion" --brief "Summarize the Q3 page"
-wipnote delegate spawn review --harness claude --profile deep --tool Grep --brief "Review core/slug for races"
+wipnote delegate spawn review --harness claude --profile deep --tool WebFetch --brief "Review core/slug for races"
 ```
 
 - `~/.claude/CLAUDE.md` is off in every profile but `full` (or with `--user-rules`), so the brief must carry any rule the worker needs.
-- `--model` and `--effort` override the profile and also work for Codex. Codex refuses `--profile`, `--tool`, `--mcp`, `--plugin` and `--user-rules`. Other harness flags go after `--` and win over the profile, for example `--tools`, `--settings`, `--mcp-config`. A one-shot takes them in its argv: `wipnote delegate run -- claude -p "..." --model haiku`.
+- The project's `CLAUDE.md` and `.claude/rules/` are off in `simple` and `standard` (keep them with `--project-rules`). This is the largest saving on a repository with long rules. The worker is told and can read them, but put any rule that must hold, such as a safety rule or a quality gate, in the brief.
+- `--model` and `--effort` override the profile and also work for Codex. Codex refuses `--profile`, `--tool`, `--mcp`, `--plugin`, `--user-rules` and `--project-rules`. Other harness flags go after `--` and win over the profile, for example `--tools`, `--settings`, `--mcp-config`. A one-shot takes them in its argv: `wipnote delegate run -- claude -p "..." --model haiku`.
 - An unknown profile, MCP server or plugin refuses the spawn and lists the valid names. `--mcp` and `--plugin` turn on exactly what you name. ToolSearch is added with any MCP server and Skill with any plugin.
 - `-p`, `--resume`, `--session-id` and `--name` are refused, because they break the worker's session. Giving the model twice is refused.
 - Your own profiles go in `~/.wipnote/config.json` under `delegate.claude.profiles.<name>` with `{model, effort, tools, mcp, plugins, userRules, cacheTTL}`. A profile of a built-in's name replaces it. `delegate.claude.defaultProfile` picks the default.
@@ -139,6 +141,8 @@ wipnote delegate spawn review --harness claude --profile deep --tool Grep --brie
 
 **`wipnote delegate reply`** runs inside a worker. It writes the worker's answer to its task (`--task`, default the newest), or with `--ask` a question for the caller. The task preamble tells the worker to use it, because the worker's own hooks block writes into `.wipnote/`.
 
+**Parallel workers.** Read-only workers, and workers on different items, can run in parallel as they are. When workers edit overlapping files, start each with `wipnote delegate spawn NAME --worktree [--base REF]`. Each gets its own git worktree at `.claude/worktrees/NAME` on its own branch `delegate/NAME` (cut from `--base`, default HEAD), so each has its own branch to merge, and they may share one work item. The cap of 6 still holds. Their first request costs a little more, because sessions in different folders do not share the prompt cache. `--worktree` refuses `--container` and `--resume`. `stop` removes a worktree worker's folder and branch only when it has no changes, no untracked files and no commits; otherwise it keeps them and prints `worktree`, `branch` and `kept: true`, so merge or discard them yourself. A resume of a stopped worker runs in its worktree while that folder exists.
+
 **`wipnote delegate stop NAME [--wait D]`** asks the worker to exit, waits (20s by default) until only the shell is left, then closes the pane. It never kills a process. It exits 1 when the pane stays open, and `why` says why.
 
 ## Claim rules
@@ -146,7 +150,7 @@ wipnote delegate spawn review --harness claude --profile deep --tool Grep --brie
 These are the rules for a worker and its work item:
 
 1. **Co-claim.** The worker claims the same item as you, its caller. You keep your claim. The two claims count as one family, so the claim gate refuses neither of you. An unrelated session is still refused.
-2. **There is one live worker per item.** spawn refuses when a live worker already holds the item. A worker whose pane is gone is closed first. One-shot runs do not count.
+2. **There is one live worker per item, unless each has its own worktree.** spawn refuses when a live worker already holds the item, except with `--worktree`, where every worker has its own checkout and several may share the item. A worker whose pane is gone is closed first. One-shot runs do not count.
 3. **Stop the worker before you complete the item.** Completing an item closes every open claim on it, the worker's too. Run `wipnote delegate stop NAME` first.
 
 A stopped worker's claim ends as `abandoned`. When a worker crashed or lost its pane, `wait`, `list` or `stop` closes its claim as `expired`.

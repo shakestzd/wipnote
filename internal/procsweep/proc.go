@@ -67,9 +67,16 @@ func (f ListerFunc) List(ctx context.Context) ([]RawProc, error) { return f(ctx)
 // maxCommandRunes caps a reported command line.
 const maxCommandRunes = 120
 
-// trimCommand collapses whitespace and caps the command at maxCommandRunes.
-func trimCommand(cmd string) string {
-	cmd = strings.Join(strings.Fields(cmd), " ")
+// collapseCommand collapses whitespace. The sweep keeps the whole command so
+// that a caller can clean host paths out of it before capping: a path cut by
+// the cap would no longer match and would be reported as it stands.
+func collapseCommand(cmd string) string {
+	return strings.Join(strings.Fields(cmd), " ")
+}
+
+// CapCommand caps a command at maxCommandRunes for reporting. Call it after
+// cleaning the command, never before.
+func CapCommand(cmd string) string {
 	r := []rune(cmd)
 	if len(r) <= maxCommandRunes {
 		return cmd

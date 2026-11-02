@@ -65,9 +65,16 @@ type SpawnOptions struct {
 	Profile             string
 	Tools, MCP, Plugins []string
 	UserRules           bool
+	ProjectRules        bool         // keep the project CLAUDE.md and rules; off in simple and standard
 	CacheTTL            string       // "5m" (default) or "1h"; --cache-ttl beats the profile
 	Config              ClaudeConfig // delegate.claude from the user's config
 	mcpConfig           []byte       // the generated --mcp-config, written to the run folder
+
+	// Worktree gives the worker its own checkout on a new branch, cut from
+	// Base (HEAD when empty); wt is that checkout, or a resumed worker's.
+	Worktree bool
+	Base     string
+	wt       wtInfo
 
 	ProjectDir string        // with WorkDir: the run store's project (Info.ProjectDir)
 	ShellWait  time.Duration // DefaultShellWait when zero
@@ -89,6 +96,10 @@ type Spawned struct {
 	Tools   []string `json:"tools,omitempty"`
 	MCP     []string `json:"mcp,omitempty"`
 	Plugins []string `json:"plugins,omitempty"`
+	// Worktree and Branch are a --worktree worker's own checkout and branch.
+	Worktree string `json:"worktree,omitempty"`
+	Branch   string `json:"branch,omitempty"`
+	Warning  string `json:"warning,omitempty"`
 }
 
 // Spawn starts a worker and returns with status starting. Refusals come
@@ -98,6 +109,24 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 	if err := prepareSpawn(ctx, d, &o); err != nil {
 		return Spawned{}, err
 	}
+	if o.Worktree {
+		if err := createWorktree(d, &o); err != nil {
+			return Spawned{}, err
+		}
+	}
+	linkedDirs(&o)
+	warn := seedTrust(d, o)
+	s, err := spawnPlaced(ctx, d, o)
+	if err != nil {
+		dropWorktree(o)
+		return Spawned{}, err
+	}
+	s.Worktree, s.Branch, s.Warning = o.wt.Path, o.wt.Branch, warn
+	return s, nil
+}
+
+// spawnPlaced places the worker, opens its run and boots it.
+func spawnPlaced(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 	var info Info
 	var rf *runstore.RunFolder
 	var lost []lostWorker
@@ -214,6 +243,9 @@ func checkSpawn(d Deps, o SpawnOptions) error {
 	case o.BootLine == nil:
 		return errors.New("delegate: spawn has no boot line")
 	}
+	if err := checkWorktree(o); err != nil {
+		return err
+	}
 	return checkContainerSpawn(o)
 }
 
@@ -262,6 +294,7 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 	if o.Container {
 		info.Root = o.Root
 	}
+	info.Worktree, info.Branch, info.BaseSHA = o.wt.Path, o.wt.Branch, o.wt.BaseSHA
 	info.SessionID, info.Transcript, info.WorkDir, info.ProjectDir = o.SessionID, o.Transcript, o.WorkDir, o.ProjectDir
 	rf, err := d.Store.CreateRun(row.ID)
 	if err == nil && o.LaunchArgs != nil {

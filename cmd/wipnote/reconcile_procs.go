@@ -40,7 +40,7 @@ func printOrphanProcesses(out io.Writer, res procsweep.Result, err error) bool {
 	orphans := res.Orphans()
 	for _, p := range orphans {
 		fmt.Fprintf(out, "reconcile: orphaned process %d — %s (session %s ended; project %s; started %s); stop with: %s\n",
-			p.PID, p.Command, p.SessionID, p.Project, procTime(p.StartedAt), p.StopHint)
+			p.PID, procsweep.CapCommand(p.Command), p.SessionID, p.Project, procTime(p.StartedAt), p.StopHint)
 	}
 	return wrote || len(orphans) > 0
 }

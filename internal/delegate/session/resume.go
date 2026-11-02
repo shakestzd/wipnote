@@ -31,6 +31,9 @@ func Resume(ctx context.Context, d Deps, o SpawnOptions, from string) (Spawned, 
 	if d.Herdr == nil {
 		return Spawned{}, ErrNotInHerdr
 	}
+	if o.Worktree {
+		return Spawned{}, checkWorktree(SpawnOptions{Worktree: true, ResumedFrom: from, Harness: o.Harness, Root: o.Root})
+	}
 	if err := resumeOptions(d, &o, from); err != nil {
 		return Spawned{}, err
 	}
@@ -59,11 +62,12 @@ func resumeOptions(d Deps, o *SpawnOptions, from string) error {
 	}
 	if o.Model == "" && o.Effort == "" && len(o.Extra) == 0 && o.Profile == "" && !o.choseSetup() {
 		o.Model, o.Flags, o.Lean = info.Model, info.Flags, info.Lean // stay on the old run's model
-		o.Profile, o.Effort, o.Tools, o.MCP, o.Plugins, o.UserRules = info.Setup.Profile, info.Setup.Effort, info.Setup.Tools, info.Setup.MCP, info.Setup.Plugins, info.Setup.UserRules
+		o.Profile, o.Effort, o.Tools, o.MCP, o.Plugins, o.UserRules, o.ProjectRules = info.Setup.Profile, info.Setup.Effort, info.Setup.Tools, info.Setup.MCP, info.Setup.Plugins, info.Setup.UserRules, info.Setup.ProjectRules
 		o.CacheTTL = info.Setup.CacheTTL
 		o.Full = info.Setup.Profile == ProfileFull
 		o.inherited = true
 	}
+	o.wt = wtInfo{Path: info.Worktree, Branch: info.Branch, BaseSHA: info.BaseSHA}
 	if info.Place == PlaceContainer {
 		o.Container, o.Root = true, info.Root
 	}

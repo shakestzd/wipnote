@@ -2,7 +2,72 @@
 
 Measured 2026-11-01 on Claude Code 2.1.316, herdr-app 0.1.11, hc 0.1.16, macOS.
 
-## Result
+## Current result: long edit without the project rules
+
+**Lean workers now cost about 35% less than a native subagent on the long edit, with no overlap in the
+ranges.** Workers and native subagents ran at the same time, on one task and one commit, and all six passed
+the same build, vet and test check. Sonnet at medium effort, cost units, lower is cheaper:
+
+| Long edit, same window | Passing runs | Mean | Range | First request |
+|---|---|---|---|---|
+| Worker, shipped defaults | 3 | 69,113 | 65,082–73,118 | about 10,800 |
+| Native `wipnote:feature-coder` | 3 | 106,248 | 94,414–129,044 | 20,880 |
+
+The saving comes from leaving out this project's `CLAUDE.md`, `AGENTS.md` and `.claude/rules/`, 34 KB here,
+which every request otherwise repeats. A worker is told they were not loaded, and `--project-rules` keeps
+them. What was tried first, in a smaller run of two per setup, all passing:
+
+| Setup | Mean | First request |
+|---|---|---|
+| Control, project rules loaded | 116,414 | about 17,700 |
+| Small `--system-prompt-file` | 111,156 | about 16,300 |
+| Small system prompt, no project rules | 65,234 | about 8,400 |
+
+The small system prompt saved about 1,400 tokens per request and gives up Claude Code's own instructions, so
+it was dropped. Sonnet 5.5 always uses extended thinking, so thinking cannot be turned off; effort is the
+only control on it.
+
+**Limits:**
+
+- This is one task, three runs per side, in one repository with large project rules. A project with a small
+  `CLAUDE.md` will save less.
+- The pass check is mechanical: build, vet and tests. It does not show whether code written without the
+  project's rules follows them as well. Native loaded them; workers did not.
+- The plan usage limit is still not measured, because it only reports whole percents.
+- `promptSuggestionEnabled`, `awaySummaryEnabled` and `idleCompaction` are now off for lean workers, on the
+  docs' description of them. Their saving is not measured on its own; they were off in every worker run in
+  the two tables above.
+- Six earlier runs are excluded, kept out of the runs file: a weekly job on the test machine deleted
+  `.claude/worktrees` while they were working.
+
+The sections below are earlier results, kept for the record. Their conclusions about long edits no longer
+hold.
+
+## Update: long edit after adding Grep and Glob
+
+Lean workers now start with `Grep` and `Glob`, which cut a long edit from about 21 requests to about 14.
+Only runs that passed their build, vet and test check are counted. Sonnet, cost units, lower is cheaper:
+
+| Long edit | Passing runs | Mean | Range |
+|---|---|---|---|
+| Worker, medium effort, parallel worktrees | 2 | 83,174 | 79,317–87,030 |
+| Worker, medium effort, one at a time | 4 | 92,883 | 81,224–123,955 |
+| Native, medium effort | 3 | 92,680 | 69,221–107,466 |
+| Worker, low effort (one at a time and parallel) | 5 | 75,704 | 67,588–81,664 |
+| Native, low effort | 3 | 113,163 | 97,037–122,871 |
+
+**At low effort workers cost about 33% less, with no overlap. At medium effort they are level or slightly
+cheaper, with overlapping ranges**, so medium shows no clear win. The earlier result below, 24% more, was
+before `Grep` and `Glob`. All of this remains a small sample: one task, two to five runs per row.
+
+Limits on this table: native at low effort cost more than native at medium, so its effort setting may not
+have applied, and its runs may have started with a colder cache. Of the six parallel runs, one was refused
+by the cap of 6 because a leftover worker held a slot, and one hit a 600-second wait limit and had its
+worktree removed by the test script, so neither is counted. Haiku on this task passed all three checks at
+about $0.022 against about $0.185 for Sonnet at list price, but used over twice the tokens, and the docs do
+not say how the plan limit weighs models. The plan limit itself is still not measured.
+
+## Result of the larger benchmark, before Grep and Glob
 
 **Lean workers are cheaper than a native subagent on short tasks, and showed no saving on a longer edit.**
 The startup saving is fixed at about 9k tokens per run, so it dominates a short run and gets outweighed
