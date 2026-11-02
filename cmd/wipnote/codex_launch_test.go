@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -979,5 +980,18 @@ func TestCodexHomeDirHonorsCodexHome(t *testing.T) {
 	home, _ := os.UserHomeDir()
 	if got := codexHomeDir(); got != filepath.Join(home, ".codex") {
 		t.Errorf("unset CODEX_HOME must fall back to ~/.codex, got %q", got)
+	}
+}
+
+// herdr-core's manual requires --no-daemon in an hc terminal: Codex's commands
+// otherwise run in its shared server, outside that terminal.
+func TestBuildCodexArgs_NoDaemonOnlyInAnHcTerminal(t *testing.T) {
+	t.Setenv("HC_TERMINAL_ID", "")
+	if got := buildCodexArgs(codexLaunchOpts{}, 0, nil); slices.Contains(got, "--no-daemon") {
+		t.Fatalf("outside hc: %q", got)
+	}
+	t.Setenv("HC_TERMINAL_ID", "t7")
+	if got := buildCodexArgs(codexLaunchOpts{}, 0, nil); !slices.Contains(got, "--no-daemon") {
+		t.Fatalf("in hc: %q", got)
 	}
 }

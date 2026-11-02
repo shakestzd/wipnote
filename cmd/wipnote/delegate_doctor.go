@@ -15,6 +15,7 @@ import (
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/internal/delegate/codex"
 	"github.com/shakestzd/wipnote/internal/delegate/container"
+	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/oneshot"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
@@ -85,15 +86,23 @@ func containerChecks(ctx context.Context, projectDir string, inContainer bool) [
 	return container.Doctor(ctx, container.DoctorOptions{Root: projectDir, ProbeRun: probe, ProbeDir: rf.Dir(), HostVersion: strings.TrimPrefix(version, "v"), Progress: io.Discard})
 }
 
-// herdrCheck: panes need herdr on PATH and HERDR_ENV=1; without them runs
-// are headless, which is not a failure.
+// herdrCheck: panes need a herdr or hc context and its binary on PATH; without
+// them runs are headless, which is not a failure.
 func herdrCheck() codex.Check {
+	env := herdr.EnvFrom(os.Getenv)
+	if env.Core {
+		path, err := herdr.CoreBinary()
+		if err != nil {
+			return codex.Check{Name: "herdr", Status: codex.CheckFail, Detail: "inside hc terminal " + string(env.CallerPane) + " but " + err.Error() + ": add ~/.local/bin to PATH"}
+		}
+		return codex.Check{Name: "herdr", Status: codex.CheckPass, Detail: path + ": runs open in an hc terminal"}
+	}
 	path, err := exec.LookPath("herdr")
 	switch {
 	case err != nil:
 		return codex.Check{Name: "herdr", Status: codex.CheckSkip, Detail: "herdr is not on PATH: runs are headless"}
-	case os.Getenv("HERDR_ENV") != "1":
-		return codex.Check{Name: "herdr", Status: codex.CheckSkip, Detail: path + ": HERDR_ENV is not 1, so runs are headless here"}
+	case !env.InHerdr:
+		return codex.Check{Name: "herdr", Status: codex.CheckSkip, Detail: path + ": not inside a herdr pane or hc terminal, so runs are headless here"}
 	}
 	return codex.Check{Name: "herdr", Status: codex.CheckPass, Detail: path + ": runs open in a pane"}
 }

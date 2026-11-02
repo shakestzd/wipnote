@@ -96,9 +96,7 @@ func statusAllGH(noGH bool) (func(string) gitwatch.Runner, string) {
 func statusAllHerdr(getenv func(string) string) (statusall.HerdrSource, string) {
 	env := herdr.EnvFrom(getenv)
 	if !env.InHerdr {
-		return nil, statusall.SourceNotAvailable + ": not inside a herdr pane"
+		return nil, statusall.SourceNotAvailable + ": not inside a herdr pane or hc terminal"
 	}
-	c := herdr.New(env)
-	c.Timeout = statusAllHerdrTimeout
-	return c, ""
+	return herdr.NewClient(env, statusAllHerdrTimeout), ""
 }

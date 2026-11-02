@@ -123,17 +123,24 @@ type Client interface {
 }
 
 // Env is the caller's herdr context. CallerPane is set only when InHerdr:
-// HERDR_PANE_ID outside herdr names nothing we may act on.
+// HERDR_PANE_ID outside herdr names nothing we may act on. Core means the
+// caller is in a herdr-core terminal (the Herdr app, or bare hc), where the
+// pane is a terminal address and NewClient returns Core.
 type Env struct {
 	InHerdr    bool
+	Core       bool
 	CallerPane PaneID
 }
 
 // EnvFrom reads the herdr context through getenv (os.Getenv in production).
-// Only HERDR_ENV=1 counts as inside herdr.
+// HERDR_ENV=1 is the herdr TUI and keeps its behaviour. Else HC_TERMINAL_ID
+// names a herdr-core terminal: hc and the Herdr app set that and no HERDR_ENV.
 func EnvFrom(getenv func(string) string) Env {
-	if getenv("HERDR_ENV") != "1" {
-		return Env{}
+	if getenv("HERDR_ENV") == "1" {
+		return Env{InHerdr: true, CallerPane: PaneID(strings.TrimSpace(getenv("HERDR_PANE_ID")))}
 	}
-	return Env{InHerdr: true, CallerPane: PaneID(strings.TrimSpace(getenv("HERDR_PANE_ID")))}
+	if id := strings.TrimSpace(getenv("HC_TERMINAL_ID")); id != "" {
+		return Env{InHerdr: true, Core: true, CallerPane: PaneID(id)}
+	}
+	return Env{}
 }

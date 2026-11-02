@@ -139,8 +139,9 @@ echo "==> Installing herdr..."
 # volume, so this is a no-op on a normal rebuild and reprovisions herdr if that
 # volume is ever recreated (feat-096d5b28).
 # Use the herdr.dev installer: it ships the `herdr` CLI and honours
-# HERDR_INSTALL_DIR. The releases.herdr.dev app installer is a different
-# product -- herdr-app (GUI) plus herdr-core/hc -- which wipnote does not use.
+# HERDR_INSTALL_DIR. The releases.herdr.dev installer is a different product:
+# herdr-app (GUI) plus herdr-core/hc. wipnote delegate also works there, through
+# hc (feat-4d4ca0a1), but that is the host's choice, so it is not installed here.
 if ! command -v herdr >/dev/null 2>&1; then
   mkdir -p "$HOME/.local/bin"
   tmp_herdr="$(mktemp)"

@@ -66,7 +66,7 @@ var (
 	ErrNoWorkItem    = errors.New("delegate: no work item")
 	ErrLiveName      = errors.New("delegate: a live worker already has this name")
 	ErrAtCap         = errors.New("delegate: at cap")
-	ErrNotInHerdr    = errors.New("delegate: interactive workers need herdr (HERDR_ENV=1)")
+	ErrNotInHerdr    = errors.New("delegate: interactive workers need a herdr pane or an hc terminal (HERDR_ENV=1 or HC_TERMINAL_ID)")
 	ErrShellNotReady = errors.New("delegate: the new pane's shell did not settle")
 	ErrNoWorker      = errors.New("delegate: no live worker by that name")
 	ErrLiveWorker    = errors.New("delegate: a live worker already holds this work item")

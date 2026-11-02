@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 	// No test may reach the developer's real herdr pane: a work-item start
 	// inside herdr renames the caller's pane. Tests that need herdr set it.
 	for _, kv := range os.Environ() {
-		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "HERDR_") {
+		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "HERDR_") || name == "HC_TERMINAL_ID" {
 			_ = os.Unsetenv(name)
 		}
 	}

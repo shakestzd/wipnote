@@ -14,6 +14,9 @@ import (
 // DefaultExitWait bounds how long stop waits for the agent to exit.
 const DefaultExitWait = 20 * time.Second
 
+// exitEnterDelay separates the typed exit command from its Enter.
+const exitEnterDelay = 400 * time.Millisecond
+
 // StopOptions bounds a stop.
 type StopOptions struct {
 	ExitWait time.Duration // DefaultExitWait when zero
@@ -181,6 +184,12 @@ func exitAgent(ctx context.Context, d Deps, info Info, o StopOptions) (procs []r
 	}
 	if err := d.Herdr.SendText(ctx, pane, exitCommand[info.Harness]); err != nil {
 		return procs, fmt.Sprintf("herdr would not type the exit command: %v", err), false
+	}
+	// Codex's composer reads keys that arrive in a burst as a paste, and an
+	// Enter right after them does not submit: /quit then sits on its input line
+	// (codex-cli 0.166.0).
+	if err := sleepCtx(ctx, exitEnterDelay); err != nil {
+		return procs, "interrupted after typing the exit command; the pane stays open", true
 	}
 	if err := d.Herdr.SendKeys(ctx, pane, "enter"); err != nil {
 		return procs, fmt.Sprintf("herdr would not press enter after the exit command: %v", err), false

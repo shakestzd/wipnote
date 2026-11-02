@@ -16,8 +16,7 @@ func labelHerdrPane(id, title string) {
 	if !env.InHerdr || env.CallerPane == "" || id == "" {
 		return
 	}
-	c := herdr.New(env)
-	c.Timeout = herdr.LabelTimeout
+	c := herdr.NewClient(env, herdr.LabelTimeout)
 	_ = herdr.LabelCallerPane(context.Background(), c, env, herdr.WorkLabel(id, title))
 }
 
