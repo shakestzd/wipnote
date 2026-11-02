@@ -1,4 +1,4 @@
-// A pane's header for the wipnote-board layout. A worker shows its name and
+// A pane's header for the wipnote-main layout. A worker shows its name and
 // the work item it carries; any other pane shows what Herdr's own header does.
 // Props from the app: { pane, terminal }. Click: focus the pane. No buttons:
 // closing a worker's pane would kill it. See RECIPE.md.

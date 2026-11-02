@@ -230,11 +230,11 @@ func TestStop_WorkerEpisodeAbandonedBySessionEnd(t *testing.T) {
 	}
 }
 
-// workerPanes returns the panes in the caller's workers record.
+// workerPanes returns the panes in the project's workers record.
 func workerPanes(t *testing.T, e *env) []herdr.PaneID {
 	t.Helper()
 	var ids []herdr.PaneID
-	if err := withWorkers(e.deps.Store, "w1:p1", func(w *Workers) error {
+	if err := withWorkers(e.deps.Store, func(w *Workers) error {
 		ids = w.paneIDs()
 		return nil
 	}); err != nil {

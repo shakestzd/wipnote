@@ -206,7 +206,7 @@ func addSessions(d Deps, runID string, sessions []string) {
 
 // closeLostRun is wait's worker-loss close: it reads the row, run folder and
 // session.json and hands them to loseWorker, adding the sessions this look
-// saw bound, so the run also leaves the caller's workers record (an exited
+// saw bound, so the run also leaves the project's workers record (an exited
 // harness leaves its pane open, and prune keeps a pane that exists); ob is
 // what showed the loss.
 func closeLostRun(ctx context.Context, d Deps, runID string, sessions []string, ob Observation) {

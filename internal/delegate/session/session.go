@@ -4,7 +4,7 @@
 //
 // # Verbs
 //
-//   - Spawn places a worker pane in the caller's workers tab, waits for the
+//   - Spawn places a worker pane in the project's workers tab, waits for the
 //     pane's shell to settle, types ONE short boot line and returns with
 //     status "starting" (decision F). It never types the brief: the brief goes
 //     by file in the run folder (finding 3).
@@ -24,8 +24,8 @@
 // The ledger row (core/delegationledger, mode interactive) is the canonical
 // record. The run folder (internal/delegate/runstore) holds the host-local
 // facts: session.json (Info), brief.md, and the events the worker's hooks
-// write. The caller's workers tab and its panes are kept in
-// <store>/workers/<caller-pane>.json. Nothing here runs in the background:
+// write. The project's workers tab and its panes are kept in
+// <store>/workers/project.json. Nothing here runs in the background:
 // every verb is a short process with bounded waits.
 package session
 

@@ -20,6 +20,43 @@ func WithTerminalName(ctx context.Context, name string) context.Context {
 	return context.WithValue(ctx, termNameKey{}, name)
 }
 
+type workerLabelKey struct{}
+
+// WithWorkerLabel asks Core to start the next terminal labelled as this worker,
+// so its pane header can name it from the start, before any agent is there to
+// rename. Like the terminal name, it rides the context and others ignore it.
+func WithWorkerLabel(ctx context.Context, name string) context.Context {
+	return context.WithValue(ctx, workerLabelKey{}, name)
+}
+
+// withWorkerLabel adds the label ctx carries to a run's arguments, ahead of any
+// command, and leaves the given slice alone.
+func withWorkerLabel(ctx context.Context, args []string) []string {
+	name, _ := ctx.Value(workerLabelKey{}).(string)
+	if name == "" || len(args) == 0 {
+		return args
+	}
+	out := append([]string{args[0], "--label", LabelWorker + "=" + name}, args[1:]...)
+	return out
+}
+
+type workersKeyKey struct{}
+
+// WithWorkersKey names whose workers tab the next TabCreate belongs to, so each
+// project gets its own tab even when one caller spawns in two projects. It rides
+// the context as the terminal name does. Without one the tab is the caller's.
+func WithWorkersKey(ctx context.Context, key string) context.Context {
+	return context.WithValue(ctx, workersKeyKey{}, key)
+}
+
+// workersTabKey returns the key carried by ctx, or the caller pane.
+func (c *Core) workersTabKey(ctx context.Context) string {
+	if k, _ := ctx.Value(workersKeyKey{}).(string); k != "" {
+		return k
+	}
+	return string(c.Env.CallerPane)
+}
+
 var hcName = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
 
 // terminalName returns the valid name carried by ctx, or "".
@@ -35,6 +72,7 @@ func terminalName(ctx context.Context) string {
 // name a live terminal holds; that must not fail the spawn, so a refusal by hc
 // (not a timeout or cancel) starts the terminal unnamed instead.
 func (c *Core) runNamed(ctx context.Context, w *wireTerminal, args []string) error {
+	args = withWorkerLabel(ctx, args)
 	name := terminalName(ctx)
 	if name == "" {
 		return c.call(ctx, w, args...)
@@ -55,19 +93,14 @@ var (
 	tabRenameCall  = 2 * time.Second
 )
 
-// nameTab names the tab best effort with the app's tab.rename and, once it
-// has a name, puts it away with tab.settle: the tab keeps running but lists
-// that honour settled hide it, so the board shows workers nested under their
-// caller instead. It does nothing without herdr-app on PATH and never reports
-// a failure.
+// nameTab names the tab best effort with the app's tab.rename. It does nothing
+// without herdr-app on PATH and never reports a failure.
 func nameTab(ctx context.Context, tab, name string) {
 	path, err := exec.LookPath("herdr-app")
 	if err != nil || tab == "" || name == "" {
 		return
 	}
-	if appDo(ctx, path, "tab.rename", "--id", tab, "--name", name) {
-		appDo(ctx, path, "tab.settle", "--id", tab)
-	}
+	appDo(ctx, path, "tab.rename", "--id", tab, "--name", name)
 }
 
 // appDo runs `herdr-app do args...`, retrying while the app has not learned of

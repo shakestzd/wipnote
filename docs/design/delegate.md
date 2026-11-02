@@ -36,7 +36,7 @@ withdrawn. One path now covers both:
 | `delegate run-pane` | available (slice 8), hidden, internal | The pane worker that `run` starts in its pane |
 | `delegate view` | available (slice 7) | Follow a run's log until it ends, then show the answer |
 | `delegate import-orch` | available (slice 18) | Copy orch's run history into the ledger once |
-| `delegate spawn` | available (slice 10) | Start an interactive worker in the caller's workers tab |
+| `delegate spawn` | available (slice 10) | Start an interactive worker in the project's workers tab |
 | `delegate boot` | available (slice 10), hidden, internal | Runs in the worker's pane: reads the brief, starts the launcher |
 | `delegate stop` | available (slice 10) | Verified stop of a worker |
 | `delegate list` | available (slice 10) | List runs and worker readiness |
@@ -172,16 +172,14 @@ wipnote delegate list [--all] [--json]
 wipnote delegate tree [--all] [--json]
 ```
 
-**spawn** needs herdr (`HERDR_ENV=1`). It places the worker in the caller's workers tab (the first
-worker creates the tab, later ones split it; cap 6; the caller's own tab is never split). In the
-Herdr app (hc) the Core client labels each worker terminal herdr.space and herdr.tab, names the tab
-(tab.rename) and then puts it away with `herdr-app do tab.settle`, best effort; hc also records the
-caller as the worker's parent. The wipnote board layout (`wipnote delegate install-board`) hides settled
-tabs (mods/wipnote-tabs, Herdr's tabs mod with that one change) and its board mod draws a tree from
-the parent field: the delegator, a "workers" row with the count, one row per worker. A click on a
-worker runs terminal.peek, since showing a settled tab brings it back; `hc read` works too.
-**Limit:** Herdr's own main layout and its tabs and agents mods ignore settled, so there the
-workers tab and a second Agents row per worker still show. It waits until the new pane's shell is positively a bare shell, types one
+**spawn** needs herdr (`HERDR_ENV=1`). It places the worker in the project's workers tab (the first
+worker creates the tab in its caller's space, later ones split it, whichever delegator in the project starts them;
+cap 6 per project; a caller's own tab is never split). The tab is recorded in `<store>/workers/project.json`. In the
+Herdr app (hc) the Core client labels each worker terminal herdr.space and herdr.tab and names the tab
+(tab.rename), best effort; hc also records the caller as the worker's parent. The tab stays in the tab
+bar. The wipnote-main layout (`wipnote delegate install-layout`) is Herdr's main with mods/wipnote-agents,
+its agents mod keeping only a worker's nested row, and a pane header naming the worker and work item.
+**Limit:** Herdr's own main layout also gives each worker an Agents row of its own. It waits until the new pane's shell is positively a bare shell, types one
 short line (`WIPNOTE_DELEGATE_RUN=<run> WIPNOTE_DELEGATE_CALLER=<sid> <wipnote> delegate boot
 --project-dir <dir> <run>`) and prints `{run, name, pane, harness, status}` with status
 `starting`. The brief is posted as the first inbox task and written to the run folder's

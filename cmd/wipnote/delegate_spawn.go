@@ -57,12 +57,11 @@ func delegateSpawnCmd() *cobra.Command {
 
 // delegateSpawnLong is the long help text of delegate spawn.
 const delegateSpawnLong = `Starts an interactive worker under wipnote claude or wipnote codex in a split of
-the caller's workers tab (one tab per caller, at most 6 workers). In the Herdr app
-the tab is put away (tab.settle) so it does not show as its own tab: the wipnote
-board layout hides settled tabs and lists the workers in a tree under their caller;
-click a worker, or run terminal.peek, to see it (hc read works too). Herdr's own
-main layout and agents mod ignore settled, so there the tab and a second row per
-worker still show. spawn types one
+the project's workers tab (one tab per project, at most 6 workers). In the Herdr app
+the tab shows in the tab bar and each worker is a child of its caller. The wipnote-main
+layout (delegate install-layout) lists a worker once, nested under its caller; Herdr's
+own main layout also gives each worker a row of its own. Click the tab, or a worker
+(terminal.peek), to see them; hc read works too. spawn types one
 short boot line into the new pane and returns {run, name, pane, harness, status}
 with status "starting"; the worker's hooks bind its session, and the next
 delegate list renames and pins its herdr agent.

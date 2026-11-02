@@ -169,12 +169,12 @@ func (c *Core) startShell(ctx context.Context, cwd, space, tab string) (PaneID, 
 }
 
 // TabCreate starts the first terminal of a workers tab. An id the app does not
-// know becomes a new tab in that space, which gives one workers tab per caller
-// as in the TUI. Without a space (bare hc, no app) there is no tab to make: the
+// know becomes a new tab in that space, which gives one workers tab per project
+// (WithWorkersKey). Without a space (bare hc, no app) there is no tab to make: the
 // terminal is simply the caller's child, and the returned id only marks the
 // record.
 func (c *Core) TabCreate(ctx context.Context, workspace, label, cwd string) (TabID, PaneID, error) {
-	tab := "wipnote-" + label + "-" + string(c.Env.CallerPane)
+	tab := "wipnote-" + label + "-" + c.workersTabKey(ctx)
 	pane, err := c.startShell(ctx, cwd, workspace, tab)
 	if err != nil {
 		return "", "", err
@@ -208,7 +208,7 @@ func (c *Core) Split(ctx context.Context, target PaneID, _ Direction, cwd string
 	}
 	tab := t.Labels[labelTab]
 	saved, ok := saveFocus(ctx)
-	defer restoreFocus(ctx, saved, ok, tab)
+	defer restoreFocus(ctx, saved, ok)
 	if pane, ok := c.splitGrid(ctx, cwd, tab); ok {
 		return pane, nil
 	}

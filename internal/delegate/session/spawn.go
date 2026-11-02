@@ -129,23 +129,17 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 func spawnPlaced(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 	var info Info
 	var rf *runstore.RunFolder
-	var lost []lostWorker
-	err := withWorkers(d.Store, string(o.CallerPane), func(w *Workers) error {
+	err := withWorkers(d.Store, func(w *Workers) error {
 		var err error
-		info, rf, lost, err = placeWorker(ctx, d, o, w)
+		info, rf, err = placeWorker(ctx, d, o, w)
 		return err
 	})
-	for _, l := range lost { // other callers' records, now no lock is held
-		if l.info.CallerPane != string(o.CallerPane) {
-			_ = withWorkers(d.Store, l.info.CallerPane, func(w *Workers) error { unplace(ctx, d, w, l.info, l.ob); return nil })
-		}
-	}
 	if err != nil {
 		return Spawned{}, err
 	}
 	if err := boot(ctx, d, o, info); err != nil {
 		abandon(d, info.Run, rf, info)
-		_ = withWorkers(d.Store, string(o.CallerPane), func(w *Workers) error {
+		_ = withWorkers(d.Store, func(w *Workers) error {
 			_, err := release(ctx, d.Herdr, w, herdr.PaneID(info.Pane))
 			return err
 		})
@@ -155,47 +149,53 @@ func spawnPlaced(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 		Profile: info.Setup.Profile, Effort: info.Setup.Effort, Tools: info.Setup.Tools, MCP: info.Setup.MCP, Plugins: info.Setup.Plugins}, nil
 }
 
-// placeWorker runs under the caller's workers lock: lost workers are swept
+// placeWorker runs under the project's workers lock: lost workers are swept
 // out of the record first (sweepLost, so they hold no slot and are never
 // split), then the cap, the name and item checks, the row, the pane, and the
 // pane's terminal pinned with it in session.json. A failure after the row
 // opened abandons the run, closing a pane it got.
-func placeWorker(ctx context.Context, d Deps, o SpawnOptions, w *Workers) (Info, *runstore.RunFolder, []lostWorker, error) {
+func placeWorker(ctx context.Context, d Deps, o SpawnOptions, w *Workers) (Info, *runstore.RunFolder, error) {
 	if err := prune(ctx, d.Herdr, w); err != nil {
-		return Info{}, nil, nil, err
+		return Info{}, nil, err
 	}
 	sweepLost(ctx, d, w)
 	if err := checkCap(w); err != nil {
-		return Info{}, nil, nil, err
+		return Info{}, nil, err
 	}
 	info, rf, lost, err := claimName(ctx, d, o)
 	for _, l := range lost {
-		if l.info.CallerPane == string(o.CallerPane) {
-			unplace(ctx, d, w, l.info, l.ob) // never split a lost worker's pane
-		}
+		unplace(ctx, d, w, l.info, l.ob) // never split a lost worker's pane
 	}
 	if err != nil {
-		return Info{}, nil, lost, err
+		return Info{}, nil, err
 	}
 	tabBefore := w.Tab
-	pane, err := place(herdr.WithTerminalName(ctx, terminalName(info.Name, o.WorkTitle)), d.Herdr, w, info.Run, o.Cwd)
+	pane, err := place(placeContext(ctx, d, o, info.Name), d.Herdr, w, info.Run, o.Cwd)
 	if err != nil {
 		abandon(d, info.Run, rf, Info{})
-		return Info{}, nil, lost, fmt.Errorf("delegate: no pane for %s: %w", o.Name, err)
+		return Info{}, nil, fmt.Errorf("delegate: no pane for %s: %w", o.Name, err)
 	}
 	p, err := d.Herdr.Get(ctx, pane)
 	if err != nil || p.TerminalID == "" {
 		closeNewPane(ctx, d, w, tabBefore, pane)
 		abandon(d, info.Run, rf, Info{})
-		return Info{}, nil, lost, fmt.Errorf("delegate: herdr cannot name the terminal of new pane %s (%v); it was closed and nothing was typed", pane, err)
+		return Info{}, nil, fmt.Errorf("delegate: herdr cannot name the terminal of new pane %s (%v); it was closed and nothing was typed", pane, err)
 	}
 	placed := Info{Run: info.Run, Name: info.Name, Pane: string(pane), TerminalID: p.TerminalID}
 	saved, err := UpdateInfo(rf, func(i *Info) { i.Pane, i.TerminalID = placed.Pane, placed.TerminalID })
 	if err != nil {
 		abandon(d, info.Run, rf, placed)
-		return Info{}, nil, lost, err
+		return Info{}, nil, err
 	}
-	return saved, rf, lost, nil
+	return saved, rf, nil
+}
+
+// placeContext carries what the new terminal is started with: its name, the
+// worker's name for its pane header, and the project's workers tab.
+func placeContext(ctx context.Context, d Deps, o SpawnOptions, name string) context.Context {
+	ctx = herdr.WithTerminalName(ctx, terminalName(name, o.WorkTitle))
+	ctx = herdr.WithWorkerLabel(ctx, name)
+	return herdr.WithWorkersKey(ctx, workersKey(d.Store))
 }
 
 // closeNewPane closes a pane this spawn just made, and the workers tab when

@@ -106,7 +106,7 @@ func (c *Core) creationOrder(ctx context.Context, ts []appTerminal) []appTermina
 }
 
 // splitGrid starts a worker beside the pane gridPlan picks. It runs inside
-// the caller's workers lock (Split is reached from placeWorker), so two spawns
+// the project's workers lock (Split is reached from placeWorker), so two spawns
 // never pick the same pane. It reports ok=false, with nothing left running,
 // when the grid cannot be used.
 func (c *Core) splitGrid(ctx context.Context, cwd, tab string) (PaneID, bool) {
@@ -173,9 +173,8 @@ func keepBeside(ctx context.Context, app, anchor, terminal string, dir Direction
 	return err
 }
 
-// appFocus is where the person is looking: the shown tab and focused pane.
+// appFocus is where the person is looking: the focused pane.
 type appFocus struct {
-	Tab  string `json:"tab"`
 	Pane string `json:"focused_pane"`
 }
 
@@ -195,17 +194,13 @@ func saveFocus(ctx context.Context) (appFocus, bool) {
 }
 
 // restoreFocus puts the person back where saveFocus found them (pane.focus
-// also shows that pane's tab) and puts the workers tab away again, because
-// focusing an anchor pane in it shows it. Best effort: a spawn never fails
-// over focus. Split calls both inside the caller's workers lock, so one spawn
+// also shows that pane's tab), because focusing an anchor pane in the workers
+// tab shows it. Best effort: a spawn never fails over focus. Split calls both inside the project's workers lock, so one spawn
 // never saves or restores another spawn's temporary focus.
-func restoreFocus(ctx context.Context, f appFocus, ok bool, workersTab string) {
+func restoreFocus(ctx context.Context, f appFocus, ok bool) {
 	app, err := exec.LookPath("herdr-app")
 	if err != nil || !ok {
 		return
 	}
 	_, _ = appOnce(ctx, app, "do", "pane.focus", "--pane", f.Pane)
-	if workersTab != "" && workersTab != f.Tab {
-		_, _ = appOnce(ctx, app, "do", "tab.settle", "--id", workersTab)
-	}
 }

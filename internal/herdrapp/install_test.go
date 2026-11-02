@@ -15,10 +15,10 @@ func TestInstall_WritesLayoutAndModsOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(wrote) != 4 {
+	if len(wrote) != 3 {
 		t.Fatalf("wrote = %q", wrote)
 	}
-	for _, rel := range []string{"layouts/wipnote-board.json", "mods/wipnote-board/main.js", "mods/wipnote-board/mod.json", "mods/wipnote-pane-header/main.js", "mods/wipnote-pane-header/mod.json", "mods/wipnote-tabs/main.js", "mods/wipnote-tabs/mod.json", "mods/wipnote-tabs/win-min.svg"} {
+	for _, rel := range []string{"layouts/wipnote-main.json", "mods/wipnote-agents/main.js", "mods/wipnote-agents/mod.json", "mods/wipnote-pane-header/main.js", "mods/wipnote-pane-header/mod.json"} {
 		if _, err := os.Stat(filepath.Join(home, rel)); err != nil {
 			t.Errorf("%s: %v", rel, err)
 		}
@@ -29,7 +29,7 @@ func TestInstall_WritesLayoutAndModsOnly(t *testing.T) {
 }
 
 func TestInstall_NeverOverwrites(t *testing.T) {
-	for _, rel := range []string{"layouts/wipnote-board.json", "mods/wipnote-board", "mods/wipnote-pane-header", "mods/wipnote-tabs"} {
+	for _, rel := range []string{"layouts/wipnote-main.json", "mods/wipnote-agents", "mods/wipnote-pane-header"} {
 		t.Run(rel, func(t *testing.T) {
 			home := t.TempDir()
 			target := filepath.Join(home, rel)
@@ -47,12 +47,43 @@ func TestInstall_NeverOverwrites(t *testing.T) {
 			if data, _ := os.ReadFile(target); string(data) != "mine" {
 				t.Fatalf("the person's file changed to %q", data)
 			}
-			// All or nothing: the other target must not appear either.
+			// All or nothing: the other targets must not appear either.
 			entries, _ := filepath.Glob(filepath.Join(home, "*", "wipnote-*"))
 			if len(entries) != 1 {
 				t.Fatalf("a refused install wrote files: %q", entries)
 			}
 		})
+	}
+}
+
+// Replace keeps what it moves, outside the folders the app loads, and installs.
+func TestReplace_MovesExistingAsideAndInstalls(t *testing.T) {
+	home := t.TempDir()
+	old := filepath.Join(home, "mods", AgentsMod, "main.js")
+	if err := os.MkdirAll(filepath.Dir(old), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(old, []byte("mine"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wrote, moved, err := Replace(home, "stamp")
+	if err != nil || len(wrote) != 3 {
+		t.Fatalf("wrote %q, err %v", wrote, err)
+	}
+	if want := filepath.Join(home, "wipnote-replaced-stamp"); moved != want {
+		t.Fatalf("moved = %q, want %q", moved, want)
+	}
+	if data, _ := os.ReadFile(filepath.Join(moved, "mods", AgentsMod, "main.js")); string(data) != "mine" {
+		t.Fatalf("moved file holds %q", data)
+	}
+	if data, _ := os.ReadFile(old); string(data) == "mine" {
+		t.Fatal("the new mod was not installed")
+	}
+}
+
+func TestReplace_NothingToMove(t *testing.T) {
+	if _, moved, err := Replace(t.TempDir(), "stamp"); err != nil || moved != "" {
+		t.Fatalf("moved %q, err %v", moved, err)
 	}
 }
 
@@ -66,9 +97,9 @@ func TestHome(t *testing.T) {
 	}
 }
 
-// The layout must name the mod it ships and set no look of its own, so it
-// follows the person's theme.
-func TestLayout_NamesItsModAndNoLook(t *testing.T) {
+// The layout names the mods it ships, keeps Herdr's own tab bar so the workers
+// tab shows, and sets no look of its own, so it follows the person's theme.
+func TestLayout_NamesItsModsAndNoLook(t *testing.T) {
 	data, err := assets.ReadFile(assetRoot + "/layouts/" + LayoutName + ".json")
 	if err != nil {
 		t.Fatal(err)
@@ -82,64 +113,52 @@ func TestLayout_NamesItsModAndNoLook(t *testing.T) {
 			t.Errorf("layout sets %q; it must follow the person's look", key)
 		}
 	}
-	if !strings.Contains(string(data), `"mod": "`+LayoutName+`"`) {
-		t.Error("layout does not show its mod")
-	}
-}
-
-// The layout frames every pane, a lone one too, with the header mod it ships.
-func TestLayout_HeaderOnEveryPane(t *testing.T) {
-	data, err := assets.ReadFile(assetRoot + "/layouts/" + LayoutName + ".json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var root struct {
-		Children []struct {
-			Children []struct {
-				ID      string `json:"id"`
-				Content struct {
-					Mod  string `json:"mod"`
-					Pane struct {
-						Lone   bool `json:"lone"`
-						Header struct {
-							Content  map[string]string `json:"content"`
-							Position string            `json:"position"`
-							Reveal   string            `json:"reveal"`
-						} `json:"header"`
-					} `json:"pane"`
-				} `json:"content"`
-			} `json:"children"`
-		} `json:"children"`
-	}
-	if err := json.Unmarshal(data, &root); err != nil {
-		t.Fatal(err)
-	}
-	for _, col := range root.Children {
-		for _, b := range col.Children {
-			if b.ID == "tabs" && b.Content.Mod != TabsMod {
-				t.Fatalf("tabs block = %+v, want mod %s", b.Content, TabsMod)
-			}
-			if b.ID != "main" {
-				continue
-			}
-			p := b.Content.Pane
-			if !p.Lone || p.Header.Content["mod"] != HeaderMod || p.Header.Position != "top" || p.Header.Reveal != "always" {
-				t.Fatalf("main pane = %+v", p)
-			}
-			return
+	for _, mod := range []string{AgentsMod, HeaderMod, "tabs", "spaces"} {
+		if !strings.Contains(string(data), `"mod": "`+mod+`"`) {
+			t.Errorf("layout does not show mod %s", mod)
 		}
 	}
-	t.Fatal("no main block")
+	if strings.Contains(string(data), `"mod": "agents"`) {
+		t.Error("layout still shows Herdr's agents mod")
+	}
 }
 
-// The tabs mod is Herdr's own with one change: it leaves out settled tabs, so
-// the workers tab delegate puts away does not show.
-func TestTabsMod_HidesSettledTabs(t *testing.T) {
-	data, err := assets.ReadFile(assetRoot + "/mods/" + TabsMod + "/main.js")
+// The agents mod keeps only a worker's nested row, and the rows it hides still
+// count for their parent's status: the filter comes after this.listed is built.
+func TestAgentsMod_NestsWorkersOnly(t *testing.T) {
+	data, err := assets.ReadFile(assetRoot + "/mods/" + AgentsMod + "/main.js")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "!c.settled") || strings.Contains(string(data), "mods/tabs/") {
-		t.Fatal("wipnote-tabs must filter settled tabs and use its own asset paths")
+	src := string(data)
+	listed := strings.Index(src, "this.listed = new Map(")
+	filter := strings.Index(src, "list = list.filter((a) => !this.listed.has(parentOf.get(a.address)))")
+	if listed < 0 || filter < listed {
+		t.Fatal("wipnote-agents must filter nested workers after building this.listed")
+	}
+}
+
+// A backup folder that already exists is refused, with the installed files and
+// the earlier backup untouched.
+func TestReplace_RefusesAnExistingBackupFolder(t *testing.T) {
+	home := t.TempDir()
+	if _, _, err := Replace(home, "stamp"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := Replace(home, "stamp"); err != nil {
+		t.Fatal(err)
+	}
+	backup := filepath.Join(home, "wipnote-replaced-stamp", "mods", AgentsMod, "main.js")
+	if err := os.WriteFile(backup, []byte("kept"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := Replace(home, "stamp"); err == nil {
+		t.Fatal("a second replace into one folder must be refused")
+	}
+	if data, _ := os.ReadFile(backup); string(data) != "kept" {
+		t.Fatalf("the backup changed to %q", data)
+	}
+	if _, err := os.Stat(filepath.Join(home, "mods", AgentsMod, "main.js")); err != nil {
+		t.Fatalf("the installed mod was moved: %v", err)
 	}
 }

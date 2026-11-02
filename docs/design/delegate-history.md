@@ -15,7 +15,7 @@ Sections 4 to 8 of [delegate.md](delegate.md), moved out to keep the live spec s
 - **C. Container.** ccx means container Claude. `--container` runs the worker in the project's own
   devcontainer (`.devcontainer/devcontainer.json`, through `devcontainer up` and `devcontainer exec`),
   never an ad-hoc image. There is no second-account gate (slice 21; q-container-image).
-- **L. Layout.** Exactly as orch: one workers tab per caller in the caller's workspace. Each new
+- **L. Layout.** Exactly as orch: one workers tab per caller, later changed to one per project (feat-f89ced5b) in the caller's workspace. Each new
   worker is a split inside it, cap 6. The caller's own tab is never split (slices 6, 10, 19;
   q-worker-layout).
 - **D. orch defects become two-sided regression tests.** D1 and D1b (a result file or a stop ends

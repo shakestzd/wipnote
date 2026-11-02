@@ -64,11 +64,11 @@ One-shot runs do not claim a work item and do not count as a worker.
 
 ## Run an interactive worker
 
-Workers need the herdr TUI (`HERDR_ENV=1`) or an hc terminal (`HC_TERMINAL_ID`). Each caller gets one workers tab, with at most 6 workers.
+Workers need the herdr TUI (`HERDR_ENV=1`) or an hc terminal (`HC_TERMINAL_ID`). Each project gets one workers tab, with at most 6 workers, and every delegator in the project shares it.
 
 In an hc terminal, a pane is a terminal address such as `t7`:
 
-- In the Herdr app the workers tab exists but is put away (`tab.settle`), and each worker is a child of your terminal. The wipnote board layout (`wipnote delegate install-board`) hides settled tabs and shows a tree: you, a "workers" row with the count, then one row per worker. Click a worker, or run `terminal.peek`, to see it; `hc read t7` works too. Limit: Herdr's own main layout and agents mod ignore settled, so there the tab and a second row per worker still show. Under bare `hc`, see workers with `hc ls` and take one over with `hc attach t7`.
+- In the Herdr app the workers tab shows in the tab bar, and each worker is a child of your terminal. The wipnote-main layout (`wipnote delegate install-layout`) lists each worker once, nested under you; Herdr's own main layout also gives each worker a row of its own. Click the tab, or a worker (`terminal.peek`), to see it; `hc read t7` works too. Under bare `hc`, see workers with `hc ls`.
 - A worker outlives its caller and types no notes into the caller. Hear from it with `wait`, as in the TUI.
 - Claude reports its status to `hc`, so the app shows it as an agent.
 
@@ -178,7 +178,7 @@ A stopped worker's claim ends as `abandoned`. When a worker crashed or lost its 
 
 ## See agents in the Herdr app
 
-**`wipnote delegate install-board`** copies the `wipnote-board` layout and its mods (the board and a pane header) into the Herdr app's home. The board lists every agent by what it needs from you, with its work item. It never overwrites a file, and your own layout stays as it is. It prints the `herdr-app check` and `layout.switch` commands to run next.
+**`wipnote delegate install-layout`** copies the `wipnote-main` layout and its mods (the agents list and a pane header) into the Herdr app's home. Your own layouts stay as they are. It refuses when a target exists; `--replace` moves the existing files to a dated folder first.
 
 ## Settings
 

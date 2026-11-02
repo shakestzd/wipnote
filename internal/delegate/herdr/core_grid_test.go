@@ -123,8 +123,8 @@ func TestCore_SplitRestoresFocusAndSettlesTheTab(t *testing.T) {
 		data, _ := os.ReadFile(app)
 		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
 		n := len(lines)
-		if n < 2 || lines[n-2] != "do pane.focus --pane pCaller" || lines[n-1] != "do tab.settle --id tb9" {
-			t.Fatalf("keepFails=%d: last app calls = %q, want focus pCaller then settle tb9", keepFails, lines[max(0, n-2):])
+		if n < 1 || lines[n-1] != "do pane.focus --pane pCaller" {
+			t.Fatalf("keepFails=%d: last app call = %q, want focus pCaller", keepFails, lines[max(0, n-1):])
 		}
 	}
 }

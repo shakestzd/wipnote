@@ -261,7 +261,7 @@ func procNames(pi herdr.ProcessInfo) string {
 // the worker gone) keeps its own end; res.Ended is the row's end as it
 // stands. It reports whether this call closed the row.
 func finishStop(ctx context.Context, d Deps, rf *runstore.RunFolder, info Info, res *StopResult, reason string, exit *int) bool {
-	_ = withWorkers(d.Store, info.CallerPane, func(w *Workers) error {
+	_ = withWorkers(d.Store, func(w *Workers) error {
 		closed, err := release(ctx, d.Herdr, w, herdr.PaneID(info.Pane))
 		res.TabClosed = closed
 		if err != nil && res.Why == "" {

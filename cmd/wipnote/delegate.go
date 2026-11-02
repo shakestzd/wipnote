@@ -12,7 +12,7 @@ func delegateCmd() *cobra.Command {
 	cmd.AddCommand(delegateImportOrchCmd())
 	cmd.AddCommand(delegateViewCmd())
 	cmd.AddCommand(delegateRunCmd())
-	cmd.AddCommand(delegateInstallBoardCmd())
+	cmd.AddCommand(delegateInstallLayoutCmd())
 	cmd.AddCommand(delegateRunPaneCmd())
 	cmd.AddCommand(delegateSpawnCmd())
 	cmd.AddCommand(delegateBootCmd())
