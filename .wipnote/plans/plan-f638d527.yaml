@@ -1,0 +1,18 @@
+meta:
+    id: plan-f638d527
+    track_id: trk-23232c8d
+    title: Show past decisions to agents, and keep them current
+    description: Show matching decisions to agents automatically, then give decisions a safer file shape, override and review.
+    created_at: "2026-11-05"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
