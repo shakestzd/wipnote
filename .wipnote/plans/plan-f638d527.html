@@ -469,11 +469,60 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <a href="/" class="brand">wipnote</a>
     <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
   </div>
-  
+  <a href="#visual-overview" class="nav-link" data-spy="visual-overview" data-initial="V">Visual</a>
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
   
-  <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span>#1 Show decisions automatically</span>
+        
+        <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 One file per decision</span>
+        
+        <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 wipnote decide and override</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Reviews</span>
+        
+        <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span>#5 Evaluation</span>
+        
+        
+      </a>
+    </li>
+    
+  </ul>
+  
+  
   
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
   <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="&#9825;">Chat</a>
@@ -485,10 +534,10 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: Show past decisions to agents, and keep them current</h1>
-  <p style="color:var(--text-dim)">Show matching decisions to agents automatically, then give decisions a safer file shape, override and review.</p>
+  <p style="color:var(--text-dim)">Agents re-argue settled decisions because no one shows them the decision at the moment of the request. In the reversal test (spk-15e8b608), agents named the decision and its reason on 9 of 10 reversing requests when matching decisions were injected automatically, against 1 of 10 today and 4 of 10 with a decisions file or a search tool. None of the 13 sessions given a search tool used it. This plan ships that injection, then gives decisions a safer file shape, a way to record and override them, and a review loop so they do not go stale.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-11-05</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v1 · 5 slices · Created 2026-11-05</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -505,16 +554,168 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </details>
 
 <!-- ZONE 0: Visual Overview (blocks-first headline — expanded, above dependency graph) -->
-
+<section class="visual-overview" id="visual-overview" data-zone="visual-overview">
+  <h2>Visual Overview</h2>
+  <div class="overview-group" data-block-kind="data-model">
+    <h3>Data Models</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-2-block-data-model-1" title="Jump to slice 2">
+          <span class="slice-num">#2</span>
+          <span class="overview-slice-title">One file per decision</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-2-block-data-model-1" data-block-anchor="slice-2-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Decision file (.wipnote/decisions/&lt;slug&gt;.html)</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td><code>string (slug, immutable)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>title</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>replaces</code></td><td><code>[]string (earlier decision ids)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>why</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>rejected</code></td><td><code>[]{option, reason}</code></td><td>&mdash;</td></tr>
+      <tr><td><code>covers</code></td><td><code>[]string (repo-relative globs)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>review_when</code></td><td><code>[]string (stated conditions)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>review_on</code></td><td><code>date</code></td><td>&mdash;</td></tr>
+      <tr><td><code>created_by</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>created_at</code></td><td><code>timestamp</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-4-block-data-model-1" title="Jump to slice 4">
+          <span class="slice-num">#4</span>
+          <span class="overview-slice-title">Reviews</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-4-block-data-model-1" data-block-anchor="slice-4-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Review record (.wipnote/decisions/&lt;id&gt;-review-&lt;n&gt;.html)</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>decision</code></td><td><code>string (id reviewed)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>trigger</code></td><td><code>enum: condition | code_changed | contested | age</code></td><td>&mdash;</td></tr>
+      <tr><td><code>evidence</code></td><td><code>string (what the agent found)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>outcome</code></td><td><code>enum: keep | replace | retire</code></td><td>&mdash;</td></tr>
+      <tr><td><code>decided_by</code></td><td><code>string (must be a human)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>decided_at</code></td><td><code>timestamp</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  <div class="overview-group" data-block-kind="file-tree">
+    <h3>File Trees</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-1-block-file-tree-1" title="Jump to slice 1">
+          <span class="slice-num">#1</span>
+          <span class="overview-slice-title">Show decisions automatically</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-1-block-file-tree-1" data-block-anchor="slice-1-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/decision_inject.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/decision_inject_test.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/context_budget.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/pretooluse.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/pretooluse_shell.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/arch/search.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/arch/search_test.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">packages/plugin-core/manifest.json</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-2-block-file-tree-1" title="Jump to slice 2">
+          <span class="slice-num">#2</span>
+          <span class="overview-slice-title">One file per decision</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-2-block-file-tree-1" data-block-anchor="slice-2-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/arch/decision.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/arch/decision_store.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/arch/ledger.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/arch_migrate_decisions.go</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-3-block-file-tree-1" title="Jump to slice 3">
+          <span class="slice-num">#3</span>
+          <span class="overview-slice-title">wipnote decide and override</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-3-block-file-tree-1" data-block-anchor="slice-3-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/decide.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/decide_test.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/arch/decision_store.go</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-5-block-file-tree-1" title="Jump to slice 5">
+          <span class="slice-num">#5</span>
+          <span class="overview-slice-title">Evaluation</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-5-block-file-tree-1" data-block-anchor="slice-5-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="9" stroke="var(--border)"/><line x1="7" y1="9" x2="14" y2="9" stroke="var(--border)"/></svg><code class="file-path">docs/decision-memory-eval.md</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  <div class="overview-group" data-block-kind="diagram">
+    <h3>Diagrams</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-1-block-diagram-1" title="Jump to slice 1">
+          <span class="slice-num">#1</span>
+          <span class="overview-slice-title">Show decisions automatically</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-1-block-diagram-1" data-block-anchor="slice-1-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Injection flow</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="2403.2000000000003" height="48" viewBox="0 0 2403.2000000000003 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="316" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="164" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">UserPromptSubmit or first edit of a file</text><path class="diagram-edge" d="M322 24 L362 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="362" y="6" width="395.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="559.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Load cards from architecture.html (in-memory index)</text><path class="diagram-edge" d="M757.2 24 L797.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="797.2" y="6" width="575.1999999999999" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1084.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Drop learning-* and retired; rank prompt + path terms; glob-match card paths</text><path class="diagram-edge" d="M1372.4 24 L1412.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1412.4" y="6" width="366.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1595.6000000000001" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Shorten each entry to a cap, keeping the reason</text><path class="diagram-edge" d="M1778.8000000000002 24 L1818.8000000000002 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1818.8000000000002" y="6" width="294.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1966.0000000000002" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Skip cards already shown this session</text><path class="diagram-edge" d="M2113.2000000000003 24 L2153.2000000000003 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="2153.2000000000003" y="6" width="244" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="2275.2000000000003" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Emit additionalContext, exit 0</text></svg></div>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-4-block-diagram-1" title="Jump to slice 4">
+          <span class="slice-num">#4</span>
+          <span class="overview-slice-title">Reviews</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-4-block-diagram-1" data-block-anchor="slice-4-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Review lifecycle</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1723.2" height="48" viewBox="0 0 1723.2 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="366.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="189.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Trigger fires (derived on read, nothing stored)</text><path class="diagram-edge" d="M372.4 24 L412.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="412.4" y="6" width="553.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="689.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Decision shown marked due, with instruction to check before relying on it</text><path class="diagram-edge" d="M966 24 L1006 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1006" y="6" width="186.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1099.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Agent gathers evidence</text><path class="diagram-edge" d="M1192.4 24 L1232.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1232.4" y="6" width="287.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1376" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">User chooses keep, replace or retire</text><path class="diagram-edge" d="M1519.6000000000001 24 L1559.6000000000001 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1559.6000000000001" y="6" width="157.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1638.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">New record written</text></svg></div>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  
+</section>
 
 <!-- ZONE 1: Dependency Graph (drawn at render time — no script, no CDN) -->
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Show decisions automatically" data-status="pending" data-deps="" data-files="9" data-questions="1"></div>
+    <div data-node="2" data-name="One file per decision" data-status="pending" data-deps="1" data-files="6" data-questions="1"></div>
+    <div data-node="3" data-name="wipnote decide and override" data-status="pending" data-deps="2" data-files="4"></div>
+    <div data-node="4" data-name="Reviews" data-status="pending" data-deps="3" data-files="5" data-questions="1"></div>
+    <div data-node="5" data-name="Evaluation" data-status="pending" data-deps="1" data-files="1"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" class="dep-graph-static"></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="452.8" height="440" viewBox="0 0 452.8 440" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M200.7 80 L146 108 L146 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M146 192 L146 220 L146 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M146 304 L146 332 L146 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M310.1 80 L364.8 108 L364.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="115.4" y="24" width="280" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="255.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Show decisions automatically  ?1</text><text class="dep-node-meta" x="255.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">9 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="31.200000000000003" y="136" width="229.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="146" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 One file per decision  ?1</text><text class="dep-node-meta" x="146" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="248" width="244" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="146" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 wipnote decide and override</text><text class="dep-node-meta" x="146" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="81.6" y="360" width="128.8" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="146" y="384" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Reviews  ?1</text><text class="dep-node-meta" x="146" y="398" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="300.8" y="136" width="128" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="364.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Evaluation</text><text class="dep-node-meta" x="364.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">1 file</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -523,17 +724,31 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>The user keeps re-arguing settled decisions. Cards exist (architecture.html holds 243 rows: 156 decision, 45 hazard, 32 invariant, 10 subsystem-map; 132 are learning-* cards) but nothing pushes them to the agent. `wipnote arch resolve` is pull-only and no hook imports core/arch today.</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>Matching decisions reach the agent at UserPromptSubmit and before the first edit of a file, never blocking.</li>
+<li data-markdown>Decisions become immutable one-file records with reasons, rejected options and review conditions.</li>
+<li data-markdown>A user can record a decision, and override one with a recorded reason, from the CLI.</li>
+<li data-markdown>Decisions are reviewed on stated triggers; an agent gathers evidence, only the user renews.</li>
+<li data-markdown>The effect is measured by re-running the blind reversal test against the built system.</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>HTML under .wipnote is the source of truth; SQLite is only an in-memory index (commit a94ff8b57). No on-disk SQLite, no required daemon.</li>
+<li data-markdown>Hooks must never block and must stay well under the 15 s Claude timeout; target tens of ms to low hundreds.</li>
+<li data-markdown>Generated plugin trees are not edited by hand; change packages/plugin-core/manifest.json and regenerate.</li>
+<li data-markdown>Hook code must not assume .wipnote is inside the repo (feat-f386067a).</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -542,23 +757,827 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
+    <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 1: Show decisions automatically">
+    <span class="slice-num">#1</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Show decisions automatically</span>
+      <span class="slice-preview">Add a never-blocking hook step that injects short matching decision cards at UserPromptSubmit and before the</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm badge-effort" title="Effort: Large" aria-label="Effort: Large">L</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
     
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Add a never-blocking hook step that injects short matching decision cards at UserPromptSubmit and before the
+first edit of each file (Edit, Write, and shell writes). Ranking is ported from the prototype into Go on the
+in-memory SQLite already in go.mod. It works on today&#39;s architecture.html and can be turned off.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Showing cards unasked took reason-naming from 1 of 10 to 9 of 10; a search tool was never called.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>core/hooks/decision_inject.go, core/hooks/decision_inject_test.go, core/hooks/context_budget.go, core/hooks/pretooluse.go, core/hooks/pretooluse_shell.go, internal/arch/search.go, internal/arch/search_test.go, packages/plugin-core/manifest.json, plugin/hooks/hooks.json</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>On the 10 frozen reversal-test requests, the right card is injected at the prompt or the first edit for at least 9 of 10 (the prototype hit 9 of 10; r04 go-tmpdir-hazard was missed by text matching).</li><li>An edit through a shell command (sed -i, redirect, tee) injects cards for the file it touches, using isBashFileWrite plus target extraction; a Bash command that writes no file injects nothing.</li><li>Each injected entry stays under a fixed character cap and still contains the card&#39;s reason; a test asserts the truncated entry keeps its first reason sentence. Total injected text per session is reported and stays well under the 3-8.5k the prototype used.</li><li>p95 hook latency over 50 fresh-process runs on the real architecture.html is measured and recorded in the feature; target under 150 ms added, hard ceiling 1 s against the 15 s Claude timeout.</li><li>WIPNOTE_DECISION_INJECT=off (or a project setting) disables injection; with it set, the hook emits nothing and exits 0. Injection never returns a deny, ask, or non-zero exit.</li><li>The injected header says conflicts must be raised to the user and that the agent may challenge a decision it believes is wrong; it does not tell the agent to obey.</li><li>With the store outside the repo (simulated by a code root different from the store root) edited paths still match card Paths.</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-1-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> UserPromptSubmit, and PreToolUse on the first Edit, Write or MultiEdit of a file in the session; PreToolUse on Bash only when isBashFileWrite is true, then the target path is parsed from the command. The existing manifest already runs both hooks on Claude, Codex and Antigravity with no matcher, so no new hook entry is needed, only a new step inside the existing handlers.
+<strong>State:</strong> a per-session shown-set in .wipnote/sessions/&lt;session-id&gt;/ using the existing claimSessionOnce marker pattern, so a card is shown once per session. No new persistent store.
+<strong>Payload:</strong> hookSpecificOutput.additionalContext, header plus one line per card: slug, kind, shortened body with the reason kept. The 800-char PreToolUse cap in context_budget.go would cut the prototype&#39;s three entries, so this slice sets a separate cap for decision text and keeps the rest of the guidance at 800.
+<strong>Wording decision:</strong> the reopen text tells the agent to raise a conflict with the user and permits it to challenge the decision, because a card can be stale or wrong. Rejected: &#34;obey the decision&#34;, which would make a stale card block correct work.
+<strong>Rejected:</strong> a daemon-backed index (measurement showed no need: the hook took about 52 ms without one). On-disk SQLite (commit a94ff8b57). A new search dependency such as bleve (modernc sqlite FTS5 is already present and the prototype used it). Blocking on conflict (advisory only; the test hook never blocked and scored 8 of 10 stops). Pull-only search tool (0 of 13 sessions called it).
+<strong>Does it need the external store?</strong> No. It reads the store through the resolved project dir. It only must not assume the store is inside the repo.</p>
+</div>
+        <label for="slice-1-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-1-block-file-tree-1" data-block-anchor="slice-1-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/decision_inject.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/decision_inject_test.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/context_budget.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/pretooluse.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/pretooluse_shell.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/arch/search.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/arch/search_test.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">packages/plugin-core/manifest.json</code></li>
+    
+  </ul>
+</div></div>
+    <div class="block-anchor" id="slice-1-block-diagram-1" data-block-anchor="slice-1-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Injection flow</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="2403.2000000000003" height="48" viewBox="0 0 2403.2000000000003 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="316" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="164" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">UserPromptSubmit or first edit of a file</text><path class="diagram-edge" d="M322 24 L362 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="362" y="6" width="395.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="559.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Load cards from architecture.html (in-memory index)</text><path class="diagram-edge" d="M757.2 24 L797.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="797.2" y="6" width="575.1999999999999" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1084.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Drop learning-* and retired; rank prompt + path terms; glob-match card paths</text><path class="diagram-edge" d="M1372.4 24 L1412.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1412.4" y="6" width="366.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1595.6000000000001" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Shorten each entry to a cap, keeping the reason</text><path class="diagram-edge" d="M1778.8000000000002 24 L1818.8000000000002 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1818.8000000000002" y="6" width="294.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1966.0000000000002" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Skip cards already shown this session</text><path class="diagram-edge" d="M2113.2000000000003 24 L2153.2000000000003 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="2153.2000000000003" y="6" width="244" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="2275.2000000000003" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Emit additionalContext, exit 0</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li>TestDecisionSearch_RanksFrozenRequests (10 requests), TestEntryTruncation_KeepsReason,</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 2</span>
+            <ul><li>TestInjectedOnceAndOnlyOnPerSession, TestShellWriteTargetExtraction, TestOffSwitch, TestNeverBlocks,</li><li>TestCodeRootDiffersFromStoreRoot. Benchmark: BenchmarkInjectFreshProcess. Manual: run the frozen requests.json through the hook.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Does the shipping binary have FTS5 available for the hook, or should ranking be a plain Go tf-idf over the loaded cards?</p>
+          
+          
+          <textarea
+            data-section="slice-1-question-q-fts"
+            data-comment-for="slice-1-question-q-fts"
+            placeholder="Answer question q-fts...">Check in the first commit. Cards number a few hundred, so plain Go scoring is an acceptable fallback and avoids the SQLite load cost; the prototype&#39;s 200 ms included an FTS5 load.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: One file per decision">
+    <span class="slice-num">#2</span>
+    <span class="slice-title-col">
+      <span class="slice-name">One file per decision</span>
+      <span class="slice-preview">Store each decision as an immutable file with replaces, why, rejected options, covered files, review</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm badge-effort" title="Effort: Large" aria-label="Effort: Large">L</span>
+          <span class="badge badge-blocked badge-sm badge-risk" title="Risk: High">High</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Store each decision as an immutable file with replaces, why, rejected options, covered files, review
+conditions and review date. Migrate human-written cards, keep learning-* out of injection, and link one-way
+with derived backlinks. Writes are safe for several agents at once.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>One shared ledger makes multi-agent writes contend and gives decisions no place for reasons or rejected options.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>core/arch/decision.go, core/arch/decision_store.go, core/arch/decision_test.go, core/arch/ledger.go, cmd/wipnote/arch_migrate_decisions.go, internal/arch/search.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>Decision files are never rewritten after creation; superseding writes a new file whose replaces names the old one, and the old file&#39;s status is derived, not edited. A test confirms a second write to an existing id fails.</li><li>Writes use the existing per-file flock, temp-write, fsync and rename pattern. A concurrency test with at least 8 writers creating different decisions loses none and corrupts none.</li><li>Migration converts the human-written cards that are kind decision into decision files, leaves learning-* cards out of the injection set, and is idempotent (second run changes nothing). The migrator prints counts of migrated, skipped learning-* and unclassified cards (the ledger has 156 decision-kind rows and 132 learning-* ids; their overlap is unverified).</li><li>Backlinks are computed on read from replaces and links; no file stores the reverse edge.</li><li>Slice 1&#39;s search reads decision files and still reads old cards that were not migrated, so injection never regresses during migration.</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-2-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> <code>wipnote arch migrate-decisions</code> once, then every new decision is created through slice 3&#39;s command.
+<strong>State:</strong> one HTML file per decision under .wipnote/decisions/ (HTML is canonical). The in-memory index is built per process from these files. The existing flock, temp-write, fsync, rename helper is reused from core/filelock and core/arch/ledger.go.
+<strong>Payload:</strong> the field table above. A superseded decision is detected because a newer file lists it in replaces; nothing mutates the old file.
+<strong>Rejected:</strong> keeping decisions as rows in architecture.html (one lock for all writers, and edits in place destroy history). A mutable status field on the old file (breaks immutability and invites concurrent-edit races). Two-way links stored in both files (can disagree). A SQLite file on disk (commit a94ff8b57).
+<strong>Unverified:</strong> that all 156 decision-kind cards are human-written; the migrator must classify by created_by and report the ones it cannot place rather than guess.</p>
+</div>
+        <label for="slice-2-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-2-block-data-model-1" data-block-anchor="slice-2-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Decision file (.wipnote/decisions/&lt;slug&gt;.html)</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td><code>string (slug, immutable)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>title</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>replaces</code></td><td><code>[]string (earlier decision ids)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>why</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>rejected</code></td><td><code>[]{option, reason}</code></td><td>&mdash;</td></tr>
+      <tr><td><code>covers</code></td><td><code>[]string (repo-relative globs)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>review_when</code></td><td><code>[]string (stated conditions)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>review_on</code></td><td><code>date</code></td><td>&mdash;</td></tr>
+      <tr><td><code>created_by</code></td><td><code>string</code></td><td>&mdash;</td></tr>
+      <tr><td><code>created_at</code></td><td><code>timestamp</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    <div class="block-anchor" id="slice-2-block-file-tree-1" data-block-anchor="slice-2-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/arch/decision.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/arch/decision_store.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/arch/ledger.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/arch_migrate_decisions.go</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li>TestDecisionImmutable, TestSupersedeWritesNewFile, TestDerivedBacklinks, TestMigrationIdempotent, TestLearningCardsNotInjected.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="concurrency">
+            <span class="test-chip">CONCURRENCY &middot; 1</span>
+            <ul><li>TestDecisionWrite_EightWriters. Regression: slice-1 frozen-request ranking test still passes on migrated data.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Do hazard and invariant cards move to the new format too, or stay in architecture.html?</p>
+          
+          
+          <textarea
+            data-section="slice-2-question-q-migrate-hazards"
+            data-comment-for="slice-2-question-q-migrate-hazards"
+            placeholder="Answer question q-migrate-hazards...">Leave hazards, invariants and subsystem maps where they are in this plan; migrate only kind decision. A smaller migration is lower risk. The reversal test&#39;s requests also targeted hazard and invariant cards (go-tmpdir-hazard, telemetry-offset-marker-producer), so slice 1 must keep injecting those from the ledger.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: wipnote decide and override">
+    <span class="slice-num">#3</span>
+    <span class="slice-title-col">
+      <span class="slice-name">wipnote decide and override</span>
+      <span class="slice-preview">Add wipnote decide to record a decision from the CLI, and an override path: when the user says to proceed</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Add <code>wipnote decide</code> to record a decision from the CLI, and an override path: when the user says to proceed
+anyway, the old decision is replaced by a new one recording why. Covered-file matching also catches some
+misses that text search leaves.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>A decision that cannot be recorded or overridden cleanly either stays unrecorded or keeps nagging.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/decide.go, cmd/wipnote/decide_test.go, core/arch/decision_store.go, internal/arch/search.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>`wipnote decide &#34;&lt;title&gt;&#34; --why ... --rejected &#34;opt:reason&#34; --covers &lt;glob&gt; --review-when ... [--review-on date]` creates one decision file and prints its id.</li><li>`wipnote decide override &lt;id&gt; --why &#34;&lt;reason&gt;&#34;` writes a new decision with replaces=&lt;id&gt; and the stated reason, and the old decision stops being injected. Without --why it refuses.</li><li>A decision whose covers glob matches the edited file is injected even when text ranking misses it, tested with a fixture decision. This may not fix the go-tmpdir-hazard / Makefile miss from the reversal test, because that request created a new file the card may not cover; the slice reports whether it does.</li><li>Both commands are usable by an agent only when the user&#39;s instruction is quoted in --why; the command records created_by so reviews can see whether a human or an agent wrote it.</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-3-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> the user states a decision, or says to proceed anyway against an injected one; the agent runs the command with the user&#39;s words in --why.
+<strong>State:</strong> a new immutable decision file per call; overriding writes a new file and never edits the old one.
+<strong>Payload:</strong> command flags above; output is the new decision id and path.
+<strong>Rejected:</strong> an --force flag that silently drops a decision (loses the reason, which is the point of the record). Letting the hook itself write overrides when it sees &#34;go ahead&#34; (a regex on user wording would fabricate consent). Reusing <code>wipnote arch edit</code> (mutates in place).
+<strong>Open:</strong> whether <code>wipnote arch add --kind decision</code> stays as an alias; recommend keeping it, routing to the new store after slice 2.</p>
+</div>
+        <label for="slice-3-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-3-block-file-tree-1" data-block-anchor="slice-3-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/decide.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/decide_test.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/arch/decision_store.go</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li>TestDecideCreates, TestOverrideRequiresWhy, TestOverrideStopsInjection, TestCoversCatchesTextMiss.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 2</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Reviews">
+    <span class="slice-num">#4</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Reviews</span>
+      <span class="slice-preview">Decisions never expire by themselves, but they come up for review on a trigger: a stated condition changed,</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm badge-effort" title="Effort: Large" aria-label="Effort: Large">L</span>
+          <span class="badge badge-blocked badge-sm badge-risk" title="Risk: High">High</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Decisions never expire by themselves, but they come up for review on a trigger: a stated condition changed,
+covered code changed substantially, challenged or overridden more than once, or 90 days passed (settable
+per decision). An agent gathers evidence; only the user keeps, replaces or retires. Due decisions are still
+shown, marked due.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Without review, injected cards go stale and teach agents wrong rules, which breaks trust in the whole feature.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>core/arch/review.go, core/arch/review_test.go, cmd/wipnote/decide_review.go, core/hooks/decision_inject.go, core/hooks/session_start.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>Due state is derived on read from four triggers; default age is 90 days, overridable per decision via review_on. A test covers each trigger and a decision with none due.</li><li>Code-changed trigger reuses the verified_at / git-diff drift logic and counts changed lines in covered globs against a threshold set in the decision or a documented default.</li><li>A keep outcome writes a new review record, leaves the decision file unchanged and resets the age clock. An agent cannot complete a renewal alone, enforced as chosen in plan question q-renew; a test covers the refusal.</li><li>Retired decisions are not injected but are still returned by search and show.</li><li>Due decisions are injected with a due marker and the instruction to check before relying on them.</li><li>`wipnote decide review` lists the queue ranked by how often a decision was shown or blocked work, three at a time; session start prints one line with the count (for example `3 decisions due for review`).</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-4-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> derived on read: a stated review_when condition flagged changed, covered code changed beyond a threshold since the decision, two or more challenges or overrides, or age at or beyond the review interval.
+<strong>State:</strong> nothing is stored for due; each outcome is a new immutable record. Show counts for ranking are appended per session to NDJSON (the existing canonical event pattern), not to the decision files.
+<strong>Payload:</strong> injected line gets a leading marker such as [due for review] and a fixed instruction sentence. Session start gets one line with the count and the command to run.
+<strong>Rejected:</strong> auto-expire after 90 days (a forgotten but correct decision would silently disappear). Agent self-renewal (excluded in the design the user approved). Mutating the old file to set a status (breaks slice 2). A background daemon to schedule reviews (due state is derived on read, so none is needed).
+<strong>Unverified:</strong> how &#34;challenged&#34; is counted. The injection hook cannot tell on its own whether an agent challenged; recommend counting an explicit <code>wipnote decide contest &lt;id&gt;</code> call or an override, not parsing transcripts.</p>
+</div>
+        <label for="slice-4-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-4-block-data-model-1" data-block-anchor="slice-4-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Review record (.wipnote/decisions/&lt;id&gt;-review-&lt;n&gt;.html)</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>decision</code></td><td><code>string (id reviewed)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>trigger</code></td><td><code>enum: condition | code_changed | contested | age</code></td><td>&mdash;</td></tr>
+      <tr><td><code>evidence</code></td><td><code>string (what the agent found)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>outcome</code></td><td><code>enum: keep | replace | retire</code></td><td>&mdash;</td></tr>
+      <tr><td><code>decided_by</code></td><td><code>string (must be a human)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>decided_at</code></td><td><code>timestamp</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    <div class="block-anchor" id="slice-4-block-diagram-1" data-block-anchor="slice-4-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Review lifecycle</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1723.2" height="48" viewBox="0 0 1723.2 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="366.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="189.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Trigger fires (derived on read, nothing stored)</text><path class="diagram-edge" d="M372.4 24 L412.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="412.4" y="6" width="553.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="689.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Decision shown marked due, with instruction to check before relying on it</text><path class="diagram-edge" d="M966 24 L1006 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1006" y="6" width="186.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1099.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Agent gathers evidence</text><path class="diagram-edge" d="M1192.4 24 L1232.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1232.4" y="6" width="287.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1376" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">User chooses keep, replace or retire</text><path class="diagram-edge" d="M1519.6000000000001 24 L1559.6000000000001 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1559.6000000000001" y="6" width="157.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1638.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">New record written</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li>TestDueByEachTrigger, TestAgentCannotRenew, TestRetiredNotInjectedButSearchable, TestQueueRankingAndPaging, TestSessionStartCountLine.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>What counts as covered code changed substantially?</p>
+          
+          
+          <textarea
+            data-section="slice-4-question-q-code-threshold"
+            data-comment-for="slice-4-question-q-code-threshold"
+            placeholder="Answer question q-code-threshold...">Default: more than 30 percent of lines changed in files matching covers, or any rename or delete of a covered file, since the decision date. Tune in slice 5 against false alarms.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 3</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 5: Evaluation">
+    <span class="slice-num">#5</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Evaluation</span>
+      <span class="slice-preview">Re-run the blind reversal test against the built system, adding requests in the user&#39;s real wording and</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-5-approval" value="changes_requested" data-section="slice-5" data-action="approve" aria-label="Request changes for slice 5">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-5-approval" value="rejected" data-section="slice-5" data-action="approve" aria-label="Reject slice 5">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Re-run the blind reversal test against the built system, adding requests in the user&#39;s real wording and
+requests where a card is stale and the change is right. Use more than three false-alarm controls and
+blind scoring. A first check can run after slice 1 and a full run after slice 4.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The 9-of-10 result came from a prototype and an agent-written request set; it needs proof on the shipped code and on cases that could embarrass it.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>docs/decision-memory-eval.md</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>Early check after slice 1 and full run after slice 4 both reported with the same table as spk-15e8b608 (named decision and reason, mentioned at all, stopped before change, went ahead silently).</li><li>At least 10 reversing requests are in the user&#39;s real wording, taken from past transcripts or the user&#39;s own list, frozen with a sha256 before any run.</li><li>At least 5 stale-card requests where the change is right; a pass is the agent checking the code and saying the card looks out of date, a fail is blind obedience or a silent change.</li><li>At least 8 false-alarm controls (the earlier test had 3, which was too few); false-alarm count reported with the denominator.</li><li>Scoring is blind with at least two scorers per batch and disagreement ranges reported.</li><li>The report states quota cost, using the prior test as a baseline: 39 runs cost $6.93 (about $0.18 each) and the 13 automatic-display runs cost $1.00 (about $0.08 each), not counting scorers. The full run is estimated from the final request count and the actual figure is recorded.</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-5-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> manual, after slice 1 (early check) and after slice 4 (full).
+<strong>State:</strong> frozen request file with a hash, run log and scorer outputs, kept in a doc or run folder.
+<strong>Payload:</strong> result table plus per-request notes and limits.
+<strong>Rejected:</strong> letting the request writer see the cards again (the earlier writer had, which may flatter retrieval; use transcripts and the user&#39;s list). Three controls (too few to claim a false-alarm rate). Single-scorer grading (earlier batches disagreed on 3 of 26 surfaced judgements).
+<strong>Known limits to carry forward:</strong> one Sonnet run per cell, one project, no go test step.</p>
+</div>
+        <label for="slice-5-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-5-block-file-tree-1" data-block-anchor="slice-5-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="9" stroke="var(--border)"/><line x1="7" y1="9" x2="14" y2="9" stroke="var(--border)"/></svg><code class="file-path">docs/decision-memory-eval.md</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>The test is the deliverable. Check: requests.json hash frozen before the run, run order randomised and recorded, scorer files saved.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        <!--PLAN_QUESTIONS_RECAP-->
-      </tbody>
-    </table>
-  </div>
-</details>
+
 
 
 
@@ -569,8 +1588,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">6</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">6</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -662,7 +1681,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');

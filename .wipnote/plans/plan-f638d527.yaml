@@ -2,17 +2,374 @@ meta:
     id: plan-f638d527
     track_id: trk-23232c8d
     title: Show past decisions to agents, and keep them current
-    description: Show matching decisions to agents automatically, then give decisions a safer file shape, override and review.
-    created_at: "2026-11-05"
+    description: Agents re-argue settled decisions because no one shows them the decision at the moment of the request. In the reversal test (spk-15e8b608), agents named the decision and its reason on 9 of 10 reversing requests when matching decisions were injected automatically, against 1 of 10 today and 4 of 10 with a decisions file or a search tool. None of the 13 sessions given a search tool used it. This plan ships that injection, then gives decisions a safer file shape, a way to record and override them, and a review loop so they do not go stale.
+    created_at: ""
     status: draft
-    priority: medium
     schema_version: v4
-    version: 2
+    version: 1
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: 'The user keeps re-arguing settled decisions. Cards exist (architecture.html holds 243 rows: 156 decision, 45 hazard, 32 invariant, 10 subsystem-map; 132 are learning-* cards) but nothing pushes them to the agent. `wipnote arch resolve` is pull-only and no hook imports core/arch today.'
+    goals:
+        - Matching decisions reach the agent at UserPromptSubmit and before the first edit of a file, never blocking.
+        - Decisions become immutable one-file records with reasons, rejected options and review conditions.
+        - A user can record a decision, and override one with a recorded reason, from the CLI.
+        - Decisions are reviewed on stated triggers; an agent gathers evidence, only the user renews.
+        - The effect is measured by re-running the blind reversal test against the built system.
+    constraints:
+        - HTML under .wipnote is the source of truth; SQLite is only an in-memory index (commit a94ff8b57). No on-disk SQLite, no required daemon.
+        - Hooks must never block and must stay well under the 15 s Claude timeout; target tens of ms to low hundreds.
+        - Generated plugin trees are not edited by hand; change packages/plugin-core/manifest.json and regenerate.
+        - Hook code must not assume .wipnote is inside the repo (feat-f386067a).
     approved: false
     comment: ""
-slices: []
-questions: []
+    research:
+        - url: https://code.claude.com/docs/en/hooks
+          claim: UserPromptSubmit and PreToolUse both return hookSpecificOutput.additionalContext with hookEventName set; UserPromptSubmit cannot replace the prompt; output over 10,000 chars is spilled to a file with a 2,000-char preview; default timeout is 30 s on UserPromptSubmit command hooks; PreToolUse matches Bash as well as Edit and Write. The PreToolUse additionalContext section itself was cut off in the fetch, so confirm it before coding (unverified).
+          accessed: "2026-11-05"
+        - url: https://learn.chatgpt.com/docs/hooks
+          claim: Codex supports hookSpecificOutput.additionalContext on UserPromptSubmit and PreToolUse; PreToolUse fires for Bash, apply_patch (matchable as Edit or Write), MCP tools, and not for hosted tools such as WebSearch.
+          accessed: "2026-11-05"
+        - url: https://pkg.go.dev/modernc.org/sqlite
+          claim: modernc.org/sqlite is already in go.mod (v1.56.0) and is used as an in-memory engine; prototype search used its FTS5. Adopt, do not add a search dependency. Whether FTS5 is compiled into this exact build is unverified for the hook binary; confirm in slice 1.
+          accessed: "2026-11-05"
+slices:
+    - id: slice-1
+      num: 1
+      title: Show decisions automatically
+      what: |
+        Add a never-blocking hook step that injects short matching decision cards at UserPromptSubmit and before the
+        first edit of each file (Edit, Write, and shell writes). Ranking is ported from the prototype into Go on the
+        in-memory SQLite already in go.mod. It works on today's architecture.html and can be turned off.
+      why: |
+        Showing cards unasked took reason-naming from 1 of 10 to 9 of 10; a search tool was never called.
+      files:
+        - core/hooks/decision_inject.go
+        - core/hooks/decision_inject_test.go
+        - core/hooks/context_budget.go
+        - core/hooks/pretooluse.go
+        - core/hooks/pretooluse_shell.go
+        - internal/arch/search.go
+        - internal/arch/search_test.go
+        - packages/plugin-core/manifest.json
+        - plugin/hooks/hooks.json
+      deps: []
+      done_when:
+        - On the 10 frozen reversal-test requests, the right card is injected at the prompt or the first edit for at least 9 of 10 (the prototype hit 9 of 10; r04 go-tmpdir-hazard was missed by text matching).
+        - An edit through a shell command (sed -i, redirect, tee) injects cards for the file it touches, using isBashFileWrite plus target extraction; a Bash command that writes no file injects nothing.
+        - Each injected entry stays under a fixed character cap and still contains the card's reason; a test asserts the truncated entry keeps its first reason sentence. Total injected text per session is reported and stays well under the 3-8.5k the prototype used.
+        - p95 hook latency over 50 fresh-process runs on the real architecture.html is measured and recorded in the feature; target under 150 ms added, hard ceiling 1 s against the 15 s Claude timeout.
+        - WIPNOTE_DECISION_INJECT=off (or a project setting) disables injection; with it set, the hook emits nothing and exits 0. Injection never returns a deny, ask, or non-zero exit.
+        - The injected header says conflicts must be raised to the user and that the agent may challenge a decision it believes is wrong; it does not tell the agent to obey.
+        - With the store outside the repo (simulated by a code root different from the store root) edited paths still match card Paths.
+      effort: L
+      risk: Med
+      tests: |
+        Unit: TestDecisionSearch_RanksFrozenRequests (10 requests), TestEntryTruncation_KeepsReason,
+        TestInjectedOnceAndOnlyOnPerSession, TestShellWriteTargetExtraction, TestOffSwitch, TestNeverBlocks,
+        TestCodeRootDiffersFromStoreRoot. Benchmark: BenchmarkInjectFreshProcess. Manual: run the frozen requests.json through the hook.
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/hooks
+          claim: additionalContext shape and 10,000-char spill apply to both events.
+          accessed: "2026-11-05"
+        - url: https://learn.chatgpt.com/docs/hooks
+          claim: Codex honours the same field on both events and fires PreToolUse for apply_patch and Bash.
+          accessed: "2026-11-05"
+      questions:
+        - id: q-fts
+          text: Does the shipping binary have FTS5 available for the hook, or should ranking be a plain Go tf-idf over the loaded cards?
+          answer: Check in the first commit. Cards number a few hundred, so plain Go scoring is an acceptable fallback and avoids the SQLite load cost; the prototype's 200 ms included an FTS5 load.
+      decisions_notes: |
+        **Trigger:** UserPromptSubmit, and PreToolUse on the first Edit, Write or MultiEdit of a file in the session; PreToolUse on Bash only when isBashFileWrite is true, then the target path is parsed from the command. The existing manifest already runs both hooks on Claude, Codex and Antigravity with no matcher, so no new hook entry is needed, only a new step inside the existing handlers.
+        **State:** a per-session shown-set in .wipnote/sessions/<session-id>/ using the existing claimSessionOnce marker pattern, so a card is shown once per session. No new persistent store.
+        **Payload:** hookSpecificOutput.additionalContext, header plus one line per card: slug, kind, shortened body with the reason kept. The 800-char PreToolUse cap in context_budget.go would cut the prototype's three entries, so this slice sets a separate cap for decision text and keeps the rest of the guidance at 800.
+        **Wording decision:** the reopen text tells the agent to raise a conflict with the user and permits it to challenge the decision, because a card can be stale or wrong. Rejected: "obey the decision", which would make a stale card block correct work.
+        **Rejected:** a daemon-backed index (measurement showed no need: the hook took about 52 ms without one). On-disk SQLite (commit a94ff8b57). A new search dependency such as bleve (modernc sqlite FTS5 is already present and the prototype used it). Blocking on conflict (advisory only; the test hook never blocked and scored 8 of 10 stops). Pull-only search tool (0 of 13 sessions called it).
+        **Does it need the external store?** No. It reads the store through the resolved project dir. It only must not assume the store is inside the repo.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - core/hooks/decision_inject.go
+            - core/hooks/decision_inject_test.go
+            - core/hooks/context_budget.go
+            - core/hooks/pretooluse.go
+            - core/hooks/pretooluse_shell.go
+            - internal/arch/search.go
+            - internal/arch/search_test.go
+            - packages/plugin-core/manifest.json
+        - type: diagram
+          title: Injection flow
+          fields:
+            direction: lr
+          entries:
+            - UserPromptSubmit or first edit of a file
+            - Load cards from architecture.html (in-memory index)
+            - Drop learning-* and retired; rank prompt + path terms; glob-match card paths
+            - Shorten each entry to a cap, keeping the reason
+            - Skip cards already shown this session
+            - Emit additionalContext, exit 0
+    - id: slice-2
+      num: 2
+      title: One file per decision
+      what: |
+        Store each decision as an immutable file with replaces, why, rejected options, covered files, review
+        conditions and review date. Migrate human-written cards, keep learning-* out of injection, and link one-way
+        with derived backlinks. Writes are safe for several agents at once.
+      why: |
+        One shared ledger makes multi-agent writes contend and gives decisions no place for reasons or rejected options.
+      files:
+        - core/arch/decision.go
+        - core/arch/decision_store.go
+        - core/arch/decision_test.go
+        - core/arch/ledger.go
+        - cmd/wipnote/arch_migrate_decisions.go
+        - internal/arch/search.go
+      deps:
+        - 1
+      done_when:
+        - Decision files are never rewritten after creation; superseding writes a new file whose replaces names the old one, and the old file's status is derived, not edited. A test confirms a second write to an existing id fails.
+        - Writes use the existing per-file flock, temp-write, fsync and rename pattern. A concurrency test with at least 8 writers creating different decisions loses none and corrupts none.
+        - Migration converts the human-written cards that are kind decision into decision files, leaves learning-* cards out of the injection set, and is idempotent (second run changes nothing). The migrator prints counts of migrated, skipped learning-* and unclassified cards (the ledger has 156 decision-kind rows and 132 learning-* ids; their overlap is unverified).
+        - Backlinks are computed on read from replaces and links; no file stores the reverse edge.
+        - Slice 1's search reads decision files and still reads old cards that were not migrated, so injection never regresses during migration.
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestDecisionImmutable, TestSupersedeWritesNewFile, TestDerivedBacklinks, TestMigrationIdempotent, TestLearningCardsNotInjected.
+        Concurrency: TestDecisionWrite_EightWriters. Regression: slice-1 frozen-request ranking test still passes on migrated data.
+      complexity: complex
+      approved: false
+      comment: ""
+      research_waiver: stdlib and existing core/filelock only; reuses the write pattern already in core/arch/ledger.go.
+      questions:
+        - id: q-migrate-hazards
+          text: Do hazard and invariant cards move to the new format too, or stay in architecture.html?
+          answer: Leave hazards, invariants and subsystem maps where they are in this plan; migrate only kind decision. A smaller migration is lower risk. The reversal test's requests also targeted hazard and invariant cards (go-tmpdir-hazard, telemetry-offset-marker-producer), so slice 1 must keep injecting those from the ledger.
+      decisions_notes: |
+        **Trigger:** `wipnote arch migrate-decisions` once, then every new decision is created through slice 3's command.
+        **State:** one HTML file per decision under .wipnote/decisions/ (HTML is canonical). The in-memory index is built per process from these files. The existing flock, temp-write, fsync, rename helper is reused from core/filelock and core/arch/ledger.go.
+        **Payload:** the field table above. A superseded decision is detected because a newer file lists it in replaces; nothing mutates the old file.
+        **Rejected:** keeping decisions as rows in architecture.html (one lock for all writers, and edits in place destroy history). A mutable status field on the old file (breaks immutability and invites concurrent-edit races). Two-way links stored in both files (can disagree). A SQLite file on disk (commit a94ff8b57).
+        **Unverified:** that all 156 decision-kind cards are human-written; the migrator must classify by created_by and report the ones it cannot place rather than guess.
+      blocks:
+        - type: data-model
+          fields:
+            name: Decision file (.wipnote/decisions/<slug>.html)
+          rows:
+            - name: id
+              type: string (slug, immutable)
+            - name: title
+              type: string
+            - name: replaces
+              type: '[]string (earlier decision ids)'
+            - name: why
+              type: string
+            - name: rejected
+              type: '[]{option, reason}'
+            - name: covers
+              type: '[]string (repo-relative globs)'
+            - name: review_when
+              type: '[]string (stated conditions)'
+            - name: review_on
+              type: date
+            - name: created_by
+              type: string
+            - name: created_at
+              type: timestamp
+        - type: file-tree
+          title: Files touched
+          entries:
+            - core/arch/decision.go
+            - core/arch/decision_store.go
+            - core/arch/ledger.go
+            - cmd/wipnote/arch_migrate_decisions.go
+    - id: slice-3
+      num: 3
+      title: wipnote decide and override
+      what: |
+        Add `wipnote decide` to record a decision from the CLI, and an override path: when the user says to proceed
+        anyway, the old decision is replaced by a new one recording why. Covered-file matching also catches some
+        misses that text search leaves.
+      why: |
+        A decision that cannot be recorded or overridden cleanly either stays unrecorded or keeps nagging.
+      files:
+        - cmd/wipnote/decide.go
+        - cmd/wipnote/decide_test.go
+        - core/arch/decision_store.go
+        - internal/arch/search.go
+      deps:
+        - 2
+      done_when:
+        - '`wipnote decide "<title>" --why ... --rejected "opt:reason" --covers <glob> --review-when ... [--review-on date]` creates one decision file and prints its id.'
+        - '`wipnote decide override <id> --why "<reason>"` writes a new decision with replaces=<id> and the stated reason, and the old decision stops being injected. Without --why it refuses.'
+        - A decision whose covers glob matches the edited file is injected even when text ranking misses it, tested with a fixture decision. This may not fix the go-tmpdir-hazard / Makefile miss from the reversal test, because that request created a new file the card may not cover; the slice reports whether it does.
+        - Both commands are usable by an agent only when the user's instruction is quoted in --why; the command records created_by so reviews can see whether a human or an agent wrote it.
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestDecideCreates, TestOverrideRequiresWhy, TestOverrideStopsInjection, TestCoversCatchesTextMiss.
+      complexity: standard
+      approved: false
+      comment: ""
+      research_waiver: CLI over the slice-2 store; no external dependency or standard applies.
+      decisions_notes: |
+        **Trigger:** the user states a decision, or says to proceed anyway against an injected one; the agent runs the command with the user's words in --why.
+        **State:** a new immutable decision file per call; overriding writes a new file and never edits the old one.
+        **Payload:** command flags above; output is the new decision id and path.
+        **Rejected:** an --force flag that silently drops a decision (loses the reason, which is the point of the record). Letting the hook itself write overrides when it sees "go ahead" (a regex on user wording would fabricate consent). Reusing `wipnote arch edit` (mutates in place).
+        **Open:** whether `wipnote arch add --kind decision` stays as an alias; recommend keeping it, routing to the new store after slice 2.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/decide.go
+            - cmd/wipnote/decide_test.go
+            - core/arch/decision_store.go
+    - id: slice-4
+      num: 4
+      title: Reviews
+      what: |
+        Decisions never expire by themselves, but they come up for review on a trigger: a stated condition changed,
+        covered code changed substantially, challenged or overridden more than once, or 90 days passed (settable
+        per decision). An agent gathers evidence; only the user keeps, replaces or retires. Due decisions are still
+        shown, marked due.
+      why: |
+        Without review, injected cards go stale and teach agents wrong rules, which breaks trust in the whole feature.
+      files:
+        - core/arch/review.go
+        - core/arch/review_test.go
+        - cmd/wipnote/decide_review.go
+        - core/hooks/decision_inject.go
+        - core/hooks/session_start.go
+      deps:
+        - 3
+      done_when:
+        - Due state is derived on read from four triggers; default age is 90 days, overridable per decision via review_on. A test covers each trigger and a decision with none due.
+        - Code-changed trigger reuses the verified_at / git-diff drift logic and counts changed lines in covered globs against a threshold set in the decision or a documented default.
+        - A keep outcome writes a new review record, leaves the decision file unchanged and resets the age clock. An agent cannot complete a renewal alone, enforced as chosen in plan question q-renew; a test covers the refusal.
+        - Retired decisions are not injected but are still returned by search and show.
+        - Due decisions are injected with a due marker and the instruction to check before relying on them.
+        - '`wipnote decide review` lists the queue ranked by how often a decision was shown or blocked work, three at a time; session start prints one line with the count (for example `3 decisions due for review`).'
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestDueByEachTrigger, TestAgentCannotRenew, TestRetiredNotInjectedButSearchable, TestQueueRankingAndPaging, TestSessionStartCountLine.
+      complexity: complex
+      approved: false
+      comment: ""
+      research_waiver: Builds on slice-2/3 records and the existing verified_at git-drift logic in internal/arch/resolve.go; no external standard applies.
+      questions:
+        - id: q-code-threshold
+          text: What counts as covered code changed substantially?
+          answer: 'Default: more than 30 percent of lines changed in files matching covers, or any rename or delete of a covered file, since the decision date. Tune in slice 5 against false alarms.'
+      decisions_notes: |
+        **Trigger:** derived on read: a stated review_when condition flagged changed, covered code changed beyond a threshold since the decision, two or more challenges or overrides, or age at or beyond the review interval.
+        **State:** nothing is stored for due; each outcome is a new immutable record. Show counts for ranking are appended per session to NDJSON (the existing canonical event pattern), not to the decision files.
+        **Payload:** injected line gets a leading marker such as [due for review] and a fixed instruction sentence. Session start gets one line with the count and the command to run.
+        **Rejected:** auto-expire after 90 days (a forgotten but correct decision would silently disappear). Agent self-renewal (excluded in the design the user approved). Mutating the old file to set a status (breaks slice 2). A background daemon to schedule reviews (due state is derived on read, so none is needed).
+        **Unverified:** how "challenged" is counted. The injection hook cannot tell on its own whether an agent challenged; recommend counting an explicit `wipnote decide contest <id>` call or an override, not parsing transcripts.
+      blocks:
+        - type: data-model
+          fields:
+            name: Review record (.wipnote/decisions/<id>-review-<n>.html)
+          rows:
+            - name: decision
+              type: string (id reviewed)
+            - name: trigger
+              type: 'enum: condition | code_changed | contested | age'
+            - name: evidence
+              type: string (what the agent found)
+            - name: outcome
+              type: 'enum: keep | replace | retire'
+            - name: decided_by
+              type: string (must be a human)
+            - name: decided_at
+              type: timestamp
+        - type: diagram
+          title: Review lifecycle
+          fields:
+            direction: lr
+          entries:
+            - Trigger fires (derived on read, nothing stored)
+            - Decision shown marked due, with instruction to check before relying on it
+            - Agent gathers evidence
+            - User chooses keep, replace or retire
+            - New record written
+    - id: slice-5
+      num: 5
+      title: Evaluation
+      what: |
+        Re-run the blind reversal test against the built system, adding requests in the user's real wording and
+        requests where a card is stale and the change is right. Use more than three false-alarm controls and
+        blind scoring. A first check can run after slice 1 and a full run after slice 4.
+      why: |
+        The 9-of-10 result came from a prototype and an agent-written request set; it needs proof on the shipped code and on cases that could embarrass it.
+      files:
+        - docs/decision-memory-eval.md
+      deps:
+        - 1
+      done_when:
+        - Early check after slice 1 and full run after slice 4 both reported with the same table as spk-15e8b608 (named decision and reason, mentioned at all, stopped before change, went ahead silently).
+        - At least 10 reversing requests are in the user's real wording, taken from past transcripts or the user's own list, frozen with a sha256 before any run.
+        - At least 5 stale-card requests where the change is right; a pass is the agent checking the code and saying the card looks out of date, a fail is blind obedience or a silent change.
+        - At least 8 false-alarm controls (the earlier test had 3, which was too few); false-alarm count reported with the denominator.
+        - Scoring is blind with at least two scorers per batch and disagreement ranges reported.
+        - 'The report states quota cost, using the prior test as a baseline: 39 runs cost $6.93 (about $0.18 each) and the 13 automatic-display runs cost $1.00 (about $0.08 each), not counting scorers. The full run is estimated from the final request count and the actual figure is recorded.'
+      effort: M
+      risk: Low
+      tests: |
+        The test is the deliverable. Check: requests.json hash frozen before the run, run order randomised and recorded, scorer files saved.
+      complexity: standard
+      approved: false
+      comment: ""
+      research_waiver: Reuses the spk-15e8b608 reversal-test harness and scoring rubric; no external dependency.
+      decisions_notes: |
+        **Trigger:** manual, after slice 1 (early check) and after slice 4 (full).
+        **State:** frozen request file with a hash, run log and scorer outputs, kept in a doc or run folder.
+        **Payload:** result table plus per-request notes and limits.
+        **Rejected:** letting the request writer see the cards again (the earlier writer had, which may flatter retrieval; use transcripts and the user's list). Three controls (too few to claim a false-alarm rate). Single-scorer grading (earlier batches disagreed on 3 of 26 surfaced judgements).
+        **Known limits to carry forward:** one Sonnet run per cell, one project, no go test step.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - docs/decision-memory-eval.md
+questions:
+    - id: q-renew
+      text: How should the CLI stop an agent renewing a decision on its own?
+      description: |
+        Agents run the same CLI as the user, so a decided_by field alone proves nothing. Whether a confirmation prompt works through the Claude Code ! prefix is unverified and must be checked first.
+      recommended: terminal-confirm
+      options:
+        - key: terminal-confirm
+          label: Renewal asks for typed confirmation in an interactive terminal and refuses without one, which an agent's non-interactive shell cannot supply
+        - key: quoted-consent
+          label: The agent records the user's quoted words, which is simple and auditable but relies on the agent being honest
+      answer: null
+    - id: q-extract
+      text: Should a follow-up plan capture decisions that were never recorded?
+      description: |
+        Automatic extraction of decisions from transcripts is out of scope here, so a decision never recorded cannot be shown. This is an open gap. The choice is whether to plan the capture work next, and in what form.
+      recommended: confirm-capture
+      options:
+        - key: confirm-capture
+          label: Separate follow-up plan after slice 5 where the agent drafts a wipnote decide line and the user approves it, so nothing enters the store without a human yes
+        - key: silent-extraction
+          label: Extract decisions from transcripts automatically, higher recall but risks recording wrong or half-made decisions
+        - key: defer
+          label: Leave the gap open and revisit after the evaluation shows how often unrecorded decisions cause re-arguing
+      answer: null
+    - id: q-hazards
+      text: Should hazards and invariants get the same review loop as decisions?
+      description: |
+        Hazards already have drift through verified_at. Giving them the decision review loop doubles the review queue before decision reviews have been shown to work.
+      recommended: decisions-only
+      options:
+        - key: decisions-only
+          label: Decisions only in this plan; revisit hazards after a month of decision reviews
+        - key: all-kinds
+          label: Apply reviews to hazards and invariants too, one consistent queue but a larger queue
+      answer: null
