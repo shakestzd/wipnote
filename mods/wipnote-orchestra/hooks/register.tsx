@@ -26,6 +26,8 @@ import {
   workItemIn,
   zoneOf,
 } from './model'
+import { parseStatusCounts, viewOf } from './workview'
+import type { WorkView } from './workview'
 
 const prompt = atom({ plugin: 'wipnote-orchestra', key: 'prompt' } as const, null)
 const agents = atom({ plugin: 'wipnote-orchestra', key: 'agents' } as const, [])
@@ -38,6 +40,7 @@ const placement = atom({ plugin: 'wipnote-orchestra', key: 'placement' } as cons
 const permissionMode = atom({ plugin: 'wipnote-orchestra', key: 'permissionMode' } as const, null)
 const claim = atom({ plugin: 'wipnote-orchestra', key: 'claim' } as const, null)
 const tally = atom({ plugin: 'wipnote-orchestra', key: 'tally' } as const, { done: 0, failed: 0 })
+const counts = atom({ plugin: 'wipnote-orchestra', key: 'counts' } as const, null)
 const runs = atom({ plugin: 'wipnote-orchestra', key: 'runs' } as const, [])
 
 const KEEP_DONE_MS = 90_000
@@ -145,6 +148,14 @@ async function refreshCards($: EngineInterface) {
     return track === undefined ? card : { ...card, trackTitle: track.title, done: track.done, total: track.total }
   })
   await update($, cards, () => next)
+  await refreshCounts($)
+}
+
+/** The project's in-progress and open counts for the band's summary line; the last ones stay on a failure. */
+async function refreshCounts($: EngineInterface) {
+  const ran = await $.process.run(['wipnote', 'status'], { timeoutMs: 5000 }).catch(() => undefined)
+  const found = ran?.exitCode === 0 ? parseStatusCounts(ran.stdout) : undefined
+  if (found !== undefined) await update($, counts, () => found)
 }
 
 /**
@@ -210,8 +221,8 @@ async function checkSwap($: EngineInterface, swap: SwapState) {
   if (swapSeen(swap, await sessionId($))) rehydrate($)
 }
 
-async function bandData($: EngineInterface, zone: string): Promise<BandData> {
-  const [info, rows, ended, work, known, doing, delegated, at] = await Promise.all([
+async function bandData($: EngineInterface, zone: string, view: WorkView): Promise<BandData> {
+  const [info, rows, ended, work, known, doing, delegated, at, total] = await Promise.all([
     read($, prompt),
     read($, agents),
     read($, tally),
@@ -220,12 +231,14 @@ async function bandData($: EngineInterface, zone: string): Promise<BandData> {
     read($, mainTool),
     read($, runs),
     read($, now),
+    read($, counts),
   ])
-  return { info, rows, tally: ended, keepMs: KEEP_DONE_MS, work, cards: known, doing, runs: delegated, at, zone }
+  return { info, rows, tally: ended, keepMs: KEEP_DONE_MS, work, cards: known, counts: total ?? undefined, view, doing, runs: delegated, at, zone }
 }
 
 export const register: Register = (on, options) => {
   const zone = zoneOf(options.timeZone)
+  const view = viewOf(options)
   const pending = new Map<string, Hint>()
   const swap: SwapState = {}
 
@@ -385,7 +398,7 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const [shown, where] = await Promise.all([read($, mode), read($, placement)])
     if (e.props.hasSurvey || shown === 'off' || where !== 'above') return next(e)
-    const tree = drawBand($.ui.resolve(e), await bandData($, zone), {
+    const tree = drawBand($.ui.resolve(e), await bandData($, zone, view), {
       width: e.props.bodyColumns,
       maxRows: e.props.maxRows,
       isWorking: e.props.isWorking,
@@ -398,7 +411,7 @@ export const register: Register = (on, options) => {
     const [shown, where] = await Promise.all([read($, mode), read($, placement)])
     if (shown === 'off' || where !== 'below') return next(e)
     const els = $.ui.resolve(e)
-    const tree = drawBand(els, await bandData($, zone), {
+    const tree = drawBand(els, await bandData($, zone, view), {
       width: Math.max(20, (e.viewport?.columns ?? 100) - 2),
       maxRows: Math.max(2, Math.floor((e.viewport?.rows ?? 30) / 4) - 1),
       isWorking: e.props.isWorking,

@@ -82,7 +82,7 @@ does not show there.
 
 ```bash
 claude plugin validate mods/wipnote-orchestra
-claude plugin test mods/wipnote-orchestra     # 65 tests
+claude plugin test mods/wipnote-orchestra     # 71 tests
 tsc -p mods/wipnote-orchestra                 # after a load lays .claude-plugin/types/
 ```
 
@@ -107,6 +107,8 @@ The mod stays at `mods/wipnote-orchestra`, and it is tracked and shipped as part
 | Option | Default | Effect |
 |---|---|---|
 | `timeZone` | `America/New_York` | IANA zone for the clock segment and the usage-limit reset times. An unknown zone falls back to the default. |
+| `workItems` | `active` | `active`: only the active work item (the session's claim, else the first one started) plus one line `N in progress, M open` (project-wide counts from `wipnote status`, items only). `list`: up to `workItemRows` items, then that line. `off`: no work-item block and no count line. Anything else is `active`. |
+| `workItemRows` | `3` | With `workItems` set to `list`, the most work items drawn. A value below 1 or not a whole number is 3. |
 
 Set it in `/config`, or in settings under `pluginConfigs["wipnote-orchestra"].options`
 (`wipnote-orchestra@inline` for a `--plugin-dir` load).
