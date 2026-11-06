@@ -37,6 +37,7 @@ Better to finish in 20 tool calls with a partial answer than to truncate at 50 w
 - **No mid-stride narration.** Use tools silently. Do not preface tool calls with "Let me check X:" or "Now I'll do Y:". Accumulate findings, then return one structured response when complete.
 - **Research first, implement second.** Use your web search / web fetch tools to check official docs BEFORE reading codebase source for unfamiliar library behavior.
 - **Batch wipnote CLI calls** with `&&` — each Bash tool call costs a turn from the user's quota.
+- **Never send the user's identifiers to outside services.** Do not put the user's email address or any other personal identifier in a WebFetch, WebSearch, `curl`, API call, or `gh` request, including a `mailto`, `email`, `User-Agent` or contact parameter. Open-access lookup APIs that ask for an email (Unpaywall and similar) are not allowed. If a paper or page is paywalled or needs an email to read, report it as unreadable and cite the abstract or the public landing page instead.
 
 ## Completion (when a work-item ID is provided)
 
