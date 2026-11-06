@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -101,6 +102,9 @@ func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, f
 		return 0, err
 	}
 	projectDir := filepath.Dir(wipnoteDir)
+	if f.container && paths.IsExternalStore(projectDir) {
+		return 0, errContainerExternalStore
+	}
 	store, err := runstore.New(projectDir)
 	if err != nil {
 		return 0, err

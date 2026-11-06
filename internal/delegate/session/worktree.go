@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"io"
 	"os"
 	"path/filepath"
@@ -73,8 +74,9 @@ func createWorktree(d Deps, o *SpawnOptions) error {
 	if base == "" {
 		base = "HEAD"
 	}
-	path, branch := WorktreePath(o.Root, o.Name), WorktreeBranch(o.Name)
-	sha, err := worktree.CreateOnNewBranch(o.Root, path, branch, base, io.Discard)
+	code := paths.CodeRoot(o.Root) // the checkout belongs to the source repo, the run to the store
+	path, branch := WorktreePath(code, o.Name), WorktreeBranch(o.Name)
+	sha, err := worktree.CreateOnNewBranch(code, path, branch, base, io.Discard)
 	if err != nil {
 		return refuseWorktree("%v", err)
 	}
@@ -87,7 +89,7 @@ func createWorktree(d Deps, o *SpawnOptions) error {
 // failed after making it. It is untouched, so it is clean.
 func dropWorktree(o SpawnOptions) {
 	if o.Worktree && o.wt.set() {
-		worktree.RemoveIfClean(o.Root, o.wt.Path, o.wt.Branch, o.wt.BaseSHA)
+		worktree.RemoveIfClean(paths.CodeRoot(o.Root), o.wt.Path, o.wt.Branch, o.wt.BaseSHA)
 	}
 }
 
@@ -133,7 +135,7 @@ func settleWorktree(res *StopResult, info Info) {
 		res.Kept = true
 		return
 	}
-	if kept, _ := worktree.RemoveIfClean(info.ProjectDir, info.Worktree, info.Branch, info.BaseSHA); kept {
+	if kept, _ := worktree.RemoveIfClean(paths.CodeRoot(info.ProjectDir), info.Worktree, info.Branch, info.BaseSHA); kept {
 		res.Kept = true
 		return
 	}

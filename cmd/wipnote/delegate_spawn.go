@@ -203,7 +203,13 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	if err != nil {
 		return err
 	}
+	// projectDir is the store owner: the run store, the ledgers and the
+	// workers' --project-dir. Worktrees go in the source repo, which the session
+	// package gets from paths.CodeRoot(Root).
 	projectDir := filepath.Dir(wipnoteDir)
+	if a.container && paths.IsExternalStore(projectDir) {
+		return errContainerExternalStore
+	}
 	d, env, err := delegateSessionDeps(wipnoteDir)
 	if err != nil {
 		return err

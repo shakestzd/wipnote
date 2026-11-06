@@ -3,6 +3,7 @@ package hooks
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -147,8 +148,9 @@ func reconcilePortDrift(projectDir string) []string {
 	return PortDriftPathsFn(reconcileRepoRoot(projectDir))
 }
 
-// reconcileRepoRoot walks up from projectDir to the directory containing a
-// .wipnote/ store, treating that as the repo root the artifacts live under.
+// reconcileRepoRoot is the owner of the .wipnote/ store serving projectDir: the
+// repo the artifacts are committed in, which for an external store is the
+// shadow root. It never finds a store above the git toplevel.
 func reconcileRepoRoot(projectDir string) string {
 	if projectDir == "" {
 		return ""
@@ -157,16 +159,7 @@ func reconcileRepoRoot(projectDir string) string {
 	if err != nil {
 		abs = projectDir
 	}
-	for d := abs; ; {
-		if fi, err := os.Stat(filepath.Join(d, ".wipnote")); err == nil && fi.IsDir() {
-			return d
-		}
-		parent := filepath.Dir(d)
-		if parent == d {
-			return ""
-		}
-		d = parent
-	}
+	return paths.StoreOwnerFor(abs)
 }
 
 func defaultReconcileBatchCommit(repoRoot string, arts []dirtyArtifact) []string {
@@ -260,6 +253,9 @@ func persistReconcileWarning(projectDir, harness, sessionID string, rep *Reconci
 	b, err := json.Marshal(w)
 	if err != nil {
 		return err
+	}
+	if !paths.StoreCreationAllowed(projectDir) {
+		return nil
 	}
 	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
 		return err

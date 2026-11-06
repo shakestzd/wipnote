@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -78,7 +79,7 @@ func refreshCodexPluginCacheBestEffort(configPath string, setup *[]launchtui.Ban
 	// No project-level copy: Codex already discovers ~/.codex/agents for
 	// every project. Clean up copies left by older wipnote versions so they
 	// cannot shadow the user-level agents (see removeCodexProjectAgentCopies).
-	projectRoot, _ := resolveProjectRoot()
+	projectRoot, _ := resolveCodeRoot()
 	if changed, err := removeCodexProjectAgentCopies(projectRoot); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not remove legacy project wipnote Codex agents: %v\n", err)
 	} else if changed {
@@ -192,7 +193,7 @@ func refreshCodexPluginCacheDev(configPath string) ([]launchtui.BannerDetail, er
 	}
 	// No project-level copy (see refreshCodexPluginCacheBestEffort); only
 	// remove legacy copies so they cannot shadow the user-level agents.
-	projectRoot, _ := resolveProjectRoot()
+	projectRoot, _ := resolveCodeRoot()
 	if changed, err := removeCodexProjectAgentCopies(projectRoot); err != nil {
 		return nil, fmt.Errorf("removing legacy project wipnote Codex agents: %w", err)
 	} else if changed {
@@ -210,7 +211,7 @@ func resolveLocalCodexMarketplace() (string, error) {
 		return "", fmt.Errorf("could not find project root (.wipnote/ directory not found)\n" +
 			"Run from the wipnote project directory, or use wipnote codex --init for the marketplace version")
 	}
-	projectRoot := filepath.Dir(wipnoteDir)
+	projectRoot := paths.CodeRoot(filepath.Dir(wipnoteDir))
 	marketplacePath := filepath.Join(projectRoot, "port", "packages", "codex-marketplace")
 	if _, statErr := os.Stat(marketplacePath); os.IsNotExist(statErr) {
 		return "", fmt.Errorf("port/packages/codex-marketplace/ not found at %s\n"+

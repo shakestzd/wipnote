@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"io"
 	"os"
 	"os/exec"
@@ -227,6 +228,7 @@ const wipnoteMarketplaceRepo = "shakestzd/wipnote"
 
 // launchClaude is the shared launcher used by all modes.
 func launchClaude(opts LaunchOpts) error {
+	opts.WipnoteRoot = externalWipnoteRoot(opts.WipnoteRoot, opts.ProjectRoot)
 	// Compute launcher mode for preflight logging/inspection (no behavior change).
 	// devPlugin is true when a PluginDir was supplied in go/dev mode.
 	_ = computeLauncherMode(opts.WipnoteRoot, opts.PluginDir != "" && opts.Mode == "go", false)
@@ -269,7 +271,7 @@ func launchClaude(opts LaunchOpts) error {
 
 	// Show the one-time OTel first-launch notice before starting the
 	// server so users see the explanation before any server output.
-	MaybeShowOtelNotice(opts.ProjectRoot)
+	MaybeShowOtelNotice(launchStateRoot(opts.WipnoteRoot, opts.ProjectRoot))
 	// One-time: where the retired herdr pane mod's settings went. A few
 	// small file reads; it never fails the launch.
 	maybeShowModSettingsNotice(os.Stderr, opts.ProjectRoot)
@@ -277,7 +279,7 @@ func launchClaude(opts LaunchOpts) error {
 	launchTiming("launchClaude: before ensureGuardProfile")
 	// Launch-time guard-profile initialization (peer to the OTel collector
 	// bootstrap). No-op when already approved or non-interactive; never blocks.
-	ensureGuardProfile(opts.ProjectRoot)
+	ensureGuardProfile(launchStateRoot(opts.WipnoteRoot, opts.ProjectRoot))
 	launchTiming("launchClaude: after ensureGuardProfile")
 
 	// Generate a per-session ID and spawn a per-session OTel collector.
@@ -290,7 +292,7 @@ func launchClaude(opts LaunchOpts) error {
 	var envOverrides otelEnvOverrides
 	if opts.ProjectRoot != "" && !isExplicitlyDisabled(os.Getenv("WIPNOTE_OTEL_ENABLED")) {
 		const collectorLabel = "starting session telemetry collector"
-		projectRootCopy := opts.ProjectRoot
+		projectRootCopy := launchStateRoot(opts.WipnoteRoot, opts.ProjectRoot)
 		_ = launchtui.RunWithSpinner(os.Stderr, collectorLabel, func(_ io.Writer) error {
 			envOverrides = spawnSessionCollector(projectRootCopy)
 			return nil
@@ -371,6 +373,10 @@ func buildClaudeArgs(opts LaunchOpts, systemPromptFile string) []string {
 	} else if opts.Resume {
 		claudeArgs = append(claudeArgs, "--resume")
 	}
+	// The = form: --add-dir is variadic, so a following prompt would be read as a dir.
+	if paths.IsExternalStore(opts.WipnoteRoot) {
+		claudeArgs = append(claudeArgs, "--add-dir="+opts.WipnoteRoot)
+	}
 	if opts.PluginDir != "" {
 		claudeArgs = append(claudeArgs, "--plugin-dir", opts.PluginDir)
 	}
@@ -450,6 +456,9 @@ func writeLaunchMarker(mode, projectRoot string) {
 	data, err := json.Marshal(marker)
 	if err != nil {
 		return
+	}
+	if !paths.StoreCreationAllowed(projectRoot) {
+		return // a repo with no store stays untouched
 	}
 	dir := filepath.Join(projectRoot, ".wipnote")
 	os.MkdirAll(dir, 0755)                                       //nolint:errcheck

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"os/exec"
 
@@ -48,6 +49,11 @@ type codexLaunchOpts struct {
 // execCodex builds the codex argv and execs it, replacing the current process.
 // Returns only on exec error.
 func execCodex(opts codexLaunchOpts) error {
+	opts.WipnoteRoot = externalWipnoteRoot(opts.WipnoteRoot, opts.ProjectRoot)
+	if paths.IsExternalStore(opts.WipnoteRoot) {
+		// Commands in the sandbox (the wipnote CLI included) write the store.
+		opts.WritableRoots = append(opts.WritableRoots, opts.WipnoteRoot)
+	}
 	codexPath, err := exec.LookPath("codex")
 	if err != nil {
 		return fmt.Errorf("codex not found in PATH: %w\nInstall Codex CLI first: https://github.com/openai/codex", err)
@@ -181,7 +187,7 @@ func buildCodexChildEnv(opts codexLaunchOpts, otelPort int, otelSessionID, effec
 		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
 		workDir = opts.WorktreeRoot
 	case opts.ProjectRoot != "":
-		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", opts.ProjectRoot)
+		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", launchStateRoot(opts.WipnoteRoot, opts.ProjectRoot))
 		workDir = opts.ProjectRoot
 	}
 

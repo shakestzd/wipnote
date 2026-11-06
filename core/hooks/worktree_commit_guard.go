@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"os/exec"
 	"strings"
@@ -81,7 +82,7 @@ func checkSubagentCommitGuard(event *CloudEvent, parentSessionID string, project
 func resolveCommitBranch(event *CloudEvent, projectDir string) string {
 	dir := event.CWD
 	if dir == "" {
-		dir = projectDir
+		dir = paths.CodeRoot(projectDir)
 	}
 	if dir == "" {
 		return ""

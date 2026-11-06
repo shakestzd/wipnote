@@ -97,7 +97,7 @@ type codexDefaultLaunch struct {
 // resolveIntent resolves the project roots, the chooser intent and the
 // continue context, refining resumeID, worktreePath and workItem.
 func (l *codexDefaultLaunch) resolveIntent() error {
-	projectRoot, _ := resolveProjectRoot()
+	projectRoot, _ := resolveCodeRoot()
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
 	canonicalRoot := canonicalProjectRoot(projectRoot)
 	if canonicalRoot == "" {
@@ -352,7 +352,7 @@ func runFeatureStartWithEnv(id string, extraEnv []string) error {
 // launchCodexContinue resumes the last Codex session.
 // Corresponds to: wipnote codex --continue
 func launchCodexContinue(resumeID string, yolo bool, extraArgs []string) error {
-	projectRoot, _ := resolveProjectRoot()
+	projectRoot, _ := resolveCodeRoot()
 	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{
 		Headline: "Resuming last Codex session...",
 	}))

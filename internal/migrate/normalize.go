@@ -128,7 +128,7 @@ func normalizeOnePath(value, repoRoot string) (newVal string, changed bool, unre
 	if !filepath.IsAbs(value) {
 		return value, false, false
 	}
-	out, _ := paths.NormalizeToRepoRelative(value, repoRoot)
+	out, _ := paths.NormalizeToRepoRelative(value, paths.CodeRoot(repoRoot))
 	if out == value {
 		return value, false, false
 	}

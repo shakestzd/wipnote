@@ -3,7 +3,6 @@ package paths
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -75,8 +74,9 @@ func resolveWipnoteAnchor(dir string) string {
 	if dir == "" {
 		return ""
 	}
-	out, err := exec.Command("git", "-C", dir, "rev-parse",
-		"--show-toplevel", "--git-common-dir").Output()
+	cmd, cancel := boundedGit(dir, "rev-parse", "--show-toplevel", "--git-common-dir")
+	defer cancel()
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
@@ -101,7 +101,15 @@ func resolveWipnoteAnchor(dir string) string {
 	// main repo root contains .wipnote/. The toplevel check covers the
 	// trivial main-worktree case; the mainRepoRoot check covers linked
 	// worktrees where .wipnote/ only exists in the main repo.
-	if hasWipnoteDir(toplevel) || hasWipnoteDir(mainRepoRoot) {
+	if IsHomeDir(toplevel) { // a dotfiles repo at $HOME counts as no repo
+		return ""
+	}
+	if hasStoreAt(toplevel) || (hasWipnoteDir(mainRepoRoot) && !IsHomeDir(mainRepoRoot)) {
+		return toplevel
+	}
+	// A repo served by an app-owned store is wipnote-aware with no .wipnote/ of
+	// its own: its files must still relativize against its own toplevel.
+	if ExternalStoreFor(dir) != "" {
 		return toplevel
 	}
 	return ""

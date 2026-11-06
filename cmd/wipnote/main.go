@@ -44,6 +44,10 @@ func selfHealGitdirIfStale() {
 	if mainRoot == "" {
 		return // no reliable anchor; skip silently
 	}
+	// The worktree's git metadata is in the source repo. An external store's
+	// shadow root is a valid repo too, and repairing against it would rewrite
+	// the pointer to somewhere the worktree never was.
+	mainRoot = paths.CodeRoot(mainRoot)
 	if cwd == mainRoot {
 		return // not a linked worktree
 	}
@@ -188,6 +192,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "data", Command: syncCmd()},
 			{GroupID: "data", Command: pruneCmd()},
 			{GroupID: "data", Command: registryCmd()},
+			{GroupID: "data", Command: storeCmd()},
 			{GroupID: "data", Command: commitQueueCmd()},
 		},
 		Dev: []cliinternal.GroupedCommand{
@@ -309,9 +314,14 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 	if isLauncherDiagnosticSubtree(cmd) {
 		return nil
 	}
+	if launcherMayCreateStore(cmd) {
+		if err := ensureLauncherStore(); err != nil {
+			return err
+		}
+	}
 	// Degrade gracefully: commands must not fail because session
 	// registration is unavailable.
-	hgDir, err := findWipnoteDir()
+	hgDir, err := findExistingWipnoteDir()
 	if err != nil {
 		return nil
 	}
@@ -341,11 +351,14 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 				break
 			}
 		}
+		// The entry keys on the store owner; its name and remote are the source
+		// repo's, which is what they mean under an external store too.
+		codeRoot := paths.CodeRoot(projectDir)
 		remoteURL := cachedRemote
 		if remoteURL == "" {
-			remoteURL = getGitRemoteURLFn(projectDir)
+			remoteURL = getGitRemoteURLFn(codeRoot)
 		}
-		reg.Upsert(projectDir, filepath.Base(projectDir), remoteURL)
+		reg.Upsert(projectDir, filepath.Base(codeRoot), remoteURL)
 		// Opportunistic worktree cleanup: registry entries created by
 		// older binaries (before findWipnoteDir started resolving
 		// linked worktrees to their main repo) persist as duplicate
@@ -407,8 +420,18 @@ func isHarnessLauncherCmd(cmd *cobra.Command) bool {
 
 // findWipnoteDir locates the .wipnote directory by delegating to the
 // shared paths.ResolveProjectDir resolver (--project-dir flag → CLAUDE_PROJECT_DIR
-// env → git worktree detection → CWD walk-up) and appending ".wipnote".
-func findWipnoteDir() (string, error) {
+// env → git worktree detection → CWD walk-up) and appending ".wipnote". When
+// no store serves the project it makes and uses the project's app-owned store;
+// see autoStore.
+func findWipnoteDir() (string, error) { return locateWipnoteDir(true) }
+
+// findExistingWipnoteDir is findWipnoteDir without making a store. It is for
+// code that runs in whatever folder a harness or shell is in (the session
+// pre-run, the status line, the MCP server, diagnostics), which must not leave a
+// store behind in every folder it touches.
+func findExistingWipnoteDir() (string, error) { return locateWipnoteDir(false) }
+
+func locateWipnoteDir(create bool) (string, error) {
 	paths.CleanupGlobalHint() // Remove stale global hint from older versions
 	root, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
 		ExplicitDir: projectDirFlag,
@@ -416,7 +439,17 @@ func findWipnoteDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, ".wipnote"), nil
+	// Never hand back a path without a store: it would make .wipnote/ appear in
+	// the folder on first write, and in $HOME it would be the app's own home.
+	if paths.IsStoreOwner(root) {
+		return filepath.Join(root, ".wipnote"), nil
+	}
+	if create && projectDirFlag == "" {
+		if owner := autoStore(); owner != "" {
+			return filepath.Join(owner, ".wipnote"), nil
+		}
+	}
+	return "", paths.ErrNoStore
 }
 
 // printProjectHeaderIfDifferent prints a one-line "Project: <path>" header
@@ -428,7 +461,7 @@ func findWipnoteDir() (string, error) {
 // sitting in. No-op when the user is already in the resolved project —
 // keeps normal usage silent.
 func printProjectHeaderIfDifferent(wipnoteDir string) {
-	projectRoot := filepath.Dir(wipnoteDir)
+	projectRoot := paths.CodeRoot(filepath.Dir(wipnoteDir))
 	wd, err := os.Getwd()
 	if err != nil {
 		return

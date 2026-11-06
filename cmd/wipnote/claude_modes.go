@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/shakestzd/wipnote/cmd/wipnote/launchtui"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/internal/launcher"
 )
 
@@ -20,7 +21,7 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name, workItem str
 	// resolveProjectPluginDirFrom can anchor to the source tree, not CWD.
 	projectRoot := ""
 	if wipnoteDir, err := findWipnoteDir(); err == nil {
-		projectRoot = filepath.Dir(wipnoteDir)
+		projectRoot = paths.CodeRoot(filepath.Dir(wipnoteDir))
 	}
 
 	// Resolve the in-tree plugin/ from the source root NOW, before intent
@@ -116,7 +117,7 @@ func autoPermissionMode(enabled bool) string {
 // Claude starts in autonomous operation immediately. (--enable-auto-mode is no
 // longer passed: Claude Code 2.1.111 removed it — auto mode no longer requires it.)
 func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
-	projectRoot, _ := resolveProjectRoot()
+	projectRoot, _ := resolveCodeRoot()
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
 	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
@@ -192,7 +193,7 @@ func launchClaudeInit(extraArgs []string, resumeID, name string) error {
 }
 
 func launchClaudeContinue(extraArgs []string, resumeID string) error {
-	projectRoot, _ := resolveProjectRoot()
+	projectRoot, _ := resolveCodeRoot()
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
 	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
@@ -266,11 +267,14 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem, workDir s
 // canonical root, as before. With --work-dir (a delegate worker runs where
 // its caller ran, a linked worktree or a subdir too) the work dir decides
 // only where claude runs: the root is --project-dir's project (the run
-// store's), else the nearest folder above the work dir holding .wipnote/.
-// No .wipnote/ is ever made under the work dir.
+// store's), else the store serving the work dir (never one above its git
+// toplevel). No .wipnote/ is ever made under the work dir.
+//
+// Under an external store the child is the code root and the wipnote root the
+// shadow root, so the harness never runs inside the store.
 func claudeLaunchDirs(workDir string) (child, wipnoteRoot string, err error) {
 	if workDir == "" {
-		root, _ := resolveProjectRoot()
+		root, _ := resolveCodeRoot()
 		return root, canonicalProjectRoot(root), nil
 	}
 	if child, err = filepath.Abs(workDir); err != nil {
@@ -284,7 +288,7 @@ func claudeLaunchDirs(workDir string) (child, wipnoteRoot string, err error) {
 		root = filepath.Dir(wd)
 	}
 	if root == "" {
-		root = nearestWipnoteRoot(child)
+		root = paths.StoreOwnerFor(child)
 	}
 	switch root {
 	case "":
@@ -293,18 +297,6 @@ func claudeLaunchDirs(workDir string) (child, wipnoteRoot string, err error) {
 		return child, canonicalProjectRoot(child), nil
 	}
 	return child, root, nil
-}
-
-// nearestWipnoteRoot is the nearest folder at or above dir holding .wipnote/.
-func nearestWipnoteRoot(dir string) string {
-	for d := dir; ; d = filepath.Dir(d) {
-		if isDirPath(filepath.Join(d, ".wipnote")) {
-			return d
-		}
-		if filepath.Dir(d) == d {
-			return ""
-		}
-	}
 }
 
 func isDirPath(p string) bool {

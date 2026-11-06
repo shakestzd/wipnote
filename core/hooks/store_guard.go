@@ -152,15 +152,17 @@ func isWipnoteStorePath(arg string) bool {
 	if rel, ok := strings.CutPrefix(arg, ".wipnote/"); ok {
 		return !isWipnoteRuntimeExemptPath(rel)
 	}
-	for idx := strings.Index(arg, ".wipnote/"); idx > 0; {
+	// The last element decides: an app-owned store's path is
+	// ~/.wipnote/projects/<name>/.wipnote/<rel>, with .wipnote/ in it twice.
+	for end := len(arg); end > 0; {
+		idx := strings.LastIndex(arg[:end], ".wipnote/")
+		if idx <= 0 {
+			break
+		}
 		if prev := arg[idx-1]; prev == '/' || prev == '=' {
 			return !isWipnoteRuntimeExemptPath(arg[idx+len(".wipnote/"):])
 		}
-		next := strings.Index(arg[idx+1:], ".wipnote/")
-		if next < 0 {
-			break
-		}
-		idx += 1 + next
+		end = idx
 	}
 	return false
 }

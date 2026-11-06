@@ -53,7 +53,7 @@ func runStatuslineCache() error {
 	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeCharDevice) == 0 {
 		go func() { _, _ = io.Copy(io.Discard, os.Stdin) }()
 	}
-	dir, err := findWipnoteDir()
+	dir, err := findExistingWipnoteDir()
 	if err != nil {
 		return nil
 	}
@@ -64,7 +64,7 @@ func runStatuslineCache() error {
 }
 
 func runStatusline(sessionID string) error {
-	dir, err := findWipnoteDir()
+	dir, err := findExistingWipnoteDir()
 	if err != nil {
 		return nil
 	}

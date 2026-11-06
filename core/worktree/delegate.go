@@ -31,6 +31,7 @@ func CreateOnNewBranch(repoRoot, path, branch, base string, w io.Writer) (string
 		return "", fmt.Errorf("base %q is not a commit in %s", base, repoRoot)
 	}
 	_ = os.MkdirAll(parentOf(path), 0o755)
+	ExcludeWorktreesDir(repoRoot)
 	if out, err := git(repoRoot, "worktree", "add", "-q", "-b", branch, path, sha); err != nil {
 		return "", fmt.Errorf("git worktree add failed: %w\n%s", err, out)
 	}

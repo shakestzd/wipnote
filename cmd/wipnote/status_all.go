@@ -66,7 +66,7 @@ func runStatusAll(ctx context.Context, w io.Writer, f statusAllFlags) error {
 	if err != nil {
 		return fmt.Errorf("load registry: %w", err)
 	}
-	o := statusall.Options{Entries: reg.List(), Deadline: f.timeout, RunsLimit: f.runs}
+	o := statusall.Options{Entries: withoutHomeEntry(reg.List()), Deadline: f.timeout, RunsLimit: f.runs}
 	o.GH, o.GHReason = statusAllGH(f.noGH)
 	o.Herdr, o.HerdrReason = statusAllHerdr(os.Getenv)
 	if !f.noProcs {

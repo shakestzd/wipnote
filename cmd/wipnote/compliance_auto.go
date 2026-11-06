@@ -150,7 +150,7 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	if err != nil {
 		return err
 	}
-	projectDir := filepath.Dir(wipnoteDir)
+	projectDir := paths.CodeRoot(filepath.Dir(wipnoteDir))
 	r := &complianceRun{
 		ctx: ctx, featureID: featureID, flags: flags,
 		featurePath: filepath.Join(wipnoteDir, "features", featureID+".html"),

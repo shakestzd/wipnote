@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,7 +64,7 @@ func runRecap(args []string, rangeSpec, sessionID string) error {
 		return err
 	}
 
-	repoRoot := filepath.Dir(wipnoteDir)
+	repoRoot := paths.CodeRoot(filepath.Dir(wipnoteDir))
 
 	db, dbErr := openReadOnlyDB(wipnoteDir)
 	if dbErr != nil {
@@ -205,6 +206,7 @@ func resolveInputKindStr(input, rangeSpec, sessionID string) string {
 func RunPlanRollupRecap(wipnoteDir, planID string) error {
 	recapID := "recap-pln-" + planID
 	repoRoot := filepath.Dir(wipnoteDir)
+	codeRoot := paths.CodeRoot(repoRoot)
 
 	// Resolve the plan YAML path and find its first commit.
 	planYAMLRelPath := filepath.Join(".wipnote", "plans", planID+".yaml")
@@ -221,7 +223,12 @@ func RunPlanRollupRecap(wipnoteDir, planID string) error {
 	// Build an INCLUSIVE range: firstSHA~1..HEAD includes firstSHA's own changes.
 	// When firstSHA is the root commit (no parent), fall back to the well-known
 	// git empty-tree SHA so the range covers all history from the beginning.
-	gitRange := planRollupGitRange(repoRoot, firstSHA)
+	// Under an external store the plan's commit is in the store, so its time
+	// marks where the plan starts in the code repo's history.
+	if codeRoot != repoRoot {
+		firstSHA = firstCodeCommitSince(repoRoot, firstSHA, codeRoot)
+	}
+	gitRange := planRollupGitRange(codeRoot, firstSHA)
 
 	db, dbErr := openReadOnlyDB(wipnoteDir)
 	if dbErr != nil {
@@ -234,7 +241,7 @@ func RunPlanRollupRecap(wipnoteDir, planID string) error {
 
 	opts := recap.Options{
 		Input:      gitRange,
-		ProjectDir: repoRoot,
+		ProjectDir: codeRoot,
 		Depth:      5,
 	}
 	data, collectErr := recap.Collect(db, opts)
@@ -318,6 +325,20 @@ func planFirstCommitSHA(repoRoot, planYAMLAbsPath string) (string, error) {
 	// git log outputs newest-first; we want the oldest (last line).
 	lines := strings.Split(raw, "\n")
 	return strings.TrimSpace(lines[len(lines)-1]), nil
+}
+
+// firstCodeCommitSince is the oldest commit in codeRoot made since storeSHA was
+// committed in storeRoot, or HEAD when the code repo has none since then.
+func firstCodeCommitSince(storeRoot, storeSHA, codeRoot string) string {
+	ts, err := exec.Command("git", "-C", storeRoot, "log", "-1", "--format=%ct", storeSHA).Output()
+	if err == nil {
+		out, lerr := exec.Command("git", "-C", codeRoot, "log", "--reverse", "--format=%H",
+			"--since=@"+strings.TrimSpace(string(ts))).Output()
+		if first, _, _ := strings.Cut(strings.TrimSpace(string(out)), "\n"); lerr == nil && first != "" {
+			return first
+		}
+	}
+	return "HEAD"
 }
 
 // addPlanRecapLineageEdge wires a relates_to edge from the recap artifact to

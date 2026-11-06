@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"strings"
 )
@@ -92,7 +93,7 @@ func modelEffortFlags(o *SpawnOptions) []string {
 // lean flags. The MCP config itself is held until the run folder exists.
 func (o *SpawnOptions) addLeanFlags(ctx context.Context) error {
 	o.Lean = true
-	root := o.Root
+	root := paths.CodeRoot(o.Root) // .mcp.json is in the source repo
 	if root == "" {
 		root = o.Cwd
 	}

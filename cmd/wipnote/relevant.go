@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -246,7 +247,7 @@ func truncationSummary(shown, total int) string {
 // runRelevantSearch performs the multi-source retrieval pipeline and returns
 // unranked (or lightly scored) results. Exported for tests.
 func runRelevantSearch(hgDir, query string, qType queryType) ([]relevantResult, error) {
-	projectDir := filepath.Dir(hgDir)
+	projectDir := paths.CodeRoot(filepath.Dir(hgDir))
 	scores := make(map[string]*relevantResult)
 
 	// Step 1: ripgrep search over HTML files.

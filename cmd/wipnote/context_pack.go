@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"path/filepath"
 	"strings"
 
@@ -69,7 +70,7 @@ func runContextPack(ctx context.Context, rawID string) error {
 	var commits []models.GitCommit
 	if node.TrackID != "" {
 		var files []blame.FileEntry
-		commits, files = trackGitHistory(filepath.Dir(dir), trackFeatureIDs(proj, node.TrackID), contextPackHistoryScan)
+		commits, files = trackGitHistory(paths.CodeRoot(filepath.Dir(dir)), trackFeatureIDs(proj, node.TrackID), contextPackHistoryScan)
 		if len(files) > 0 {
 			trackArea = &blame.TrackArea{TrackID: node.TrackID, TrackTitle: trackTitle(proj, node.TrackID), Files: files}
 		}
@@ -83,7 +84,7 @@ func runContextPack(ctx context.Context, rawID string) error {
 		questions = nil
 	}
 
-	repoRoot := filepath.Dir(dir)
+	repoRoot := paths.CodeRoot(filepath.Dir(dir))
 	branch, _ := gitCurrentBranch()
 	ahead, behind, _ := gitAheadBehind(repoRoot)
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"io"
 	"os"
 	"os/exec"
@@ -96,11 +97,12 @@ func wrapperStart(projectDir string, argv []string, workItem, description string
 	}
 	cwd, _ := os.Getwd()
 	runID := runledger.NewRunID()
+	codeRoot := paths.CodeRoot(projectDir) // the command runs in the source repo
 	return runledger.Event{
 		RunID: runID, Phase: runledger.PhaseStart, At: time.Now().UTC(), Kind: runledger.KindWrapper,
-		Description: runledger.Truncate(runledger.Clean(description, projectDir), 200),
-		Command:     runledger.CleanCommand(strings.Join(shellQuotePaths(argv), " "), projectDir),
-		Folder:      runledger.Folder(cwd, projectDir), Commit: runledger.HeadCommit(cwd),
+		Description: runledger.Truncate(runledger.Clean(description, codeRoot), 200),
+		Command:     runledger.CleanCommand(strings.Join(shellQuotePaths(argv), " "), codeRoot),
+		Folder:      runledger.Folder(cwd, codeRoot), Commit: runledger.HeadCommit(cwd),
 		LogPath: ".wipnote/logs/runs/" + runID + ".log", Session: session, WorkItem: workItem,
 		Harness: "wrapper",
 	}

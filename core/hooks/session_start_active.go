@@ -47,7 +47,7 @@ func WriteActiveSessionForHarness(sessionID, projectDir, harness string) {
 		ParentAgent:   "claude-code",
 		NestingDepth:  0,
 		ProjectDir:    projectDir,
-		GitRemoteURL:  paths.GetGitRemoteURL(projectDir),
+		GitRemoteURL:  paths.GetGitRemoteURL(paths.CodeRoot(projectDir)),
 		Timestamp:     float64(time.Now().UnixNano()) / 1e9,
 		Harness:       normalizeHarness(harness),
 	}

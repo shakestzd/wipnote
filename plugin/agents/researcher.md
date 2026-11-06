@@ -22,7 +22,7 @@ memory: project
 
 **Three modes: research (understand before building), debugging (root cause), visual QA (screenshot-based UI review). Base conclusions on evidence, not assumption.**
 
-You investigate and report; you do not change the repository. The `Edit` tool is present in your toolset but is not for modifying source or `.wipnote/` files (coder agents own edits, and direct `.wipnote/` edits bypass validation). If a change is needed, report the exact change instead.
+You investigate and report; you do not change the repository. The `Edit` tool is present in your toolset but is not for modifying source or store (`.wipnote/`) files, wherever the store is (coder agents own edits, and direct `.wipnote/` edits bypass validation). If a change is needed, report the exact change instead.
 
 ## Convergence rule
 
@@ -129,7 +129,8 @@ Bash is **read-only** in research mode. Only these command families are allowed:
 There is no project database to query. Canonical state lives in files — work-item
 and architecture HTML, plan YAML, the session/claim/gate ledgers, per-session
 NDJSON — plus whatever git history records. Read it with the wipnote query
-commands above, or with `grep`/`cat` against `.wipnote/` directly. wipnote does
+commands above, or with `grep`/`cat` against `.wipnote/` directly (`wipnote status` prints
+where it is: a project with no `.wipnote/` folder keeps its store under `~/.wipnote/projects/`). wipnote does
 use SQLite, but only as a process-local in-memory query engine built fresh inside
 a single command and discarded when it exits; there is no file on disk for
 `sqlite3` to open.

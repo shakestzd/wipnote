@@ -16,6 +16,7 @@ import (
 	"syscall"
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/slug"
 )
 
@@ -84,11 +85,13 @@ func RepairGitdirIfStale(worktreeDir, mainRepoRoot string) (bool, error) {
 // worktree (e.g. carrying over uncommitted changes) must gate on created to
 // avoid double-applying into a reused worktree (bug-bcf8a311 guardrail).
 func EnsureForFeatureStatus(featureID, repoRoot string, w io.Writer) (string, bool, error) {
+	owner, code := paths.Roots(repoRoot)
 	// If the feature has a parent track, delegate to the track worktree.
-	trackID := resolveTrackForFeature(featureID, repoRoot)
+	trackID := resolveTrackForFeature(featureID, owner)
 	if trackID != "" {
 		return EnsureForTrackStatus(trackID, repoRoot, w)
 	}
+	repoRoot = code
 
 	worktreePath := filepath.Join(repoRoot, ".claude", "worktrees", featureID)
 	branchName := "yolo-" + featureID
@@ -126,6 +129,7 @@ func EnsureForFeatureStatus(featureID, repoRoot string, w io.Writer) (string, bo
 // contract). The slug must be non-empty; an empty slug returns an error rather
 // than silently checking out the repo root.
 func EnsureForAdhocStatus(slug, repoRoot string, w io.Writer) (string, bool, error) {
+	_, repoRoot = paths.Roots(repoRoot)
 	if strings.TrimSpace(slug) == "" {
 		return "", false, fmt.Errorf("ad-hoc worktree requires a non-empty slug")
 	}
@@ -158,6 +162,7 @@ func EnsureForAdhocStatus(slug, repoRoot string, w io.Writer) (string, bool, err
 // EnsureForTrackStatus is EnsureForTrack plus a "created vs reused" signal.
 // See EnsureForFeatureStatus for the contract on the created return value.
 func EnsureForTrackStatus(trackID, repoRoot string, w io.Writer) (string, bool, error) {
+	_, repoRoot = paths.Roots(repoRoot)
 	worktreePath := filepath.Join(repoRoot, ".claude", "worktrees", trackID)
 	branchName := trackID // Track worktrees use the track ID as the branch name.
 
@@ -199,6 +204,7 @@ func TrackWorktreeDirName(trackTitle, trackID string) string {
 // EnsureForTrackTitledStatus is EnsureForTrackTitled plus a "created vs reused"
 // signal. See EnsureForFeatureStatus for the contract on the created return value.
 func EnsureForTrackTitledStatus(trackTitle, trackID, repoRoot string, w io.Writer) (string, bool, error) {
+	_, repoRoot = paths.Roots(repoRoot)
 	// Check the legacy bare-ID path first — reuse without rename to avoid
 	// orphaning any running yolo session that has the old path as its CWD.
 	legacyPath := filepath.Join(repoRoot, ".claude", "worktrees", trackID)
@@ -256,6 +262,7 @@ func EnsureForTrackTitledStatus(trackTitle, trackID, repoRoot string, w io.Write
 //     otherwise it's the path of the pre-existing worktree on branchName.
 //   - created is true only when this call created a new worktree on disk.
 func addOrAttachWorktree(repoRoot, worktreePath, branchName string) (string, bool, error) {
+	ExcludeWorktreesDir(repoRoot)
 	// Prune stale worktree registrations (e.g. from manually-deleted directories)
 	// so the porcelain listing reflects current on-disk state. Best-effort.
 	_ = exec.Command("git", "-C", repoRoot, "worktree", "prune").Run()

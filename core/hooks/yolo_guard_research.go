@@ -259,6 +259,10 @@ func pathIsOutsideProject(path, projectRoot string) bool {
 	if path == "" {
 		return false
 	}
+	// An external store's project has two roots: the store and the source repo.
+	if code := paths.CodeRoot(projectRoot); code != projectRoot && !pathIsOutsideProject(path, code) {
+		return false
+	}
 	if strings.HasPrefix(path, "~/") || strings.HasPrefix(path, "~\\") {
 		// Allow common test/temp directories in home.
 		if strings.HasPrefix(path, "~/.gotest") || strings.HasPrefix(path, "~/.tmp") || strings.HasPrefix(path, "~/.cache") {

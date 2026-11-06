@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,7 +22,7 @@ func debugLogEnabled() bool { return os.Getenv(debugLogEnv) == "1" }
 // WIPNOTE_DEBUG=1. Silently no-ops otherwise, or when the project dir can't be
 // found or the file can't be opened.
 func debugLog(projectDir, format string, args ...any) {
-	if projectDir == "" || !debugLogEnabled() {
+	if projectDir == "" || !debugLogEnabled() || paths.IsReservedDir(projectDir) {
 		return
 	}
 	logPath := filepath.Join(projectDir, ".wipnote", "debug.log")

@@ -47,7 +47,7 @@ With --gone, show only orphan entries whose .wipnote directory no longer exists.
 			if err != nil {
 				return fmt.Errorf("load registry: %w", err)
 			}
-			entries := reg.List()
+			entries := withoutHomeEntry(reg.List())
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, "NAME\tDIR\tLAST_SEEN\tSTATUS\tITEMS")
 			printed := 0

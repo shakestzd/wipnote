@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"path/filepath"
 	"strings"
@@ -111,7 +112,7 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 				// it is also repo-wide, not about the current work item, so a
 				// --work-item-scoped gate run skips it entirely rather than
 				// mixing it into per-item output.
-				if showLaunchReadinessReminder(isWipnoteSelfRepo(projectRoot), workItemID) {
+				if showLaunchReadinessReminder(isWipnoteSelfRepo(paths.CodeRoot(projectRoot)), workItemID) {
 					defer printContentionGateReminder()
 				}
 				return nil
@@ -123,6 +124,8 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 			var results []gateResult
 			ranAny := false
 
+			// Code gates run on the source repo; gate state above stays with the store.
+			projectRoot = paths.CodeRoot(projectRoot)
 			if !pythonOnly && hasGoProject(projectRoot) {
 				ranAny = true
 				results = append(results, runGoGates(ctx, projectRoot, skipTests)...)
@@ -185,6 +188,17 @@ func resolveProjectRoot() (string, error) {
 		return cwd, nil
 	}
 	return filepath.Dir(wipnoteDir), nil
+}
+
+// resolveCodeRoot is the source repo of the project: the dir a launcher runs
+// its harness in and git questions about the project's code are put to. It
+// equals resolveProjectRoot except under an external store.
+func resolveCodeRoot() (string, error) {
+	root, err := resolveProjectRoot()
+	if err != nil {
+		return "", err
+	}
+	return paths.CodeRoot(root), nil
 }
 
 func hasGoProject(root string) bool {

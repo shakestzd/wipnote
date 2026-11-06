@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"io"
 	"os"
 	"path/filepath"
@@ -133,7 +134,7 @@ func runGuardSetup(projectRoot string, deps guardInitDeps) (*guardprofile.Profil
 		p = existing
 	default:
 		// No profile yet: discover a proposal from project manifests.
-		prop, pErr := guardprofile.Propose(projectRoot)
+		prop, pErr := guardprofile.Propose(paths.CodeRoot(projectRoot))
 		if pErr != nil {
 			return nil, fmt.Errorf("propose guard profile: %w", pErr)
 		}

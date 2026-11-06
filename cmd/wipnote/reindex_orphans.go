@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -72,7 +73,7 @@ func runReindexBackfillOrphans(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	projectDir := filepath.Dir(wipnoteDir)
+	projectDir := paths.CodeRoot(filepath.Dir(wipnoteDir))
 
 	orphans, err := findOrphanWorkItems(wipnoteDir)
 	if err != nil {

@@ -3,6 +3,7 @@ package worktree
 import (
 	"bytes"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"io"
 	"os/exec"
 	"strings"
@@ -50,6 +51,8 @@ func CarryUncommittedChanges(canonicalRoot, worktreePath string, w io.Writer) (C
 	if canonicalRoot == "" || worktreePath == "" {
 		return res, fmt.Errorf("CarryUncommittedChanges: canonicalRoot and worktreePath are required")
 	}
+	// The changes to carry are in the source repo, never an external store's.
+	_, canonicalRoot = paths.Roots(canonicalRoot)
 
 	// Always report untracked files regardless of whether there is a tracked diff.
 	res.UntrackedFiles = listUntracked(canonicalRoot)

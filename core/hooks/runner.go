@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/paths"
@@ -299,8 +298,7 @@ func ResolveProjectDir(cwd, sessionID string) string {
 
 // IswipnoteProject returns true when the project directory has a .wipnote/ dir.
 func IswipnoteProject(projectDir string) bool {
-	_, err := os.Stat(filepath.Join(projectDir, ".wipnote"))
-	return err == nil
+	return paths.IsStoreOwner(projectDir)
 }
 
 // EnvSessionID returns the current session ID using a four-step fallback:

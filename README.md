@@ -135,7 +135,7 @@ projects.
 ## Quick Start
 
 ```bash
-wipnote init                          # creates .wipnote/ in your repo
+wipnote init                          # creates the store under ~/.wipnote/projects/ (--in-repo: .wipnote/ in your repo)
 wipnote track create "Auth Overhaul"
 wipnote feature create "Add OAuth" --track <trk-id> --description "Implement OAuth2 flow"
 wipnote feature start <feat-id>

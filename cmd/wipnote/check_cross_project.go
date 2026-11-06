@@ -61,7 +61,7 @@ func runCheckCrossProject() error {
 	}
 
 	projectRoot := filepath.Dir(wipnoteDir)
-	currentRemote := paths.GetGitRemoteURL(projectRoot)
+	currentRemote := paths.GetGitRemoteURL(paths.CodeRoot(projectRoot))
 
 	database, err := openDB(wipnoteDir)
 	if err != nil {

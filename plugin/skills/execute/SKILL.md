@@ -22,7 +22,7 @@ Execute (<track or plan id>):
 
 ## Environment and efficiency
 
-In a worktree, `WIPNOTE_PROJECT_DIR` is set, so `wipnote` commands resolve to the main project's `.wipnote/`. Never use bare `cd` (the hook blocks it); use a subshell `(cd dir && command)`.
+In a worktree, `WIPNOTE_PROJECT_DIR` is set, so `wipnote` commands resolve to the project's store. That is the main project's `.wipnote/`, or for a project with no `.wipnote/` folder a store under `~/.wipnote/projects/` (`wipnote status` prints where); do not assume a path. Never use bare `cd` (the hook blocks it); use a subshell `(cd dir && command)`.
 
 Dispatch the first subagent within **≤5 tool calls**:
 1. One discovery call: `wipnote execute-preview <trk-id> --format json` returns the track (title at `.track.title`), linked features/bugs/plans and git state. Do not call `track show`, `feature show`, `plan show` and `git status` separately.

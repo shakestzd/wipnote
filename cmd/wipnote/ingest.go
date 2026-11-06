@@ -78,7 +78,7 @@ func runIngest(sessionID, project string, all, force bool) error {
 	// When --all is set or --project is explicitly provided, skip the remote filter.
 	var gitRemote string
 	if project == "" && !all {
-		gitRemote = paths.GetGitRemoteURL(filepath.Dir(wipnoteDir))
+		gitRemote = paths.GetGitRemoteURL(paths.CodeRoot(filepath.Dir(wipnoteDir)))
 	}
 
 	files, err := ingest.DiscoverSessions(project)

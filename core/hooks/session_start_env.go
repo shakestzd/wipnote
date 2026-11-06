@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"context"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"os/exec"
 	"strings"
@@ -28,7 +29,7 @@ var allowedHarnesses = map[string]struct{}{
 // headCommit returns the short HEAD git hash, or empty string on failure.
 func headCommit(dir string) string {
 	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
-	cmd.Dir = dir
+	cmd.Dir = paths.CodeRoot(dir) // the session's commit is the source repo's
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
