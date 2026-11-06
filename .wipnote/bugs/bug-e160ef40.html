@@ -10,20 +10,26 @@
 <body>
     <article id="bug-e160ef40"
              data-type="bug"
-             data-status="todo"
+             data-status="done"
              data-priority="high"
              data-created="2026-10-17T19:34:49.102903"
-             data-updated="2026-10-17T19:34:49.105378" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+             data-updated="2026-11-06T11:46:54.537202" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Serve parent has no proxy timeouts or child health check; a hung _serve-child wedges the dashboard (#183)</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/0c7249ae-5ae5-4b19-8025-cfe5c61fe618.html" data-relationship="implemented_in" data-since="2026-11-06T11:32:34.43309">session 0c7249ae-5ae5-4b19-8025-cfe5c61fe618</a></li>
+                </ul>
+            </section>
             <section data-edge-type="part_of">
                 <h3>Part Of:</h3>
                 <ul>
@@ -34,7 +40,8 @@
 
         <section data-content>
             <h3>Description</h3>
-            <p>GitHub #183 (partial). The reverse proxy uses DefaultTransport (no ResponseHeaderTimeout), the parent http.Server has no ReadHeaderTimeout, and childproc only detects child death. A child that hangs after the handshake keeps receiving traffic (LastRequest bumps keep the idle reaper away) until the user kills it. Scoped fix: proxy header timeout (SSE exempt), parent ReadHeaderTimeout, and a health probe that evicts and kills a child after consecutive misses. Deferred: shared/capped otel-collect, doctor --restart-all, the O(N*H) git cost in hydrate.</p>
+            <p>GitHub #183 (partial). The reverse proxy uses DefaultTransport (no ResponseHeaderTimeout), the parent http.Server has no ReadHeaderTimeout, and childproc only detects child death. A child that hangs after the handshake keeps receiving traffic (LastRequest bumps keep the idle reaper away) until the user kills it. Scoped fix: proxy header timeout (SSE exempt), parent ReadHeaderTimeout, and a health probe that evicts and kills a child after consecutive misses. Deferred: shared/capped otel-collect, doctor --restart-all, the O(N*H) git cost in hydrate.
+[2026-11-06 11:46 claude-code] accepted-advisory (provenance override): Obsolete: commit f3269ff40 removed the web dashboard, wipnote serve&#39;s reverse proxy and internal/childproc, so the proxy timeout, parent ReadHeaderTimeout and child health probe have no target. otel-collect&#39;s server already sets ReadHeaderTimeout 10s. Owner approved closing 2026-11-06. #183 stays open for shared otel-collect, doctor --restart-all and hydrate git cost.</p>
         </section>
     </article>
 </body>
