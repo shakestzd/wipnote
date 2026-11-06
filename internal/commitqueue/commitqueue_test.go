@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -763,12 +764,10 @@ func TestFlushReportsFailuresPerIntent(t *testing.T) {
 	}
 }
 
-// TestFlushIgnoredPathIsNeitherCountedNorDeadLettered pins the GH#172
-// classification: a committer that reports ErrPathIgnored describes a repo
-// configured to refuse the artifact, not a poison commit. Across many passes
-// the intent must stay queued with Attempts untouched, never dead-letter, and
-// be reported per intent so the operator sees the cause.
-func TestFlushIgnoredPathIsNeitherCountedNorDeadLettered(t *testing.T) {
+// TestFlushIgnoredPathIsDeadLetteredOnFirstAttempt pins GH#320: an intent whose
+// path git ignores can never succeed, so it must leave the pending queue on the
+// first attempt (dead-lettered with its cause) instead of lingering forever.
+func TestFlushIgnoredPathIsDeadLetteredOnFirstAttempt(t *testing.T) {
 	o := newTestOutbox(t)
 	_ = o.Append(sampleIntent("feat-ignored"))
 	_ = o.Append(sampleIntent("feat-ok"))
@@ -779,27 +778,21 @@ func TestFlushIgnoredPathIsNeitherCountedNorDeadLettered(t *testing.T) {
 		}
 		return nil
 	}
-	const maxAttempts = 2
-	for pass := 1; pass <= maxAttempts+1; pass++ {
-		res, err := o.Flush(commit, maxAttempts)
-		if err != nil {
-			t.Fatalf("pass %d: %v", pass, err)
-		}
-		if res.Failed != 0 || res.DeadLettered != 0 {
-			t.Fatalf("pass %d: ignored path counted as failure: %+v", pass, res)
-		}
-		if len(res.Ignored) != 1 || res.Ignored[0].Intent.WorkItemID != "feat-ignored" {
-			t.Fatalf("pass %d: Ignored = %+v, want the one ignored intent", pass, res.Ignored)
-		}
-		if res.RemainingDepth != 1 {
-			t.Fatalf("pass %d: RemainingDepth = %d, want 1", pass, res.RemainingDepth)
-		}
+	res, err := o.Flush(commit, 5)
+	if err != nil {
+		t.Fatalf("Flush: %v", err)
 	}
-	pending, _ := o.Pending()
-	if len(pending) != 1 || pending[0].WorkItemID != "feat-ignored" || pending[0].Attempts != 0 {
-		t.Fatalf("ignored intent must stay queued with Attempts=0, got %+v", pending)
+	if res.DeadLettered != 1 || res.Failed != 0 || res.RemainingDepth != 0 {
+		t.Fatalf("ignored intent should dead-letter at once: %+v", res)
 	}
-	if dl, _ := o.DeadLetterDepth(); dl != 0 {
-		t.Fatalf("ignored intent must never dead-letter, depth = %d", dl)
+	if len(res.Ignored) != 1 || res.Ignored[0].Intent.WorkItemID != "feat-ignored" {
+		t.Fatalf("Ignored = %+v, want the one ignored intent", res.Ignored)
+	}
+	if pending, _ := o.Pending(); len(pending) != 0 {
+		t.Fatalf("pending must be empty, got %+v", pending)
+	}
+	dl, _ := o.DeadLettered()
+	if len(dl) != 1 || dl[0].WorkItemID != "feat-ignored" || !strings.Contains(dl[0].Reason, "ignored") {
+		t.Fatalf("dead-letter should hold the ignored intent with its cause, got %+v", dl)
 	}
 }
