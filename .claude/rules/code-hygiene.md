@@ -45,13 +45,15 @@ git commit -m "..."
 
 ## Module Size & Complexity Standards
 
-### Line Count Limits
+### Size Review Triggers
 
-| Metric | Target | Warning | Fail (new code) |
-|--------|--------|---------|------------------|
-| File | 200-500 lines | >300 lines | >500 lines |
-| Function | 10-20 lines | >30 lines | >50 lines |
-| Struct | 100-200 lines | >200 lines | >300 lines |
+| Unit | Review trigger |
+|------|----------------|
+| File (module) | >500 lines |
+| Function | >50 lines |
+| Struct (class) | >300 lines |
+
+These are review triggers, not measures. Crossing one means checking for more than one reason to change; it does not by itself mean split. The file and function triggers live in one place, `core/hooks/constants.go` (`ModuleLimitLines`, `FuncLimitLines`). The post-edit hook, `wipnote health`, `wipnote check --gate` and `wipnote review` all read them. `check --gate` fails on a trigger that changed code crossed, unless a `// wipnote:size-ok: <reason>` comment records why the code stays whole.
 
 ### Principles
 

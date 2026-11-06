@@ -24,9 +24,6 @@ var funcPrefixes = map[string]string{
 	".jsx": "function ",
 }
 
-// lineCountLimits defines (warning, fail) thresholds for module size.
-// See constants.go for constant definitions.
-
 // CheckFileQuality reads the file that was just written and returns advisory
 // warnings if it violates size/complexity limits. Returns empty string when
 // no issues are found. Designed to complete in <5ms (single read, line scan).
@@ -71,45 +68,33 @@ func CheckFileQuality(filePath string) string {
 	return strings.Join(warnings, "\n")
 }
 
-// checkModuleSize returns a warning string when lineCount exceeds thresholds.
+// checkModuleSize reports a module over the size review trigger. It names the
+// question to ask and the marker that records a reason to keep it whole; it
+// never demands a split (GitHub #312).
 func checkModuleSize(name string, lineCount int) string {
-	switch {
-	case lineCount > moduleLimitLines:
-		return fmt.Sprintf("[Quality] %s is %d lines (LIMIT: %d). Must split before committing.",
-			name, lineCount, moduleLimitLines)
-	case lineCount > moduleWarnLines:
-		return fmt.Sprintf("[Quality] %s is %d lines (target: <%d). Consider splitting.",
-			name, lineCount, moduleWarnLines)
+	if lineCount <= ModuleLimitLines {
+		return ""
 	}
-	return ""
+	return fmt.Sprintf("[Quality] %s is %d lines (review trigger: %d). Check it for more than one reason to change: split it, or keep it whole with a `%s: <reason>` comment in its first %d lines.",
+		name, lineCount, ModuleLimitLines, SizeOKMarker, SizeOKFileWindow)
 }
 
 // checkFunctionLengths scans lines for function declarations using funcPrefix
-// and warns when any function exceeds the length thresholds.
+// and reports each function over the length review trigger.
 func checkFunctionLengths(fileName string, lines []string, funcPrefix string) []string {
 	var warnings []string
-
 	for i, line := range lines {
 		trimmed := strings.TrimLeft(line, " \t")
 		if !strings.HasPrefix(trimmed, funcPrefix) {
 			continue
 		}
-
 		funcName := extractFuncName(trimmed, funcPrefix)
-		length := measureFuncLength(lines, i, line)
-
-		switch {
-		case length > funcLimitLines:
+		if length := measureFuncLength(lines, i, line); length > FuncLimitLines {
 			warnings = append(warnings, fmt.Sprintf(
-				"[Quality] Function %s in %s is %d lines (LIMIT: %d). Must refactor.",
-				funcName, fileName, length, funcLimitLines))
-		case length > funcWarnLines:
-			warnings = append(warnings, fmt.Sprintf(
-				"[Quality] Function %s in %s is %d lines (target: <%d).",
-				funcName, fileName, length, funcWarnLines))
+				"[Quality] Function %s in %s is %d lines (review trigger: %d). Check it for more than one reason to change, or keep it whole with a `%s: <reason>` comment above it.",
+				funcName, fileName, length, FuncLimitLines, SizeOKMarker))
 		}
 	}
-
 	return warnings
 }
 
@@ -204,7 +189,7 @@ func checkDuplication(fileName string, lines []string) string {
 
 	if duplicateBlocks > 0 {
 		return fmt.Sprintf(
-			"[Quality] %s has %d duplicate block(s) (%d lines each). Extract shared helper.",
+			"[Quality] %s has %d duplicate block(s) (%d lines each). If the copies must change together, derive one from the other; if they only look alike, leave them.",
 			fileName, duplicateBlocks, dupBlockSize)
 	}
 	return ""

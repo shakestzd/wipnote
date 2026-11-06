@@ -8,14 +8,18 @@ import (
 	"strings"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/spf13/cobra"
 )
 
+// The FAIL limits are the size rule's review triggers and come from their one
+// copy in core/hooks, so health, the post-edit hook and the size gate cannot
+// disagree (GitHub #312). The WARN tiers are health's own early signal.
 const (
 	moduleLimitWarn = 300
-	moduleLimitFail = 500
+	moduleLimitFail = hooks.ModuleLimitLines
 	funcLimitWarn   = 30
-	funcLimitFail   = 50
+	funcLimitFail   = hooks.FuncLimitLines
 )
 
 type violation struct {
@@ -200,50 +204,84 @@ func addViolation(result *healthResult, kind, path, name string, line, count, wa
 	})
 }
 
+// funcSpan is one function found by a line scan. Key tells apart functions
+// that share a name (Go methods on different receivers).
+type funcSpan struct {
+	Name, Key   string
+	Line, Lines int // 1-based declaration line; length in lines
+}
+
 func analyzeGoFile(path string, result *healthResult) error {
+	return analyzeSpans(path, result, goFuncSpans)
+}
+
+func analyzePythonFile(path string, result *healthResult) error {
+	return analyzeSpans(path, result, pyFuncSpans)
+}
+
+func analyzeSpans(path string, result *healthResult, spans func([]string) []funcSpan) error {
 	lines, err := readLines(path)
 	if err != nil {
 		return nil
 	}
 	result.ModulesScanned++
 	addViolation(result, "module", path, "", 0, len(lines), moduleLimitWarn, moduleLimitFail)
-
-	type frame struct {
-		name             string
-		startLine, depth int
-	}
-	var stack []frame
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "func ") && len(stack) == 0 {
-			stack = append(stack, frame{extractGoFuncName(trimmed), i + 1, countBraces(line)})
-			continue
-		}
-		if len(stack) > 0 {
-			top := &stack[len(stack)-1]
-			top.depth += countBraces(line)
-			if top.depth <= 0 {
-				result.FunctionsScanned++
-				addViolation(result, "function", path, top.name, top.startLine, i+1-top.startLine+1, funcLimitWarn, funcLimitFail)
-				stack = stack[:len(stack)-1]
-			}
-		}
+	for _, s := range spans(lines) {
+		result.FunctionsScanned++
+		addViolation(result, "function", path, s.Name, s.Line, s.Lines, funcLimitWarn, funcLimitFail)
 	}
 	return nil
 }
 
-func analyzePythonFile(path string, result *healthResult) error {
-	lines, err := readLines(path)
-	if err != nil {
-		return nil
+// goFuncSpans finds top-level Go functions by brace depth.
+func goFuncSpans(lines []string) []funcSpan {
+	var spans []funcSpan
+	var open *funcSpan
+	depth := 0
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if open == nil && strings.HasPrefix(trimmed, "func ") {
+			name := extractGoFuncName(trimmed)
+			open = &funcSpan{Name: name, Key: goFuncKey(trimmed, name), Line: i + 1}
+			depth = countBraces(line)
+			continue
+		}
+		if open == nil {
+			continue
+		}
+		if depth += countBraces(line); depth <= 0 {
+			open.Lines = i + 1 - open.Line + 1
+			spans = append(spans, *open)
+			open = nil
+		}
 	}
-	result.ModulesScanned++
-	addViolation(result, "module", path, "", 0, len(lines), moduleLimitWarn, moduleLimitFail)
+	return spans
+}
 
-	type frame struct {
-		name              string
-		startLine, indent int
+// goFuncKey is the receiver type plus the name: "(*T).Foo", or "Foo".
+func goFuncKey(trimmed, name string) string {
+	s := strings.TrimPrefix(trimmed, "func ")
+	if !strings.HasPrefix(s, "(") {
+		return name
 	}
+	end := strings.Index(s, ")")
+	if end < 0 {
+		return name
+	}
+	recv := strings.Fields(s[1:end])
+	if len(recv) == 0 {
+		return name
+	}
+	return "(" + recv[len(recv)-1] + ")." + name
+}
+
+// pyFuncSpans finds Python functions (nested ones too) by indentation.
+func pyFuncSpans(lines []string) []funcSpan {
+	type frame struct {
+		span   funcSpan
+		indent int
+	}
+	var spans []funcSpan
 	var stack []frame
 	for i, line := range lines {
 		if strings.TrimSpace(line) == "" {
@@ -254,18 +292,19 @@ func analyzePythonFile(path string, result *healthResult) error {
 		for len(stack) > 0 && indent <= stack[len(stack)-1].indent {
 			top := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
-			result.FunctionsScanned++
-			addViolation(result, "function", path, top.name, top.startLine, i-top.startLine, funcLimitWarn, funcLimitFail)
+			top.span.Lines = i - top.span.Line
+			spans = append(spans, top.span)
 		}
 		if strings.HasPrefix(trimmed, "def ") || strings.HasPrefix(trimmed, "async def ") {
-			stack = append(stack, frame{extractPyFuncName(trimmed), i + 1, indent})
+			name := extractPyFuncName(trimmed)
+			stack = append(stack, frame{funcSpan{Name: name, Key: name, Line: i + 1}, indent})
 		}
 	}
 	for _, f := range stack {
-		result.FunctionsScanned++
-		addViolation(result, "function", path, f.name, f.startLine, len(lines)-f.startLine+1, funcLimitWarn, funcLimitFail)
+		f.span.Lines = len(lines) - f.span.Line + 1
+		spans = append(spans, f.span)
 	}
-	return nil
+	return spans
 }
 
 func countBraces(line string) int {

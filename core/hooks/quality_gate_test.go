@@ -67,33 +67,29 @@ func TestCheckFileQuality_UnderLimit_NoWarning(t *testing.T) {
 	}
 }
 
-func TestCheckFileQuality_OverWarnThreshold(t *testing.T) {
+// TestCheckFileQuality_BelowModuleTrigger_NoWarning pins GitHub #312: the
+// hook used to print "target: <300" for a 300-line module, a threshold the
+// size rule does not have (its module trigger is 500).
+func TestCheckFileQuality_BelowModuleTrigger_NoWarning(t *testing.T) {
 	content := repeatLines("x = 1", 350)
 	path := writeTemp(t, "module*.py", content)
 	got := CheckFileQuality(path)
-	if !strings.Contains(got, "350 lines") {
-		t.Errorf("expected line count warning, got: %q", got)
-	}
-	if !strings.Contains(got, "target: <300") {
-		t.Errorf("expected 'target: <300' in warning, got: %q", got)
-	}
-	if strings.Contains(got, "LIMIT") {
-		t.Errorf("should not say LIMIT at 350 lines, got: %q", got)
+	if strings.Contains(got, "350 lines") || strings.Contains(got, "target: <300") {
+		t.Errorf("expected no size message below the module trigger, got: %q", got)
 	}
 }
 
-func TestCheckFileQuality_OverLimitThreshold(t *testing.T) {
+func TestCheckFileQuality_OverModuleTrigger(t *testing.T) {
 	content := repeatLines("x = 1", 550)
 	path := writeTemp(t, "module*.py", content)
 	got := CheckFileQuality(path)
-	if !strings.Contains(got, "550 lines") {
-		t.Errorf("expected line count in warning, got: %q", got)
+	for _, want := range []string{"550 lines", "review trigger: 500", SizeOKMarker} {
+		if !strings.Contains(got, want) {
+			t.Errorf("expected %q in warning, got: %q", want, got)
+		}
 	}
-	if !strings.Contains(got, "LIMIT") {
-		t.Errorf("expected LIMIT warning at 550 lines, got: %q", got)
-	}
-	if !strings.Contains(got, "Must split") {
-		t.Errorf("expected 'Must split' in warning, got: %q", got)
+	if strings.Contains(got, "Must split") {
+		t.Errorf("a size trigger must not demand a split, got: %q", got)
 	}
 }
 
@@ -109,16 +105,13 @@ func TestCheckFileQuality_GoShortFunctions_NoWarning(t *testing.T) {
 	}
 }
 
-func TestCheckFileQuality_GoLongFunction_WarnThreshold(t *testing.T) {
-	// 40-line body → > 30 warn threshold, < 50 limit
+func TestCheckFileQuality_GoFunctionBelowTrigger_NoWarning(t *testing.T) {
+	// 40-line body: under the 50-line function trigger, so no message.
 	content := buildGoFunc("MediumFunc", 40)
 	path := writeTemp(t, "code*.go", content)
 	got := CheckFileQuality(path)
-	if !strings.Contains(got, "MediumFunc") {
-		t.Errorf("expected function name in warning, got: %q", got)
-	}
-	if strings.Contains(got, "Must refactor") {
-		t.Errorf("should not say 'Must refactor' below limit, got: %q", got)
+	if strings.Contains(got, "MediumFunc") {
+		t.Errorf("expected no message below the function trigger, got: %q", got)
 	}
 }
 
@@ -130,11 +123,8 @@ func TestCheckFileQuality_GoLongFunction_LimitExceeded(t *testing.T) {
 	if !strings.Contains(got, "HugeFunc") {
 		t.Errorf("expected function name in warning, got: %q", got)
 	}
-	if !strings.Contains(got, "Must refactor") {
-		t.Errorf("expected 'Must refactor' for function over limit, got: %q", got)
-	}
-	if !strings.Contains(got, "LIMIT") {
-		t.Errorf("expected LIMIT in warning, got: %q", got)
+	if !strings.Contains(got, "review trigger: 50") || strings.Contains(got, "Must refactor") {
+		t.Errorf("expected a review trigger, not a refactor demand, got: %q", got)
 	}
 }
 
@@ -157,8 +147,8 @@ func TestCheckFileQuality_PythonLongFunction_LimitExceeded(t *testing.T) {
 	if !strings.Contains(got, "big_fn") {
 		t.Errorf("expected function name in warning, got: %q", got)
 	}
-	if !strings.Contains(got, "Must refactor") {
-		t.Errorf("expected 'Must refactor' for Python function over limit, got: %q", got)
+	if !strings.Contains(got, "review trigger: 50") {
+		t.Errorf("expected a review trigger for Python function over limit, got: %q", got)
 	}
 }
 
@@ -172,6 +162,11 @@ func TestCheckFileQuality_DuplicateBlocks_Warned(t *testing.T) {
 	got := CheckFileQuality(path)
 	if !strings.Contains(got, "duplicate block") {
 		t.Errorf("expected duplicate block warning, got: %q", got)
+	}
+	// DRY is about knowledge: the message asks whether the copies must change
+	// together instead of ordering an extraction (GitHub #312).
+	if !strings.Contains(got, "change together") || strings.Contains(got, "Extract shared helper") {
+		t.Errorf("expected the change-together question, got: %q", got)
 	}
 }
 
@@ -191,15 +186,15 @@ func TestCheckFileQuality_NoDuplicates_NoWarning(t *testing.T) {
 // ---- Non-code file tests -----------------------------------------------------
 
 func TestCheckFileQuality_MarkdownFile_OnlyLineCount(t *testing.T) {
-	content := repeatLines("Some markdown text here.", 350)
+	content := repeatLines("Some markdown text here.", 550)
 	path := writeTemp(t, "README*.md", content)
 	got := CheckFileQuality(path)
-	// Should warn about line count (350 > 300) but NOT about functions.
+	// Should report line count (550 > 500) but NOT functions.
 	if strings.Contains(got, "Function") {
 		t.Errorf("markdown should not trigger function check, got: %q", got)
 	}
 	if !strings.Contains(got, "lines") {
-		t.Errorf("markdown over 300 lines should still get line count warning, got: %q", got)
+		t.Errorf("markdown over 500 lines should still get line count warning, got: %q", got)
 	}
 }
 
