@@ -153,6 +153,10 @@ These are the rules for a worker and its work item:
 2. **There is one live worker per item, unless each has its own worktree.** spawn refuses when a live worker already holds the item, except with `--worktree`, where every worker has its own checkout and several may share the item. A worker whose pane is gone is closed first. One-shot runs do not count.
 3. **Stop the worker before you complete the item.** Completing an item closes every open claim on it, the worker's too. Run `wipnote delegate stop NAME` first.
 
+## Outside requests
+
+A worker, one-shot run or researcher you start must never put the user's email address or any other personal identifier into a request to an outside service. That covers web fetches, search queries, API calls and `User-Agent` or contact fields. When a source needs an email to be read (for example a paywalled-paper lookup API), the worker reports the source as unreadable instead of sending the address. Put this rule in every brief you write for a worker.
+
 A stopped worker's claim ends as `abandoned`. When a worker crashed or lost its pane, `wait`, `list` or `stop` closes its claim as `expired`.
 
 ## See runs
