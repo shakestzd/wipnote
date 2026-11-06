@@ -8,10 +8,8 @@ import (
 // ErrPathIgnored is the sentinel a Committer wraps when an intent's artifact
 // path is ignored by git (a repo-level `.wipnote/` rule, for example — GH#172).
 // Such an intent is not poison: it is a correct intent against a repository
-// configured to refuse it. flushLocked therefore treats it as a
-// MISCONFIGURATION rather than a failure — no Attempts increment, never
-// dead-lettered — and reports it per intent so the operator sees the cause
-// instead of an ever-growing retry count.
+// configured to refuse it. flushLocked therefore dead-letters it on the first
+// attempt (GH#320) with the cause as the reason, and reports it per intent.
 var ErrPathIgnored = errors.New("commitqueue: artifact path is ignored by git")
 
 // IntentFailure pairs an intent with the error its commit attempt produced,
@@ -46,9 +44,8 @@ type FlushResult struct {
 	DeadLetterDepth int // total dead-lettered intents after this pass
 
 	// Ignored lists intents whose commit was refused because git ignores
-	// their artifact path (ErrPathIgnored). They stay queued untouched —
-	// no Attempts increment, no dead-letter — because retrying cannot help;
-	// only a .gitignore change can (GH#172).
+	// their artifact path (ErrPathIgnored). Retrying cannot help, so each is
+	// dead-lettered on the first attempt (GH#172, GH#320).
 	Ignored []IntentFailure
 	// Failures lists every counted failure this pass (retained AND
 	// dead-lettered), so callers can print one cause per intent.
@@ -127,11 +124,20 @@ func (o *Outbox) flushLocked(commit Committer, maxAttempts int, match func(Inten
 			continue
 		}
 		if errors.Is(commitErr, ErrPathIgnored) {
-			// Misconfiguration, not a poison commit: keep the intent exactly
-			// as it was so it neither ages toward dead-letter nor loses the
-			// state it records (GH#172).
+			// The path can never be committed in this repo (GH#320): leave
+			// the queue through the dead-letter log on the first attempt so
+			// it is not retried and `dead-letter clear` can drop it.
+			intent.Attempts = maxAttempts
+			intent.Reason = commitErr.Error()
+			intent.DeadLetteredAt = time.Now().UTC()
+			if dlErr := o.appendDeadLetter(intent); dlErr != nil {
+				remaining = append(remaining, intent)
+				remaining = append(remaining, pending[idx+1:]...)
+				_ = o.rewrite(remaining)
+				return dlErr
+			}
+			res.DeadLettered++
 			res.Ignored = append(res.Ignored, IntentFailure{Intent: intent, Err: commitErr})
-			remaining = append(remaining, intent)
 			continue
 		}
 		// Commit failed: count the attempt and persist why (GH#174) — this
