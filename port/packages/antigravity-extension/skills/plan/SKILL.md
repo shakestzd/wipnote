@@ -66,6 +66,16 @@ slices:
     research_waiver: stdlib net/http only — no external dependency or standard applies.
 ```
 
+**The adopt-vs-build gate (schema-enforced for unfinalized v4 plans):** a standard or complex slice that creates a new module needs an `adopt_vs_build:` block. A slice creates a module when `files:` holds a source file marked `(new)` (or `new:` prefix) or a new package dir ending in `/`. Test and doc files don't count. `decision: adopt` names the `package`. `decision: build` lists `rejected:` candidates, each as `name: reason`. Finalized plans only get an advisory.
+
+```yaml
+  - num: 5
+    files: ["internal/sse/parser.go (new)"]
+    adopt_vs_build:
+      decision: build
+      rejected: ["r3labs/sse: no CRLF framing", "tmaxmax/go-sse: pulls a client we don't need"]
+```
+
 ## Interview
 
 Run one stage per ask-user call (or one compact chat message where there is no ask-user tool). `wipnote plan interview-questions <plan-id> [<slice-num>]` prints the question set and the block prompts for each stage; [INTERVIEW_RENDERING.md](INTERVIEW_RENDERING.md) covers chat-only harnesses and saving answers.

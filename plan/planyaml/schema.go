@@ -134,6 +134,9 @@ type PlanSlice struct {
 	// satisfies the v4 research gate without sources, but records WHY research was
 	// unnecessary rather than letting it be silently skipped.
 	ResearchWaiver string `yaml:"research_waiver,omitempty"`
+	// AdoptVsBuild is the named adopt-vs-build decision required when the slice
+	// creates a new module (see adopt_build.go).
+	AdoptVsBuild *AdoptVsBuild `yaml:"adopt_vs_build,omitempty"`
 
 	// V2 lifecycle fields (additive — legacy plans omit these and remain valid).
 	ApprovalStatus  string `yaml:"approval_status,omitempty"`  // pending | approved | rejected | changes_requested

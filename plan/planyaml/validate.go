@@ -193,6 +193,7 @@ func validateSlice(plan *PlanYAML, prefix string, s PlanSlice, nums map[int]bool
 	// record an explicit waiver, so plans are evidence-backed and don't
 	// reinvent battle-tested packages. Source URLs are always shape-checked.
 	errs = append(errs, validateSliceResearch(prefix, s, plan.Meta.SchemaVersion == "v4")...)
+	errs = append(errs, validateSliceAdoptBuild(plan, prefix, s)...)
 	return errs
 }
 
