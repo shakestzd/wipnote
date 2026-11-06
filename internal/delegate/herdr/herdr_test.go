@@ -14,6 +14,7 @@ import (
 var bg = context.Background()
 
 func TestHerdr_OnlyWithHerdrEnv(t *testing.T) {
+	clearHerdrEnv(t)
 	f := installFake(t, "pane_get")
 	for _, v := range []string{"", "0", "true", "yes"} {
 		t.Setenv("HERDR_ENV", v)

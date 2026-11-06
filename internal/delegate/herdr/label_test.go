@@ -54,6 +54,7 @@ func TestLabelCallerPane_InsideHerdr(t *testing.T) {
 }
 
 func TestLabelCallerPane_NoCallOutsideHerdr(t *testing.T) {
+	clearHerdrEnv(t)
 	f := installFakeScript(t, renameScript)
 	t.Setenv("HERDR_PANE_ID", "w1:p4")
 	for _, v := range []string{"", "0"} {
