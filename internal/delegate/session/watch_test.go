@@ -98,3 +98,66 @@ func TestWatch_GoneExits3(t *testing.T) {
 		t.Fatalf("lines %q", ls)
 	}
 }
+
+func (e *env) startWatchAll(timeout time.Duration) (*lineLog, chan WaitResult) {
+	log, done := &lineLog{}, make(chan WaitResult, 1)
+	go func() {
+		res, err := WatchAll(context.Background(), e.deps, WaitOptions{Timeout: timeout, Poll: 5 * time.Millisecond}, log.add)
+		if err != nil {
+			e.t.Errorf("watch all: %v", err)
+		}
+		done <- res
+	}()
+	return log, done
+}
+
+func TestWatchAll_OneWatchCoversEveryWorker(t *testing.T) {
+	e := newEnv(t)
+	s1 := e.worker("w1", "brief")
+	e.startTurn(s1, "sid-1")
+	s2 := e.worker("w2", "brief")
+	e.startTurn(s2, "sid-1")
+	log, done := e.startWatchAll(10 * time.Second)
+	log.waitLine(t, "name=w1 state=working")
+	log.waitLine(t, "name=w2 state=working")
+	e.writeResult("w1", e.task("w1"), "r1")
+	log.waitLine(t, "name=w1 state=done")
+	select {
+	case res := <-done:
+		t.Fatalf("ended while w2 is live: %+v", res)
+	case <-time.After(50 * time.Millisecond):
+	}
+	e.writeQFile("w2", e.task("w2"), 1, "Proceed?")
+	log.waitLine(t, "name=w2 state=asks")
+	e.writeResult("w2", e.task("w2"), "r2")
+	log.waitLine(t, "name=w2 state=done")
+	if res := <-done; res.ExitCode() != 0 {
+		t.Fatalf("%+v", res)
+	}
+	n := 0
+	for _, l := range log.snapshot() {
+		if strings.Contains(l, "name=w1 state=done") {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("w1 done printed %d times: %q", n, log.snapshot())
+	}
+}
+
+func TestWatchAll_NoWorkersAndTimeout(t *testing.T) {
+	e := newEnv(t)
+	log, done := e.startWatchAll(time.Second)
+	if res := <-done; res.ExitCode() != 0 || len(log.snapshot()) != 1 || log.snapshot()[0] != WatchNone {
+		t.Fatalf("%+v %q", res, log.snapshot())
+	}
+	s := e.worker("w1", "brief")
+	e.startTurn(s, "sid-1")
+	log, done = e.startWatchAll(80 * time.Millisecond)
+	if res := <-done; res.ExitCode() != TimeoutExit {
+		t.Fatalf("%+v", res)
+	}
+	if ls := log.snapshot(); ls[len(ls)-1] != WatchRerun {
+		t.Fatalf("%q", ls)
+	}
+}

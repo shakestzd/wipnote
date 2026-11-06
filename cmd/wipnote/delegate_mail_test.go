@@ -73,3 +73,44 @@ func TestDelegateResultQuestionsInbox(t *testing.T) {
 		t.Fatalf("send outside herdr: %v", err)
 	}
 }
+
+func TestDelegateAnswer_ClearsQuestionAndRefusesStale(t *testing.T) {
+	dir, run := mailWorker(t)
+	store, _ := runstore.New(dir)
+	t.Setenv(session.RunEnv, run)
+	if _, err := execDelegate(t, "reply", "--ask", "--option", "yes", "Proceed?"); err == nil {
+		// no task yet: reply needs one
+		t.Fatal("reply --ask without a task should fail")
+	}
+	mb, _ := store.Mailbox("w1")
+	task := runstore.NewMsgID()
+	if _, err := mb.Post(runstore.Inbox, runstore.Message{ID: task, Run: run, From: "caller", To: "w1", Type: runstore.TypeTask, Turn: 1, Body: "go"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := execDelegate(t, "reply", "--ask", "--option", "yes", "Proceed?"); err != nil {
+		t.Fatal(err)
+	}
+	qid := task + "-q1"
+	if out, _ := execDelegate(t, "questions", "w1"); !strings.Contains(out, qid) {
+		t.Fatalf("questions %q", out)
+	}
+	out, err := execDelegate(t, "answer", "w1", qid, "yes")
+	if err != nil || !strings.Contains(out, `"question": "`+qid+`"`) {
+		t.Fatalf("answer %q err %v", out, err)
+	}
+	if out, _ := execDelegate(t, "questions", "w1"); strings.TrimSpace(out) != "[]" {
+		t.Fatalf("still pending %q", out)
+	}
+	if _, err := execDelegate(t, "answer", "w1", qid, "again"); err == nil {
+		t.Fatal("a second answer should be refused")
+	}
+}
+
+func TestDelegateWatch_NoNameWatchesAll(t *testing.T) {
+	mailWorker(t)
+	code := captureWaitExit(t)
+	out, err := execDelegate(t, "watch", "--timeout", "50ms")
+	if err != nil || *code != session.TimeoutExit || !strings.Contains(out, "name=w1 state=") {
+		t.Fatalf("exit %d err %v out %s", *code, err, out)
+	}
+}

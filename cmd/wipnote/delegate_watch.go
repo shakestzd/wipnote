@@ -17,9 +17,12 @@ import (
 func delegateWatchCmd() *cobra.Command {
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:   "watch NAME [--timeout D]",
-		Short: "Stream a worker's state changes, one line each (for Claude Code's Monitor tool)",
-		Long: `Meant for Claude Code's Monitor tool, or "| while read". Prints one key=value
+		Use:   "watch [NAME] [--timeout D]",
+		Short: "Stream worker state changes, one line each (for Claude Code's Monitor tool)",
+		Long: `With no NAME, one watch covers every live worker of the project, and workers
+spawned later join it; each line names its worker, and the watch ends when no
+worker is left to watch or at the timeout. With a NAME it watches that worker.
+Meant for Claude Code's Monitor tool, or "| while read". Prints one key=value
 line each time the worker's state changes, flushed at once, and nothing while
 it holds: run=R name=N state=working | asks | blocked | done | ...
 A pending question prints as state=asks asks=N q="<first question, bounded>".
@@ -31,9 +34,13 @@ Monitor's 30-minute cap; on a timeout the last line says to run watch again.
 Polls at most twice a second and writes no run state. Exit status is wait's:
 124 for a timeout, 3 for gone, 4 for blocked, 0 for every other outcome, 1 for
 an error.`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			code, err := runDelegateWatch(cmd, args[0], timeout)
+			name := ""
+			if len(args) == 1 {
+				name = args[0]
+			}
+			code, err := runDelegateWatch(cmd, name, timeout)
 			if err == nil && code != 0 {
 				delegateWaitExit(code)
 			}
@@ -60,7 +67,14 @@ func runDelegateWatch(cmd *cobra.Command, name string, timeout time.Duration) (i
 	}
 	code := 0
 	err := delegateSessionVerb(func(d session.Deps) error {
-		res, err := session.Watch(ctx, d, name, session.WaitOptions{Timeout: timeout}, emit)
+		opts := session.WaitOptions{Timeout: timeout}
+		var res session.WaitResult
+		var err error
+		if name == "" {
+			res, err = session.WatchAll(ctx, d, opts, emit)
+		} else {
+			res, err = session.Watch(ctx, d, name, opts, emit)
+		}
 		code = res.ExitCode()
 		return err
 	})
