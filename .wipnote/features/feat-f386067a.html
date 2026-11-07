@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Keep the wipnote store outside the repo when a project has no .wipnote folder</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-f386067a"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-03T16:05:20.890368"
+             data-updated="2026-11-07T05:26:34.491355" data-agent-assigned="claude-code" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="capability" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index" data-standalone_reason="user-requested design change from Herdr integration testing; no existing plan" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Shadow root at \u003cdata\u003e/projects/\u003cslug\u003e-\u003chash\u003e/ with its own git repo and project.json code_root; paths.CodeRoot for source-repo sites&#34;,&#34;exists&#34;:&#34;No external store exists. LaunchOpts already separates ProjectRoot and WipnoteRoot; candidateRoots and canonicalDefaultPath compute per-user paths; 135 join sites and 109 parent-of-store sites mapped by code search.&#34;,&#34;findings&#34;:&#34;Step 9 of ResolveProjectDir walks up with no git boundary, which moves wipnote claude to a parent store. Gates and commit linking would read the wrong repo silently if the store owner is treated as the source repo.&#34;,&#34;gaps&#34;:[&#34;git-rev-parse and basedir-spec URLs cited from known behaviour, not re-fetched in this research&#34;],&#34;options&#34;:[&#34;shadow root holding .wipnote in a per-user folder&#34;,&#34;flat external store with every join rewritten&#34;,&#34;local git exclude of an in-repo .wipnote&#34;],&#34;queries&#34;:[&#34;wipnote relevant: external store outside repo .wipnote project dir resolver&#34;],&#34;question&#34;:&#34;How can a git repo use wipnote with no .wipnote folder in it?&#34;,&#34;rejected&#34;:[{&#34;option&#34;:&#34;flat external store&#34;,&#34;reason&#34;:&#34;about 135 joins, relative commit paths and write guards would all need changing&#34;},{&#34;option&#34;:&#34;local git exclude&#34;,&#34;reason&#34;:&#34;still adds a folder and wipnote commits can bypass it&#34;}],&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-03&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://git-scm.com/docs/git-rev-parse&#34;},{&#34;retrieved&#34;:&#34;2026-11-03&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://specifications.freedesktop.org/basedir-spec/latest/&#34;}]}}">
+
+        <header>
+            <h1>Keep the wipnote store outside the repo when a project has no .wipnote folder</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="80b038b614c898679a80bc7f4ef942a6e1632156.html" data-relationship="committed_in" data-since="2026-11-06T07:44:18">feat(store): keep the wipnote store in ~/.wipnote/projects/&lt;encoded-path&gt;/ when a project has no in-repo store (#159, feat-f386067a)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-03T16:05:39.508345">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                    <li><a href="../sessions/b88284ed-aa10-4432-8236-24f957db38ff.html" data-relationship="implemented_in" data-since="2026-11-03T16:12:26.255949">session b88284ed-aa10-4432-8236-24f957db38ff</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Let wipnote run in a git repo without adding a .wipnote folder. Store lives in a per-user folder keyed by git repo identity, is its own git repo for history, worktrees share it, repos with an in-repo .wipnote keep current behaviour, and lookup no longer lands on a parent folder&#39;s store.
+[2026-11-07 05:26 claude-code] allow-orphan (unmerged-upstream override): Merged upstream via PR #326 (merge 3e644a7a7); local view of the branch is stale.</p>
+        </section>
+    </article>
+</body>
+</html>
