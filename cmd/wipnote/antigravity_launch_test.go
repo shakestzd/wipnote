@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"errors"
 	"os"
 	"reflect"
 	"strings"
@@ -141,5 +143,50 @@ func TestApplyAntigravityLaunchIntent(t *testing.T) {
 	}
 	if codexChooser.worktreePath != ".claude/worktrees/feat-codex-row" {
 		t.Errorf("codex chooser row: worktreePath = %q, want .claude/worktrees/feat-codex-row", codexChooser.worktreePath)
+	}
+}
+
+// Shared collector (feat-82ebc99a): both endpoint variables carry the
+// "/s/<session-id>" route; the per-session fallback keeps the bare base URL.
+func TestBuildAntigravityOtelEnv_SharedSessionPath(t *testing.T) {
+	env := buildAntigravityOtelEnv(nil, 4318, "sid1", "/s/sid1")
+	joined := strings.Join(env, "\n")
+	for _, k := range []string{"OTEL_EXPORTER_OTLP_ENDPOINT", "GEMINI_TELEMETRY_OTLP_ENDPOINT"} {
+		if want := k + "=http://127.0.0.1:4318/s/sid1"; !strings.Contains(joined+"\n", want+"\n") {
+			t.Errorf("missing %q in %s", want, joined)
+		}
+	}
+}
+
+func TestBuildAntigravityOtelEnv_PerSessionHasNoPath(t *testing.T) {
+	joined := strings.Join(buildAntigravityOtelEnv(nil, 4318, "sid1", ""), "\n") + "\n"
+	if !strings.Contains(joined, "OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318\n") {
+		t.Errorf("per-session endpoint should have no path: %s", joined)
+	}
+}
+
+func TestSpawnAntigravityOtelCollector_SharedThenFallback(t *testing.T) {
+	t.Setenv("WIPNOTE_OTEL_SHARED", "")
+	t.Setenv("WIPNOTE_OTEL_STRICT", "")
+	origShared, origProc := spawnSharedCollectorFn, spawnCollectorFn
+	t.Cleanup(func() { spawnSharedCollectorFn, spawnCollectorFn = origShared, origProc })
+	sharedCalls := 0
+	spawnSharedCollectorFn = func(string, string, int) (int, *os.Process, error) {
+		sharedCalls++
+		return 0, nil, errors.New("shared down")
+	}
+	spawnCollectorFn = func(string, string, string, int) (int, *os.Process, error) {
+		return 0, nil, errors.New("proc down")
+	}
+	var buf bytes.Buffer
+	ov, exit := spawnHarnessCollectorTo(t.TempDir(), "bin", "antigravity", &buf)
+	if sharedCalls == 0 {
+		t.Error("shared collector was not tried first")
+	}
+	if exit || ov.CollectorPort != 0 {
+		t.Fatalf("both spawns fail: want empty overrides, got %+v exit=%v", ov, exit)
+	}
+	if !strings.Contains(buf.String(), "antigravity collector spawn failed") {
+		t.Errorf("stderr lacks harness name: %q", buf.String())
 	}
 }

@@ -34,7 +34,8 @@
 #   scripts/go-test-streaming.sh ./cmd/wipnote/... -run TestWritableDBOpenBoundary
 #
 # Defaults to ./... when no package pattern is given. All arguments are
-# passed straight through to `go test -json`.
+# passed straight through to `go test -json`. The default -timeout is 40m;
+# set GO_TEST_TIMEOUT (e.g. 60m) or pass -timeout to change it.
 #
 # OUTPUT: human-readable test output streams to stdout as it happens (same
 # text `go test -v` would print, reconstructed from the JSON `Output`
@@ -61,16 +62,29 @@ if [ ${#ARGS[@]} -eq 0 ]; then
     ARGS=("./...")
 fi
 
+# Default -timeout is 40m: cmd/wipnote takes ~17m under load, past go's 10m
+# default. GO_TEST_TIMEOUT overrides it; an explicit -timeout argument wins.
+TIMEOUT_ARGS=()
+HAS_TIMEOUT=0
+for a in "${ARGS[@]}"; do
+    case "$a" in
+        -timeout|-timeout=*|--timeout|--timeout=*|-test.timeout|-test.timeout=*) HAS_TIMEOUT=1 ;;
+    esac
+done
+if [ "$HAS_TIMEOUT" -eq 0 ]; then
+    TIMEOUT_ARGS=(-timeout "${GO_TEST_TIMEOUT:-40m}")
+fi
+
 LOG_DIR="${TMPDIR:-/tmp}/wipnote-go-test-streaming"
 mkdir -p "$LOG_DIR"
 LOG_FILE="${LOG_DIR}/$(date +%Y%m%dT%H%M%S).jsonl"
 
-echo "go-test-streaming: go test -json ${ARGS[*]}"
+echo "go-test-streaming: go test -json ${TIMEOUT_ARGS[*]:-} ${ARGS[*]}"
 echo "go-test-streaming: raw event log -> ${LOG_FILE}"
 echo
 
 set -o pipefail
-go test -json "${ARGS[@]}" 2>&1 | tee "$LOG_FILE" | jq -r '.Output // empty'
+go test -json ${TIMEOUT_ARGS[@]+"${TIMEOUT_ARGS[@]}"} "${ARGS[@]}" 2>&1 | tee "$LOG_FILE" | jq -r '.Output // empty'
 STATUS=${PIPESTATUS[0]}
 
 echo
