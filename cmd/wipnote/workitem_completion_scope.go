@@ -92,10 +92,8 @@ func branchBaseRef(root, repoRoot string) string {
 	if ref := upstreamDefaultRef(root); ref != "" {
 		return ref
 	}
-	for _, ref := range []string{"main", "master"} {
-		if gitRefExists(root, "refs/heads/"+ref) {
-			return ref
-		}
+	if b := localDefaultBranch(root); b != "" {
+		return b
 	}
 	if sha, err := gitOutputIn(repoRoot, "rev-parse", "--verify", "HEAD"); err == nil && sha != "" {
 		return sha
