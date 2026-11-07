@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -993,5 +994,47 @@ func TestBuildCodexArgs_NoDaemonOnlyInAnHcTerminal(t *testing.T) {
 	t.Setenv("HC_TERMINAL_ID", "t7")
 	if got := buildCodexArgs(codexLaunchOpts{}, 0, nil); !slices.Contains(got, "--no-daemon") {
 		t.Fatalf("in hc: %q", got)
+	}
+}
+
+// Shared collector (feat-e72726f2): Codex takes a full URL per signal, so the
+// session path sits between the port and /v1/<signal>.
+func TestBuildCodexOtelConfigArgs_KeepsSharedSessionPath(t *testing.T) {
+	got := strings.Join(buildCodexOtelConfigArgsAt(43189, "/s/abc123"), "\n")
+	for _, signal := range []string{"logs", "traces", "metrics"} {
+		want := `endpoint = "http://127.0.0.1:43189/s/abc123/v1/` + signal + `"`
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in %s", want, got)
+		}
+	}
+}
+
+func TestBuildCodexArgs_UsesOptsEndpointPath(t *testing.T) {
+	got := strings.Join(buildCodexArgs(codexLaunchOpts{OtelEndpointPath: "/s/xyz"}, 4318, nil), "\n")
+	if !strings.Contains(got, "http://127.0.0.1:4318/s/xyz/v1/traces") {
+		t.Errorf("args lack the shared session path: %s", got)
+	}
+}
+
+func TestSpawnCodexOtelCollector_SharedThenFallback(t *testing.T) {
+	project := t.TempDir()
+	t.Setenv("WIPNOTE_OTEL_SHARED", "")
+	origShared, origProc := spawnSharedCollectorFn, spawnCollectorFn
+	t.Cleanup(func() { spawnSharedCollectorFn, spawnCollectorFn = origShared, origProc })
+	spawnSharedCollectorFn = func(string, string, int) (int, *os.Process, error) {
+		return 0, nil, errors.New("shared down")
+	}
+	spawnCollectorFn = func(string, string, string, int) (int, *os.Process, error) {
+		return 0, nil, errors.New("proc down")
+	}
+	var buf bytes.Buffer
+	ov, exit := spawnHarnessCollectorTo(project, "bin", "codex", &buf)
+	if exit || ov.CollectorPort != 0 {
+		t.Fatalf("both spawns fail: want empty overrides, got %+v exit=%v", ov, exit)
+	}
+	for _, want := range []string{"shared collector unavailable", "codex collector spawn failed"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("stderr lacks %q: %q", want, buf.String())
+		}
 	}
 }

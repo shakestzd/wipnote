@@ -10,7 +10,6 @@ import (
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/shakestzd/wipnote/internal/delegate/codex"
 	"github.com/shakestzd/wipnote/internal/launcher"
-	"github.com/shakestzd/wipnote/observe/otel/collector"
 )
 
 type codexLaunchMode string
@@ -32,33 +31,21 @@ const (
 	codexLaunchModeInit     codexLaunchMode = "init"
 )
 
-// spawnCodexOtelCollector spawns a per-session OTel collector and returns the
-// port, session ID, and a cleanup function. On failure it writes a warning to
-// stderr and returns zero port / nil cleanup so the caller can proceed without
-// telemetry. Exits non-zero when WIPNOTE_OTEL_STRICT=1 and spawn fails.
-func spawnCodexOtelCollector(projectDir string) (port int, sessionID string, cleanup func()) {
+// spawnCodexOtelCollector attaches this launch to the project's shared
+// collector (WIPNOTE_OTEL_SHARED=0 or a failed attach falls back to a
+// per-session one). On failure it returns empty overrides so the caller can
+// proceed without telemetry; it exits non-zero when WIPNOTE_OTEL_STRICT=1.
+func spawnCodexOtelCollector(projectDir string) otelEnvOverrides {
 	binPath, err := os.Executable()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "wipnote: warning: codex per-session collector skipped: %v\n", err)
-		return 0, "", nil
+		fmt.Fprintf(os.Stderr, "wipnote: warning: codex collector skipped: %v\n", err)
+		return otelEnvOverrides{}
 	}
-
-	sessionID = generateOtelSessionID()
-	lc := collector.NewProcessCollector(collector.ProcessCollectorOpts{
-		Stderr:     os.Stderr,
-		StrictMode: os.Getenv("WIPNOTE_OTEL_STRICT") == "1",
-	})
-
-	spawnedPort, spawnCleanup, spawnErr := lc.Spawn(binPath, sessionID, projectDir)
-	if spawnErr != nil {
-		fmt.Fprintf(os.Stderr, "wipnote: FATAL: codex collector spawn failed: %v\n", spawnErr)
-		if os.Getenv("WIPNOTE_OTEL_STRICT") == "1" {
-			os.Exit(1)
-		}
-		return 0, "", nil
+	overrides, wantExit := spawnHarnessCollectorTo(projectDir, binPath, "codex", os.Stderr)
+	if wantExit {
+		os.Exit(1)
 	}
-
-	return spawnedPort, sessionID, spawnCleanup
+	return overrides
 }
 
 // buildCodexOtelEnv returns a copy of base with OTel exporter variables set
@@ -111,11 +98,16 @@ func codexBypassesSandbox(args []string) bool { return codex.BypassesSandbox(arg
 // namespace setup (codex.IsBubblewrapFailure).
 func isCodexBubblewrapFailure(out []byte, err error) bool { return codex.IsBubblewrapFailure(out, err) }
 
-func buildCodexOtelConfigArgs(port int) []string {
+func buildCodexOtelConfigArgs(port int) []string { return buildCodexOtelConfigArgsAt(port, "") }
+
+// buildCodexOtelConfigArgsAt is buildCodexOtelConfigArgs with endpointPath
+// ("/s/<session-id>" on the shared collector) between the port and /v1/<signal>.
+// Codex takes a full URL per signal, so the path is kept as written.
+func buildCodexOtelConfigArgsAt(port int, endpointPath string) []string {
 	if port == 0 {
 		return nil
 	}
-	base := fmt.Sprintf("http://127.0.0.1:%d", port)
+	base := fmt.Sprintf("http://127.0.0.1:%d%s", port, endpointPath)
 	return []string{
 		"-c", "otel.log_user_prompt=true",
 		"-c", fmt.Sprintf(`otel.exporter={ otlp-http = { endpoint = "%s/v1/logs", protocol = "binary" } }`, base),

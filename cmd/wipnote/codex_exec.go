@@ -16,6 +16,9 @@ type codexLaunchOpts struct {
 	// ResumeID, if non-empty, passes "resume <id>" to codex.
 	// Takes precedence over ResumeLast.
 	ResumeID string
+	// OtelEndpointPath is the shared collector's "/s/<session-id>" route,
+	// set after the collector attach; "" for a per-session collector.
+	OtelEndpointPath string
 	// ExtraArgs are forwarded to the codex process.
 	ExtraArgs []string
 	// ProjectRoot is the absolute path to the project root (or worktree path).
@@ -79,10 +82,12 @@ func execCodex(opts codexLaunchOpts) error {
 	// bootstrap). No-op when already approved or non-interactive; never blocks.
 	ensureGuardProfile(effectiveProjDir)
 
-	otelPort, otelSessionID, otelCleanup := spawnCodexOtelIfEnabled(effectiveProjDir)
-	if otelCleanup != nil {
-		defer otelCleanup()
+	otel := spawnCodexOtelIfEnabled(effectiveProjDir)
+	if otel.Cleanup != nil {
+		defer otel.Cleanup()
 	}
+	otelPort, otelSessionID, otelCleanup := otel.CollectorPort, otel.SessionID, otel.Cleanup
+	opts.OtelEndpointPath = otel.EndpointPath
 
 	instructionArgs := prepareCodexLaunchDir(opts)
 	sandboxDegraded := applyCodexSandboxMode(codexPath, &opts)
@@ -113,14 +118,14 @@ func (opts codexLaunchOpts) effectiveProjectDir() string {
 	return effectiveProjDir
 }
 
-// spawnCodexOtelIfEnabled spawns a per-session OTel collector when a project
+// spawnCodexOtelIfEnabled attaches to the shared OTel collector when a project
 // dir is known and OTel is not explicitly disabled. Non-fatal: falls back
 // gracefully on failure. The caller defers a non-nil cleanup.
-func spawnCodexOtelIfEnabled(effectiveProjDir string) (otelPort int, otelSessionID string, otelCleanup func()) {
+func spawnCodexOtelIfEnabled(effectiveProjDir string) otelEnvOverrides {
 	if effectiveProjDir != "" && !isExplicitlyDisabled(os.Getenv("WIPNOTE_OTEL_ENABLED")) {
 		return spawnCodexOtelCollector(effectiveProjDir)
 	}
-	return 0, "", nil
+	return otelEnvOverrides{}
 }
 
 // newCodexCommand builds the codex exec.Cmd wired to this process's stdio.
@@ -248,7 +253,7 @@ var execCodexFn = execCodex
 
 func buildCodexArgs(opts codexLaunchOpts, otelPort int, instructionArgs []string) []string {
 	var args []string
-	args = append(args, buildCodexOtelConfigArgs(otelPort)...)
+	args = append(args, buildCodexOtelConfigArgsAt(otelPort, opts.OtelEndpointPath)...)
 	args = append(args, instructionArgs...)
 	// herdr-core's manual: Codex must run with --no-daemon in an hc terminal,
 	// or its commands execute in the shared server, outside that terminal.
