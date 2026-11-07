@@ -49,16 +49,33 @@ func TestSummarizeFile_KeepsFirstErrorAndLastLine(t *testing.T) {
 }
 
 // A large clean log must summarise fast: the hooks summarise every output
-// file a notification names, on the prompt path.
+// file a notification names, on the prompt path. The bound is relative, not
+// wall-clock: the file exceeds the head window, so SummarizeFile must beat a
+// full read-and-scan of the same file (the regression it guards) by a wide
+// margin. Both sides are timed in this test and compared by best-of-N, so
+// machine load scales them together.
 func TestSummarizeFile_FastOnLargeCleanLog(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "big.output")
-	os.WriteFile(path, []byte(strings.Repeat("ok  github.com/x/y/pkg 0.123s\n", 40000)), 0o644)
-	start := time.Now()
-	for i := 0; i < 10; i++ {
-		SummarizeFile(path)
+	os.WriteFile(path, []byte(strings.Repeat("ok  github.com/x/y/pkg 0.123s\n", 200000)), 0o644)
+	best := func(fn func()) time.Duration {
+		min := time.Duration(1<<63 - 1)
+		for i := 0; i < 15; i++ {
+			start := time.Now()
+			fn()
+			if d := time.Since(start); d < min {
+				min = d
+			}
+		}
+		return min
 	}
-	if per := time.Since(start) / 10; per > 15*time.Millisecond {
-		t.Errorf("SummarizeFile on a 1MB clean log took %v, want under 15ms", per)
+	fullScan := best(func() {
+		data, _ := os.ReadFile(path)
+		lastLine(data)
+		firstError(data)
+	})
+	bounded := best(func() { SummarizeFile(path) })
+	if bounded*3 > fullScan {
+		t.Errorf("SummarizeFile took %v on a 6MB clean log; a full scan takes %v, want under a third", bounded, fullScan)
 	}
 }
 

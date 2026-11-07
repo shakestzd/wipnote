@@ -34,7 +34,13 @@ type antigravityLaunchOpts struct {
 	ExtraEnv []string
 }
 
-// spawnAntigravityOtelCollector spawns a per-session OTel collector.
+// spawnAntigravityOtelCollector spawns a per-session OTel collector. It stays
+// per-session on purpose (feat-e72726f2): the shared collector routes by a
+// "/s/<session-id>" base path, and nothing in this repo or in the agy binary
+// shows that agy keeps a path on OTEL_EXPORTER_OTLP_ENDPOINT (agy is closed
+// source; it carries no endpoint setting string to inspect). Gemini CLI keeps
+// the path for http, but agy is not Gemini CLI. Move it once a probe confirms
+// agy exports to <endpoint>/v1/traces.
 func spawnAntigravityOtelCollector(projectDir string) (port int, sessionID string, cleanup func()) {
 	binPath, err := os.Executable()
 	if err != nil {

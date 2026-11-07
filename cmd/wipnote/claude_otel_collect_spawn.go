@@ -118,3 +118,15 @@ func spawnSessionCollector(projectDir string) otelEnvOverrides {
 	}
 	return overrides
 }
+
+// spawnHarnessCollectorTo is the collector bootstrap for non-Claude launchers
+// (Codex): the shared collector first, a per-session one as the fallback, and
+// a FATAL line naming the harness when neither starts. wantExit is true under
+// WIPNOTE_OTEL_STRICT=1.
+func spawnHarnessCollectorTo(projectDir, binPath, harnessName string, errW io.Writer) (otelEnvOverrides, bool) {
+	overrides, wantExit := spawnSessionCollectorTo(projectDir, binPath, errW)
+	if overrides.CollectorPort == 0 {
+		fmt.Fprintf(errW, "wipnote: FATAL: %s collector spawn failed\n", harnessName)
+	}
+	return overrides, wantExit
+}
