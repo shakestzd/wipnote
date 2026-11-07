@@ -54,6 +54,10 @@ Launch-readiness contention gate (plan-ae0c37b2, feat-156e0a1a):
   (TestWritableDBOpenBoundary) which fails CI if any direct writable
   open is added in hook/indexer/receiver/event-capture paths.
 
+With --gate, changed code over a size review trigger (module 500 lines,
+function 50) fails unless a "wipnote:size-ok: <reason>" comment records why it
+stays whole. Legacy code already over a trigger at base is only noted.
+
 Returns exit code 0 if all gates pass, 1 if any fail.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectRoot, err := resolveProjectRoot()
@@ -83,6 +87,10 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 					if err := checkResearchGateForWorkItem(os.Stderr, projectRoot, workItemID, gateResearchWaiver); err != nil {
 						return err
 					}
+				}
+				// Size review triggers on changed code only (GitHub #312).
+				if err := checkChangedCodeSize(os.Stdout, gate.CodeRoot(projectRoot)); err != nil {
+					return err
 				}
 				result, err := runSessionGate(projectRoot, sessionID, workItemID, "check", guardprofile.PhaseQuality, os.Stdout, os.Stderr)
 				if err != nil {

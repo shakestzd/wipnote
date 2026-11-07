@@ -9,6 +9,18 @@
       "title": "Time zone",
       "description": "IANA time zone for the clock segment and the usage-limit reset times, such as America/New_York or Europe/London. An unknown zone falls back to America/New_York.",
       "default": "America/New_York"
+    },
+    "workItems": {
+      "type": "string",
+      "title": "Work items",
+      "description": "What the band shows of the work items: active (the active item and an \"N in progress, M open\" line, the default), list (up to the row cap below, plus that line), or off (no work-item block).",
+      "default": "active"
+    },
+    "workItemRows": {
+      "type": "number",
+      "title": "Work item rows",
+      "description": "With Work items set to list, the most work items shown. At least 1.",
+      "default": 3
     }
   }
 }

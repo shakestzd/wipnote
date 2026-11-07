@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -25,6 +26,12 @@ type reviewSummary struct {
 	Insertions   int        `json:"insertions"`
 	Deletions    int        `json:"deletions"`
 	Files        []fileDiff `json:"files"`
+	base         string     // resolved merge-base commit for the evidence
+	// Size review triggers, duplication evidence and the design questions
+	// (GitHub #312). Informational here; `check --gate` enforces the size part.
+	SizeTriggers    []sizeFinding `json:"size_triggers,omitempty"`
+	Duplicates      []dupPair     `json:"duplicates,omitempty"`
+	DesignQuestions []string      `json:"design_questions"`
 }
 
 func reviewCmd() *cobra.Command {
@@ -36,7 +43,10 @@ func reviewCmd() *cobra.Command {
 		Short: "Structured diff summary against a base branch",
 		Long: `Show a structured diff summary of changes against a base branch.
 
-Groups changes by file with per-file +/- line counts and a total summary.
+Groups changes by file with per-file +/- line counts and a total summary,
+then lists changed code over the size review triggers, added blocks that
+repeat code elsewhere, and the design questions to answer for each changed
+module. Size and duplication cover uncommitted work too.
 Always exits 0 (informational).
 
 Example:
@@ -60,11 +70,34 @@ func runReview(base string, jsonOut bool) error {
 		return err
 	}
 
+	addReviewDesignEvidence(summary, base)
 	if jsonOut {
 		return printReviewJSON(summary)
 	}
 	printReviewText(summary)
+	writeSizeReport(os.Stdout, sizeReport{Base: summary.base, Findings: summary.SizeTriggers})
+	writeDupEvidence(os.Stdout, summary.Duplicates)
+	writeDesignQuestions(os.Stdout)
 	return nil
+}
+
+// addReviewDesignEvidence fills the size and duplication evidence measured
+// from the merge base with base. Outside a git work tree it adds only the
+// questions.
+func addReviewDesignEvidence(s *reviewSummary, base string) {
+	s.DesignQuestions = designReviewQuestions
+	root, err := gitOutput("rev-parse", "--show-toplevel")
+	if err != nil {
+		return
+	}
+	root = strings.TrimSpace(root)
+	if s.base = resolveSizeBase(root, base); s.base == "" {
+		return
+	}
+	if report, err := scanChangedSize(root, s.base); err == nil {
+		s.SizeTriggers = report.Findings
+	}
+	s.Duplicates = scanDupEvidence(root, s.base)
 }
 
 // buildReviewSummary runs git diff --stat and assembles the structured result.

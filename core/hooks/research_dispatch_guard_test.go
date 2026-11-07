@@ -69,7 +69,7 @@ func TestResearchDispatchGuard_BlockDenies(t *testing.T) {
 	event.CWD = root
 	t.Setenv("CLAUDE_PROJECT_DIR", root)
 	t.Setenv("WIPNOTE_PROJECT_DIR", root)
-	outsideHerdr(t)
+	clearHerdrEnv(t)
 	res, err := PreToolUse(event)
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +112,7 @@ func TestResearchDispatchGuard_WarnReachesAdditionalContext(t *testing.T) {
 	event.CWD = root
 	t.Setenv("CLAUDE_PROJECT_DIR", root)
 	t.Setenv("WIPNOTE_PROJECT_DIR", root)
-	outsideHerdr(t)
+	clearHerdrEnv(t)
 	res, err := PreToolUse(event)
 	if err != nil {
 		t.Fatal(err)
@@ -185,9 +185,9 @@ func TestResearchDispatchGuard_CodexSpawnAgent(t *testing.T) {
 	}
 }
 
-// outsideHerdr clears the variables insideHerdr reads, so a suite run from a
-// Herdr pane tests the research guard rather than the Herdr coder redirect.
-func outsideHerdr(t *testing.T) {
+// clearHerdrEnv stops a run inside a Herdr terminal from routing the dispatch
+// through the coder-routing guard (insideHerdr) before the research gate.
+func clearHerdrEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("HERDR_ENV", "")
 	t.Setenv("HC_TERMINAL_ID", "")

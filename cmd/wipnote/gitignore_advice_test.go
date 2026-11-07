@@ -135,16 +135,40 @@ func TestFailIfPendingDeferredArtifactCommits_IgnoredPathExplainsGitignore(t *te
 		t.Fatalf("Append: %v", err)
 	}
 
-	err := failIfPendingDeferredArtifactCommits(projectRoot, "feat-gate", &strings.Builder{})
-	if err == nil {
-		t.Fatal("ignored artifact intent must still block the gate")
+	// GH#320: the inline flush dead-letters the ignored intent, and a
+	// dead-lettered intent whose path git ignores is resolved, so the gate
+	// passes and nothing is left pending.
+	if err := failIfPendingDeferredArtifactCommits(projectRoot, "feat-gate", &strings.Builder{}); err != nil {
+		t.Fatalf("ignored artifact intent must not block the gate: %v", err)
 	}
-	if strings.Contains(err.Error(), "wipnote commit-queue flush") {
-		t.Fatalf("gate must not recommend flush for an ignored path, got: %v", err)
+	if pending, _ := ob.Pending(); len(pending) != 0 {
+		t.Fatalf("ignored intent must leave pending, got %+v", pending)
 	}
-	if !strings.Contains(err.Error(), "ignored by git rule") || !strings.Contains(err.Error(), ".wipnote/sessions/") {
-		t.Fatalf("gate should explain the gitignore misconfiguration, got: %v", err)
+	if dl, _ := ob.DeadLettered(); len(dl) != 1 {
+		t.Fatalf("ignored intent should be dead-lettered, got %+v", dl)
 	}
+}
+
+// TestFailIfPendingDeferredArtifactCommits_PolicyNoneNeverBlocks pins GH#320.
+func TestFailIfPendingDeferredArtifactCommits_PolicyNoneNeverBlocks(t *testing.T) {
+	projectRoot := setupGateTestProject(t)
+	t.Setenv("WIPNOTE_ARTIFACT_COMMIT_POLICY", "none")
+	tmpOutbox := t.TempDir()
+	orig := commitOutboxPath
+	commitOutboxPath = func(string) (string, error) { return filepath.Join(tmpOutbox, "commit-outbox.ndjson"), nil }
+	t.Cleanup(func() { commitOutboxPath = orig })
+
+	ob, _ := openCommitOutbox(projectRoot)
+	if err := ob.Append(commitqueue.Intent{
+		RepoRoot: projectRoot, RelPaths: []string{".wipnote/features/feat-gate.html"},
+		Message: "wipnote: complete feat-gate", WorkItemID: "feat-gate", Action: "complete",
+	}); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+	if err := failIfPendingDeferredArtifactCommits(projectRoot, "feat-gate", &strings.Builder{}); err != nil {
+		t.Fatalf("policy none must not block on any intent: %v", err)
+	}
+
 }
 
 func TestWarnIfRepoGitignoreIgnoresWipnote(t *testing.T) {
@@ -183,7 +207,7 @@ func TestWarnIfRepoGitignoreIgnoresWipnote(t *testing.T) {
 
 // TestCommitQueueFlush_PrintsIgnoredIntentPerLine drives the real flush
 // command against a repo that ignores .wipnote/ and asserts the intent is
-// reported (not retried, not dead-lettered) and its Attempts stay at zero.
+// dead-lettered on the first attempt and reported.
 func TestCommitQueueFlush_PrintsIgnoredIntentPerLine(t *testing.T) {
 	repoRoot, artifactRel := setupIgnoredWipnoteRepo(t)
 	isolateProjectDir(t, repoRoot)
@@ -210,15 +234,14 @@ func TestCommitQueueFlush_PrintsIgnoredIntentPerLine(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("flush: %v\n%s", err, out.String())
 	}
-	if !strings.Contains(out.String(), "ignored=1") || !strings.Contains(out.String(), "ignored (not retried, not dead-lettered): feat-ignored") {
+	if !strings.Contains(out.String(), "ignored=1") || !strings.Contains(out.String(), "ignored by git, moved to dead-letter") {
 		t.Fatalf("flush should report the ignored intent per line, got:\n%s", out.String())
 	}
-	if strings.Contains(out.String(), "dead-lettered=1") {
-		t.Fatalf("ignored intent must not dead-letter even at --max-attempts 1:\n%s", out.String())
+	if !strings.Contains(out.String(), "dead-lettered=1") {
+		t.Fatalf("ignored intent must be dead-lettered:\n%s", out.String())
 	}
-	pending, _ := ob.Pending()
-	if len(pending) != 1 || pending[0].Attempts != 0 {
-		t.Fatalf("ignored intent should remain queued with Attempts=0, got %+v", pending)
+	if pending, _ := ob.Pending(); len(pending) != 0 {
+		t.Fatalf("ignored intent must leave the pending queue, got %+v", pending)
 	}
 	// Sanity: git really does refuse the path, so the classification is honest.
 	if out, err := exec.Command("git", "-C", repoRoot, "add", "--", artifactRel).CombinedOutput(); err == nil {
