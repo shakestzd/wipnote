@@ -629,6 +629,10 @@ func TestDirtyGate_DirtyStoreDoesNotCount(t *testing.T) {
 }
 
 func TestMergedGate_ReadsCodeRepoUnderExternalStore(t *testing.T) {
+	// The fixture leaves the commit on an unpushed local main, which the
+	// default completion_base=auto accepts; pin upstream so the test keeps
+	// asserting which repo the gate reads.
+	t.Setenv(completionBaseEnv, "upstream")
 	p := newExternalProject(t)
 	root := p.store(t)
 	wd := filepath.Join(root, ".wipnote")

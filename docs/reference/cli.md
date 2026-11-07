@@ -30,6 +30,9 @@ Commands for managing the core work item types. All four types share the same li
 !!! note "Required flags"
     `feature create` and `bug create` require `--track <trk-id>` and `--description "..."`.
 
+!!! note "`completion_base` (config key)"
+    `complete` needs a linked commit on the default branch. `.wipnote/config.json` key `completion_base` (env `WIPNOTE_COMPLETION_BASE` wins) sets which one: `upstream` (origin default only), `local` (local `main`/`master` or upstream; for projects that merge locally and never push), or `auto` (default: upstream, plus local `main`/`master` while it is ahead of upstream). Unknown values warn and use `auto`.
+
 ---
 
 ## Search & Status

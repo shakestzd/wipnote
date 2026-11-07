@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/slug"
@@ -54,22 +55,18 @@ func checkMergedUpstreamCompleteGate(col *workitem.Collection, ev *completionEvi
 	if paths, _ := ev.codeBearingPaths(); len(paths) == 0 {
 		return nil
 	}
+	refs := completionRefs(repoRoot, upstream, resolveCompletionBase(completionConfigDir(ev)))
 	for _, sha := range commits {
-		if commitReachableFromUpstream(repoRoot, sha, upstream) {
-			return nil
+		for _, ref := range refs {
+			if commitReachableFromUpstream(repoRoot, sha, ref) {
+				return nil
+			}
 		}
 	}
 
 	allowOrphan = strings.TrimSpace(allowOrphan)
 	if allowOrphan == "" {
-		return fmt.Errorf(
-			"refusing to complete %s %s: none of its %d linked commit(s) (e.g. %s) is reachable from %s — "+
-				"the work has not been merged upstream.\n"+
-				"Open a pull request for the branch and merge it (e.g. `gh pr create`), or fetch the merged upstream, then rerun:\n  wipnote %s complete %s\n"+
-				"To intentionally complete branch-local work (records an audited rationale on the artifact), rerun with:\n"+
-				"  wipnote %s complete %s --allow-orphan \"<reason>\"",
-			typeName, id, len(commits), slug.Truncate(commits[0], 12), upstream,
-			typeName, id, typeName, id)
+		return mergedGateRefusal(typeName, id, repoRoot, commits, refs)
 	}
 
 	// Audited override: persist BEFORE col.Complete so the note survives the
@@ -79,7 +76,7 @@ func checkMergedUpstreamCompleteGate(col *workitem.Collection, ev *completionEvi
 	}
 	fmt.Fprintf(os.Stderr,
 		"allow-orphan warning: completing %s %s with no linked commit reachable from %s.\n  reason: %s\n",
-		typeName, id, upstream, allowOrphan)
+		typeName, id, strings.Join(refs, ", "), allowOrphan)
 	return nil
 }
 
@@ -87,4 +84,29 @@ func checkMergedUpstreamCompleteGate(col *workitem.Collection, ev *completionEvi
 // to) upstream. A sha absent from this checkout is simply not reachable.
 func commitReachableFromUpstream(repoRoot, sha, upstream string) bool {
 	return exec.Command("git", "-C", repoRoot, "merge-base", "--is-ancestor", sha, upstream).Run() == nil
+}
+
+// completionConfigDir is the project directory holding .wipnote/config.json.
+func completionConfigDir(ev *completionEvidence) string {
+	if ev.wipnoteDir != "" {
+		return filepath.Dir(ev.wipnoteDir)
+	}
+	return ev.repoRoot
+}
+
+// mergedGateRefusal builds the refusal naming every ref checked. A local
+// default branch that was not accepted gets the completion_base hint.
+func mergedGateRefusal(typeName, id, repoRoot string, commits, refs []string) error {
+	hint := ""
+	if len(refs) == 1 && localDefaultBranch(repoRoot) != "" {
+		hint = "Local-only project that merges into its local default branch without pushing? Set `completion_base: \"local\"` in .wipnote/config.json (or WIPNOTE_COMPLETION_BASE=local).\n"
+	}
+	return fmt.Errorf(
+		"refusing to complete %s %s: none of its %d linked commit(s) (e.g. %s) is reachable from %s — "+
+			"the work has not been merged upstream.\n%s"+
+			"Open a pull request for the branch and merge it (e.g. `gh pr create`), or fetch the merged upstream, then rerun:\n  wipnote %s complete %s\n"+
+			"To intentionally complete branch-local work (records an audited rationale on the artifact), rerun with:\n"+
+			"  wipnote %s complete %s --allow-orphan \"<reason>\"",
+		typeName, id, len(commits), slug.Truncate(commits[0], 12), strings.Join(refs, ", "),
+		hint, typeName, id, typeName, id)
 }
