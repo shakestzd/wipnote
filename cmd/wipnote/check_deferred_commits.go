@@ -19,6 +19,11 @@ import (
 // reportDeferredArtifactQueueHealth so the operator still sees the backlog
 // without every later item inheriting a stranger's failure state.
 func failIfPendingDeferredArtifactCommits(projectRoot, workItemID string, w io.Writer) error {
+	// GH#320: policy none means the operator commits .wipnote/ by hand (or
+	// keeps it out of git), so no queued intent — old or current — can block.
+	if workitemArtifactCommitPolicyForEnv() == workitemArtifactCommitPolicyNone {
+		return nil
+	}
 	ob, err := openCommitOutbox(projectRoot)
 	if err != nil {
 		return err

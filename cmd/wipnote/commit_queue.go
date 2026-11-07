@@ -207,7 +207,7 @@ func printIgnoredIntents(w io.Writer, ignored []commitqueue.IntentFailure) {
 		if label == "" {
 			label = strings.Join(f.Intent.RelPaths, ", ")
 		}
-		fmt.Fprintf(w, "  ignored (not retried, not dead-lettered): %s: %v\n", label, f.Err)
+		fmt.Fprintf(w, "  ignored by git, moved to dead-letter (clear with `wipnote commit-queue dead-letter clear`): %s: %v\n", label, f.Err)
 	}
 }
 

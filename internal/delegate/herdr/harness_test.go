@@ -110,3 +110,16 @@ func newClient(t *testing.T) *CLI {
 	t.Helper()
 	return New(EnvFrom(os.Getenv))
 }
+
+// clearHerdrEnv blanks every HC_* and HERDR_* variable for the test, so a
+// test that reads the caller's herdr context does not see the terminal that
+// runs `go test` (the Herdr app sets HC_TERMINAL_ID and friends).
+func clearHerdrEnv(t *testing.T) {
+	t.Helper()
+	for _, kv := range os.Environ() {
+		name, _, _ := strings.Cut(kv, "=")
+		if strings.HasPrefix(name, "HC_") || strings.HasPrefix(name, "HERDR_") {
+			t.Setenv(name, "")
+		}
+	}
+}
