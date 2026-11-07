@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Apply the evidence-based size, DRY and separation rule in the quality gate and review flow (#312)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-c29c0829"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-05T18:38:18.739189"
+             data-updated="2026-11-07T05:24:47.709207" data-agent-assigned="claude-code" data-track-id="trk-fae39e29" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="capability" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Apply the evidence-based size, DRY and separation rule in the quality gate and review flow (#312)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="38b3be4389136ac750e42d08add58465500c3c76.html" data-relationship="committed_in" data-since="2026-11-06T06:27:19">feat(check): size and duplication rule on changed code in check --gate and review (#312, feat-c29c0829)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/8009c6c7-ea1a-440b-8f55-378f81bbe18d.html" data-relationship="implemented_in" data-since="2026-11-06T05:08:59.201712">session 8009c6c7-ea1a-440b-8f55-378f81bbe18d</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-fae39e29.html" data-relationship="part_of" data-since="2026-11-05T18:38:18.756739">trk-fae39e29</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="../features/feat-36d713e2.html" data-relationship="relates_to" data-since="2026-11-05T18:38:25.833735">Enforce the adopt-vs-build rule at the moment it matters</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #312. Treat size limits as review triggers that need a one-line reason, not forced splits. Find the source of the post-edit hook that prints target &lt;300, which disagrees with the rule&#39;s module limit of 500. Detect divergence between two representations of one rule, not duplicated lines. Have the review prompt ask what design decision a module hides. Require sources, options, rejected options and evidence gaps in the research record before adopting such a rule. Issue lists the evidence and its gaps; no study tested a function-length cap against defects with other factors controlled.
+Acceptance Criteria
+The gate reports size as a review trigger accepting a recorded reason, the source of the target &lt;300 message is identified and corrected, the review prompt asks the design-decision questions, and the research record requires the listed fields.</p>
+        </section>
+    </article>
+</body>
+</html>
