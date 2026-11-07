@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Delegate arms one watch over all of a caller&#39;s live workers by default (#322)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-f43f2308"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-05T18:38:18.170972"
+             data-updated="2026-11-07T05:24:44.747479" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="capability" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Delegate arms one watch over all of a caller&#39;s live workers by default (#322)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-11-05T18:38:18.187497">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="../features/feat-7338491c.html" data-relationship="relates_to" data-since="2026-11-05T18:38:25.200338">delegate watch: stream a worker&#39;s state changes, one line each, for Claude Code&#39;s Monitor tool</a></li>
+                    <li><a href="../bugs/bug-f7593d3e.html" data-relationship="relates_to" data-since="2026-11-05T18:38:25.416436">Delegate question stays pending after it is answered, and send refuses a working worker (#321)</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #322. delegate watch exists but streams one worker (feat-7338491c), and nothing tells the caller to arm it. In the reported run a caller watched one of six workers and found three questions minutes late. One watch should cover all the caller&#39;s live workers, new spawns should join it, and it should read pane state from herdr, which avoids the stale question state in #321. Spawn output and the delegate skill print the exact Monitor command for Claude Code and a background fallback for other harnesses.
+Acceptance Criteria
+After delegate spawn, the caller is told or set up to run one watch. It emits one line per state change for done, question, blocked, exited and idle with no result across all live workers, includes new spawns, and survives the 30 minute Monitor cap by re-arming.</p>
+        </section>
+    </article>
+</body>
+</html>
