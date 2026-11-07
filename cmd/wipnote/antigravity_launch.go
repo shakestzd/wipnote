@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/shakestzd/wipnote/core/harness"
 	"github.com/shakestzd/wipnote/internal/launcher"
-	"github.com/shakestzd/wipnote/observe/otel/collector"
 )
 
 // antigravityLaunchOpts controls how the Antigravity CLI is launched.
@@ -34,41 +34,38 @@ type antigravityLaunchOpts struct {
 	ExtraEnv []string
 }
 
-// spawnAntigravityOtelCollector spawns a per-session OTel collector. It stays
-// per-session on purpose (feat-e72726f2): the shared collector routes by a
-// "/s/<session-id>" base path, and nothing in this repo or in the agy binary
-// shows that agy keeps a path on OTEL_EXPORTER_OTLP_ENDPOINT (agy is closed
-// source; it carries no endpoint setting string to inspect). Gemini CLI keeps
-// the path for http, but agy is not Gemini CLI. Move it once a probe confirms
-// agy exports to <endpoint>/v1/traces.
-func spawnAntigravityOtelCollector(projectDir string) (port int, sessionID string, cleanup func()) {
+// spawnAntigravityOtelCollector attaches this launch to the project's shared
+// collector (WIPNOTE_OTEL_SHARED=0 or a failed attach falls back to a
+// per-session one). On failure it returns empty overrides; it exits non-zero
+// when WIPNOTE_OTEL_STRICT=1.
+//
+// Evidence for sharing (feat-82ebc99a): a live probe on 2026-11-07 showed agy
+// 1.x in -p mode sends no OTLP requests to OTEL_EXPORTER_OTLP_ENDPOINT or
+// GEMINI_TELEMETRY_OTLP_ENDPOINT, with or without a path, and Gemini CLI's SDK
+// keeps the base path for http. Sharing therefore removes an idle process per
+// launch and is safe if agy starts exporting.
+func spawnAntigravityOtelCollector(projectDir string) otelEnvOverrides {
 	binPath, err := os.Executable()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "wipnote: warning: antigravity per-session collector skipped: %v\n", err)
-		return 0, "", nil
+		fmt.Fprintf(os.Stderr, "wipnote: warning: antigravity collector skipped: %v\n", err)
+		return otelEnvOverrides{}
 	}
-
-	sessionID = generateOtelSessionID()
-	lc := collector.NewProcessCollector(collector.ProcessCollectorOpts{
-		Stderr:     os.Stderr,
-		StrictMode: os.Getenv("WIPNOTE_OTEL_STRICT") == "1",
-	})
-
-	spawnedPort, spawnCleanup, spawnErr := lc.Spawn(binPath, sessionID, projectDir)
-	if spawnErr != nil {
-		fmt.Fprintf(os.Stderr, "wipnote: FATAL: antigravity collector spawn failed: %v\n", spawnErr)
-		if os.Getenv("WIPNOTE_OTEL_STRICT") == "1" {
-			os.Exit(1)
-		}
-		return 0, "", nil
+	overrides, wantExit := spawnHarnessCollectorTo(projectDir, binPath, "antigravity", os.Stderr)
+	if wantExit {
+		os.Exit(1)
 	}
-
-	return spawnedPort, sessionID, spawnCleanup
+	return overrides
 }
 
 // buildAntigravityOtelEnv returns a copy of base with Antigravity telemetry variables set.
-func buildAntigravityOtelEnv(base []string, port int, sessionID string) []string {
-	return launcher.BuildHarnessOtelEnv(base, "antigravity_cli", port, sessionID)
+// endpointPath is the shared collector's "/s/<session-id>" route, or "".
+func buildAntigravityOtelEnv(base []string, port int, sessionID, endpointPath string) []string {
+	if port == 0 {
+		return base
+	}
+	env := make([]string, len(base))
+	copy(env, base)
+	return launcher.AppendOrReplaceEnv(env, harness.AntigravityOtelEnvAt(port, sessionID, endpointPath)...)
 }
 
 func buildAntigravityAgentEnv(base []string) []string {
@@ -154,15 +151,14 @@ func execAntigravity(opts antigravityLaunchOpts) error {
 	// Launch-time guard-profile initialization.
 	ensureGuardProfile(effectiveProjDir)
 
-	var otelPort int
-	var otelSessionID string
-	var otelCleanup func()
+	var otel otelEnvOverrides
 	if effectiveProjDir != "" && !isExplicitlyDisabled(os.Getenv("WIPNOTE_OTEL_ENABLED")) {
-		otelPort, otelSessionID, otelCleanup = spawnAntigravityOtelCollector(effectiveProjDir)
-		if otelCleanup != nil {
-			defer otelCleanup()
+		otel = spawnAntigravityOtelCollector(effectiveProjDir)
+		if otel.Cleanup != nil {
+			defer otel.Cleanup()
 		}
 	}
+	otelPort, otelSessionID := otel.CollectorPort, otel.SessionID
 
 	c := exec.Command(agyPath, agyArgs...)
 	c.Stdin = os.Stdin
@@ -185,7 +181,7 @@ func execAntigravity(opts antigravityLaunchOpts) error {
 	}
 	env = buildAntigravityAgentEnv(env)
 	env = append(env, "WIPNOTE_AGENT=antigravity")
-	env = buildAntigravityOtelEnv(env, otelPort, otelSessionID)
+	env = buildAntigravityOtelEnv(env, otelPort, otelSessionID, otel.EndpointPath)
 	env = launcher.AppendOrReplaceEnv(env, opts.ExtraEnv...)
 	env = launcher.AppendOrReplaceEnv(env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
 
@@ -215,5 +211,5 @@ func execAntigravity(opts antigravityLaunchOpts) error {
 	env = withHarnessEnv(env, harnessAntigravity)
 	c.Env = env
 
-	return runHarnessWithCleanup(c, otelCleanup)
+	return runHarnessWithCleanup(c, otel.Cleanup)
 }

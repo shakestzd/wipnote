@@ -10,7 +10,13 @@ const _antigravityOtelID = "antigravity_cli"
 // antigravityOtelEnv returns the OTel-related environment variables to inject when
 // launching the Antigravity CLI.
 func antigravityOtelEnv(port int, sessionID string) []string {
-	endpoint := fmt.Sprintf("http://127.0.0.1:%d", port)
+	return AntigravityOtelEnvAt(port, sessionID, "")
+}
+
+// AntigravityOtelEnvAt is antigravityOtelEnv with a route path appended to the
+// endpoint: "/s/<session-id>" for the shared collector, "" for a per-session one.
+func AntigravityOtelEnvAt(port int, sessionID, path string) []string {
+	endpoint := fmt.Sprintf("http://127.0.0.1:%d%s", port, path)
 	return []string{
 		// Standard OpenTelemetry environment variables
 		"OTEL_EXPORTER_OTLP_ENDPOINT=" + endpoint,

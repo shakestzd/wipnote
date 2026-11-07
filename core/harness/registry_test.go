@@ -340,3 +340,15 @@ func TestRegistry_LaunchEnv_GeminiEmpty(t *testing.T) {
 		t.Errorf("Get(\"gemini_cli\").LaunchEnv = %v, want empty/nil", cfg.LaunchEnv)
 	}
 }
+
+func TestAntigravityOtelEnvAt_AppendsRoutePath(t *testing.T) {
+	got := strings.Join(harness.AntigravityOtelEnvAt(7777, "sid", "/s/sid"), "\n") + "\n"
+	for _, k := range []string{"OTEL_EXPORTER_OTLP_ENDPOINT", "GEMINI_TELEMETRY_OTLP_ENDPOINT"} {
+		if want := k + "=http://127.0.0.1:7777/s/sid\n"; !strings.Contains(got, want) {
+			t.Errorf("missing %q in %s", want, got)
+		}
+	}
+	if def := strings.Join(harness.Get("antigravity_cli").OtelEnv(7777, "sid"), "\n") + "\n"; !strings.Contains(def, "OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:7777\n") {
+		t.Errorf("default env must stay path-free: %s", def)
+	}
+}
