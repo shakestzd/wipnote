@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>TestSummarizeFile_FastOnLargeCleanLog flakes under load (15ms wall-clock bound)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-17a54d5e"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-07T16:23:55.275692"
+             data-updated="2026-11-07T19:55:03.207392" data-agent-assigned="claude-code" data-track-id="trk-757c1c9f" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>TestSummarizeFile_FastOnLargeCleanLog flakes under load (15ms wall-clock bound)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="b4a3c762891e8743bc09454853bc11663cbc8e38.html" data-relationship="committed_in" data-since="2026-11-07T12:27:19">fix: load-robust SummarizeFile speed test; Codex launches use the shared otel-collect (bug-17a54d5e, feat-e72726f2)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/ccbeec5f-f477-41fb-906d-e44093ce5a33.html" data-relationship="implemented_in" data-since="2026-11-07T16:24:39.439488">session ccbeec5f-f477-41fb-906d-e44093ce5a33</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-757c1c9f.html" data-relationship="part_of" data-since="2026-11-07T16:23:55.29387">trk-757c1c9f</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>core/runledger output_test.go:61 asserts SummarizeFile on a 1MB clean log runs under 15ms; it took 42-59ms on a loaded machine (load 15-19) in the PR #326 and #327 gates and passes alone. Make the bound load-robust: measure relative to a calibration baseline, use testing.AllocsPerRun or a benchmark, or skip under -short, without losing the regression it guards.
+[2026-11-07 19:55 claude-code] allow-orphan (unmerged-upstream override): Merged upstream via PR #328.</p>
+        </section>
+    </article>
+</body>
+</html>
