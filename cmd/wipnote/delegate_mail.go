@@ -150,7 +150,8 @@ func delegateQuestionsCmd() *cobra.Command {
 		Long: `Prints the pending AskUserQuestion and PermissionRequest calls the worker's
 hooks recorded, and its current task's unanswered outbox question files
 (<task>-q<n>.json, listed even when the hooks are silent), as JSON rows
-{id, kind, task, tool, text, options}. Answered ones are dropped.`,
+{id, kind, task, tool, text, options}. Answered ones are dropped. Answer one
+with delegate answer NAME ID TEXT.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return delegateSessionVerb(func(d session.Deps) error {

@@ -25,6 +25,7 @@ func delegateCmd() *cobra.Command {
 	cmd.AddCommand(delegateWatchCmd())
 	cmd.AddCommand(delegateResultCmd())
 	cmd.AddCommand(delegateQuestionsCmd())
+	cmd.AddCommand(delegateAnswerCmd())
 	cmd.AddCommand(delegateInboxCmd())
 	cmd.AddCommand(delegateReplyCmd())
 	cmd.AddCommand(delegateDoctorCmd())

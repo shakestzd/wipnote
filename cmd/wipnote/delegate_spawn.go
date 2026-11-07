@@ -250,8 +250,12 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	if s.Harness == session.HarnessCodex && spawnedInContainer(d, s.Run) {
 		fmt.Fprintln(cmd.ErrOrStderr(), "wipnote: warning: the Codex worker runs with --sandbox danger-full-access inside the devcontainer (bwrap does not work there; this host opted in through delegate.codex.dangerFullAccessHosts)")
 	}
+	fmt.Fprintln(cmd.ErrOrStderr(), spawnWatchHint)
 	return writeJSON(cmd.OutOrStdout(), s)
 }
+
+// spawnWatchHint tells the caller to arm the one watch over all its workers.
+const spawnWatchHint = "wipnote: arm one watch over all your workers now (workers spawned later join it): Claude Code, run `wipnote delegate watch` under the Monitor tool; other harnesses, run it with run_in_background. Re-arm it when it prints the timeout line."
 
 // spawnedInContainer reports that run's ledger row is a container worker.
 func spawnedInContainer(d session.Deps, run string) bool {

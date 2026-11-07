@@ -35,6 +35,9 @@ export type PromptInfo = {
   limits?: Limit[]
 }
 
+/** Project-wide work item counts from `wipnote status`: in progress, and open (todo). */
+export type WorkCounts = { active: number; open: number }
+
 export type WorkCard = {
   id: string
   title: string
@@ -80,6 +83,7 @@ declare module 'claude-code' {
       agents: AgentRow[]
       items: string[]
       cards: WorkCard[]
+      counts: WorkCounts | null
       mainTool: string | null
       now: number
       mode: Mode

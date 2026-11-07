@@ -121,6 +121,14 @@ Quality gate:
 - From cold, `go test ./...` is silent for about 5-6 minutes because output is buffered per package. Silence is not a stall. Budget 10 minutes before suspecting a hang.
 - `scripts/go-test-streaming.sh` streams `go test -json` output live and names the last test to start if the test binary dies mid-package (bug-61973a05). Any `go test` flags pass through, for example `scripts/go-test-streaming.sh ./cmd/wipnote/... -run X`.
 
+## Size, DRY and design review
+
+Size limits are review triggers, not measures: a module over 500 lines or a function over 50. Crossing one means checking the code for more than one reason to change. It does not by itself mean split. A line count is never evidence that code is DRY or that concerns are separated.
+
+- `wipnote check --gate` applies the triggers to changed code only. It fails on a trigger this change crossed, unless a one-line reason is recorded: `// wipnote:size-ok: <reason>` (`#` in Python) in the comment above the function, or in the first 20 lines of the file. Code that was already over a trigger at the base commit is reported as a note and does not block.
+- Both `wipnote check --gate` and `wipnote review` list added blocks that repeat code elsewhere. This is evidence, not a failure. Extract only when the copies must change together. Leave copies that only look alike.
+- `wipnote review` prints the design questions to answer for each changed module. Answer them in the review instead of copying them here.
+
 ## Record the result
 
 When the gate passes, run `wipnote check --gate` to record it on the active work item.
