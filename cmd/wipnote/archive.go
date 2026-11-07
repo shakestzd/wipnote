@@ -45,9 +45,13 @@ Archived rows stay CANONICAL: reindex reads them back and they remain fully
 queryable (list/find/show), and their lineage edges are preserved. Active,
 todo, in-progress, and recently-completed items keep their individual files.
 
-Dry-run by default — pass --apply to execute. Refuses to run on a dirty git
-tree so the move (write ledger + remove files + commit) is auditable as one
-reviewable change. Idempotent: re-running archives only newly-eligible items.
+Dry-run by default — pass --apply to execute. When git tracks the store, --apply
+refuses to run if .wipnote/ has uncommitted changes (edits elsewhere in the
+tree do not count), so the move (write ledger + remove files + commit) is one
+reviewable change. A store git does not track — app-owned, ignored by the
+project's .gitignore, or WIPNOTE_ARTIFACT_COMMIT_POLICY=none — is archived on
+disk with no git check and no commit. Idempotent: re-running archives only
+newly-eligible items.
 
 Slice 1 archives FEATURES only.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -74,25 +78,12 @@ func runArchive(apply bool, olderThanDays int) error {
 	}
 	printProjectHeaderIfDifferent(wipnoteDir)
 
-	repoRoot := filepath.Dir(wipnoteDir)
-
-	// Refuse on a dirty tree (apply mode only): the archive performs a multi-file
-	// canonical mutation (rewrite ledger + delete individual files) that must land
-	// as one reviewable commit. Running it over existing uncommitted edits would
-	// entangle unrelated changes. Dry-run never mutates, so it is always allowed.
+	// Refuse on a dirty .wipnote/ (apply mode only, tracked store only): the
+	// archive is a multi-file mutation that must land as one reviewable commit.
+	// A store git does not track has no such commit, so nothing to protect.
 	if apply {
-		if !isGitRepo(repoRoot) {
-			return fmt.Errorf("archive --apply requires a git repository at %s", repoRoot)
-		}
-		// Reuse the shared .wipnote-scoped dirty check used by migrate
-		// normalize/restore — refusing only when .wipnote/ itself has
-		// uncommitted changes that the archive commit would entangle.
-		dirty, derr := migrate.IsWorkingTreeDirty(repoRoot, runGitForMigrate)
-		if derr != nil {
-			return fmt.Errorf("check git status: %w", derr)
-		}
-		if dirty {
-			return fmt.Errorf("refusing to archive: .wipnote/ has uncommitted changes — commit or stash them first")
+		if err := checkArchiveTreeClean(wipnoteDir); err != nil {
+			return err
 		}
 	}
 
@@ -167,23 +158,7 @@ func archiveCollection(wipnoteDir, collectionDir string, cutoff time.Time, apply
 		}
 	}
 
-	// Commit ledger + removals as one reviewable change. The .wipnote dir may be
-	// gitignored in conductor worktrees, so stage with an explicit absolute path
-	// (mirrors commitWipnoteArtifact's bypass of the exclusion).
-	// Belt-and-suspenders: force-add the ledger file to ensure it can never be
-	// silently dropped by a gitignore rule, even if the pattern reappears.
-	repoRoot := filepath.Dir(wipnoteDir)
-	if isGitRepo(repoRoot) && !isTestTmpPath(wipnoteDir) {
-		collectionPath := filepath.Join(wipnoteDir, collectionDir)
-		msg := fmt.Sprintf("wipnote: archive %d %s into ledger", len(candidates), collectionDir)
-		if _, cErr := runGitMutationBatch(repoRoot,
-			[]string{"add", "-f", ledgerPath},
-			[]string{"add", "--", collectionPath},
-			[]string{"commit", "-m", msg, "--", ledgerPath, collectionPath},
-		); cErr != nil {
-			fmt.Fprintf(stderr, "archive warning: git commit failed (changes persisted to disk — commit manually): %v\n", cErr)
-		}
-	}
+	commitArchive(wipnoteDir, collectionDir, ledgerPath, len(candidates))
 	return len(candidates), nil
 }
 
@@ -307,4 +282,52 @@ func resolveArchivedNode(wipnoteDir, id string) (*models.Node, error) {
 		}
 	}
 	return nil, nil
+}
+
+// checkArchiveTreeClean refuses when git tracks the store and .wipnote/ has
+// uncommitted changes. It prints one line when the store is archived on disk
+// only.
+func checkArchiveTreeClean(wipnoteDir string) error {
+	commit, reason := archiveGitPlan(wipnoteDir)
+	if !commit {
+		fmt.Printf("Note: archiving on disk only, no git check or commit: %s\n", reason)
+		return nil
+	}
+	repoRoot := filepath.Dir(wipnoteDir)
+	dirty, err := migrate.IsWorkingTreeDirty(repoRoot, runGitForMigrate)
+	if err != nil {
+		return fmt.Errorf("check git status: %w", err)
+	}
+	if dirty {
+		return fmt.Errorf("refusing to archive: %s has uncommitted changes — commit or stash them first", wipnoteDir)
+	}
+	return nil
+}
+
+// commitArchive commits the ledger and removals as one change when the store
+// is in git, and says so when it does not. Failure is a warning: the archive
+// is already on disk.
+func commitArchive(wipnoteDir, collectionDir, ledgerPath string, n int) {
+	if isTestTmpPath(wipnoteDir) {
+		return
+	}
+	commit, reason := archiveGitPlan(wipnoteDir)
+	if !commit {
+		fmt.Printf("  not committed (%s)\n", reason)
+		return
+	}
+	repoRoot := filepath.Dir(wipnoteDir)
+	collectionPath := filepath.Join(wipnoteDir, collectionDir)
+	msg := fmt.Sprintf("wipnote: archive %d %s into ledger", n, collectionDir)
+	// A tracked store hidden by a per-worktree exclude: the new ledger needs
+	// -f, and the removals are staged with -u (tracked paths only), which an
+	// exclude rule cannot refuse. archiveGitPlan already ruled out stores the
+	// project ignores on purpose.
+	if dbg, err := runGitMutationBatch(repoRoot,
+		[]string{"add", "-f", ledgerPath},
+		[]string{"add", "-u", "--", collectionPath},
+		[]string{"commit", "-m", msg, "--", ledgerPath, collectionPath},
+	); err != nil {
+		fmt.Fprintf(stderr, "archive warning: git commit failed (changes persisted to disk — commit manually): %v: %s\n", err, dbg)
+	}
 }
