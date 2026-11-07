@@ -206,3 +206,39 @@ func TestSignalCollectorDir_UsesAliveGuard(t *testing.T) {
 		t.Fatal("stale pid file not removed")
 	}
 }
+
+// A session on the project's shared collector (issue #183) must not take it
+// down at SessionEnd: the collector serves every other session too, and
+// exits on its own once no launcher is attached.
+func TestSignalCollectorDir_SharedCollectorIsNotSignalled(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("SIGTERM not available on Windows")
+	}
+	prev := CollectorAliveFn
+	t.Cleanup(func() { CollectorAliveFn = prev })
+	CollectorAliveFn = nil
+
+	cmd := exec.Command("sleep", "30") // the test's own child
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	exited := make(chan struct{})
+	go func() { _ = cmd.Wait(); close(exited) }()
+	t.Cleanup(func() { _ = cmd.Process.Kill() })
+
+	dir := t.TempDir()
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", "sess-shared")
+	if err := os.MkdirAll(sessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := fmt.Sprintf("%d\n3574637\nport=4318\nshared\n", cmd.Process.Pid)
+	if err := os.WriteFile(filepath.Join(sessDir, ".collector-pid"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	signalCollectorDirWait(dir, "sess-shared", 300*time.Millisecond, true)
+	select {
+	case <-exited:
+		t.Fatal("SessionEnd signalled the shared collector")
+	case <-time.After(500 * time.Millisecond):
+	}
+}

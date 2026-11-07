@@ -269,3 +269,13 @@ func envValue(env []string, key string) string {
 	}
 	return ""
 }
+
+// On the shared collector (issue #183) the session is told apart by the
+// endpoint path; the exporter appends /v1/<signal> to it.
+func TestBuildClaudeLaunchEnv_SharedCollectorEndpointPath(t *testing.T) {
+	clearOtelEnv(t)
+	ov := testOverrides(12345)
+	ov.EndpointPath = "/s/test-session"
+	env := buildClaudeLaunchEnv("", ov)
+	assertEnvContains(t, env, "OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:12345/s/test-session")
+}

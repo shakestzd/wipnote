@@ -29,6 +29,13 @@ type collectorHandler struct {
 }
 
 func (h *collectorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.serveSignal(w, r, r.URL.Path, h.sink)
+}
+
+// serveSignal handles one OTLP POST for signalPath ("/v1/traces", ...) and
+// persists it to snk. The shared collector calls it with the path left after
+// the "/s/<session-id>" prefix and that session's sink.
+func (h *collectorHandler) serveSignal(w http.ResponseWriter, r *http.Request, signalPath string, snk *ndjson.Sink) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -47,7 +54,7 @@ func (h *collectorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var decoded []otlp.Decoded
-	switch r.URL.Path {
+	switch signalPath {
 	case "/v1/traces":
 		decoded, err = h.decodeTraces(body, r.Header.Get("Content-Type"))
 	case "/v1/metrics":
@@ -63,7 +70,7 @@ func (h *collectorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.persist(r, decoded); err != nil {
+	if err := h.persist(r, snk, decoded); err != nil {
 		http.Error(w, "persist failed", http.StatusInternalServerError)
 		return
 	}
@@ -73,7 +80,7 @@ func (h *collectorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(nil)
 }
 
-func (h *collectorHandler) persist(r *http.Request, decoded []otlp.Decoded) error {
+func (h *collectorHandler) persist(r *http.Request, snk *ndjson.Sink, decoded []otlp.Decoded) error {
 	for _, d := range decoded {
 		a := h.registry.Resolve(d.Resource)
 		if a == nil {
@@ -83,7 +90,7 @@ func (h *collectorHandler) persist(r *http.Request, decoded []otlp.Decoded) erro
 		if len(signals) == 0 {
 			continue
 		}
-		if err := h.sink.WriteBatch(r.Context(), a.Name(), d.Resource.Attrs, signals); err != nil {
+		if err := snk.WriteBatch(r.Context(), a.Name(), d.Resource.Attrs, signals); err != nil {
 			return err
 		}
 	}

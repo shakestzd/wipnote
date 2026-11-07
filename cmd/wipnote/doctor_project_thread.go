@@ -41,15 +41,18 @@ wipnote delegate doctor (codex, bwrap, devcontainer).`
 // project thread", so the doctor never guesses where it runs (safest
 // default: no detection heuristics).
 func doctorCmd() *cobra.Command {
-	var projectThread bool
+	var projectThread, processes, restartAll bool
 	cmd := &cobra.Command{
-		Use:   "doctor --project-thread",
-		Short: "Check what wipnote needs inside a Claude project thread",
-		Long:  doctorProjectThreadLong,
+		Use:   "doctor (--project-thread | --processes [--restart-all])",
+		Short: "Check a Claude project thread, or this project's wipnote background processes",
+		Long:  doctorProjectThreadLong + "\n\n" + doctorProcessesLong,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if processes || restartAll {
+				return runDoctorProcesses(cmd.Context(), cmd.OutOrStdout(), restartAll)
+			}
 			if !projectThread {
-				return errors.New("pass --project-thread (see also: wipnote launcher doctor, wipnote delegate doctor)")
+				return errors.New("pass --project-thread or --processes [--restart-all] (see also: wipnote launcher doctor, wipnote delegate doctor)")
 			}
 			checks := projectThreadChecks(liveProjectThreadProbe())
 			if n := codex.WriteChecks(cmd.OutOrStdout(), checks); n > 0 {
@@ -59,6 +62,8 @@ func doctorCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&projectThread, "project-thread", false, "check the parts a Claude project thread needs (binary, plugin, hooks, rules)")
+	cmd.Flags().BoolVar(&processes, "processes", false, "list and probe this project's wipnote background processes (writer daemon, otel-collect); report only")
+	cmd.Flags().BoolVar(&restartAll, "restart-all", false, "with --processes: stop hung or orphaned background processes (SIGTERM, then SIGKILL) and restart the writer")
 	return cmd
 }
 
