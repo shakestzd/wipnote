@@ -6,8 +6,8 @@ Local-first observability and coordination platform for AI-assisted development.
 
 | Layer | Role |
 |-------|------|
-| `.wipnote/*.html` | Canonical store — single source of truth |
-| SQLite (WAL-safety-driven path: `~/.cache/wipnote/<hash>/` if WAL-safe, else `~/.local/share/wipnote/<hash>/` if WAL-safe, else ephemeral tmp; derived, not committed) | Per-user read index for queries |
+| `.wipnote/*.html` | Canonical store — single source of truth. App-owned by default: a shadow root at `~/.wipnote/projects/<encoded path>/` that is its own git repo. An existing or `wipnote init --in-repo` `.wipnote/` in the project wins (`wipnote status` prints both roots). `~/.wipnote` itself is the application's home, never a project store |
+| SQLite (in-memory, built inside one command and discarded when it exits; no file on disk) | Query engine over the store |
 | Go binary (`wipnote`) | CLI + hook handler |
 
 ## For AI Agents

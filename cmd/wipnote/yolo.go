@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"io"
 	"os"
 	"path/filepath"
@@ -260,8 +261,8 @@ func launchYoloPlanningMode(projectRoot string, extraArgs []string) error {
 }
 
 func launchYoloInit(permMode, trackID, featureID, resumeID, name string, extraArgs []string) error {
-	// Initialize .wipnote/ first.
-	if err := runInit(nil, nil); err != nil {
+	// Make sure the project has a store first.
+	if err := runInit(); err != nil {
 		return fmt.Errorf("init failed: %w", err)
 	}
 	fmt.Println()
@@ -271,7 +272,7 @@ func launchYoloInit(permMode, trackID, featureID, resumeID, name string, extraAr
 func launchYoloContinue(permMode string, extraArgs []string, resumeID string) error {
 	projectRoot := ""
 	if wipnoteDir, err := findWipnoteDir(); err == nil {
-		projectRoot = filepath.Dir(wipnoteDir)
+		projectRoot = paths.CodeRoot(filepath.Dir(wipnoteDir))
 	}
 
 	pluginDir, err := resolveBundledPluginDir()

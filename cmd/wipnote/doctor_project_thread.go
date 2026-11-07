@@ -85,7 +85,7 @@ func liveProjectThreadProbe() projectThreadProbe {
 // else the working directory: the rules check needs a directory even in a
 // repo that has no .wipnote/ yet.
 func projectThreadRoot() string {
-	if dir, err := findWipnoteDir(); err == nil {
+	if dir, err := findExistingWipnoteDir(); err == nil {
 		return filepath.Dir(dir)
 	}
 	if top, err := paths.GitTopLevel("."); err == nil {
@@ -98,7 +98,7 @@ func projectThreadRoot() string {
 // projectThreadChecks runs the four checks in a fixed order.
 func projectThreadChecks(p projectThreadProbe) []codex.Check {
 	hooksRan := threadHooksRan(p)
-	return []codex.Check{binaryCheck(p), pluginCheck(p, hooksRan), hooksCheck(hooksRan), rulesCheck(p.ProjectDir)}
+	return []codex.Check{binaryCheck(p), pluginCheck(p, hooksRan), hooksCheck(hooksRan), rulesCheck(paths.CodeRoot(p.ProjectDir))}
 }
 
 func binaryCheck(p projectThreadProbe) codex.Check {

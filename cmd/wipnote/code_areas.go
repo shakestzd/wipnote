@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
@@ -64,7 +65,7 @@ func runCodeAreas(opts codeAreasOpts) error {
 
 	root := opts.root
 	if root == "" {
-		root = filepath.Dir(dir)
+		root = paths.CodeRoot(filepath.Dir(dir))
 	}
 
 	database, err := openDB(dir)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"path/filepath"
 	"sort"
@@ -73,7 +74,11 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	fmt.Printf("wipnote status  (%s)\n\n", dir)
+	fmt.Printf("wipnote status  (%s)\n", dir)
+	if owner := filepath.Dir(dir); paths.IsExternalStore(owner) {
+		fmt.Printf("Code root: %s\n", paths.CodeRoot(owner))
+	}
+	fmt.Println()
 
 	types := []string{"feature", "bug", "spike", "track"}
 	for _, t := range types {

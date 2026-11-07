@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"io"
 	"os"
 	"os/exec"
@@ -35,7 +36,7 @@ func runArchBootstrap(out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	repoRoot := filepath.Dir(wipnoteDir)
+	repoRoot := paths.CodeRoot(filepath.Dir(wipnoteDir))
 
 	var sb strings.Builder
 	sb.WriteString("# Architectural Memory Bootstrap Brief\n\n")

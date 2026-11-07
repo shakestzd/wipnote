@@ -16,7 +16,7 @@ Do small, clear changes yourself. Use subagents when the work is parallel and in
 
 Inside herdr or the Herdr app, hand coding work to a `wipnote delegate spawn` worker instead of a `wipnote:*-coder` subagent: it starts with far less context, and you set its model, effort and tools for the task. A worker does not load the project's rules by default, so put any rule that must hold in its brief. Use a subagent when spawn refuses because you are outside Herdr. Inside Herdr, a `wipnote:*-coder` subagent call is denied, with the spawn command to use instead.
 
-To hand work to another harness, use `wipnote delegate`. Do not call `codex exec`, `codex review`, `claude -p` or `ccx task` directly: a bare call in the Bash tool is denied, and the denial names the `wipnote delegate run` form to use. For one call, run `wipnote delegate run -- <tool argv>`: it prints the answer and a run page. For an interactive Claude or Codex worker inside herdr or the Herdr app, run `wipnote delegate spawn`, then `send`, `wait --timeout` and `result`, and `stop` the worker before you complete its item. Do not start agents with `hc run` or `herdr agent start`: they skip the ledger, and the same denial applies. Every run is a row in `.wipnote/delegations-ledger.html`. `wipnote skill show delegate` has the details.
+To hand work to another harness, use `wipnote delegate`. Do not call `codex exec`, `codex review`, `claude -p` or `ccx task` directly: a bare call in the Bash tool is denied, and the denial names the `wipnote delegate run` form to use. For one call, run `wipnote delegate run -- <tool argv>`: it prints the answer and a run page. For an interactive Claude or Codex worker inside herdr or the Herdr app, run `wipnote delegate spawn`, then `send`, `wait --timeout` and `result`, and `stop` the worker before you complete its item. Do not start agents with `hc run` or `herdr agent start`: they skip the ledger, and the same denial applies. Every run is a row in the store's `.wipnote/delegations-ledger.html`. `wipnote skill show delegate` has the details.
 
 When an agent returns mid-step with no summary or commit SHA, it hit a budget pause: resume the same agent with the remaining deliverables rather than starting a fresh one. If its work item is still open, link the agent's commits (`wipnote feature link-commit <id> <sha>`), run the gate yourself, and complete it.
 
@@ -24,7 +24,7 @@ If you stop making progress, stop and report what you know.
 
 ## Hard rules
 
-- Never hand-edit `.wipnote/`; use the CLI. Plan YAML changes go through `wipnote plan rewrite-yaml`.
+- Never hand-edit `.wipnote/`; use the CLI. Plan YAML changes go through `wipnote plan rewrite-yaml`. A project with no `.wipnote/` folder keeps its store under `~/.wipnote/projects/`: get the path from `wipnote status`, do not assume it.
 - Never write or overwrite a project's AGENTS.md, CLAUDE.md or GEMINI.md; they belong to the user.
 - Run the quality gate before committing (`/wipnote:code-quality-skill` has the per-language commands).
 

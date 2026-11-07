@@ -31,7 +31,7 @@ func isMCPToolName(name string) bool {
 // else is written to w, so stdout is machine-parseable; errors go to stderr via
 // the returned error. Read-only: it never writes to .wipnote/ or a database.
 func runReportTool(w io.Writer, tool, args string) error {
-	wipnoteDir, err := findWipnoteDir()
+	wipnoteDir, err := findExistingWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func runReportSnapshot(w io.Writer, outDir string, windows []int) error {
 		}
 		seen[h] = true
 	}
-	wipnoteDir, err := findWipnoteDir()
+	wipnoteDir, err := findExistingWipnoteDir()
 	if err != nil {
 		return err
 	}

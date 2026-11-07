@@ -228,7 +228,8 @@ func doctorAheadBehind(repoRoot, branch string) string {
 // readDoctorFamilyMap reads session-families.json from .wipnote/.
 // Returns nil on any error (file not found is normal for new installs).
 func readDoctorFamilyMap(repoRoot string) map[string]string {
-	data, err := os.ReadFile(filepath.Join(repoRoot, ".wipnote", "session-families.json"))
+	owner, _ := paths.Roots(repoRoot) // repoRoot is the git toplevel; the store may be elsewhere
+	data, err := os.ReadFile(filepath.Join(owner, ".wipnote", "session-families.json"))
 	if err != nil {
 		return nil
 	}

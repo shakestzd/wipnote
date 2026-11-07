@@ -96,7 +96,7 @@ func writeEnsuredActiveSession(sessionID, projectDir, agentID string) {
 		ParentAgent:   agentID,
 		NestingDepth:  0,
 		ProjectDir:    projectDir,
-		GitRemoteURL:  paths.GetGitRemoteURL(projectDir),
+		GitRemoteURL:  paths.GetGitRemoteURL(paths.CodeRoot(projectDir)),
 		Timestamp:     float64(time.Now().UnixNano()) / 1e9,
 	}
 	b, err := json.Marshal(data)

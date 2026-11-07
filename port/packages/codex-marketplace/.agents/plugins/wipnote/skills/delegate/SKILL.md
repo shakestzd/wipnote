@@ -177,8 +177,8 @@ A stopped worker's claim ends as `abandoned`. When a worker crashed or lost its 
 
 - **The report.** `delegate run` prints a status line, the answer (or the end of the log on failure) and `run page: <dir>/run.html`. Long sections are cut, and a line names the file with the rest.
 - **The run page** (`run.html`) is the full run as one HTML page. Show it to the user, or give them its path.
-- **The run folder** is `.wipnote/delegate/runs/<run-id>/`. It is not committed. Finished runs are removed after `keepDays` (7 days by default).
-- **The delegations ledger** is `.wipnote/delegations-ledger.html`. It is committed. Each run is one row: run id (`dlg-...`), mode, harness, label, work item, start and end, exit, end reason and token counts. Never edit it by hand.
+- **The run folder** is `.wipnote/delegate/runs/<run-id>/` in the store (`wipnote status` prints where the store is; it may be under `~/.wipnote/projects/`). It is not committed. Finished runs are removed after `keepDays` (7 days by default).
+- **The delegations ledger** is `.wipnote/delegations-ledger.html` in the store. It is committed to the store's repo. Each run is one row: run id (`dlg-...`), mode, harness, label, work item, start and end, exit, end reason and token counts. Never edit it by hand.
 
 ## See agents in the Herdr app
 

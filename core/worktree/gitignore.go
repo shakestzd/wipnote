@@ -2,6 +2,7 @@ package worktree
 
 import (
 	"github.com/shakestzd/wipnote/core/containerwrite"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"path/filepath"
 	"strings"
@@ -96,6 +97,9 @@ const upgradeMarker = "# Added by wipnote: managed patterns missing from this fi
 // receive the file on their first session after upgrading.
 func EnsureWipnoteGitignore(projectDir string) {
 	if projectDir == "" || containerwrite.Active() { // shared file: never from a container worker
+		return
+	}
+	if !paths.StoreCreationAllowed(projectDir) { // a repo with no store stays untouched
 		return
 	}
 	dir := filepath.Join(projectDir, ".wipnote")

@@ -97,7 +97,7 @@ func checkYoloCommitGuard(event *CloudEvent, yolo, testRan bool) string {
 	if testRan {
 		return ""
 	}
-	suggestion := paths.TestCommandFor(paths.DetectProjectType(ResolveProjectDir(event.CWD, event.SessionID)))
+	suggestion := paths.TestCommandFor(paths.DetectProjectType(paths.CodeRoot(ResolveProjectDir(event.CWD, event.SessionID))))
 	if suggestion == "" {
 		suggestion = fallbackTestSuggestion
 	}

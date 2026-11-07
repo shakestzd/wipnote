@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"path/filepath"
 	"slices"
@@ -296,7 +297,7 @@ func (t *statusTransition) afterStart() {
 	// Non-blocking already-fixed advisory (feat-89d7b057): an item with
 	// linked commits, or whose id is cited in source, may have been fixed
 	// and never closed. Print before any dispatch happens; never refuse.
-	emitAlreadyFixedAdvisory(os.Stderr, filepath.Dir(dir), id, t.node)
+	emitAlreadyFixedAdvisory(os.Stderr, paths.CodeRoot(filepath.Dir(dir)), id, t.node)
 	emitResearchStartAdvisory(os.Stderr, filepath.Dir(dir), t.node)
 	if sessionID != "" {
 		// Durable claim history (feat-21d12cdb) was recorded inside col.Start's
@@ -323,7 +324,7 @@ func (t *statusTransition) afterDone() {
 	// edges, BEFORE the artifact commit below so the durable record carries
 	// them (bug-0816b822). Non-fatal.
 	if shouldAutocommitWorkitemArtifact(t.typeName) {
-		autoLinkMessageDerivedCommits(os.Stderr, t.col, filepath.Dir(dir), id, t.evidence.linkedCommits())
+		autoLinkMessageDerivedCommits(os.Stderr, t.col, paths.CodeRoot(filepath.Dir(dir)), id, t.evidence.linkedCommits())
 	}
 	if t.typeName == "spike" {
 		attachSpikeResearch(os.Stderr, t.p, id)

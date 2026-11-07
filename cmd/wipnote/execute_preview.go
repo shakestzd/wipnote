@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -250,7 +251,7 @@ func currentGitState(wipnoteDir string) executeGitState {
 // preview must stay non-fatal — but emit a stderr diagnostic so confused
 // ahead/behind counts have a visible trail for debugging.
 func resolveGitProbeRoot(wipnoteDir string) string {
-	owner := filepath.Dir(wipnoteDir)
+	owner := paths.CodeRoot(filepath.Dir(wipnoteDir))
 	root, err := resolveHistoryRoot(owner)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "execute-preview: resolveHistoryRoot(%s) failed, falling back to project owner: %v\n", owner, err)

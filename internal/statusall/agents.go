@@ -50,7 +50,7 @@ func listHerdr(ctx context.Context, o Options) herdrState {
 func placeByCwd(ctx context.Context, entries []registry.Entry, hs *herdrState) [][]int {
 	roots := make([]string, len(entries))
 	for i, e := range entries {
-		roots[i] = clean(e.ProjectDir)
+		roots[i] = clean(paths.CodeRoot(e.ProjectDir)) // agents run in the source repo
 	}
 	placed := make([][]int, len(entries))
 	for ai, a := range hs.agents {

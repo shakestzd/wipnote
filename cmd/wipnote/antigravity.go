@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -120,7 +121,7 @@ func ensureAntigravityExtensionLinked() {
 }
 
 func launchAntigravityDefault(trackID, featureID, worktreePath, workItem string, noWorktree bool, continue_ bool, resumeID string, extraArgs []string, dryRun bool) error {
-	projectRoot, _ := resolveProjectRoot()
+	projectRoot, _ := resolveCodeRoot()
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
 	canonicalRoot := canonicalProjectRoot(projectRoot)
 	if canonicalRoot == "" {
@@ -285,7 +286,7 @@ func launchAntigravityDev(dryRun bool, continue_ bool, resumeID string, extraArg
 	if err != nil {
 		return fmt.Errorf("could not find project root (.wipnote/ directory not found)")
 	}
-	projectRoot := filepath.Dir(wipnoteDir)
+	projectRoot := paths.CodeRoot(filepath.Dir(wipnoteDir))
 	localExtPath := filepath.Join(projectRoot, "port", "packages", "antigravity-extension")
 
 	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{

@@ -5,25 +5,69 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/spf13/cobra"
 )
 
 func initCmd() *cobra.Command {
-	return &cobra.Command{
+	var inRepo bool
+	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize a new wipnote project in the current directory",
-		Long: `Creates the .wipnote/ directory structure and writes default
-configuration files.
+		Short: "Create this project's wipnote store",
+		Long: `Creates the store for the current project under ~/.wipnote/projects, with
+nothing added to the project folder. A git repo's store is keyed by its main
+checkout, so linked worktrees share it; any other folder's by the folder.
 
-Safe to run on an existing project — only missing pieces are created.`,
-		RunE: runInit,
+A project that already has a store keeps it, in-repo stores included.
+
+With --in-repo, creates a .wipnote/ directory in the current folder instead.
+Safe to run on an existing project: only missing pieces are created.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if inRepo {
+				return runInitInRepo()
+			}
+			return runInit()
+		},
 	}
+	cmd.Flags().BoolVar(&inRepo, "in-repo", false, "create .wipnote/ in the current folder instead of under ~/.wipnote/projects")
+	return cmd
 }
 
-func runInit(_ *cobra.Command, _ []string) error {
+// runInit makes the project's app-owned store, unless a store already serves it.
+func runInit() error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
+	}
+	if owner := paths.StoreOwnerFor(cwd); owner != "" {
+		fmt.Printf("This project already has a store at %s\n", filepath.Join(owner, ".wipnote"))
+		// A launcher's store becomes an explicit one, which non-git folders
+		// below this one then use too.
+		if _, err := paths.MarkStoreExplicit(owner); err != nil {
+			return fmt.Errorf("mark store as made by init: %w", err)
+		}
+		return nil
+	}
+	if _, err := ensureExternalStore(cwd, paths.OriginInit); err != nil {
+		return fmt.Errorf("create store: %w", err)
+	}
+	return nil
+}
+
+// runInitInRepo makes .wipnote/ in the current folder. $HOME and the app home are
+// refused, and so is a project an app-owned store already serves.
+func runInitInRepo() error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+	if paths.IsReservedDir(cwd) {
+		return fmt.Errorf("--in-repo cannot be used in your home folder or in wipnote's own home (%s); run plain `wipnote init`", paths.DataDir())
+	}
+	// An in-repo .wipnote/ would win over the project's app-owned store and hide
+	// every item in it.
+	if owner := paths.StoreOwnerFor(cwd); paths.IsExternalStore(owner) {
+		return fmt.Errorf("this project's store is already at %s; an in-repo .wipnote/ would hide it, so --in-repo is refused", filepath.Join(owner, ".wipnote"))
 	}
 
 	graphDir := filepath.Join(cwd, ".wipnote")

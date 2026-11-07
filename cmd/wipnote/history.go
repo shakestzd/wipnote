@@ -72,9 +72,16 @@ func runHistory(id string, jsonOut bool) error {
 	// the .wipnote owner (same git-common-dir), otherwise fall back to the
 	// .wipnote owner. git-common-dir is shared by every linked worktree of
 	// a repo and differs for submodules, so it is the correct discriminator.
-	repoRoot, err := resolveHistoryRoot(filepath.Dir(hgDir))
+	//
+	// Under an external store a code path is logged in the source repo and a
+	// path in the store in the store's own repo.
+	hgOwner := filepath.Dir(hgDir)
+	if !isStorePath(hgDir, path) {
+		hgOwner = paths.CodeRoot(hgOwner)
+	}
+	repoRoot, err := resolveHistoryRoot(hgOwner)
 	if err != nil {
-		repoRoot = filepath.Dir(hgDir)
+		repoRoot = hgOwner
 	}
 
 	entries, err := runHistoryLog(repoRoot, path)
@@ -162,6 +169,18 @@ func gitCommonDir(dir string) (string, error) {
 // branch-local history. Otherwise cwd is inside a different repository
 // (typically a nested submodule) and we fall back to the .wipnote owner
 // so history never escapes the wipnote checkout.
+// isStorePath reports whether path names something in the .wipnote/ at hgDir.
+func isStorePath(hgDir, path string) bool {
+	if slash := filepath.ToSlash(filepath.Clean(path)); slash == ".wipnote" || strings.HasPrefix(slash, ".wipnote/") {
+		return true
+	}
+	if !filepath.IsAbs(path) {
+		return false
+	}
+	rel, err := filepath.Rel(hgDir, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
 func resolveHistoryRoot(hgOwner string) (string, error) {
 	ownerCommon, ownerErr := gitCommonDir(hgOwner)
 	cwdCommon, cwdErr := gitCommonDir(".")

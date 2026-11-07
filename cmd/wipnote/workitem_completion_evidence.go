@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/shakestzd/wipnote/core/paths"
 	"path/filepath"
 
 	"github.com/shakestzd/wipnote/core/models"
@@ -36,7 +37,7 @@ type completionEvidence struct {
 // not be read); only its committed_in and implemented_in edges are consulted.
 func newCompletionEvidence(wipnoteDir, id string, node *models.Node) *completionEvidence {
 	return &completionEvidence{
-		repoRoot:   filepath.Dir(wipnoteDir),
+		repoRoot:   paths.CodeRoot(filepath.Dir(wipnoteDir)),
 		wipnoteDir: wipnoteDir,
 		id:         id,
 		node:       node,

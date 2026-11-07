@@ -1,6 +1,7 @@
 package detect
 
 import (
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"path/filepath"
 
@@ -122,18 +123,18 @@ func containerForm(args []word, cwd string) bool {
 	return root != "" && container.Check(root) == nil
 }
 
-// projectRoot is the folder holding .wipnote/ at or above cwd, or "".
+// projectRoot is the code root of the store serving cwd, or "". The caller
+// checks it for a devcontainer, and that lives in the source repo.
 func projectRoot(cwd string) string {
 	if cwd == "" {
 		cwd, _ = os.Getwd()
 	}
-	for dir := filepath.Clean(cwd); dir != "" && filepath.IsAbs(dir); dir = filepath.Dir(dir) {
-		if fi, err := os.Stat(filepath.Join(dir, ".wipnote")); err == nil && fi.IsDir() {
-			return dir
-		}
-		if dir == filepath.Dir(dir) {
-			break
-		}
+	owner := paths.StoreOwnerFor(filepath.Clean(cwd))
+	if owner == "" || !filepath.IsAbs(owner) {
+		return ""
 	}
-	return ""
+	if paths.IsExternalStore(owner) {
+		return "" // container workers cannot reach an external store
+	}
+	return owner
 }

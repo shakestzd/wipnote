@@ -111,6 +111,7 @@ func writeAntigravitySystemPrompt() (string, error) {
 
 // execAntigravity builds the agy argv and runs it.
 func execAntigravity(opts antigravityLaunchOpts) error {
+	opts.WipnoteRoot = externalWipnoteRoot(opts.WipnoteRoot, opts.ProjectRoot)
 	agyArgs := buildAntigravityArgs(opts.Continue, opts.ResumeID, opts.ExtraArgs)
 
 	if opts.DryRun {
@@ -173,7 +174,7 @@ func execAntigravity(opts antigravityLaunchOpts) error {
 		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
 		c.Dir = opts.WorktreeRoot
 	case opts.ProjectRoot != "":
-		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", opts.ProjectRoot)
+		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", launchStateRoot(opts.WipnoteRoot, opts.ProjectRoot))
 		c.Dir = opts.ProjectRoot
 	}
 	env = buildAntigravityAgentEnv(env)

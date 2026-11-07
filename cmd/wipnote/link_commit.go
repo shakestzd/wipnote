@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -73,7 +74,7 @@ func runLinkCommit(typeName, itemID, sha string) error {
 		return fmt.Errorf("%s %s not found", kind, resolvedID)
 	}
 
-	repoRoot := filepath.Dir(wipnoteDir)
+	repoRoot := paths.CodeRoot(filepath.Dir(wipnoteDir))
 
 	// The idempotency check reads the canonical file directly: AddEdge appends
 	// unconditionally, so without it a re-run would stack duplicate edges.

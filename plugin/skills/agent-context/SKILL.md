@@ -35,7 +35,7 @@ Report: files changed, lines added, test names and count, gate results, and comm
 
 ## Safety
 
-- Never hand-edit `.wipnote/` work-item, plan or track files; use the CLI. Appending to `.wipnote/logs/progress/<id>.md` when a brief tells you to is allowed. Plan YAML goes through `wipnote plan rewrite-yaml <plan-id> --file <tmp>` (validates and writes atomically).
+- Never hand-edit `.wipnote/` work-item, plan or track files; use the CLI. A project with no `.wipnote/` folder keeps its store under `~/.wipnote/projects/`; `wipnote status` prints where the store is. So do not assume `.wipnote/` is under the current directory. Appending to `.wipnote/logs/progress/<id>.md` in the store when a brief tells you to is allowed. Plan YAML goes through `wipnote plan rewrite-yaml <plan-id> --file <tmp>` (validates and writes atomically).
 - Batch wipnote CLI calls with `&&`; each Bash call costs a turn. Split only when a later command needs an earlier one's output.
 - Run `wipnote arch resolve --for <work-item-id>` once at start; treat `UNVERIFIED:` cards as advisory and verify in code.
 - Name the work item in every commit subject or a `Refs: <id>` trailer; a commit without it needs `wipnote <kind> link-commit <id> <sha>` or completion is refused.

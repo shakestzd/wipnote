@@ -53,7 +53,7 @@ Exits non-zero when a check fails.`,
 
 func runDelegateDoctor(ctx context.Context, w io.Writer, inContainer bool) int {
 	projectDir := ""
-	if wipnoteDir, err := findWipnoteDir(); err == nil {
+	if wipnoteDir, err := findExistingWipnoteDir(); err == nil {
 		projectDir = filepath.Dir(wipnoteDir)
 	}
 	s := codexSandboxOptions(projectDir, false)
@@ -72,6 +72,9 @@ func containerChecks(ctx context.Context, projectDir string, inContainer bool) [
 	}
 	if projectDir == "" {
 		return []codex.Check{{Name: "devcontainer", Status: codex.CheckFail, Detail: "no wipnote project here (.wipnote/ not found)"}}
+	}
+	if paths.IsExternalStore(projectDir) {
+		return []codex.Check{{Name: "devcontainer", Status: codex.CheckFail, Detail: errContainerExternalStore.Error()}}
 	}
 	store, err := runstore.New(projectDir)
 	if err != nil {

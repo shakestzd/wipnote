@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -39,8 +40,9 @@ func collectProject(ctx context.Context, o Options, e registry.Entry, hs herdrSt
 	p.InProgress = inProgress(lc.items)
 	p.Plan = activePlan(&p, lc.dir, lc.items)
 	p.Runs = recentRuns(lc.runs, o.RunsLimit, o.Loc)
-	readGit(ctx, &p, e.ProjectDir)
-	readPR(ctx, o, &p, e.ProjectDir)
+	codeRoot := paths.CodeRoot(e.ProjectDir) // git state is the source repo's
+	readGit(ctx, &p, codeRoot)
+	readPR(ctx, o, &p, codeRoot)
 	p.Agents = projectAgents(ctx, &p, hs, placed, lc)
 	p.Sources["herdr"] = hs.state
 	p.NeedsYou = needs(p.Agents, lc.runs, o.Now(), o.Window, o.Loc)

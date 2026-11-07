@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"io"
 	"os"
 	"path/filepath"
@@ -26,7 +27,7 @@ func emitYoloDirtyMainMessage(p plan.LaunchPlan, canonicalRoot, worktreePath str
 // main root.
 func yoloDefaultRoots() (projectRoot, canonicalRoot string) {
 	if wipnoteDir, err := findWipnoteDir(); err == nil {
-		projectRoot = filepath.Dir(wipnoteDir)
+		projectRoot = paths.CodeRoot(filepath.Dir(wipnoteDir))
 	}
 	canonicalRoot = projectRoot
 	if canonical := canonicalProjectRoot(projectRoot); canonical != "" {
@@ -251,7 +252,7 @@ func launchYoloDev(permMode, trackID, featureID string, noWorktree bool, resumeI
 
 	projectRoot := ""
 	if wipnoteDir, err := findWipnoteDir(); err == nil {
-		projectRoot = filepath.Dir(wipnoteDir)
+		projectRoot = paths.CodeRoot(filepath.Dir(wipnoteDir))
 	}
 
 	// No work item provided — fall back to planning mode.

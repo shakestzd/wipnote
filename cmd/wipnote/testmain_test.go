@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -46,6 +47,20 @@ import (
 //
 // Cleanup runs explicitly before os.Exit; deferred cleanups would never fire
 // because os.Exit skips deferred functions.
+// pinGoCaches exports the Go locations computed from the real HOME (module and
+// build caches, GOPATH and the go env file), so the gate tests' nested go
+// commands keep them after TestMain redirects HOME.
+func pinGoCaches() {
+	for _, name := range []string{"GOPATH", "GOMODCACHE", "GOCACHE", "GOENV"} {
+		if os.Getenv(name) != "" {
+			continue
+		}
+		if out, err := exec.Command("go", "env", name).Output(); err == nil {
+			os.Setenv(name, strings.TrimSpace(string(out))) //nolint:errcheck
+		}
+	}
+}
+
 func TestMain(m *testing.M) {
 	// The herdr label tests link this binary in as a fake "herdr".
 	if filepath.Base(os.Args[0]) == "herdr" {
@@ -68,6 +83,20 @@ func TestMain(m *testing.M) {
 	// No test reaches a real gh through the work-item PR lookup (gate
 	// warning, feature show); tests that need one swap in a fake.
 	linkRunner = noGhRunner{}
+
+	// Redirect HOME so no test can reach the real ~/.wipnote, which holds every
+	// app-owned store. Go's caches derive from HOME, so pin them to the real ones
+	// first, and give git an identity since the real ~/.gitconfig is out of reach.
+	// Without a temp HOME the suite would run against the real one, so stop.
+	testHome, herr := os.MkdirTemp("", "wipnote-test-home-*")
+	if herr != nil {
+		fmt.Fprintf(os.Stderr, "TestMain: cannot make a temp HOME, refusing to run against the real one: %v\n", herr)
+		os.Exit(1)
+	}
+	pinGoCaches()
+	os.Setenv("HOME", testHome) //nolint:errcheck
+	_ = os.WriteFile(filepath.Join(testHome, ".gitconfig"),
+		[]byte("[user]\n\tname = wipnote test\n\temail = test@example.invalid\n[commit]\n\tgpgsign = false\n"), 0o644)
 
 	// Redirect XDG base dirs to isolated tempdirs.
 	xdgData, err := os.MkdirTemp("", "wipnote-test-xdg-data-*")

@@ -67,7 +67,7 @@ the artifact's database in one call:
 
 // runReport orchestrates session lookup, event fetch, and display.
 func runReport(sessionID string, summaryOnly bool) error {
-	dir, err := findWipnoteDir()
+	dir, err := findExistingWipnoteDir()
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"path/filepath"
 	"time"
@@ -70,7 +71,7 @@ func runIngestGemini(project string, all, force bool) error {
 	// Determine project filter: use CWD-based project path unless --all or --project set.
 	projectFilter := project
 	if projectFilter == "" && !all {
-		projectFilter = filepath.Dir(wipnoteDir)
+		projectFilter = paths.CodeRoot(filepath.Dir(wipnoteDir))
 	}
 
 	files, err := ingest.DiscoverGeminiSessions(projectFilter)

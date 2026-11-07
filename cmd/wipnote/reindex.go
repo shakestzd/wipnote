@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/paths"
 	"io"
 	"os/exec"
 	"path/filepath"
@@ -161,7 +162,7 @@ func rebuildFullProjection(database *sql.DB, wipnoteDir string, verbose bool, ou
 
 	// The remaining passes walk git history or every telemetry shard — same
 	// cost argument, same reason they live only here.
-	trailerCount, trailerErr := reindexCommitTrailers(database, projectDir)
+	trailerCount, trailerErr := reindexCommitTrailers(database, paths.CodeRoot(projectDir))
 	if trailerErr != nil {
 		errCount++
 		fmt.Fprintf(errOut, "warning: commit trailer ingestion: %v\n", trailerErr)
@@ -169,7 +170,7 @@ func rebuildFullProjection(database *sql.DB, wipnoteDir string, verbose bool, ou
 		fmt.Fprintf(out, "  commit trailers: %d feature links from Refs/Fixes trailers\n", trailerCount)
 	}
 
-	fileCount, ffErr := reindexFeatureFiles(database, projectDir)
+	fileCount, ffErr := reindexFeatureFiles(database, paths.CodeRoot(projectDir))
 	if ffErr != nil {
 		errCount++
 		fmt.Fprintf(errOut, "warning: feature_files rebuild: %v\n", ffErr)

@@ -234,6 +234,9 @@ func ResolveCodeRoot(projectRoot, cwdTop, cwdCommon, projCommon string) string {
 }
 
 func CodeRoot(projectRoot string) string {
+	// Under an external store projectRoot is the shadow root, itself a valid
+	// repo holding no code: everything here is about the source repo.
+	projectRoot = paths.CodeRoot(projectRoot)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return projectRoot

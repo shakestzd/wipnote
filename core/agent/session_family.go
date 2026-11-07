@@ -3,6 +3,7 @@ package agent
 import (
 	"encoding/json"
 	"github.com/shakestzd/wipnote/core/containerwrite"
+	"github.com/shakestzd/wipnote/core/paths"
 	"os"
 	"path/filepath"
 	"sync"
@@ -66,7 +67,11 @@ func withFamilyFileLock(projectDir string, fn func() error) error {
 	defer sessionFamilyMu.Unlock()
 
 	// Best-effort: ensure the .wipnote dir exists so the lock file can live
-	// next to the index. Ignore errors — fn degrades to mutex-only below.
+	// next to the index. Ignore errors — fn degrades to mutex-only below. A
+	// repo with no store stays untouched: fn gets the mutex only.
+	if !paths.StoreCreationAllowed(projectDir) {
+		return fn()
+	}
 	_ = os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755)
 
 	lf, err := os.OpenFile(familyLockPath(projectDir), os.O_CREATE|os.O_RDWR, 0o644)

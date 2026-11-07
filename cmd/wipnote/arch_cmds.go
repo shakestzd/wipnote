@@ -132,7 +132,7 @@ func runArchEdit(cmd *cobra.Command, slug, kind string, paths []string, verified
 		return err
 	}
 	if cmd.Flags().Changed("verified-at") {
-		if err := checkEditVerifiedAt(filepath.Dir(wipnoteDir), verifiedAt, force); err != nil {
+		if err := checkEditVerifiedAt(codeRootOf(wipnoteDir), verifiedAt, force); err != nil {
 			return err
 		}
 	}
@@ -298,7 +298,7 @@ func runArchValidateOne(slug string) error {
 		return fmt.Errorf("card %s: %w", slug, err)
 	}
 	// GH-#173: a verified_at that no longer resolves is not a valid claim.
-	if reportVerifiedAt(filepath.Dir(wipnoteDir), card) {
+	if reportVerifiedAt(codeRootOf(wipnoteDir), card) {
 		return fmt.Errorf("card %s: verified_at does not resolve to a commit", slug)
 	}
 	fmt.Printf("arch card %s: ok\n", slug)
@@ -327,7 +327,7 @@ func runArchValidateAll() error {
 	// GH-#173: resolve every verified_at against git. Missing commits are
 	// errors (the claim cannot be true after a history rewrite); commits
 	// that exist but are unreachable from HEAD are warnings.
-	shaErrors, err := validateVerifiedAtAll(store, filepath.Dir(wipnoteDir))
+	shaErrors, err := validateVerifiedAtAll(store, codeRootOf(wipnoteDir))
 	if err != nil {
 		return err
 	}
@@ -459,7 +459,7 @@ func runArchResolve(forFlag string, budget int) error {
 		return nil
 	}
 
-	repoRoot := filepath.Dir(wipnoteDir)
+	repoRoot := codeRootOf(wipnoteDir)
 	driftMap := iarch.DetectDrift(matched, repoRoot, iarch.GitDiffNameOnly)
 
 	out := iarch.FormatOutput(matched, budget, driftMap)
@@ -540,7 +540,7 @@ func resolveWorkItemPaths(workItemID, wipnoteDir string) ([]string, error) {
 // If resolution returns empty, the label is the no-files sentinel and the
 // caller prints the "no files attributed" guidance.
 func resolveWorkItemPathsWithDiag(workItemID, wipnoteDir string) (filePaths []string, attribLabel string, err error) {
-	projectDir := filepath.Dir(wipnoteDir)
+	projectDir := codeRootOf(wipnoteDir)
 
 	gitHashes := gitCommitHashesForWorkItem(projectDir, workItemID)
 	if len(gitHashes) > 0 {
@@ -610,7 +610,7 @@ func runArchVerify(slug string) error {
 	if err != nil {
 		return err
 	}
-	repoRoot := filepath.Dir(wipnoteDir)
+	repoRoot := codeRootOf(wipnoteDir)
 	sha := currentHeadSHA(repoRoot)
 	card.VerifiedAt = sha
 	card.UpdatedAt = time.Now().UTC()
@@ -652,7 +652,7 @@ func createLearningCard(wipnoteDir, workItemID, body, kind string, paths []strin
 		// Fallback: strip hyphens beyond the standard format.
 		slug = "learning-" + sanitizeSlug(workItemID)
 	}
-	repoRoot := filepath.Dir(wipnoteDir)
+	repoRoot := codeRootOf(wipnoteDir)
 	sha := currentHeadSHA(repoRoot)
 
 	cardKind := corearch.KindDecision
@@ -848,7 +848,7 @@ func runArchRepair(dryRun bool, commitMapPath string) error {
 	if err != nil {
 		return err
 	}
-	repoRoot := filepath.Dir(wipnoteDir)
+	repoRoot := codeRootOf(wipnoteDir)
 
 	for _, card := range cards {
 		changed, newPaths, err := repairCardPaths(card, repoRoot, wipnoteDir)
@@ -1018,7 +1018,7 @@ func emitDriftNudge(w io.Writer, touchedPaths []string, wipnoteDir string, runne
 	if len(matched) == 0 {
 		return
 	}
-	repoRoot := filepath.Dir(wipnoteDir)
+	repoRoot := codeRootOf(wipnoteDir)
 	driftMap := iarch.DetectDrift(matched, repoRoot, runner)
 
 	newlyDrifted, nextNudged := dedupDrift(matched, driftMap, loadDriftNudgeCache(wipnoteDir))

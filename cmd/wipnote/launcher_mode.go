@@ -171,8 +171,14 @@ func resolveManagedWorktreeStatus(p plan.LaunchPlan, projectRoot, trackID, featu
 //
 // Callers must preserve projectRoot as the working directory for the child
 // process; only WIPNOTE_PROJECT_DIR (controlled via WipnoteRoot) is changed.
+//
+// For a repo served by an external store it is the shadow root, from the main
+// worktree too: there WIPNOTE_PROJECT_DIR and the child's directory always differ.
 func canonicalProjectRoot(projectRoot string) string {
-	return paths.ResolveViaGitCommonDir(projectRoot)
+	if root := paths.ResolveViaGitCommonDir(projectRoot); root != "" {
+		return root
+	}
+	return paths.ExternalStoreFor(projectRoot)
 }
 
 // effectiveWorkItemID returns the first non-empty ID from workItem, trackID,

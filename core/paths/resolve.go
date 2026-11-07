@@ -44,40 +44,47 @@ type ProjectDirOptions struct {
 //     avoid picking up stale values from a parent shell (fix for bug-71fc095f)
 //  4. Session-scoped hint file — written by SubagentStart for worktree
 //     subagents whose CLAUDE_ENV_FILE is unset; read via ReadSessionHint()
-//  5. ResolveViaGitCommonDir() — worktree → main repo root
-//  6. opts.EventCWD — direct .wipnote check
-//  7. os.Getwd() — direct .wipnote check
-//  8. Walk-up from opts.EventCWD (limited by WalkLevels when > 0)
-//  9. Walk-up from os.Getwd() (unlimited)
+//  5. ResolveViaGitCommonDir() — worktree → main repo root or shadow root
+//  6. In a git repo (toplevel != $HOME): the nearest .wipnote from the start
+//     dir up to the toplevel, else the shadow root, else the start dir. The
+//     walk never goes above the toplevel; see external.go.
+//  7. opts.EventCWD — direct .wipnote check
+//  8. os.Getwd() — direct .wipnote check
+//  9. Walk-up from opts.EventCWD (limited by WalkLevels when > 0)
+//  10. Walk-up from os.Getwd() (unlimited)
 //
-// Returns the project root directory (not the .wipnote subdirectory).
+// Returns the store owner (the parent of .wipnote/), which for an external
+// store is not the source repo: paths.CodeRoot maps one to the other.
 // The only hard-error case is when ExplicitDir is set but no .wipnote
 // can be found there.  All other failures fall back gracefully.
 func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
 	// 1. Explicit flag — highest priority, hard-fail on miss.
 	if opts.ExplicitDir != "" {
-		if _, err := os.Stat(filepath.Join(opts.ExplicitDir, ".wipnote")); err == nil {
+		if validStoreOwner(opts.ExplicitDir) {
 			return opts.ExplicitDir, nil
+		}
+		if IsExternalStore(opts.ExplicitDir) {
+			return "", fmt.Errorf("--project-dir %q: this store's code root is gone (a moved project gets a new store)", opts.ExplicitDir)
+		}
+		// A folder served by an app-owned store names that store.
+		if shadow := ExternalStoreFor(opts.ExplicitDir); shadow != "" {
+			return shadow, nil
 		}
 		return "", fmt.Errorf("--project-dir %q: no .wipnote directory found. cd into a repo with .wipnote/ or set $CLAUDE_PROJECT_DIR", opts.ExplicitDir)
 	}
 
 	// 2. WIPNOTE_PROJECT_DIR env var — written by yolo mode (subagent override);
 	// takes precedence over ambient CLAUDE_PROJECT_DIR.
-	if d := os.Getenv("WIPNOTE_PROJECT_DIR"); d != "" {
-		if _, err := os.Stat(filepath.Join(d, ".wipnote")); err == nil {
-			return d, nil
-		}
+	if d := os.Getenv("WIPNOTE_PROJECT_DIR"); d != "" && validStoreOwner(d) {
+		return d, nil
 	}
 
 	// 3. CLAUDE_PROJECT_DIR env var — only trusted when WIPNOTE_SESSION_ID is
 	// also set, confirming this env var was written by the current Claude Code
 	// session's hook runner (not inherited as a stale value from a parent shell).
 	// See: fix for bug-71fc095f (split-brain session HTML when user cd's between projects).
-	if d := os.Getenv("CLAUDE_PROJECT_DIR"); d != "" && os.Getenv("WIPNOTE_SESSION_ID") != "" {
-		if _, err := os.Stat(filepath.Join(d, ".wipnote")); err == nil {
-			return d, nil
-		}
+	if d := os.Getenv("CLAUDE_PROJECT_DIR"); d != "" && os.Getenv("WIPNOTE_SESSION_ID") != "" && validStoreOwner(d) {
+		return d, nil
 	}
 
 	// 4. Session-scoped hint file — written by SubagentStart for worktree
@@ -85,10 +92,8 @@ func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
 	// Only consulted when SessionID is provided (hook context). CLI callers
 	// don't set SessionID and skip this.
 	if opts.SessionID != "" {
-		if d := ReadSessionHint(opts.SessionID); d != "" {
-			if _, err := os.Stat(filepath.Join(d, ".wipnote")); err == nil {
-				return d, nil
-			}
+		if d := ReadSessionHint(opts.SessionID); d != "" && validStoreOwner(d) {
+			return d, nil
 		}
 	}
 
@@ -101,21 +106,36 @@ func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
 		return dir, nil
 	}
 
-	// 6. EventCWD direct check.
+	// 6. Inside a git repo the toplevel bounds the search. A store right at the
+	// start dir is the nearest whatever the repo, so it costs no git process.
+	if hasStoreAt(startDir) {
+		return startDir, nil
+	}
+	if scope, ok := scopeOf(startDir); ok {
+		if dir := scope.inRepoStore(startDir, opts.WalkLevels); dir != "" {
+			return dir, nil
+		}
+		if shadow := scope.shadow(); shadow != "" {
+			return shadow, nil
+		}
+		return startDir, nil
+	}
+
+	// 7. EventCWD direct check: its .wipnote, or a shadow root keyed by it.
 	if opts.EventCWD != "" {
-		if _, err := os.Stat(filepath.Join(opts.EventCWD, ".wipnote")); err == nil {
-			return opts.EventCWD, nil
+		if owner := ownerAt(opts.EventCWD, true); owner != "" {
+			return owner, nil
 		}
 	}
 
-	// 7. Process CWD direct check.
+	// 8. Process CWD direct check.
 	if wd, err := os.Getwd(); err == nil {
-		if _, err := os.Stat(filepath.Join(wd, ".wipnote")); err == nil {
-			return wd, nil
+		if owner := ownerAt(wd, true); owner != "" {
+			return owner, nil
 		}
 	}
 
-	// 8. Walk-up from EventCWD (limited when WalkLevels > 0).
+	// 9. Walk-up from EventCWD (limited when WalkLevels > 0).
 	if opts.EventCWD != "" {
 		if found := walkUpForWipnote(opts.EventCWD, opts.WalkLevels); found != "" {
 			return found, nil
@@ -123,7 +143,7 @@ func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
 		return opts.EventCWD, nil
 	}
 
-	// 9. Walk-up from process CWD (unlimited).
+	// 10. Walk-up from process CWD (unlimited).
 	if wd, err := os.Getwd(); err == nil {
 		if found := walkUpForWipnote(wd, 0); found != "" {
 			return found, nil
@@ -138,7 +158,8 @@ func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
 	return "", errors.New("no .wipnote directory found. cd into a repo with .wipnote/ or run `wipnote status` to confirm your project dir")
 }
 
-// walkUpForWipnote traverses parent directories looking for .wipnote/.
+// walkUpForWipnote traverses parent directories looking for a store: a .wipnote/
+// in the folder or a shadow root keyed by it. $HOME is passed over.
 // maxLevels == 0 means walk all the way to the filesystem root.
 func walkUpForWipnote(start string, maxLevels int) string {
 	dir := start
@@ -148,8 +169,8 @@ func walkUpForWipnote(start string, maxLevels int) string {
 			break
 		}
 		dir = parent
-		if _, err := os.Stat(filepath.Join(dir, ".wipnote")); err == nil {
-			return dir
+		if owner := ownerAt(dir, false); owner != "" {
+			return owner
 		}
 	}
 	return ""
@@ -167,7 +188,10 @@ func walkUpForWipnote(start string, maxLevels int) string {
 //
 // The function also verifies that the resolved main repo root contains a
 // `.wipnote/` directory before returning it, so callers can use the return
-// value directly as a project root without a second stat.
+// value directly as a project root without a second stat. When it does not,
+// and no in-repo store sits between dir and its toplevel, the repo's shadow
+// root is returned if it exists: linked worktrees share an external store too.
+// A repo whose toplevel is $HOME counts as no repo (see scopeOf).
 //
 // If dir is empty the function uses os.Getwd().
 // All errors are silently ignored; on any failure the function returns "".
@@ -180,7 +204,8 @@ func ResolveViaGitCommonDir(dir string) string {
 		}
 	}
 
-	cmd := exec.Command("git", "-C", dir, "rev-parse", "--git-common-dir")
+	cmd, cancel := boundedGit(dir, "rev-parse", "--git-common-dir")
+	defer cancel()
 	out, err := cmd.Output()
 	if err != nil {
 		return "" // not a git repo, or git not installed
@@ -201,9 +226,23 @@ func ResolveViaGitCommonDir(dir string) string {
 
 	mainRepoRoot := filepath.Dir(gitCommonDir)
 
+	scope, inScope := scopeOf(dir)
+	if !inScope {
+		if _, err := GitTopLevel(dir); err == nil {
+			return "" // a work tree scopeOf refused: its toplevel is $HOME
+		}
+	}
+	// scopeOf knows the shared root of a submodule (its superproject's) and of a
+	// separate git dir (the main worktree), which Dir(common dir) does not.
+	if inScope && scope.MainRoot != realDir(mainRepoRoot) {
+		mainRepoRoot = scope.MainRoot
+	}
 	candidate := filepath.Join(mainRepoRoot, ".wipnote")
-	if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+	if info, err := os.Stat(candidate); err == nil && info.IsDir() && !IsReservedDir(mainRepoRoot) {
 		return mainRepoRoot
+	}
+	if inScope && scope.inRepoStore(dir, 0) == "" {
+		return scope.shadow()
 	}
 	return ""
 }

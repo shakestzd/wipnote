@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 ## What a guard profile is
 
-`.wipnote/guard-profile.yaml` is a hand-maintained YAML file committed to the repository.
+`.wipnote/guard-profile.yaml` is a hand-maintained YAML file committed with the store: to the repository, or to the store's own repo when the store is under `~/.wipnote/projects/` (`wipnote status` prints where).
 It replaces wipnote's manifest autodetection with an explicit, version-controlled list of
 commands. Full reference:
 [docs/guard-profiles.md](https://github.com/shakestzd/wipnote/blob/main/docs/guard-profiles.md).

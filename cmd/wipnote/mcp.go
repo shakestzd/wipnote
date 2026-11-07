@@ -42,7 +42,7 @@ func mcpCmd() *cobra.Command {
 			"never writes to .wipnote/ or any database.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			wipnoteDir, err := findWipnoteDir()
+			wipnoteDir, err := findExistingWipnoteDir()
 			if err != nil {
 				return err
 			}
