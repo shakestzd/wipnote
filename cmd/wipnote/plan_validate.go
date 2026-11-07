@@ -101,6 +101,10 @@ func validatePlanFromYAML(wipnoteDir, planID string, plan *planyaml.PlanYAML) pl
 		addWarning("research: " + a)
 	}
 
+	for _, a := range planyaml.ValidateAdoptBuildAdvisories(plan) {
+		addWarning("adopt_vs_build: " + a)
+	}
+
 	// Block advisories: non-blocking nudges for standard/complex slices with no
 	// visual blocks. Trivial slices are exempt. Never a hard error.
 	for _, a := range planyaml.ValidateBlockAdvisories(plan) {
