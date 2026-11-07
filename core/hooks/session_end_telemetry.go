@@ -34,6 +34,12 @@ func signalCollectorDirWait(projectDir, sessionID string, wait time.Duration, ki
 		// No PID file — collector was never spawned or already cleaned up.
 		return
 	}
+	if sharedCollectorPIDFile(data) {
+		// The project's shared collector serves every session (issue #183).
+		// Its lifetime is the set of attached launchers, not this session.
+		debugLog(projectDir, "[session-end] collector is shared; not signalled (session=%s)", sessionID[:minLen(sessionID, 8)])
+		return
+	}
 	pid, ok := collectorPID(filepath.Dir(pidPath), data)
 	if !ok {
 		debugLog(projectDir, "[session-end] collector-pid: no live collector in %q for session %s", strings.TrimSpace(string(data)), sessionID[:minLen(sessionID, 8)])
@@ -81,4 +87,15 @@ func waitForExit(proc *os.Process, drain time.Duration) bool {
 		time.Sleep(100 * time.Millisecond)
 	}
 	return proc.Signal(syscall.Signal(0)) != nil
+}
+
+// sharedCollectorPIDFile reports whether a .collector-pid names the project's
+// shared collector: the launcher marks it with a bare "shared" line.
+func sharedCollectorPIDFile(data []byte) bool {
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == "shared" {
+			return true
+		}
+	}
+	return false
 }

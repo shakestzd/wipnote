@@ -93,7 +93,7 @@ func (c *ProcessCollector) Spawn(binPath, sessionID, projectDir string) (int, fu
 		return 0, nil, err
 	}
 
-	WriteCollectorPID(projectDir, sessionID, proc.Pid)
+	WriteCollectorPIDPort(projectDir, sessionID, proc.Pid, port)
 	procPtr := newProcPointer(proc)
 	startReaper(procPtr.Load(), projectDir, sessionID)
 
@@ -260,7 +260,7 @@ func StartWatchdog(
 					fmt.Fprintf(warnW, "wipnote: FATAL: collector respawn failed: %v\n", spawnErr)
 					return
 				}
-				WriteCollectorPID(projectDir, sessionID, newProc.Pid)
+				WriteCollectorPIDPort(projectDir, sessionID, newProc.Pid, originalPort)
 				startReaper(newProc, projectDir, sessionID)
 				procPtr.Store(newProc)
 				fmt.Fprintf(warnW, "wipnote: info: collector respawned (pid=%d port=%d)\n", newProc.Pid, originalPort)
@@ -445,22 +445,4 @@ func IsCollectorAlive(sessDir string) (alive bool, pid int) {
 func RemoveCollectorPID(projectDir, sessionID string) {
 	pidPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID, ".collector-pid")
 	_ = os.Remove(pidPath)
-}
-
-// WriteCollectorPID writes the collector PID to the session directory.
-// On Linux, also appends the process start time (clock ticks from
-// /proc/<pid>/stat field 22) on a second line so future liveness checks
-// can detect PID reuse. On non-Linux or when /proc is unreadable, only
-// the PID is written; consumers must tolerate single-line files.
-//
-// Best-effort: errors are silently ignored.
-func WriteCollectorPID(projectDir, sessionID string, pid int) {
-	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
-	_ = os.MkdirAll(sessDir, 0o755)
-	pidPath := filepath.Join(sessDir, ".collector-pid")
-	content := strconv.Itoa(pid) + "\n"
-	if start, ok := readProcStartTime(pid); ok {
-		content += strconv.FormatUint(start, 10) + "\n"
-	}
-	_ = os.WriteFile(pidPath, []byte(content), 0o644)
 }

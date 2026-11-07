@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/shakestzd/wipnote/observe/otel"
 	"github.com/shakestzd/wipnote/observe/otel/adapter"
+	"github.com/shakestzd/wipnote/observe/otel/collector"
 	"github.com/shakestzd/wipnote/observe/otel/sink/ndjson"
 	"github.com/spf13/cobra"
 )
@@ -31,20 +33,27 @@ func otelCollectCmd() *cobra.Command {
 		projectDir    string
 		listen        string
 		noIdleTimeout bool
+		shared        bool
 	)
 	cmd := &cobra.Command{
 		Use:    "otel-collect",
 		Hidden: true,
 		Short:  "Internal: per-session OTel collector (do not invoke directly)",
 		RunE: func(_ *cobra.Command, _ []string) error {
+			if shared {
+				return runSharedOtelCollect(projectDir, listen)
+			}
+			if sessionID == "" {
+				return fmt.Errorf("--session-id is required without --shared")
+			}
 			return runOtelCollect(sessionID, projectDir, listen, noIdleTimeout)
 		},
 	}
-	cmd.Flags().StringVar(&sessionID, "session-id", "", "Session ULID (required)")
+	cmd.Flags().StringVar(&sessionID, "session-id", "", "Session ULID (required without --shared)")
 	cmd.Flags().StringVar(&projectDir, "project-dir", "", "Project root (required)")
 	cmd.Flags().StringVar(&listen, "listen", "127.0.0.1:0", "Listen address (default ephemeral)")
 	cmd.Flags().BoolVar(&noIdleTimeout, "no-idle-timeout", false, "Disable idle timeout (keep collector alive for the session lifetime)")
-	_ = cmd.MarkFlagRequired("session-id")
+	cmd.Flags().BoolVar(&shared, "shared", false, "Serve every session of the project on one port, routed by /s/<session-id> (issue #183)")
 	_ = cmd.MarkFlagRequired("project-dir")
 	return cmd
 }
@@ -104,16 +113,20 @@ func runOtelCollect(sessionID, projectDir, listenAddr string, noIdleTimeout bool
 	return awaitShutdown(ctx, cancel, srv, snk, lastActivity, noIdleTimeout)
 }
 
-// buildCollectorMux creates the OTLP HTTP mux with activity tracking.
-func buildCollectorMux(snk *ndjson.Sink, lastActivity *atomic.Int64) *http.ServeMux {
+// newAdapterRegistry registers every harness adapter the collector decodes.
+func newAdapterRegistry() *adapter.Registry {
 	reg := adapter.NewRegistry()
 	reg.Register(adapter.NewClaudeAdapter())
 	reg.Register(adapter.NewCodexAdapter())
 	reg.Register(adapter.NewGeminiAdapter())
 	reg.Register(adapter.NewAntigravityAdapter())
+	return reg
+}
 
+// buildCollectorMux creates the OTLP HTTP mux with activity tracking.
+func buildCollectorMux(snk *ndjson.Sink, lastActivity *atomic.Int64) *http.ServeMux {
 	handler := &collectorHandler{
-		registry:     reg,
+		registry:     newAdapterRegistry(),
 		sink:         snk,
 		lastActivity: lastActivity,
 	}
@@ -122,7 +135,19 @@ func buildCollectorMux(snk *ndjson.Sink, lastActivity *atomic.Int64) *http.Serve
 	mux.Handle("/v1/traces", handler)
 	mux.Handle("/v1/metrics", handler)
 	mux.Handle("/v1/logs", handler)
+	mux.Handle(collector.HealthPath, healthHandler(func() collector.Health {
+		return collector.Health{PID: os.Getpid(), Mode: "session"}
+	}))
 	return mux
+}
+
+// healthHandler answers GET /healthz with report() as JSON. `wipnote doctor
+// --processes` and the shared-collector lease check probe it.
+func healthHandler(report func() collector.Health) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(report())
+	})
 }
 
 // writeCollectorStartEvent writes the collector_start NDJSON line.

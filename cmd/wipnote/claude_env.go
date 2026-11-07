@@ -118,6 +118,8 @@ func buildClaudeLaunchEnv(wipnoteProjectDir string, overrides *otelEnvOverrides)
 			}
 			key, value := kv[:idx], kv[idx+1:]
 			if key == "OTEL_EXPORTER_OTLP_ENDPOINT" {
+				// The shared collector tells sessions apart by this path.
+				value = endpoint + overrides.EndpointPath
 				// Force-replace: launcher's endpoint must win because it's derived
 				// from WIPNOTE_OTEL_HTTP_PORT and inherited values would silently
 				// drop spans. Users who need to point Claude Code at a non-wipnote
