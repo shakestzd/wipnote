@@ -1,0 +1,18 @@
+meta:
+    id: plan-10a07f8d
+    track_id: trk-2e707ed1
+    title: 'Owner questions: non-blocking records on work items, asked with the question tool'
+    description: 'Issue #336. Questions an orchestrator owes the owner become records on work items. They are non-blocking by default: work goes ahead on the recommended option and the item records the assumption. Workers'' questions are collected from delegate results. Open questions are asked in batches with the harness question tool and shown in a mod.'
+    created_at: "2026-11-08"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
