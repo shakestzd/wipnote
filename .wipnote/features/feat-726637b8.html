@@ -10,20 +10,32 @@
 <body>
     <article id="feat-726637b8"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-25T19:50:04.548534"
-             data-updated="2026-10-25T20:29:53.938807" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-cli-version="888f588" data-change_kind="chore" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Not implemented: no hook fires on manual denial. Proposed: both PermissionDenied handler and Stop-time transcript pairing; owner to decide.&#34;,&#34;exists&#34;:&#34;core/db/dbtest already hosts test-only fixtures moved out of core/db (InsertLineageTrace, GetEvent, InsertClaim)&#34;,&#34;findings&#34;:&#34;Claude Code hooks reference (read 2026-10-25): PostToolUseFailure &#39;doesn&#39;t fire for tool calls rejected before execution ... Permission denials fire PreToolUse but not this event&#39;. PermissionDenied &#39;only fires in auto mode: it doesn&#39;t run when you manually deny a permission dialog, when a PreToolUse hook blocks a call, or when a deny rule matches&#39;; its payload carries tool_use_id and reason. PostToolUse runs only after success. So a manually denied call fires PreToolUse (start line written) and PermissionRequest, and no completion hook; wipnote registers no PermissionDenied hook. Denied calls cannot get a failed line through posttooluse-failure.&#34;,&#34;options&#34;:[&#34;Register PermissionDenied (claude target) -\u003e write a failed completion line keyed on tool_use_id; covers auto-mode denials only&#34;,&#34;At Stop/SessionEnd, pair unfinished starts with the transcript&#39;s tool_result for the same tool_use_id (is_error / user-rejected text) and write failed lines; covers manual denials&#34;,&#34;Make the sweep skip starts whose tool_use_id has a matching PermissionRequest marker and no completion; weaker, guesses outcome&#34;],&#34;question&#34;:&#34;Which core/db functions does nothing in production call?&#34;,&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-10-25&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/hooks&#34;}]}}">
+             data-updated="2026-11-08T03:03:05.96047" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-cli-version="888f588" data-change_kind="chore" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Not implemented: no hook fires on manual denial. Proposed: both PermissionDenied handler and Stop-time transcript pairing; owner to decide.&#34;,&#34;exists&#34;:&#34;core/db/dbtest already hosts test-only fixtures moved out of core/db (InsertLineageTrace, GetEvent, InsertClaim)&#34;,&#34;findings&#34;:&#34;Claude Code hooks reference (read 2026-10-25): PostToolUseFailure &#39;doesn&#39;t fire for tool calls rejected before execution ... Permission denials fire PreToolUse but not this event&#39;. PermissionDenied &#39;only fires in auto mode: it doesn&#39;t run when you manually deny a permission dialog, when a PreToolUse hook blocks a call, or when a deny rule matches&#39;; its payload carries tool_use_id and reason. PostToolUse runs only after success. So a manually denied call fires PreToolUse (start line written) and PermissionRequest, and no completion hook; wipnote registers no PermissionDenied hook. Denied calls cannot get a failed line through posttooluse-failure.&#34;,&#34;options&#34;:[&#34;Register PermissionDenied (claude target) -\u003e write a failed completion line keyed on tool_use_id; covers auto-mode denials only&#34;,&#34;At Stop/SessionEnd, pair unfinished starts with the transcript&#39;s tool_result for the same tool_use_id (is_error / user-rejected text) and write failed lines; covers manual denials&#34;,&#34;Make the sweep skip starts whose tool_use_id has a matching PermissionRequest marker and no completion; weaker, guesses outcome&#34;],&#34;question&#34;:&#34;Which core/db functions does nothing in production call?&#34;,&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-10-25&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/hooks&#34;}]}}">
 
         <header>
             <h1>Hooks cleanup after the file-db removal: delete the task quality gate, dead core/db code and nil db parameters</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="ef802f742fda6816475399d33344b989145b549e.html" data-relationship="committed_in" data-since="2026-10-25T20:30:29">Merge bloat/hooks-cleanup: delete task gate, dead core/db code, nil db params (feat-726637b8)</a></li>
+                    <li><a href="2ce5fe41f8af5592568ad7d816ed3ab779b21434.html" data-relationship="committed_in" data-since="2026-10-25T20:28:24">wipnote: start feat-726637b8</a></li>
+                    <li><a href="9b27d3037b98ae0d11c6e12acbf0a958e3707ed1.html" data-relationship="committed_in" data-since="2026-10-25T20:25:15">refactor(db): delete core/db code nothing in production calls (feat-726637b8)</a></li>
+                    <li><a href="506f69cae14b2f96f61abdc8f6bc2c26647ddaef.html" data-relationship="committed_in" data-since="2026-10-25T20:11:06">refactor(hooks): drop the always-nil *sql.DB parameter from hook handlers (feat-726637b8)</a></li>
+                    <li><a href="36a56597d4b1aac5b3f0ad0581470b8148322f77.html" data-relationship="committed_in" data-since="2026-10-25T19:57:11">wipnote: sync feat-726637b8</a></li>
+                    <li><a href="5ce41f1a434ca7ae3585ef3ae62ec959f032cd54.html" data-relationship="committed_in" data-since="2026-10-25T19:53:48">wipnote: sync feat-726637b8</a></li>
+                    <li><a href="0aabca611e9737284804a5b6dba7ac23699e30a3.html" data-relationship="committed_in" data-since="2026-10-25T19:52:37">refactor(hooks): delete the TaskCompleted quality gate and its config key (feat-726637b8)</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -45,7 +57,7 @@
                 <li data-completed="true" data-step-id="step-feat-726637b8-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Run deadcode and list unreachable core/db code</li>
                 <li data-completed="true" data-step-id="step-feat-726637b8-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete unreachable core/db code and its tests</li>
                 <li data-completed="true" data-step-id="step-feat-726637b8-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Drop the nil db parameter from hook handlers</li>
-                <li data-completed="false" data-step-id="step-feat-726637b8-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Denied tool call writes a failed line (two-sided test)</li>
+                <li data-completed="true" data-step-id="step-feat-726637b8-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Denied tool call writes a failed line (two-sided test)</li>
                 <li data-completed="true" data-step-id="step-feat-726637b8-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Gate all 5 modules</li>
             </ol>
         </section>
