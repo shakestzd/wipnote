@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Background process fan-out and recovery (#183 remainder): otel-collect per session, no restart-all, hydrate git cost</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-a82cd618"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-11-06T12:45:32.371526"
+             data-updated="2026-11-07T16:23:16.903684" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Background process fan-out and recovery (#183 remainder): otel-collect per session, no restart-all, hydrate git cost</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="848b90bc5bb46d0c9052a947800c84090b2ab21e.html" data-relationship="committed_in" data-since="2026-11-06T23:57:09">feat(otel,doctor): one shared otel-collect per project; doctor --processes [--restart-all] (#183, bug-a82cd618)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/e467d774-96c4-4f0c-b7b7-5b58f642021b.html" data-relationship="implemented_in" data-since="2026-11-06T12:46:12.204356">session e467d774-96c4-4f0c-b7b7-5b58f642021b</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-11-06T12:45:32.3901">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #183 remainder after bug-e160ef40 was closed as obsolete (dashboard removed in f3269ff40). 22 concurrent sessions spawned one otel-collect each; no command finds and restarts hung wipnote background processes (_serve-child writer daemons, otel-collect); hydrate does O(N*H) git work. Verify each still applies on current main, then: cap or share otel-collect per project, add doctor --restart-all (or equivalent) for hung background processes, and remove the O(N*H) git cost if still present.
+[2026-11-07 16:23 claude-code] allow-orphan (unmerged-upstream override): Merged upstream via PR #327.</p>
+        </section>
+    </article>
+</body>
+</html>

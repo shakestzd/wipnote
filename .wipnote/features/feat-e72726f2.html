@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Codex and Antigravity launches use the shared otel-collect</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-e72726f2"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-07T16:23:55.576071"
+             data-updated="2026-11-07T19:55:04.3516" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="capability" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index" data-standalone_reason="follow-up to #183 / PR #327">
+
+        <header>
+            <h1>Codex and Antigravity launches use the shared otel-collect</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="b4a3c762891e8743bc09454853bc11663cbc8e38.html" data-relationship="committed_in" data-since="2026-11-07T12:27:19">fix: load-robust SummarizeFile speed test; Codex launches use the shared otel-collect (bug-17a54d5e, feat-e72726f2)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-11-07T16:23:55.597015">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>PR #327 made Claude launches share one otel-collect per project. spawnCodexOtelCollector and spawnAntigravityOtelCollector still start one collector per session. Move them to EnsureShared plus the /s/ route, after checking that each harness&#39;s OTel endpoint setting keeps a base path; keep the per-session fallback.
+[2026-11-07 19:55 claude-code] allow-orphan (unmerged-upstream override): Merged upstream via PR #328.</p>
+        </section>
+    </article>
+</body>
+</html>
