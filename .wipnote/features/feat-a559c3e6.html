@@ -10,20 +10,39 @@
 <body>
     <article id="feat-a559c3e6"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-25T07:29:50.331626"
-             data-updated="2026-10-25T09:50:58.764153" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+             data-updated="2026-11-08T03:03:14.97237" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Delete dead code in cmd/wipnote</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="7dd90a98ed2c9bc442c9e6e456d6e61acbc25ac6.html" data-relationship="committed_in" data-since="2026-10-25T09:55:36">wipnote: start feat-a559c3e6</a></li>
+                    <li><a href="f8825a293f2b7461c3305879c52ad5c7deaa2d5b.html" data-relationship="committed_in" data-since="2026-10-25T09:50:58">docs: stop naming packages deleted in slice 5 (feat-a559c3e6)</a></li>
+                    <li><a href="4b61ecbe3b4e729696a6ca55c8296c84c6bbca5b.html" data-relationship="committed_in" data-since="2026-10-25T09:50:58">style: gofmt four files (feat-a559c3e6)</a></li>
+                    <li><a href="8b067a814d68d3f0e1bf84f74eafd7c2ef814cab.html" data-relationship="committed_in" data-since="2026-10-25T09:49:31">fix(who): judge liveness by the sessions ledger (feat-a559c3e6)</a></li>
+                    <li><a href="9abca4336688df282937c42fc86cb4f111ef6651.html" data-relationship="committed_in" data-since="2026-10-25T09:47:44">docs(cmd): drop dashboard and SQLite claims from help text (feat-a559c3e6)</a></li>
+                    <li><a href="63c34bfc351348cf78747949d19a0ef54c1afd77.html" data-relationship="committed_in" data-since="2026-10-25T09:45:32">chore(recap): stop upserting new recaps into a throwaway index (feat-a559c3e6)</a></li>
+                    <li><a href="718f541b7ea06f6c6bca4ea263342be9d20d6b50.html" data-relationship="committed_in" data-since="2026-10-25T09:44:32">chore(cmd): delete unreachable worktree wrappers and LogTimed (feat-a559c3e6)</a></li>
+                    <li><a href="67a454c5a724dcd124a14997d5df7832e266b500.html" data-relationship="committed_in" data-since="2026-10-25T09:41:38">chore(cmd): delete remaining unused helpers in cmd/wipnote (feat-a559c3e6)</a></li>
+                    <li><a href="caaba44f3182fd4807974690335ee4eec75f5e2f.html" data-relationship="committed_in" data-since="2026-10-25T09:33:28">wipnote: sync feat-a559c3e6</a></li>
+                    <li><a href="e87889c9f468cfd82aebde973b9d7104cc0bdc67.html" data-relationship="committed_in" data-since="2026-10-25T09:32:46">chore(cmd): delete dead plan code (feat-a559c3e6)</a></li>
+                    <li><a href="be32d2b7ee7b1e7376ca74078f33dc252cf6c87e.html" data-relationship="committed_in" data-since="2026-10-25T09:31:45">wipnote: sync feat-a559c3e6</a></li>
+                    <li><a href="15dc51bd26913e0ae1eed36f17287162b6302a5e.html" data-relationship="committed_in" data-since="2026-10-25T09:30:37">chore(cmd): delete plugin-install and dev-mode backup leftovers (feat-a559c3e6)</a></li>
+                    <li><a href="aa296bace314bd9f2983c1d87f2e2fce44a03681.html" data-relationship="committed_in" data-since="2026-10-25T09:28:35">chore(cmd): delete the unwired writer-daemon loops in config.go (feat-a559c3e6)</a></li>
+                    <li><a href="eafbf3901bfce2e424efc0decd893fd02c4b8c0d.html" data-relationship="committed_in" data-since="2026-10-25T09:26:52">chore(cmd): delete unused gate shim wrappers, test internal/gate directly (feat-a559c3e6)</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -52,7 +71,7 @@
                 <li data-completed="true" data-step-id="step-feat-a559c3e6-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete plugin-install and marketplace leftovers (plugin_ensure, plugin_dir, dev-mode backup)</li>
                 <li data-completed="true" data-step-id="step-feat-a559c3e6-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete dead plan code (plan_css_scope, executePlanFinalize, finalizeYAMLWithDB family, slice parsers)</li>
                 <li data-completed="true" data-step-id="step-feat-a559c3e6-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete remaining unused helpers (AI title backfill, collector spawn, stale purge, show renderers, misc)</li>
-                <li data-completed="false" data-step-id="step-feat-a559c3e6-5" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Remove non-linter dead paths (checkCompletionGateRecord nil branch, recap throwaway upsert)</li>
+                <li data-completed="true" data-step-id="step-feat-a559c3e6-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Remove non-linter dead paths (checkCompletionGateRecord nil branch, recap throwaway upsert)</li>
                 <li data-completed="true" data-step-id="step-feat-a559c3e6-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Remove dashboard/serve/Gemini help text; fix approve/reject-slice help</li>
                 <li data-completed="true" data-step-id="step-feat-a559c3e6-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ wipnote who: judge liveness by the sessions ledger</li>
                 <li data-completed="true" data-step-id="step-feat-a559c3e6-8" data-agent="claude-code" data-created-by-agent="claude-code">✅ gofmt four files; fix docs naming packages deleted in slice 5</li>
