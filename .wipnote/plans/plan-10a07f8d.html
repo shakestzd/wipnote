@@ -537,7 +537,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Issue #336. Questions an orchestrator owes the owner become records on work items. They are non-blocking by default: work goes ahead on the recommended option and the item records the assumption. Workers&#39; questions are collected from delegate results. Open questions are asked in batches with the harness question tool and shown in a mod.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 5 slices · Created 2026-11-08</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v4 · 5 slices · Created 2026-11-08</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -571,10 +571,12 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <tbody>
       <tr><td><code>id</code></td><td><code>string (q-&lt;8 hex&gt;)</code></td><td>&mdash;</td></tr>
       <tr><td><code>text</code></td><td><code>string</code></td><td>&mdash;</td></tr>
-      <tr><td><code>options</code></td><td><code>list of {key, label, tradeoff}</code></td><td>&mdash;</td></tr>
-      <tr><td><code>recommended</code></td><td><code>string (an option key)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>options</code></td><td><code>list of {key, label, tradeoff}, 2-4 entries</code></td><td>&mdash;</td></tr>
+      <tr><td><code>recommended</code></td><td><code>string (an option key, or empty)</code></td><td>&mdash;</td></tr>
       <tr><td><code>blocking</code></td><td><code>bool</code></td><td>&mdash;</td></tr>
+      <tr><td><code>status</code></td><td><code>open | assumed | confirmed | overturned (default open)</code></td><td>&mdash;</td></tr>
       <tr><td><code>raised_by</code></td><td><code>string (session id or worker name)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>source_id</code></td><td><code>string (worker question id for dedup, or empty)</code></td><td>&mdash;</td></tr>
       <tr><td><code>raised_at</code></td><td><code>RFC 3339 time</code></td><td>&mdash;</td></tr>
       <tr><td><code>assumed</code></td><td><code>string (option key work proceeded on, or empty)</code></td><td>&mdash;</td></tr>
       <tr><td><code>answer</code></td><td><code>string (option key, empty while open)</code></td><td>&mdash;</td></tr>
@@ -601,6 +603,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/question/record.go (new)</code></li>
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/question/record_test.go (new)</code></li>
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/question_cmd.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/question_list.go (new)</code></li>
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/question_cmd_test.go (new)</code></li>
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/main.go</code></li>
     
@@ -659,7 +662,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         </a>
         <div class="block-anchor" id="overview-slice-3-block-diagram-1" data-block-anchor="slice-3-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
   <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Worker question path</span></div>
-  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1280.8" height="48" viewBox="0 0 1280.8 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="395.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="203.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Worker runs delegate reply --ask or AskUserQuestion</text><path class="diagram-edge" d="M401.2 24 L441.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="441.2" y="6" width="208" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="545.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Outbox file or hook event</text><path class="diagram-edge" d="M649.2 24 L689.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="689.2" y="6" width="172" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="775.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">delegate result NAME</text><path class="diagram-edge" d="M861.2 24 L901.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="901.2" y="6" width="373.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1088" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">question add on the worker&#39;s item (deduplicated)</text></svg></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1374.4" height="48" viewBox="0 0 1374.4 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="395.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="203.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Worker runs delegate reply --ask or AskUserQuestion</text><path class="diagram-edge" d="M401.2 24 L441.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="441.2" y="6" width="208" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="545.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Outbox file or hook event</text><path class="diagram-edge" d="M649.2 24 L689.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="689.2" y="6" width="172" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="775.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">delegate result NAME</text><path class="diagram-edge" d="M861.2 24 L901.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="901.2" y="6" width="467.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1134.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">question add on the worker&#39;s item (deduplicated by source_id)</text></svg></div>
 </div></div>
       </div>
       <div class="overview-block-entry">
@@ -669,7 +672,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         </a>
         <div class="block-anchor" id="overview-slice-4-block-diagram-1" data-block-anchor="slice-4-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
   <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Stop nudge</span></div>
-  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1468" height="48" viewBox="0 0 1468 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="136" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="74" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Stop hook fires</text><path class="diagram-edge" d="M142 24 L182 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="182" y="6" width="251.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="307.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Already a re-run? -&gt; allow stop</text><path class="diagram-edge" d="M433.2 24 L473.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="473.2" y="6" width="503.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="724.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Open question records and reply ends with a question to the owner?</text><path class="diagram-edge" d="M976.4 24 L1016.4000000000001 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1016.4000000000001" y="6" width="445.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1239.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Block once, reason names the records and the question tool</text></svg></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1511.1999999999998" height="48" viewBox="0 0 1511.1999999999998 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="136" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="74" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Stop hook fires</text><path class="diagram-edge" d="M142 24 L182 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="182" y="6" width="416.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="390.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">stop_hook_active, worker or Antigravity? -&gt; allow stop</text><path class="diagram-edge" d="M598.8 24 L638.8 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="638.8" y="6" width="380.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="829.1999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Open question records and last line ends with &#34;?&#34;</text><path class="diagram-edge" d="M1019.5999999999999 24 L1059.6 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1059.6" y="6" width="445.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1282.3999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Block once, reason names the records and the question tool</text></svg></div>
 </div></div>
       </div>
       
@@ -682,15 +685,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="Question record and `wipnote question add|list|answer`" data-status="pending" data-deps="" data-files="5" data-questions="1"></div>
-    <div data-node="2" data-name="Non-blocking by default, blocking questions in execute-preview" data-status="pending" data-deps="1" data-files="5"></div>
-    <div data-node="3" data-name="File worker questions as records" data-status="pending" data-deps="1" data-files="3"></div>
-    <div data-node="4" data-name="Ask with the question tool in batches; Stop hook nudge" data-status="pending" data-deps="1" data-files="4"></div>
-    <div data-node="5" data-name="Mods: questions pane, band count, toast and ref cards" data-status="pending" data-deps="1" data-files="7"></div>
+    <div data-node="1" data-name="Question record and `wipnote question add|list|answer`" data-status="pending" data-deps="" data-files="6" data-questions="1"></div>
+    <div data-node="2" data-name="Non-blocking by default, blocking questions in execute-preview" data-status="pending" data-deps="1" data-files="7"></div>
+    <div data-node="3" data-name="File worker questions as records" data-status="pending" data-deps="1" data-files="5"></div>
+    <div data-node="4" data-name="Ask with the question tool in batches; Stop hook nudge" data-status="pending" data-deps="1" data-files="5"></div>
+    <div data-node="5" data-name="Mods: questions pane, band count, toast and ref cards" data-status="pending" data-deps="1" data-files="12"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1230.4" height="216" viewBox="0 0 1230.4 216" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M471.6 69.54 L156.8 108 L156.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M538.8 80 L462.4 108 L462.4 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M691.6 80 L768 108 L768 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M758.8 69.54 L1073.6 108 L1073.6 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="471.6" y="24" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="615.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Question record and `wipnote…  ?1</text><text class="dep-node-meta" x="615.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Non-blocking by default, bloc…</text><text class="dep-node-meta" x="156.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="329.59999999999997" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="462.4" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 File worker questions as reco…</text><text class="dep-node-meta" x="462.4" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="635.2" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="768" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Ask with the question tool in…</text><text class="dep-node-meta" x="768" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="940.8" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1073.6" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Mods: questions pane, band co…</text><text class="dep-node-meta" x="1073.6" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a></g></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1230.4" height="216" viewBox="0 0 1230.4 216" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M471.6 69.54 L156.8 108 L156.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M538.8 80 L462.4 108 L462.4 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M691.6 80 L768 108 L768 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M758.8 69.54 L1073.6 108 L1073.6 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="471.6" y="24" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="615.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Question record and `wipnote…  ?1</text><text class="dep-node-meta" x="615.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Non-blocking by default, bloc…</text><text class="dep-node-meta" x="156.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="329.59999999999997" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="462.4" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 File worker questions as reco…</text><text class="dep-node-meta" x="462.4" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="635.2" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="768" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Ask with the question tool in…</text><text class="dep-node-meta" x="768" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="940.8" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1073.6" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Mods: questions pane, band co…</text><text class="dep-node-meta" x="1073.6" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">12 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -778,7 +781,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Store owner questions as a node property on features, bugs and spikes, modelled on the research record. Add <code>wipnote question add</code>, <code>list</code> and <code>answer</code>, with options, a recommended option, an optional blocking flag and an answer stored on the item.</p>
+          <div class="markdown-block serif-prose"><p>Store owner questions as a node property on features, bugs and spikes, modelled on the research record. Add <code>wipnote question add</code>, <code>list</code> and <code>answer</code>, with 2-4 options, an optional recommended option, an optional blocking flag, a status, and an answer stored on the item.</p>
 </div>
           
         </div>
@@ -798,13 +801,13 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>core/question/record.go (new), core/question/record_test.go (new), cmd/wipnote/question_cmd.go (new), cmd/wipnote/question_cmd_test.go (new), cmd/wipnote/main.go</code></div>
+        <div class="slice-field-value"><code>core/question/record.go (new), core/question/record_test.go (new), cmd/wipnote/question_cmd.go (new), cmd/wipnote/question_list.go (new), cmd/wipnote/question_cmd_test.go (new), cmd/wipnote/main.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>`wipnote question add &lt;item&gt; &#34;&lt;text&gt;&#34; --option k:label[:tradeoff] ... --recommended k [--blocking]` stores a record on the item and prints its id.</li><li>`wipnote question list [--item &lt;id&gt;] [--open] [--format json]` lists questions across the project with item, age, blocking and recommended option.</li><li>`wipnote question answer &lt;qid&gt; &lt;key&gt; [--note]` records the answer and time on the item; an unknown key or an already answered question is refused.</li><li>`add` refuses fewer than 2 options, a recommended key that is not an option, and items that are not a feature, bug or spike.</li></ul>
+        <ul class="slice-done-list"><li>`question add &lt;item&gt; &#34;&lt;text&gt;&#34; --option k:label[:tradeoff] ... [--recommended k] [--blocking]` stores an open record and prints its id.</li><li>`add` refuses fewer than 2 or more than 4 options, an unknown recommended key, and items that are not a feature, bug or spike.</li><li>`question list [--item &lt;id&gt;] [--open] [--format json]` spans all item types; `--open` means status open or assumed; rows carry status.</li><li>`question answer &lt;qid&gt; &lt;key&gt; [--note]` records answer and time; an unknown key is refused, a re-answer needs `--force`.</li></ul>
       </div>
       
     
@@ -816,8 +819,10 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         
         <input type="checkbox" id="slice-1-decisions-reveal" class="reveal-toggle">
         <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> an orchestrator or worker runs <code>wipnote question add</code> on a work item.
-<strong>State:</strong> a list of Question records in one node property, read and merged the way <code>research.FromNode</code> / <code>research.Merge</code> handle the research record (cmd/wipnote/research_cmd.go saveResearchRecord, openItem). The field set extends planyaml.PlanQuestion (id, text, recommended, options, answer) with blocking, raised_by, raised_at, assumed, note and answered_at.
-<strong>Payload:</strong> <code>list --format json</code> rows carry item id, item title, question id, text, options, recommended, blocking, raised_by, age and answer, so the mod and the hook read one shape.
+<strong>State:</strong> a list of Question records in one node property, read and merged the way <code>research.FromNode</code> / <code>research.Merge</code> (core/research/record.go) handle the research record (cmd/wipnote/research_cmd.go saveResearchRecord, openItem). The field set extends planyaml.PlanQuestion (id, text, recommended, options, answer) with blocking, status, raised_by, raised_at, source_id, assumed, note and answered_at; the option <code>tradeoff</code> is a new field beside QuestionOption&#39;s key and label.
+<strong>Status:</strong> open on add; assumed, confirmed and overturned are set by slice 2. <code>--force</code> re-answer exists so an overturned question can be corrected; slice 2 re-runs its overturn check on it.
+<strong>Payload:</strong> <code>list --format json</code> rows carry item id, item title, question id, text, options, recommended, blocking, status, assumed, raised_by, age and answer, so the mod and the hook read one shape. Items that no longer resolve are skipped.
+<strong>Size:</strong> list and its JSON rendering live in question_list.go so question_cmd.go stays under 500 lines once slice 2 adds assume.
 <strong>Rejected:</strong> steps (a done-flag checklist, no options or answer); edges (relations, not payload); a separate questions/ directory of files (a second store to sync, and the answer would not sit on the item).</p>
 </div>
         <label for="slice-1-decisions-reveal" class="reveal-label">Show full decisions</label>
@@ -834,6 +839,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/question/record.go (new)</code></li>
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/question/record_test.go (new)</code></li>
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/question_cmd.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/question_list.go (new)</code></li>
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/question_cmd_test.go (new)</code></li>
     <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/main.go</code></li>
     
@@ -846,10 +852,12 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <tbody>
       <tr><td><code>id</code></td><td><code>string (q-&lt;8 hex&gt;)</code></td><td>&mdash;</td></tr>
       <tr><td><code>text</code></td><td><code>string</code></td><td>&mdash;</td></tr>
-      <tr><td><code>options</code></td><td><code>list of {key, label, tradeoff}</code></td><td>&mdash;</td></tr>
-      <tr><td><code>recommended</code></td><td><code>string (an option key)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>options</code></td><td><code>list of {key, label, tradeoff}, 2-4 entries</code></td><td>&mdash;</td></tr>
+      <tr><td><code>recommended</code></td><td><code>string (an option key, or empty)</code></td><td>&mdash;</td></tr>
       <tr><td><code>blocking</code></td><td><code>bool</code></td><td>&mdash;</td></tr>
+      <tr><td><code>status</code></td><td><code>open | assumed | confirmed | overturned (default open)</code></td><td>&mdash;</td></tr>
       <tr><td><code>raised_by</code></td><td><code>string (session id or worker name)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>source_id</code></td><td><code>string (worker question id for dedup, or empty)</code></td><td>&mdash;</td></tr>
       <tr><td><code>raised_at</code></td><td><code>RFC 3339 time</code></td><td>&mdash;</td></tr>
       <tr><td><code>assumed</code></td><td><code>string (option key work proceeded on, or empty)</code></td><td>&mdash;</td></tr>
       <tr><td><code>answer</code></td><td><code>string (option key, empty while open)</code></td><td>&mdash;</td></tr>
@@ -873,12 +881,12 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           
           <div class="test-group" data-kind="unit">
             <span class="test-chip">UNIT &middot; 1</span>
-            <ul><li>core/question merge and validation (option count, recommended key, duplicate id).</li></ul>
+            <ul><li>core/question merge and validation (option count 2-4, recommended key optional but must be an option, duplicate id, status values).</li></ul>
           </div>
           
           <div class="test-group" data-kind="cli">
             <span class="test-chip">CLI &middot; 1</span>
-            <ul><li>add, list and answer against a temp store; JSON output shape; refusal cases.</li></ul>
+            <ul><li>add, list and answer against a temp store; JSON output shape including status; --open filter; refusal cases; --force re-answer.</li></ul>
           </div>
           
         </div>
@@ -963,7 +971,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>When work goes ahead with an open non-blocking question, record the recommended option as assumed. A later answer that differs marks the assumption overturned and reopens the item. Blocking questions are listed in execute-preview.</p>
+          <div class="markdown-block serif-prose"><p>When work goes ahead with an open non-blocking question, record the recommended option as assumed. A later answer that differs marks the assumption overturned and reopens the item; add <code>bug reopen</code> and <code>spike reopen</code> beside the existing <code>feature reopen</code>. Blocking questions warn at start and are listed in execute-preview.</p>
 </div>
           
         </div>
@@ -983,13 +991,13 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>core/question/record.go, cmd/wipnote/question_cmd.go, cmd/wipnote/feature_reopen.go, cmd/wipnote/execute_preview.go, plugin/skills/execute/SKILL.md</code></div>
+        <div class="slice-field-value"><code>core/question/record.go, cmd/wipnote/question_cmd.go, cmd/wipnote/workitem_set_status.go, cmd/wipnote/feature_reopen.go, cmd/wipnote/workitem_reopen.go (new), cmd/wipnote/execute_preview.go, plugin/skills/execute/SKILL.md</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>`wipnote question assume &lt;qid&gt;` (and `feature|bug|spike start` on an item with open non-blocking questions) records assumed = recommended and prints &#34;assumed: &lt;label&gt;, pending owner&#34;.</li><li>Answering with the assumed key marks the question confirmed; answering with another key marks it overturned and reopens a done item (feature/bug/spike reopen), or prints the item to revisit when it is still in progress.</li><li>`wipnote execute-preview` lists open blocking questions on the previewed items, and the execute skill says not to dispatch an item with one.</li></ul>
+        <ul class="slice-done-list"><li>`question assume &lt;qid&gt;` and `&lt;type&gt; start` record assumed = recommended for open non-blocking questions; start never fails on question errors.</li><li>Start warns on an open blocking question and records no assumption; complete warns when open questions remain.</li><li>An answer equal to assumed confirms; a different one overturns and reopens a done feature, bug or spike, or names the in-progress item.</li><li>`execute-preview` lists open blocking questions per item; the execute skill says not to dispatch an item with one.</li></ul>
       </div>
       
     
@@ -1000,8 +1008,9 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       <div class="slice-field-value">
         
         <input type="checkbox" id="slice-2-decisions-reveal" class="reveal-toggle">
-        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> item start (or an explicit <code>question assume</code>) with open non-blocking questions; later, <code>question answer</code>.
-<strong>State:</strong> assumed and a status of open, assumed, confirmed or overturned on each record.
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> item start (<code>wiStartCmd</code> in cmd/wipnote/workitem.go calls runWiSetStatus; the hook goes in afterStart in workitem_set_status.go) or an explicit <code>question assume</code>; later, <code>question answer</code>.
+<strong>State:</strong> status open -&gt; assumed on start, assumed -&gt; confirmed or overturned on answer. Questions without a recommended option stay open on start.
+<strong>Reopen:</strong> only feature reopen exists today (feature_reopen.go); workitem_reopen.go adds the bug and spike verbs on the same code path.
 <strong>Payload:</strong> execute-preview gains a <code>questions</code> list of blocking records per item.
 <strong>Rejected:</strong> blocking every open question (defeats the non-blocking default the owner chose); silently keeping the assumption on a different answer (the owner chose flag-and-reopen); a follow-up item for rework (owner chose reopen).</p>
 </div>
@@ -1032,12 +1041,12 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           
           <div class="test-group" data-kind="unit">
             <span class="test-chip">UNIT &middot; 1</span>
-            <ul><li>assume, confirm and overturn transitions.</li></ul>
+            <ul><li>assume, confirm and overturn transitions; assume refuses a question with no recommended option.</li></ul>
           </div>
           
           <div class="test-group" data-kind="cli">
             <span class="test-chip">CLI &middot; 1</span>
-            <ul><li>overturned answer on a done feature reopens it; execute-preview JSON and text include blocking questions.</li></ul>
+            <ul><li>start with open questions records assumptions; start with a blocking question warns; overturned answer reopens a done feature and a done bug; execute-preview JSON and text include blocking questions.</li></ul>
           </div>
           
         </div>
@@ -1065,7 +1074,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <span class="slice-num">#3</span>
     <span class="slice-title-col">
       <span class="slice-name">File worker questions as records</span>
-      <span class="slice-preview">When wipnote delegate result runs, file each structured worker question (outbox delegate reply --ask files and hook-captured AskUserQuestion…</span>
+      <span class="slice-preview">When wipnote delegate result runs, file each structured worker question from the run (outbox delegate reply --ask files and hook-captured As…</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
@@ -1104,7 +1113,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>When <code>wipnote delegate result</code> runs, file each structured worker question (outbox <code>delegate reply --ask</code> files and hook-captured AskUserQuestion calls) as a question record on the worker&#39;s work item, once. Update the worker brief to raise owner questions that way.</p>
+          <div class="markdown-block serif-prose"><p>When <code>wipnote delegate result</code> runs, file each structured worker question from the run (outbox <code>delegate reply --ask</code> files and hook-captured AskUserQuestion calls, answered or not, open or closed run) as a question record on the worker&#39;s work item, once. Add <code>--recommended</code> to <code>delegate reply --ask</code>. Update the worker brief to raise owner questions that way.</p>
 </div>
           
         </div>
@@ -1124,13 +1133,13 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>internal/delegate/session/questions.go, cmd/wipnote/delegate_mail.go, plugin/skills/delegate/SKILL.md</code></div>
+        <div class="slice-field-value"><code>internal/delegate/session/questions.go, internal/delegate/session/mail.go, cmd/wipnote/delegate_mail.go, cmd/wipnote/delegate_reply.go, plugin/skills/delegate/SKILL.md</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>`wipnote delegate result NAME` files each unfiled worker question on the worker&#39;s work item and prints the question ids; a second run files nothing new.</li><li>A worker with no work item gets a warning naming the questions instead of a silent drop.</li><li>The delegate skill tells workers to raise owner questions with `delegate reply --ask` and not to list them in the report.</li></ul>
+        <ul class="slice-done-list"><li>`delegate result NAME` on a closed run files each unfiled worker ask on the worker&#39;s item and prints the ids; a re-run files nothing.</li><li>A question already answered through `delegate answer` is filed with its answer; permission prompts are not filed.</li><li>A worker with no work item gets a warning naming the questions instead of a silent drop.</li><li>The delegate skill tells workers to use `delegate reply --ask` (with `--recommended`) and not to list questions in the report.</li></ul>
       </div>
       
     
@@ -1141,9 +1150,11 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       <div class="slice-field-value">
         
         <input type="checkbox" id="slice-3-decisions-reveal" class="reveal-toggle">
-        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> <code>wipnote delegate result NAME</code>.
-<strong>State:</strong> each filed record keeps the source question id in raised_by so a re-run skips it.
-<strong>Payload:</strong> worker options are bare strings; each becomes an option with key = its index and no trade-off text, and no recommended option unless the worker gave one.
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> <code>wipnote delegate result NAME</code> (session.Result in internal/delegate/session/mail.go).
+<strong>Source:</strong> session.Questions returns only pending asks and nothing for a closed run (questions.go runQuestions), so this slice adds a reader over all of the run&#39;s ask events and question files, excluding KindPermission. The item comes from the ledger row&#39;s WorkItem (core/delegationledger/record.go).
+<strong>State:</strong> each filed record sets source_id to the worker question id (tool use id or &lt;task-id&gt;-q); a re-run skips ids already present.
+<strong>Payload:</strong> worker options are bare strings; each becomes an option with key = its index and no trade-off text. recommended comes from the new <code>delegate reply --ask --recommended</code>, otherwise empty.
+<strong>Note:</strong> AskUserQuestion is not available in Claude subagents (agent-sdk user-input docs); hook-captured asks only come from workers that run as full sessions, so the outbox file is the primary path.
 <strong>Rejected:</strong> parsing an &#34;Owner questions&#34; section from the report prose (owner chose structured only; depends on a heading format workers drift from).</p>
 </div>
         <label for="slice-3-decisions-reveal" class="reveal-label">Show full decisions</label>
@@ -1157,7 +1168,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <div class="slice-field-value block-zone">
     <div class="block-anchor" id="slice-3-block-diagram-1" data-block-anchor="slice-3-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
   <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Worker question path</span></div>
-  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1280.8" height="48" viewBox="0 0 1280.8 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="395.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="203.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Worker runs delegate reply --ask or AskUserQuestion</text><path class="diagram-edge" d="M401.2 24 L441.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="441.2" y="6" width="208" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="545.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Outbox file or hook event</text><path class="diagram-edge" d="M649.2 24 L689.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="689.2" y="6" width="172" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="775.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">delegate result NAME</text><path class="diagram-edge" d="M861.2 24 L901.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="901.2" y="6" width="373.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1088" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">question add on the worker&#39;s item (deduplicated)</text></svg></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1374.4" height="48" viewBox="0 0 1374.4 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="395.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="203.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Worker runs delegate reply --ask or AskUserQuestion</text><path class="diagram-edge" d="M401.2 24 L441.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="441.2" y="6" width="208" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="545.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Outbox file or hook event</text><path class="diagram-edge" d="M649.2 24 L689.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="689.2" y="6" width="172" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="775.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">delegate result NAME</text><path class="diagram-edge" d="M861.2 24 L901.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="901.2" y="6" width="467.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1134.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">question add on the worker&#39;s item (deduplicated by source_id)</text></svg></div>
 </div></div>
     
   </div>
@@ -1173,12 +1184,12 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           
           <div class="test-group" data-kind="unit">
             <span class="test-chip">UNIT &middot; 1</span>
-            <ul><li>mapping of session.Question rows to Question records, including string options.</li></ul>
+            <ul><li>mapping of run question rows to Question records, including string options, recommended, answered asks and excluded permission rows.</li></ul>
           </div>
           
           <div class="test-group" data-kind="cli">
             <span class="test-chip">CLI &middot; 1</span>
-            <ul><li>result run twice files once; worker without an item warns.</li></ul>
+            <ul><li>result on a closed run files once, run twice files nothing new; worker without an item warns.</li></ul>
           </div>
           
         </div>
@@ -1245,7 +1256,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Add an orchestrator rule to ask open questions with the harness question tool, at most four per call, recommended option first. Add a Stop hook check that blocks once when a reply ends with prose questions while open records exist.</p>
+          <div class="markdown-block serif-prose"><p>Add an orchestrator rule to ask open questions with the harness question tool, at most four per call, recommended option first. Add a Stop hook check that blocks once when a reply ends with a prose question while open records exist, on Claude Code and Codex; Antigravity gets the prompt rule only.</p>
 </div>
           
         </div>
@@ -1265,13 +1276,13 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>cmd/wipnote/prompts/system-prompt.md, core/hooks/missing_events.go, core/hooks/runner.go, cmd/wipnote/hook.go</code></div>
+        <div class="slice-field-value"><code>cmd/wipnote/prompts/system-prompt.md, core/hooks/missing_events.go, core/hooks/runner.go, core/hooks/missing_events_test.go, cmd/wipnote/hook.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>The orchestrator prompt tells agents to ask open owner questions with the question tool in batches of at most four, recommended option first, each question self-contained, and to record each answer with `wipnote question answer`.</li><li>The Stop handler returns decision block with a reason naming the open question ids when the last assistant message ends with a question to the owner and open records exist, and allows the stop on the hook&#39;s own re-run.</li><li>The Stop handler adds no more than a few milliseconds when no question records exist.</li></ul>
+        <ul class="slice-done-list"><li>The orchestrator prompt says to ask open questions with the question tool, at most four per call, recommended first, and to record answers with `question answer`.</li><li>Stop blocks with a reason naming open question ids when the last non-empty line outside a code block ends with &#34;?&#34; and open records exist.</li><li>Stop allows when stop_hook_active is true, in delegate worker sessions, and on Antigravity.</li><li>A benchmark shows the check adds under 5 ms when no question records exist.</li></ul>
       </div>
       
     
@@ -1282,11 +1293,11 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       <div class="slice-field-value">
         
         <input type="checkbox" id="slice-4-decisions-reveal" class="reveal-toggle">
-        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> the Stop hook (manifest entry already targets claude, codex and antigravity).
-<strong>State:</strong> reads open records via the slice 1 list; the loop guard is stop_hook_active if the docs confirm it, otherwise a per-turn marker.
-<strong>Payload:</strong> decision &#34;block&#34; with a reason naming the question ids and the tool to use.
-<strong>Rejected:</strong> a context note only (prose questions still reach the owner first); no hook (owner chose block once).
-Codex and Antigravity Stop output formats differ; the block applies only where the harness supports it, others get the prompt rule alone.</p>
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> the Stop hook (hooks.Stop in core/hooks/missing_events.go, dispatched from cmd/wipnote/hook.go; manifest entry already targets claude, codex and antigravity).
+<strong>State:</strong> reads open records via the slice 1 list. Loop guard is stop_hook_active, verified in both Claude Code and Codex docs; runner.go already parses last_assistant_message and gains StopHookActive.
+<strong>Workers:</strong> delegated workers also fire Stop; the check skips sessions the delegate launcher marks as workers (WIPNOTE_DELEGATE_RUN is set; confirm it reaches the hook process during the slice), so only the orchestrator is nudged.
+<strong>Payload:</strong> decision &#34;block&#34; with a reason naming the question ids and the tool to use. Codex uses the existing emitter (codexEventAcceptsDecision covers Stop in core/hooks/harness_response.go). Antigravity&#39;s Stop format is undocumented, so it gets the prompt rule alone.
+<strong>Rejected:</strong> a context note only (prose questions still reach the owner first); no hook (owner chose block once).</p>
 </div>
         <label for="slice-4-decisions-reveal" class="reveal-label">Show full decisions</label>
         
@@ -1299,7 +1310,7 @@ Codex and Antigravity Stop output formats differ; the block applies only where t
   <div class="slice-field-value block-zone">
     <div class="block-anchor" id="slice-4-block-diagram-1" data-block-anchor="slice-4-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
   <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Stop nudge</span></div>
-  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1468" height="48" viewBox="0 0 1468 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="136" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="74" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Stop hook fires</text><path class="diagram-edge" d="M142 24 L182 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="182" y="6" width="251.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="307.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Already a re-run? -&gt; allow stop</text><path class="diagram-edge" d="M433.2 24 L473.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="473.2" y="6" width="503.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="724.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Open question records and reply ends with a question to the owner?</text><path class="diagram-edge" d="M976.4 24 L1016.4000000000001 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1016.4000000000001" y="6" width="445.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1239.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Block once, reason names the records and the question tool</text></svg></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1511.1999999999998" height="48" viewBox="0 0 1511.1999999999998 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="136" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="74" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Stop hook fires</text><path class="diagram-edge" d="M142 24 L182 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="182" y="6" width="416.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="390.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">stop_hook_active, worker or Antigravity? -&gt; allow stop</text><path class="diagram-edge" d="M598.8 24 L638.8 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="638.8" y="6" width="380.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="829.1999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Open question records and last line ends with &#34;?&#34;</text><path class="diagram-edge" d="M1019.5999999999999 24 L1059.6 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1059.6" y="6" width="445.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1282.3999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Block once, reason names the records and the question tool</text></svg></div>
 </div></div>
     
   </div>
@@ -1315,12 +1326,17 @@ Codex and Antigravity Stop output formats differ; the block applies only where t
           
           <div class="test-group" data-kind="unit">
             <span class="test-chip">UNIT &middot; 1</span>
-            <ul><li>Stop handler with and without open records, with and without a trailing question, and on a re-run.</li></ul>
+            <ul><li>Stop handler with and without open records, trailing &#34;?&#34; inside and outside a code block, stop_hook_active true, worker session, Antigravity harness.</li></ul>
           </div>
           
           <div class="test-group" data-kind="contract">
             <span class="test-chip">CONTRACT &middot; 1</span>
-            <ul><li>the emitted JSON matches the Claude Code Stop hook output format.</li></ul>
+            <ul><li>the emitted JSON matches the Claude Code and Codex Stop output formats (decision block plus reason).</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="benchmark">
+            <span class="test-chip">BENCHMARK &middot; 1</span>
+            <ul><li>no-records path.</li></ul>
           </div>
           
         </div>
@@ -1348,7 +1364,7 @@ Codex and Antigravity Stop output formats differ; the block applies only where t
     <span class="slice-num">#5</span>
     <span class="slice-title-col">
       <span class="slice-name">Mods: questions pane, band count, toast and ref cards</span>
-      <span class="slice-preview">Add a wipnote-questions mod pane that lists open questions across items and answers them with wipnote question answer.</span>
+      <span class="slice-preview">Add a wipnote-questions mod pane that lists open questions across items and answers them with wipnote question answer, showing the command&#39;s…</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-blocked badge-sm badge-effort" title="Effort: Large" aria-label="Effort: Large">L</span>
@@ -1387,7 +1403,7 @@ Codex and Antigravity Stop output formats differ; the block applies only where t
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Add a wipnote-questions mod pane that lists open questions across items and answers them with <code>wipnote question answer</code>. Show an open and blocking count in the orchestra band, a toast on a new blocking question, and open questions on ref cards.</p>
+          <div class="markdown-block serif-prose"><p>Add a wipnote-questions mod pane that lists open questions across items and answers them with <code>wipnote question answer</code>, showing the command&#39;s result. Show an open and blocking count in the orchestra band, a toast on a new blocking question, and open questions on ref cards.</p>
 </div>
           
         </div>
@@ -1407,13 +1423,13 @@ Codex and Antigravity Stop output formats differ; the block applies only where t
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>mods/wipnote-questions/hooks/register.tsx (new), mods/wipnote-questions/hooks/model.ts (new), mods/wipnote-questions/tests/model.test.ts (new), mods/wipnote-questions/README.md (new), mods/wipnote-orchestra/hooks/band.tsx, mods/wipnote-orchestra/hooks/refcards.tsx, cmd/wipnote/mods_test.go</code></div>
+        <div class="slice-field-value"><code>mods/wipnote-questions/.claude-plugin/plugin.json (new), mods/wipnote-questions/hooks/hooks.json (new), mods/wipnote-questions/hooks/register.tsx (new), mods/wipnote-questions/hooks/model.ts (new), mods/wipnote-questions/types/index.d.ts (new), mods/wipnote-questions/tsconfig.json (new), mods/wipnote-questions/tests/model.test.ts (new), mods/wipnote-questions/README.md (new), mods/wipnote-orchestra/hooks/register.tsx, mods/wipnote-orchestra/hooks/band.tsx, mods/wipnote-orchestra/hooks/refcards.tsx, cmd/wipnote/mods_test.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>The wipnote-questions pane lists open questions from `wipnote question list --open --format json`, with item, age, blocking and recommended option, and refreshes on a poll while placed.</li><li>Choosing an option in the pane runs `wipnote question answer` and the row leaves the list.</li><li>The orchestra band shows &#34;N open questions · M blocking&#34; when N &gt; 0, a toast appears when a new blocking question appears, and ref cards for an item show its open questions.</li><li>The launcher loads the new mod with the others and mods_test covers it.</li></ul>
+        <ul class="slice-done-list"><li>The pane lists open questions from `question list --open --format json` with item, age, blocking and recommended, polling while placed.</li><li>Choosing an option runs `question answer`, toasts its output (including &#34;overturned, &lt;item&gt; reopened&#34;), and the row leaves the list.</li><li>The band shows &#34;N open questions · M blocking&#34; when N &gt; 0; a new blocking question toasts; ref cards show the item&#39;s open questions.</li><li>A new mods_test test checks the wipnote-questions mod has its manifest and hooks files.</li></ul>
       </div>
       
     
@@ -1423,11 +1439,15 @@ Codex and Antigravity Stop output formats differ; the block applies only where t
       <div class="slice-field-label">Decisions</div>
       <div class="slice-field-value">
         
-        <div class="markdown-block serif-prose"><p><strong>Trigger:</strong> pane open (poll while placed), band refresh, card render.
+        <input type="checkbox" id="slice-5-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> pane open (poll while placed), band refresh, card render.
 <strong>State:</strong> none in the mod; all data from <code>wipnote question list --format json</code>.
+<strong>Orchestra:</strong> polling lives in mods/wipnote-orchestra/hooks/register.tsx, so the count and toast detection go there; band.tsx only draws. Ref cards call <code>question list --item &lt;id&gt; --open --format json</code> beside the existing show call in refcards.tsx.
+<strong>Loading:</strong> the launcher finds mods by reading the mods/ folder and mirrors the tree on deploy; no registration is needed.
 <strong>Payload:</strong> the slice 1 JSON row shape.
 <strong>Rejected:</strong> a file watch on the store (the existing mods poll the CLI and the store may be outside the repo); putting the list in the band itself (too little room).</p>
 </div>
+        <label for="slice-5-decisions-reveal" class="reveal-label">Show full decisions</label>
         
       </div>
     </div>
@@ -1467,12 +1487,12 @@ Codex and Antigravity Stop output formats differ; the block applies only where t
           
           <div class="test-group" data-kind="unit">
             <span class="test-chip">UNIT &middot; 1</span>
-            <ul><li>model.ts parse of the list JSON; band count text; new-blocking detection for the toast.</li></ul>
+            <ul><li>model.ts parse of the list JSON; band count text; new-blocking detection for the toast; answer-output toast text.</li></ul>
           </div>
           
           <div class="test-group" data-kind="repo">
             <span class="test-chip">REPO &middot; 1</span>
-            <ul><li>mods_test includes wipnote-questions.</li></ul>
+            <ul><li>new mods_test test for the wipnote-questions scaffold.</li></ul>
           </div>
           
         </div>
