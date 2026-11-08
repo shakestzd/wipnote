@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Crash test the store under concurrent agents</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-aa2bb785"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-11-05T01:01:33.359602"
+             data-updated="2026-11-08T03:15:17.19327" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788">
+
+        <header>
+            <h1>Crash test the store under concurrent agents</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Run many wipnote processes against a scratch copy of the store, kill them and the daemon at random, then check that nothing acknowledged was lost, no file is partial and links resolve. Also explain the pending commit-queue entries, read-only.</p>
+        </section>
+    </article>
+</body>
+</html>
