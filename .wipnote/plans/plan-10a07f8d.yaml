@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 4
+    version: 5
 design:
     problem: |
         Questions an orchestrator owes the owner live only in the agent's prose. In the 2026-11-07 session (issue #336) they got buried under later replies, were answered turns after the work they affected, and the owner had to ask for the question tool at least five times. Work either waited on an answer or went ahead on a default that the item never recorded.
@@ -340,3 +340,102 @@ slices:
                   </div>
                 </div>
 questions: []
+critique:
+    reviewed_at: "2026-11-08"
+    reviewers:
+        - local-design
+        - local-feasibility
+    assumptions:
+        - id: A1
+          status: verified
+          text: Claude Code Stop input carries last_assistant_message and stop_hook_active; decision block needs a reason.
+          evidence: https://code.claude.com/docs/en/hooks#stop-input
+        - id: A2
+          status: verified
+          text: AskUserQuestion takes 1-4 questions with 2-4 options each and is unavailable in subagents.
+          evidence: https://code.claude.com/docs/en/agent-sdk/user-input
+        - id: A3
+          status: verified
+          text: Codex Stop accepts decision block plus reason and passes stop_hook_active.
+          evidence: https://learn.chatgpt.com/docs/hooks; core/hooks/harness_response.go codexEventAcceptsDecision
+        - id: A4
+          status: unverified
+          text: Antigravity Stop block output format.
+          evidence: 'unverified: no canonical Antigravity hook docs; slice 4 keeps it prompt-rule only'
+        - id: A5
+          status: verified
+          text: Research-record pattern (research.FromNode/Merge, saveResearchRecord, openItem) exists to copy.
+          evidence: core/research/record.go:70,140; cmd/wipnote/research_cmd.go:93,107
+        - id: A6
+          status: falsified
+          text: bug and spike reopen commands exist.
+          evidence: 'runtime: ls cmd/wipnote | grep reopen -> feature_reopen.go, plan_reopen.go only; slice 2 now adds workitem_reopen.go'
+        - id: A7
+          status: falsified
+          text: session.Questions returns worker questions after a run closes.
+          evidence: internal/delegate/session/questions.go runQuestions returns empty for a closed run; slice 3 now reads all ask events
+        - id: A8
+          status: plausible
+          text: WIPNOTE_DELEGATE_RUN reaches the Stop hook process in worker sessions.
+          evidence: 'unverified: env var found in cmd/internal; propagation to hooks checked during slice 4'
+    critics:
+        - title: Design critic
+          sections:
+            - heading: Fixed
+              items:
+                - badge: danger
+                  kind: fixed
+                  text: Slice 1 data model lacked the status field slice 2 uses; status open|assumed|confirmed|overturned added, --open defined.
+                - badge: danger
+                  kind: fixed
+                  text: Slice 2 relied on bug/spike reopen that does not exist; workitem_reopen.go added.
+                - badge: danger
+                  kind: fixed
+                  text: Slice 3 source is empty for closed runs; slice now reads all ask events and question files, dedup via new source_id.
+                - badge: warn
+                  kind: fixed
+                  text: 'Blocking question at start, complete with open questions, re-answer (--force), recommended optional: all now defined.'
+                - badge: warn
+                  kind: fixed
+                  text: Stop trailing-question heuristic defined (last non-empty line outside code ends with ?); perf bound is <5 ms benchmark.
+                - badge: warn
+                  kind: fixed
+                  text: Pane now toasts the answer output so an overturn-driven reopen is visible.
+        - title: Feasibility critic
+          sections:
+            - heading: Fixed
+              items:
+                - badge: warn
+                  kind: fixed
+                  text: Slice 2 missing workitem_set_status.go (afterStart); added.
+                - badge: warn
+                  kind: fixed
+                  text: Slice 3 missing session/mail.go and delegate_reply.go (--recommended); added; permission rows excluded.
+                - badge: warn
+                  kind: fixed
+                  text: Slice 4 would block delegate workers; workers, stop_hook_active and Antigravity now allow stop.
+                - badge: warn
+                  kind: fixed
+                  text: Slice 5 missing mod scaffold files and orchestra register.tsx (where polling lives); added; mods_test needs a new test.
+                - badge: warn
+                  kind: fixed
+                  text: Slice 1 question_cmd.go size risk; list split into question_list.go; options capped at 4.
+            - heading: Confirmed
+              items:
+                - badge: success
+                  kind: verified
+                  text: Cited research, delegate, hooks and plan-review pane patterns exist; mods load by directory scan with no registration.
+                - badge: info
+                  kind: note
+                  text: Stop also accepts hookSpecificOutput.additionalContext, a softer alternative to decision block.
+    risks:
+        - risk: Stop nudge misfires on rhetorical trailing questions and annoys the owner.
+          severity: Medium
+          mitigation: Block only once per turn via stop_hook_active and only when open records exist.
+        - risk: Overturned answer reopens a done item unexpectedly from the pane.
+          severity: Medium
+          mitigation: Pane toasts the answer command output naming the reopened item.
+        - risk: Worker marker does not reach hook processes, so workers get nudged.
+          severity: Low
+          mitigation: Slice 4 confirms WIPNOTE_DELEGATE_RUN propagation and tests the worker path.
+    synthesis: 'Both critics ran; three design dangers (missing status field, nonexistent bug/spike reopen, closed-run worker questions) and the feasibility warnings were fixed in place, and validate-yaml is clean apart from done_when length advisories. No danger remains. Open items for the reviewer: A4 (Antigravity Stop format, kept prompt-only) and A8 (worker env marker reaching hooks, checked in slice 4). Look first at slice 2''s reopen scope, which now adds bug and spike reopen, and slice 4''s decision-block-versus-additionalContext choice.'
