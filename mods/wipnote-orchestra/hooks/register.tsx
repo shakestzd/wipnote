@@ -165,15 +165,26 @@ async function refreshCounts($: EngineInterface) {
 const toasted = new Set<string>()
 let hasReadQuestions = false
 
-/** The open questions for the band; a new blocking one toasts. The last list stays on a failure. */
+let isReadingQuestions = false
+
+/**
+ * The open questions for the band; a new blocking one toasts. The last list stays on a failure.
+ * Nothing is read while the band is off, and a tick that finds a call still running skips.
+ */
 async function refreshQuestions($: EngineInterface) {
-  const ran = await $.process.run(openArgv(), { timeoutMs: 5000 }).catch(() => undefined)
-  const rows: OpenQuestion[] | undefined = ran?.exitCode === 0 ? parseOpen(ran.stdout) : undefined
-  if (rows === undefined) return
-  const added = fresh(rows, toasted)
-  if (hasReadQuestions) for (const q of added) $.ui.toast(`Blocking question on ${q.itemId}: ${q.text}`)
-  hasReadQuestions = true
-  await update($, questions, () => questionsText(rows))
+  if (isReadingQuestions || (await read($, mode)) === 'off') return
+  isReadingQuestions = true
+  try {
+    const ran = await $.process.run(openArgv(), { timeoutMs: 5000 }).catch(() => undefined)
+    const rows: OpenQuestion[] | undefined = ran?.exitCode === 0 ? parseOpen(ran.stdout) : undefined
+    if (rows === undefined) return
+    const added = fresh(rows, toasted)
+    if (hasReadQuestions) for (const q of added) $.ui.toast(`Blocking question on ${q.itemId}: ${q.text}`)
+    hasReadQuestions = true
+    await update($, questions, () => questionsText(rows))
+  } finally {
+    isReadingQuestions = false
+  }
 }
 
 /**
