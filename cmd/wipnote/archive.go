@@ -11,6 +11,7 @@ import (
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/question"
 	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/internal/migrate"
 )
@@ -123,12 +124,15 @@ func runArchive(apply bool, olderThanDays int) error {
 // will do, and (when apply) writes them into the ledger and removes the
 // individual files. Returns the number of items archived (or that would be).
 func archiveCollection(wipnoteDir, collectionDir string, cutoff time.Time, apply bool) (int, error) {
-	candidates, err := collectArchiveCandidates(wipnoteDir, collectionDir, cutoff)
+	candidates, kept, err := collectArchiveCandidates(wipnoteDir, collectionDir, cutoff)
 	if err != nil {
 		return 0, err
 	}
 
 	fmt.Printf("Collection: %s\n", collectionDir)
+	for _, k := range kept {
+		fmt.Printf("  %-14s  %s  %s\n", "keep", k.id, k.reason)
+	}
 	if len(candidates) == 0 {
 		fmt.Println("  (no eligible DONE items)")
 		return 0, nil
@@ -162,19 +166,25 @@ func archiveCollection(wipnoteDir, collectionDir string, cutoff time.Time, apply
 	return len(candidates), nil
 }
 
+// archiveKept is an eligible item archive leaves live, and why.
+type archiveKept struct{ id, reason string }
+
 // collectArchiveCandidates returns DONE items in collectionDir whose last update
 // is at or before cutoff. Items already represented in the ledger are skipped so
-// the operation is idempotent.
-func collectArchiveCandidates(wipnoteDir, collectionDir string, cutoff time.Time) ([]archiveCandidate, error) {
+// the operation is idempotent. An eligible item with an open or assumed owner
+// question stays live, so a late answer can still reach and reopen it; it is
+// returned in kept.
+func collectArchiveCandidates(wipnoteDir, collectionDir string, cutoff time.Time) ([]archiveCandidate, []archiveKept, error) {
 	already, err := ledgerIDSet(graph.ArchiveLedgerPath(wipnoteDir, collectionDir))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	pattern := filepath.Join(wipnoteDir, collectionDir, "*.html")
 	files, _ := filepath.Glob(pattern)
 
 	var out []archiveCandidate
+	var kept []archiveKept
 	for _, f := range files {
 		raw, readErr := os.ReadFile(f)
 		if readErr != nil {
@@ -197,6 +207,10 @@ func collectArchiveCandidates(wipnoteDir, collectionDir string, cutoff time.Time
 		if updated.IsZero() || updated.After(cutoff) {
 			continue
 		}
+		if reason := unsettledQuestions(node); reason != "" {
+			kept = append(kept, archiveKept{id: node.ID, reason: reason})
+			continue
+		}
 		out = append(out, archiveCandidate{
 			id:        node.ID,
 			filePath:  f,
@@ -205,7 +219,22 @@ func collectArchiveCandidates(wipnoteDir, collectionDir string, cutoff time.Time
 			updatedAt: updated,
 		})
 	}
-	return out, nil
+	return out, kept, nil
+}
+
+// unsettledQuestions says why an item's owner questions keep it live: one is
+// open or assumed, or the record cannot be read. "" when none do.
+func unsettledQuestions(node *models.Node) string {
+	qs, err := question.Parse(node)
+	if err != nil {
+		return "kept live: its questions record cannot be read (an open question may be in it)"
+	}
+	for _, q := range qs {
+		if q.IsOpen() {
+			return fmt.Sprintf("kept live: open question %s is %s; answer it before archiving", q.ID, q.Status)
+		}
+	}
+	return ""
 }
 
 // appendToLedger merges new candidates into the existing ledger (read-modify-
