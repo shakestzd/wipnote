@@ -9,9 +9,11 @@ import (
 )
 
 // stopQuestionNudge blocks a Stop once when the reply ends with a prose
-// question while owner-question records are still open (feat-7314623e): the
-// question belongs in the harness question tool, recorded with `question
-// answer`. It returns nil to allow. The cheap checks run first; the store is
+// question while owner questions are still open on in-progress items
+// (feat-7314623e). Assumed questions do not count: that work went ahead on
+// purpose. The reason names at most nudgeListMax ids. The question belongs
+// in the harness question tool, recorded with `question answer`. It returns
+// nil to allow. The cheap checks run first; the store is
 // read only when the reply really ends with a question.
 //
 // It allows when stop_hook_active is set (the harness already continued once
@@ -24,7 +26,7 @@ func stopQuestionNudge(event *CloudEvent, projectDir string) *HookResult {
 	if os.Getenv(DelegateRunEnv) != "" || !endsWithProseQuestion(event.LastAssistantMessage) {
 		return nil
 	}
-	ids := question.OpenIDs(projectDir)
+	ids := question.OpenIDsInProgress(projectDir)
 	if len(ids) == 0 {
 		return nil
 	}
@@ -32,8 +34,19 @@ func stopQuestionNudge(event *CloudEvent, projectDir string) *HookResult {
 		Decision: "block",
 		Reason: fmt.Sprintf("Open question records exist (%s) and your reply ends with a question in prose. "+
 			"Ask open questions with the question tool, at most four per call, recommended option first, "+
-			"then record each answer with `wipnote question answer`.", strings.Join(ids, ", ")),
+			"then record each answer with `wipnote question answer`.", listIDs(ids, nudgeListMax)),
 	}
+}
+
+// nudgeListMax bounds the question ids the nudge names.
+const nudgeListMax = 5
+
+// listIDs joins the first max ids and counts the rest: "a, b and 3 more".
+func listIDs(ids []string, max int) string {
+	if len(ids) <= max {
+		return strings.Join(ids, ", ")
+	}
+	return fmt.Sprintf("%s and %d more", strings.Join(ids[:max], ", "), len(ids)-max)
 }
 
 // endsWithProseQuestion reports whether the last non-empty line outside a

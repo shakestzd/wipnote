@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-const nudgeItem = `<article id="feat-aaaa0001" data-type="feature" data-status="todo" data-node-props="{&#34;questions&#34;:[{&#34;id&#34;:&#34;q-77&#34;,&#34;text&#34;:&#34;t&#34;,&#34;options&#34;:[],&#34;status&#34;:&#34;open&#34;}]}"><header><h1>T</h1></header></article>`
+const nudgeItem = `<article id="feat-aaaa0001" data-type="feature" data-status="in-progress" data-node-props="{&#34;questions&#34;:[{&#34;id&#34;:&#34;q-77&#34;,&#34;text&#34;:&#34;t&#34;,&#34;options&#34;:[],&#34;status&#34;:&#34;open&#34;}]}"><header><h1>T</h1></header></article>`
 
 func nudgeProject(t *testing.T, withQuestion bool) string {
 	t.Helper()
@@ -65,6 +65,41 @@ func TestStopQuestionNudge_NoOpenRecords(t *testing.T) {
 	root := nudgeProject(t, false)
 	if res := stopQuestionNudge(&CloudEvent{LastAssistantMessage: "ok?"}, root); res != nil {
 		t.Fatalf("blocked without records: %+v", res)
+	}
+}
+
+// The nudge counts only open questions on in-progress items: an assumed
+// question went ahead on purpose and a todo item is not being worked.
+func TestStopQuestionNudge_OnlyOpenOnInProgress(t *testing.T) {
+	t.Setenv(DelegateRunEnv, "")
+	for name, body := range map[string]string{
+		"assumed":   strings.Replace(nudgeItem, "&#34;open&#34;", "&#34;assumed&#34;", 1),
+		"todo item": strings.Replace(nudgeItem, `data-status="in-progress"`, `data-status="todo"`, 1),
+	} {
+		root := nudgeProject(t, true)
+		if err := os.WriteFile(filepath.Join(root, ".wipnote", "features", "feat-aaaa0001.html"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if res := stopQuestionNudge(&CloudEvent{LastAssistantMessage: "ok?"}, root); res != nil {
+			t.Errorf("%s: blocked %+v", name, res)
+		}
+	}
+}
+
+// The reason lists at most five ids and counts the rest.
+func TestStopQuestionNudge_ListsAtMostFive(t *testing.T) {
+	t.Setenv(DelegateRunEnv, "")
+	root := nudgeProject(t, false)
+	for i := 0; i < 7; i++ {
+		id := fmt.Sprintf("feat-aaaa%04d", i)
+		body := strings.NewReplacer("feat-aaaa0001", id, "q-77", fmt.Sprintf("q-%02d", i)).Replace(nudgeItem)
+		if err := os.WriteFile(filepath.Join(root, ".wipnote", "features", id+".html"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	res := stopQuestionNudge(&CloudEvent{LastAssistantMessage: "ok?"}, root)
+	if res == nil || !strings.Contains(res.Reason, "and 2 more") || strings.Count(res.Reason, "q-0") != 5 {
+		t.Fatalf("reason %+v", res)
 	}
 }
 
