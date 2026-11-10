@@ -123,6 +123,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "workitems", Command: trackCmdWithExtras()},
 			{GroupID: "workitems", Command: planCmdWithExtras()},
 			{GroupID: "workitems", Command: archCmd()},
+			{GroupID: "workitems", Command: questionCmd()},
 		},
 		Query: []cliinternal.GroupedCommand{
 			{GroupID: "query", Command: recapCmd()},
