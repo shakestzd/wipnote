@@ -26,12 +26,18 @@ const (
 	delegateAskLabelMax  = 200 // runes per header, label or answer item
 )
 
-// askItems reads AskUserQuestion's tool_input questions.
+// askItems reads AskUserQuestion's tool_input questions, bounded for storage.
 func askItems(input map[string]any) []delegateAsk {
+	asks, _ := rawAskItems(input)
+	return asks
+}
+
+// rawAskItems reads the questions with each one's full text, which keys the
+// tool result's answers map; the stored Question is bounded.
+func rawAskItems(input map[string]any) (asks []delegateAsk, full []string) {
 	qs, _ := input["questions"].([]any)
-	var out []delegateAsk
 	for _, q := range qs {
-		if len(out) == delegateAskMax {
+		if len(asks) == delegateAskMax {
 			break
 		}
 		m, _ := q.(map[string]any)
@@ -45,9 +51,9 @@ func askItems(input map[string]any) []delegateAsk {
 				a.Options = append(a.Options, boundRunes(l, delegateAskLabelMax))
 			}
 		}
-		out = append(out, a)
+		asks, full = append(asks, a), append(full, text)
 	}
-	return out
+	return asks, full
 }
 
 func optionLabel(o any) string {
@@ -63,16 +69,17 @@ func optionLabel(o any) string {
 
 // askAnswers returns the asks of a finished AskUserQuestion call with the
 // person's answers, read from the tool result's "answers" map (question text
-// to answer) or, failing that, the tool input's. A multi-select answer list
-// is joined with ", ".
+// to answer) or, failing that, the tool input's. The map is looked up with
+// each question's full text, before it is bounded for storage. A
+// multi-select answer list is joined with ", ".
 func askAnswers(event *CloudEvent) []delegateAsk {
-	asks := askItems(event.ToolInput)
+	asks, full := rawAskItems(event.ToolInput)
 	answers, _ := event.ToolResult["answers"].(map[string]any)
 	if answers == nil {
 		answers, _ = event.ToolInput["answers"].(map[string]any)
 	}
 	for i := range asks {
-		asks[i].Answer = answerText(answers[asks[i].Question])
+		asks[i].Answer = answerText(answers[full[i]])
 	}
 	return asks
 }
