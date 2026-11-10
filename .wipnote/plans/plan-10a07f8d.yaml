@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 13
+    version: 14
 design:
     problem: |
         Questions an orchestrator owes the owner live only in the agent's prose. In the 2026-11-07 session (issue #336) they got buried under later replies, were answered turns after the work they affected, and the owner had to ask for the question tool at least five times. Work either waited on an answer or went ahead on a default that the item never recorded.
@@ -234,6 +234,7 @@ slices:
             - delegate result NAME
             - question add on the worker's item (deduplicated by source_id)
     - id: slice-4
+      feature_id: feat-7314623e
       num: 4
       title: Ask with the question tool in batches; Stop hook nudge
       what: |
@@ -270,6 +271,7 @@ slices:
           claim: Codex Stop input has stop_hook_active and last_assistant_message; decision block with reason continues the turn.
           accessed: "2026-11-08"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** the Stop hook (hooks.Stop in core/hooks/missing_events.go, dispatched from cmd/wipnote/hook.go; manifest entry already targets claude, codex and antigravity).
         **State:** reads open records via the slice 1 list. Loop guard is stop_hook_active, verified in both Claude Code and Codex docs; runner.go already parses last_assistant_message and gains StopHookActive.
@@ -492,3 +494,8 @@ feedback:
           value: promoted
           created_at: "2026-11-10T05:44:40Z"
           updated_at: "2026-11-10T05:44:40Z"
+        - section: slice-4
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-10T05:45:08Z"
+          updated_at: "2026-11-10T05:45:08Z"
