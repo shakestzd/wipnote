@@ -1,0 +1,6 @@
+{
+  "name": "wipnote-questions",
+  "version": "0.1.0",
+  "description": "A side pane that lists the open questions across wipnote work items and answers them with wipnote question answer.",
+  "types": "./types/index.d.ts"
+}

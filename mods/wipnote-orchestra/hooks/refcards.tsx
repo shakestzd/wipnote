@@ -19,10 +19,13 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Card, CardEntry, FailKind } from '../types'
 import { Latest, changedRefs, classifyExit, failureText, needsFetch, parseCard, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from './refs'
 import type { CliResult } from './refs'
+import { itemQuestionsArgv, parseOpen, questionLines } from './questions'
 
 type On = Parameters<Register>[0]
 
 const refs = atom({ plugin: 'wipnote-orchestra', key: 'refs' } as const, {})
+// An item's open questions, as card lines; a failed read keeps the last ones.
+const cardQuestions = atom({ plugin: 'wipnote-orchestra', key: 'cardQuestions' } as const, {})
 const CLI_TIMEOUT_MS = 15_000
 const MAX_REFRESH = 10
 const SCAN_MESSAGES = 200
@@ -79,6 +82,13 @@ export async function storeCard($: EngineInterface, id: string, stdout: string):
   if (latest.isNewest(`card:${id}`, ticket)) await setEntry($, id, { state: 'loaded', card, at: await $.clock.now() })
 }
 
+/** Reads the item's open questions into the atom, for its card. */
+async function loadQuestions($: EngineInterface, id: string): Promise<void> {
+  const r = await wipnoteJSON($, itemQuestionsArgv(id))
+  const rows = r.ok ? parseOpen(r.stdout) : undefined
+  if (rows !== undefined) await update($, cardQuestions, all => ({ ...all, [id]: questionLines(rows) }))
+}
+
 /** Loads one card into the atom; the write redraws every message that reads it. */
 async function loadCard($: EngineInterface, id: string): Promise<void> {
   const ticket = latest.take(`card:${id}`)
@@ -86,6 +96,7 @@ async function loadCard($: EngineInterface, id: string): Promise<void> {
   const r = await fetchCard($, id)
   if (!latest.isNewest(`card:${id}`, ticket)) return
   const at = await $.clock.now()
+  if ('card' in r) await loadQuestions($, id).catch(() => undefined)
   await setEntry($, id, 'card' in r ? { state: 'loaded', card: r.card, at } : { state: 'failed', reason: r.fail, at })
 }
 
@@ -160,7 +171,7 @@ export function registerRefs(on: On): void {
     if (!segments.some(s => s.kind === 'refs')) return next(e)
 
     const { Box, Text, Markdown } = $.ui.resolve(e)
-    const all = await read($, refs)
+    const [all, asked] = await Promise.all([read($, refs), read($, cardQuestions)])
 
     return (
       <Box flexDirection="column">
@@ -187,6 +198,9 @@ export function registerRefs(on: On): void {
                       <Text color={STATUS_COLOR[c.status] ?? 'subtle'}>● {c.status}</Text>
                       {c.steps.length > 0 ? <Text dimColor>  {stepBar(c.steps)} {stepCount(c.steps)}</Text> : null}
                     </Text>
+                    {(asked[id] ?? []).map((line, n) => (
+                      <Text key={`q${n}`} color="warning" wrap="truncate-end">{line}</Text>
+                    ))}
                   </Box>
                 )
               })}
