@@ -305,3 +305,35 @@ func TestComposeSystemPrompt_NoOrchestratorKeepsMods(t *testing.T) {
 		t.Fatalf("lean prompt = %q, want only the mod rule", lean)
 	}
 }
+
+// The questions mod ships its manifest and hooks files.
+func TestQuestionsModHasManifestAndHooks(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mod := filepath.Join(root, "mods", "wipnote-questions")
+	for _, rel := range []string{
+		filepath.Join(".claude-plugin", "plugin.json"),
+		filepath.Join("hooks", "hooks.json"),
+		filepath.Join("hooks", "register.tsx"),
+	} {
+		if _, err := os.Stat(filepath.Join(mod, rel)); err != nil {
+			t.Errorf("wipnote-questions lacks %s: %v", rel, err)
+		}
+	}
+	manifest, err := os.ReadFile(filepath.Join(mod, ".claude-plugin", "plugin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(manifest), `"name": "wipnote-questions"`) {
+		t.Errorf("plugin.json does not name wipnote-questions:\n%s", manifest)
+	}
+	hooks, err := os.ReadFile(filepath.Join(mod, "hooks", "hooks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(hooks), "./register.tsx") {
+		t.Errorf("hooks.json does not load register.tsx:\n%s", hooks)
+	}
+}

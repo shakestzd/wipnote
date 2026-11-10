@@ -34,6 +34,8 @@ export type BandData = {
   cards: WorkCard[]
   /** Project-wide in-progress and open counts, when known. */
   counts?: WorkCounts
+  /** "N open questions · M blocking", or empty/absent with none open. */
+  questions?: string
   /** How much of the work-item block to draw. */
   view?: WorkView
   doing: string | null
@@ -64,6 +66,7 @@ export function workSegments(
   cards: readonly WorkCard[],
   view: WorkView = DEFAULT_VIEW,
   counts?: WorkCounts,
+  asked?: string,
 ): Segment[] {
   const out: Segment[] = []
   const tracks = new Set<string>()
@@ -79,6 +82,7 @@ export function workSegments(
   }
   const summary = view.mode === 'off' ? '' : summaryText(counts)
   if (summary !== '') out.push({ text: ` ${summary} `, bg: '#444444', fg: '#d0d0d0' })
+  if (asked !== undefined && asked !== '') out.push({ text: ` ${asked} `, bg: '#af5f00', fg: '#ffffff' })
   return out
 }
 
@@ -88,6 +92,7 @@ function segmentsOf(
   cards: readonly WorkCard[],
   view: WorkView,
   counts: WorkCounts | undefined,
+  asked: string | undefined,
   live: number,
   tally: string,
   clock: string,
@@ -115,7 +120,7 @@ function segmentsOf(
       out.push({ text: ` ctx ${pct}% `, bg: pct >= 80 ? '#d70000' : '#444444', fg: '#ffffff' })
     }
   }
-  out.push(...workSegments(work, cards, view, counts))
+  out.push(...workSegments(work, cards, view, counts, asked))
   const agents = [live > 0 ? `◉ ${live} agent${live === 1 ? '' : 's'}` : '', tally].filter(Boolean).join(' · ')
   if (agents !== '') out.push({ text: ` ${agents} `, bg: '#005f87', fg: '#ffffff' })
   if (clock !== '') out.push({ text: ` \uF017 ${clock} `, bg: '#303030', fg: '#d0d0d0' })
@@ -133,7 +138,7 @@ export function drawBand({ Box, Text }: Elements, data: BandData, room: BandRoom
   // The clock ends the usage-limits row; without that row (compact, or no limits known) it is a segment.
   const limits = room.isCompact ? [] : limitSpans(data.info?.limits ?? [], data.at, data.zone)
   const clock = data.at > 0 ? clockText(data.at, data.zone) : ''
-  const segs = segmentsOf(data.info, data.work, data.cards, data.view ?? DEFAULT_VIEW, data.counts, live, tallyText(data.tally), limits.length > 0 ? '' : clock)
+  const segs = segmentsOf(data.info, data.work, data.cards, data.view ?? DEFAULT_VIEW, data.counts, data.questions, live, tallyText(data.tally), limits.length > 0 ? '' : clock)
   if (segs.length === 0) return null
   if (limits.length > 0 && clock !== '') limits.push({ text: '   ' }, { text: `\uF017 ${clock}`, color: '#d0d0d0' })
 

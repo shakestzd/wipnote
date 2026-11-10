@@ -93,6 +93,8 @@ declare module 'claude-code' {
       claim: string | null
       tally: Tally
       runs: RunRow[]
+      questions: string | null
+      cardQuestions: Record<string, string[]>
     }
   }
 }

@@ -6,6 +6,8 @@ import type { BandData } from './band'
 import { drawBand } from './band'
 import { hydrate, refreshAfterTurn, refreshChanged, registerRefs, storeCard, wipnoteJSON } from './refcards'
 import { parseWho } from './refs'
+import { fresh, openArgv, parseOpen, questionsText } from './questions'
+import type { OpenQuestion } from './questions'
 import { findProject, newRunCache, readRuns } from './runs'
 import type { SwapState } from './swap'
 import { swapSeen, swapStarted } from './swap'
@@ -42,6 +44,7 @@ const claim = atom({ plugin: 'wipnote-orchestra', key: 'claim' } as const, null)
 const tally = atom({ plugin: 'wipnote-orchestra', key: 'tally' } as const, { done: 0, failed: 0 })
 const counts = atom({ plugin: 'wipnote-orchestra', key: 'counts' } as const, null)
 const runs = atom({ plugin: 'wipnote-orchestra', key: 'runs' } as const, [])
+const questions = atom({ plugin: 'wipnote-orchestra', key: 'questions' } as const, null)
 
 const KEEP_DONE_MS = 90_000
 
@@ -158,6 +161,21 @@ async function refreshCounts($: EngineInterface) {
   if (found !== undefined) await update($, counts, () => found)
 }
 
+/** Question ids already seen. The first read only marks them: old questions are not new. */
+const toasted = new Set<string>()
+let hasReadQuestions = false
+
+/** The open questions for the band; a new blocking one toasts. The last list stays on a failure. */
+async function refreshQuestions($: EngineInterface) {
+  const ran = await $.process.run(openArgv(), { timeoutMs: 5000 }).catch(() => undefined)
+  const rows: OpenQuestion[] | undefined = ran?.exitCode === 0 ? parseOpen(ran.stdout) : undefined
+  if (rows === undefined) return
+  const added = fresh(rows, toasted)
+  if (hasReadQuestions) for (const q of added) $.ui.toast(`Blocking question on ${q.itemId}: ${q.text}`)
+  hasReadQuestions = true
+  await update($, questions, () => questionsText(rows))
+}
+
 /**
  * The session's claimed work item (`wipnote who`). When `who` cannot be read
  * the last claim stays: an unknown claim is not "no claim".
@@ -222,7 +240,7 @@ async function checkSwap($: EngineInterface, swap: SwapState) {
 }
 
 async function bandData($: EngineInterface, zone: string, view: WorkView): Promise<BandData> {
-  const [info, rows, ended, work, known, doing, delegated, at, total] = await Promise.all([
+  const [info, rows, ended, work, known, doing, delegated, at, total, asked] = await Promise.all([
     read($, prompt),
     read($, agents),
     read($, tally),
@@ -232,8 +250,9 @@ async function bandData($: EngineInterface, zone: string, view: WorkView): Promi
     read($, runs),
     read($, now),
     read($, counts),
+    read($, questions),
   ])
-  return { info, rows, tally: ended, keepMs: KEEP_DONE_MS, work, cards: known, counts: total ?? undefined, view, doing, runs: delegated, at, zone }
+  return { info, rows, tally: ended, keepMs: KEEP_DONE_MS, work, cards: known, counts: total ?? undefined, questions: asked ?? undefined, view, doing, runs: delegated, at, zone }
 }
 
 export const register: Register = (on, options) => {
@@ -270,6 +289,7 @@ export const register: Register = (on, options) => {
         if (tick % 2 === 0) await reconcileAgents($, at, pending)
         if (tick % 5 === 0) await refreshPrompt($)
         if (tick % 5 === 1) await refreshCards($)
+        if (tick % 5 === 3) await refreshQuestions($)
       })().catch(() => undefined)
       void refreshRuns($, tick).catch(() => undefined)
     })
