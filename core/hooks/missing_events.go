@@ -144,6 +144,6 @@ func PostToolUseFailure(event *CloudEvent) (*HookResult, error) {
 	}
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
 	appendToolCompletion(projectDir, sessionID, toolCallEventID(sessionID, event.ToolUseID), "failed")
-	recordDelegateToolEnd(event, projectDir, sessionID)
+	recordDelegateToolEnd(event, projectDir, sessionID, true)
 	return &HookResult{Continue: true}, nil
 }

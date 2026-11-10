@@ -81,7 +81,7 @@ func TestDelegateEvents_AskCaptured(t *testing.T) {
 	}}
 	recordDelegateToolStart(ask, project, "sid-1")
 	recordDelegateToolStart(&CloudEvent{ToolName: "Bash", ToolUseID: "tu-b", ToolInput: map[string]any{"command": "ls"}}, project, "sid-1")
-	recordDelegateToolEnd(&CloudEvent{ToolName: "Bash", ToolUseID: "tu-b"}, project, "sid-1")
+	recordDelegateToolEnd(&CloudEvent{ToolName: "Bash", ToolUseID: "tu-b"}, project, "sid-1", false)
 	lines := eventsOf(t, runDir)
 	if len(lines) != 3 {
 		t.Fatalf("%v", lines)
@@ -171,7 +171,7 @@ func TestDelegateEvents_FailOpen(t *testing.T) {
 	recordDelegateHook(&CloudEvent{}, project, "sid-1", "prompt")
 	recordDelegateToolStart(nil1, project, "sid-1")
 	recordDelegateToolStart(nil, project, "sid-1")
-	recordDelegateToolEnd(nil, project, "sid-1")
+	recordDelegateToolEnd(nil, project, "sid-1", false)
 	recordDelegatePermission(nil)
 	// A huge question is bounded.
 	long := strings.Repeat("é", 10000)
