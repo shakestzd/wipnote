@@ -132,12 +132,13 @@ func TestRenderCompactHelp_HasHeaderAndHint(t *testing.T) {
 	}
 }
 
-func TestRenderCompactHelp_RealTree_Under70Lines(t *testing.T) {
+func TestRenderCompactHelp_RealTree_Under71Lines(t *testing.T) {
+	// 71: the top-level `question` command (feat-be385b11) added one line.
 	root := buildRoot()
 	out := renderCompactHelp(root)
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	if len(lines) > 70 {
-		t.Errorf("real CLI output exceeds 70 lines: got %d lines\noutput:\n%s", len(lines), out)
+	if len(lines) > 71 {
+		t.Errorf("real CLI output exceeds 71 lines: got %d lines\noutput:\n%s", len(lines), out)
 	}
 }
 
