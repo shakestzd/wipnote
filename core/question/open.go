@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
+	"github.com/shakestzd/wipnote/core/models"
 )
 
 // itemDirs are the .wipnote folders whose items can carry questions.
@@ -15,11 +16,17 @@ var itemDirs = []string{"features", "bugs", "spikes"}
 // attribute escape (&#34;) the writer emits and plain quotes.
 var propMarkers = [][]byte{[]byte("questions&#34;"), []byte(`"questions"`)}
 
-// OpenIDs returns the ids of every open or assumed question across the
-// project's features, bugs and spikes. It is built for a hot path: a file that
-// does not mention the questions key is skipped on a byte scan, without a
-// parse, so a project with no question records costs one read per item.
-func OpenIDs(projectDir string) []string {
+// inProgressMarker is the item status attribute the writer emits for an
+// in-progress item; the parse confirms it.
+var inProgressMarker = []byte(`data-status="in-progress"`)
+
+// OpenIDsInProgress returns the ids of the questions still awaiting the owner
+// on in-progress features, bugs and spikes: status open only, since an
+// assumed question is work that went ahead on purpose. It is built for a hot
+// path: a file whose <article> tag does not mention the questions key and the
+// in-progress status is skipped on a byte scan, without a parse, so a project
+// with no such records costs one bounded read per item.
+func OpenIDsInProgress(projectDir string) []string {
 	var ids []string
 	for _, kind := range itemDirs {
 		paths, _ := filepath.Glob(filepath.Join(projectDir, ".wipnote", kind, "*.html"))
@@ -35,12 +42,12 @@ func openIDsInFile(path string) []string {
 		return nil
 	}
 	n, err := htmlparse.ParseFile(path)
-	if err != nil {
+	if err != nil || n.Status != models.StatusInProgress {
 		return nil
 	}
 	var ids []string
 	for _, q := range FromNode(n) {
-		if q.IsOpen() {
+		if q.Status == StatusOpen {
 			ids = append(ids, q.ID)
 		}
 	}
@@ -48,6 +55,9 @@ func openIDsInFile(path string) []string {
 }
 
 func mentionsQuestions(data []byte) bool {
+	if !bytes.Contains(data, inProgressMarker) {
+		return false
+	}
 	for _, m := range propMarkers {
 		if bytes.Contains(data, m) {
 			return true
@@ -57,8 +67,8 @@ func mentionsQuestions(data []byte) bool {
 }
 
 // articleMentionsQuestions reads only up to the end of the item's <article>
-// open tag, where the properties attribute lives, so a file is not read whole
-// to learn that it has no questions.
+// open tag, where the status and properties attributes live, so a file is not
+// read whole to learn that it has no questions or is not in progress.
 func articleMentionsQuestions(path string) bool {
 	f, err := os.Open(path)
 	if err != nil {

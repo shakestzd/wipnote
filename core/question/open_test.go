@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -20,24 +21,34 @@ func writeItem(t *testing.T, dir, kind, id, body string) {
 	}
 }
 
-func TestOpenIDs(t *testing.T) {
+func TestOpenIDsInProgress(t *testing.T) {
 	dir := t.TempDir()
-	if got := OpenIDs(dir); len(got) != 0 {
+	if got := OpenIDsInProgress(dir); len(got) != 0 {
 		t.Fatalf("empty project: %v", got)
 	}
-	writeItem(t, dir, "features", "feat-aaaa0001", sprintfStatus("open"))
+	writeItem(t, dir, "features", "feat-aaaa0001", itemWith("in-progress", "open"))
 	writeItem(t, dir, "bugs", "bug-bbbb0002", `<article id="bug-bbbb0002" data-type="bug"><header><h1>B</h1></header></article>`)
-	if got, want := OpenIDs(dir), []string{"q-1"}; !reflect.DeepEqual(got, want) {
+	if got, want := OpenIDsInProgress(dir), []string{"q-1"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v want %v", got, want)
 	}
-	writeItem(t, dir, "features", "feat-aaaa0001", sprintfStatus("confirmed"))
-	if got := OpenIDs(dir); len(got) != 0 {
-		t.Fatalf("confirmed counted: %v", got)
+	cases := map[string][2]string{
+		"confirmed":           {"in-progress", "confirmed"},
+		"assumed on purpose":  {"in-progress", "assumed"},
+		"open on a todo item": {"todo", "open"},
+		"open on a done item": {"done", "open"},
+		"open on blocked":     {"blocked", "open"},
 	}
-	writeItem(t, dir, "features", "feat-aaaa0001", sprintfStatus("assumed"))
-	if got := OpenIDs(dir); len(got) != 1 {
-		t.Fatalf("assumed not counted: %v", got)
+	for name, c := range cases {
+		writeItem(t, dir, "features", "feat-aaaa0001", itemWith(c[0], c[1]))
+		if got := OpenIDsInProgress(dir); len(got) != 0 {
+			t.Errorf("%s counted: %v", name, got)
+		}
 	}
+}
+
+// itemWith is openNodeHTML with the item status and the question status set.
+func itemWith(itemStatus, qStatus string) string {
+	return strings.Replace(sprintfStatus(qStatus), `data-status="todo"`, `data-status="`+itemStatus+`"`, 1)
 }
 
 func sprintfStatus(s string) string {

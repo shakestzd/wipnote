@@ -1,11 +1,26 @@
-import type { Option, QuestionRow } from '../types'
+import type { Answer, Option, QuestionRow } from '../types'
 
 export function listArgv(): string[] {
   return ['wipnote', 'question', 'list', '--open', '--format', 'json']
 }
 
-export function answerArgv(questionId: string, key: string): string[] {
-  return ['wipnote', 'question', 'answer', questionId, key]
+/** `question answer <id> <key>`, or `--text <reply>` for a free-text question. */
+export function answerArgv(questionId: string, a: Answer): string[] {
+  const base = ['wipnote', 'question', 'answer', questionId]
+  return 'key' in a ? [...base, a.key] : [...base, '--text', a.text]
+}
+
+/** Reads `/answer-question <id> <key>` or `/answer-question <id> --text <reply...>`. */
+export function parseAnswerArgs(args: string): { id: string; answer: Answer } | undefined {
+  const m = /^\s*(\S+)\s+(.*?)\s*$/s.exec(args)
+  if (m === null) return undefined
+  const [, id, rest] = m as unknown as [string, string, string]
+  if (rest.startsWith('--text')) {
+    const text = rest.slice('--text'.length).trim()
+    return text === '' ? undefined : { id, answer: { text } }
+  }
+  const key = rest.split(/\s+/)[0] ?? ''
+  return key === '' ? undefined : { id, answer: { key } }
 }
 
 function text(v: unknown): string {
@@ -34,6 +49,7 @@ function rowOf(v: unknown): QuestionRow | undefined {
     recommended: text(o.recommended),
     blocking: o.blocking === true,
     age: text(o.age),
+    freeText: o.free_text === true,
   }
 }
 
@@ -50,9 +66,9 @@ export function parseQuestions(stdout: string): QuestionRow[] | undefined {
   return raw.map(rowOf).filter((r): r is QuestionRow => r !== undefined)
 }
 
-/** `item · age · blocking · recommends k`. */
+/** `item · age · blocking · recommends k`, or `· free text` for a question with no options. */
 export function rowLine(r: QuestionRow): string {
-  return [r.itemId, r.age, r.blocking ? 'blocking' : '', r.recommended !== '' ? `recommends ${r.recommended}` : '']
+  return [r.itemId, r.age, r.blocking ? 'blocking' : '', r.recommended !== '' ? `recommends ${r.recommended}` : '', r.freeText ? 'free text' : '']
     .filter(p => p !== '')
     .join(' · ')
 }
@@ -68,7 +84,13 @@ export function failReason(stderr: string, exitCode: number): string {
   return line ?? `wipnote exited ${exitCode}`
 }
 
-/** The first non-empty line of a command's output, for a toast. */
-export function firstLine(out: string): string {
-  return out.split('\n').map(l => l.trim()).find(l => l !== '') ?? ''
+/** The non-empty lines of a command's output, for the pane. */
+export function fullOutput(out: string): string[] {
+  return out.split('\n').map(l => l.trim()).filter(l => l !== '')
+}
+
+/** The line to toast: an overturn or reopen warning when the answer made one, else the first line. */
+export function toastLine(out: string): string {
+  const lines = fullOutput(out)
+  return lines.find(l => l.startsWith('Assumption overturned') || l.includes('Reopened ')) ?? lines[0] ?? ''
 }

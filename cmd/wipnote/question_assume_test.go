@@ -122,7 +122,7 @@ func TestWarnOpenQuestionsOnComplete(t *testing.T) {
 	if _, err := runQuestionAssume(assumed.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runQuestionAnswer(answered.ID, "a", "", false); err != nil {
+	if _, err := answerQuestion(answered.ID, "a", "", false); err != nil {
 		t.Fatal(err)
 	}
 	p, _ := workitem.Open(hgDir, "claude-code")

@@ -28,6 +28,9 @@ type questionRow struct {
 	RaisedBy    string            `json:"raised_by"`
 	Age         string            `json:"age"`
 	Answer      string            `json:"answer"`
+	// FreeText marks a question with no options: answer it with --text.
+	FreeText bool   `json:"free_text"`
+	Note     string `json:"note,omitempty"`
 }
 
 func questionListCmd() *cobra.Command {
@@ -123,6 +126,7 @@ func newQuestionRow(n *models.Node, q question.Question, now time.Time) question
 		ItemID: n.ID, ItemTitle: n.Title, QuestionID: q.ID, Text: q.Text, Options: opts,
 		Recommended: q.Recommended, Blocking: q.Blocking, Status: q.Status, Assumed: q.Assumed,
 		RaisedBy: q.RaisedBy, Age: questionAge(q.RaisedAt, now), Answer: q.Answer,
+		FreeText: q.IsFreeText(), Note: q.Note,
 	}
 }
 

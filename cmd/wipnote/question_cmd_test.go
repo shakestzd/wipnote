@@ -70,25 +70,25 @@ func TestQuestionAnswer_RecordsAndGuards(t *testing.T) {
 	id := createItem(t, hgDir, "spike", "Look into it", trackID)
 	q := addTestQuestion(t, id, false)
 
-	if _, err := runQuestionAnswer(q.ID, "z", "", false); err == nil {
+	if _, err := answerQuestion(q.ID, "z", "", false); err == nil {
 		t.Fatal("unknown key must be refused")
 	}
-	if _, err := runQuestionAnswer("q-00000000", "a", "", false); err == nil {
+	if _, err := answerQuestion("q-00000000", "a", "", false); err == nil {
 		t.Fatal("unknown question must be refused")
 	}
-	itemID, err := runQuestionAnswer(q.ID, "a", "owner prefers files", false)
-	if err != nil || itemID != id {
-		t.Fatalf("answer: %v item=%s", err, itemID)
+	o, err := answerQuestion(q.ID, "a", "owner prefers files", false)
+	if err != nil || o.ItemID != id || o.QuestionID != q.ID || o.Status != question.StatusConfirmed || o.Reopened || o.message() != "" {
+		t.Fatalf("answer: %v outcome=%+v", err, o)
 	}
 	got := question.FromNode(parseItem(t, hgDir, id))[0]
 	if got.Answer != "a" || got.Note != "owner prefers files" || got.AnsweredAt == "" || got.Status != question.StatusConfirmed {
 		t.Fatalf("answer not stored: %+v", got)
 	}
-	if _, err := runQuestionAnswer(q.ID, "b", "", false); err == nil {
+	if _, err := answerQuestion(q.ID, "b", "", false); err == nil {
 		t.Fatal("re-answer without --force must be refused")
 	}
-	if _, err := runQuestionAnswer(q.ID, "b", "", true); err != nil {
-		t.Fatalf("forced re-answer: %v", err)
+	if o, err := answerQuestion(q.ID, "b", "", true); err != nil || o.Status != question.StatusConfirmed || o.Answer != "b" {
+		t.Fatalf("forced re-answer: %+v %v", o, err)
 	}
 }
 
@@ -99,7 +99,7 @@ func TestQuestionList_SpansTypesAndFilters(t *testing.T) {
 	bug := createItem(t, hgDir, "bug", "Bug with question", trackID)
 	qf := addTestQuestion(t, feat, true)
 	qb := addTestQuestion(t, bug, false)
-	if _, err := runQuestionAnswer(qb.ID, "a", "", false); err != nil {
+	if _, err := answerQuestion(qb.ID, "a", "", false); err != nil {
 		t.Fatal(err)
 	}
 

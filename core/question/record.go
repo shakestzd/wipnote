@@ -92,7 +92,7 @@ func New(text string, opts []Option, recommended string, blocking bool, raisedBy
 		seen[o.Key] = true
 	}
 	q := &Question{
-		ID: newID(), Text: text, Options: opts, Recommended: strings.TrimSpace(recommended),
+		ID: NewID(), Text: text, Options: opts, Recommended: strings.TrimSpace(recommended),
 		Blocking: blocking, Status: StatusOpen, RaisedBy: raisedBy, SourceID: sourceID,
 		RaisedAt: now.UTC().Format(time.RFC3339),
 	}
@@ -102,7 +102,8 @@ func New(text string, opts []Option, recommended string, blocking bool, raisedBy
 	return q, nil
 }
 
-func newID() string {
+// NewID returns a fresh question id.
+func NewID() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return "q-" + hex.EncodeToString(b)
@@ -134,8 +135,12 @@ func (q *Question) IsOpen() bool {
 // RecordAnswer stores the owner's answer. An unknown key is refused; a
 // question that already has an answer needs force. The status becomes
 // confirmed, or overturned when an assumed option exists and the answer
-// differs; a forced re-answer runs the same check again.
+// differs; a forced re-answer runs the same check again. A free-text question
+// is refused: it takes RecordText.
 func (q *Question) RecordAnswer(key, note string, now time.Time, force bool) error {
+	if q.IsFreeText() {
+		return fmt.Errorf("%s is a free-text question; record a text answer, not a key", q.ID)
+	}
 	if !q.HasKey(key) {
 		return fmt.Errorf("answer %q is not one of %s", key, q.keyList())
 	}
