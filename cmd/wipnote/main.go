@@ -105,11 +105,13 @@ func buildRoot() *cobra.Command {
 
 	spike := workitemCmd("spike", "spikes")
 	spike.AddCommand(spikeResetCmd())
+	spike.AddCommand(wiReopenCmd("spike"))
 	spike.AddCommand(linkCommitCmd("spike"))
 	spike.AddCommand(wiResearchCmd("spike"))
 
 	bug := workitemCmd("bug", "bugs")
 	bug.AddCommand(bugResetCmd())
+	bug.AddCommand(wiReopenCmd("bug"))
 	bug.AddCommand(linkCommitCmd("bug"))
 	bug.AddCommand(wiResearchCmd("bug"))
 

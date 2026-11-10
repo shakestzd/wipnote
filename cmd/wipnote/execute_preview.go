@@ -10,23 +10,30 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/question"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
 
 // executePreview is the JSON envelope returned by `wipnote execute-preview`.
 // It aggregates everything an orchestrator needs to start dispatching work on a
-// track: track metadata, linked work items grouped by kind, and current git state.
+// track: track metadata, linked work items grouped by kind, the open blocking
+// owner questions on those items, and current git state.
 type executePreview struct {
-	Track    *models.Node    `json:"track"`
-	Features []*models.Node  `json:"features,omitempty"`
-	Bugs     []*models.Node  `json:"bugs,omitempty"`
-	Plans    []*models.Node  `json:"plans,omitempty"`
-	Spikes   []*models.Node  `json:"spikes,omitempty"`
-	Git      executeGitState `json:"git"`
+	Track    *models.Node   `json:"track"`
+	Features []*models.Node `json:"features,omitempty"`
+	Bugs     []*models.Node `json:"bugs,omitempty"`
+	Plans    []*models.Node `json:"plans,omitempty"`
+	Spikes   []*models.Node `json:"spikes,omitempty"`
+	// Questions holds every open blocking question on the linked features,
+	// bugs and spikes, one row per question naming its item_id. An item with
+	// one must not be dispatched. Always a list, never null.
+	Questions []questionRow   `json:"questions"`
+	Git       executeGitState `json:"git"`
 }
 
 type executeGitState struct {
@@ -126,6 +133,7 @@ func buildExecutePreview(dir, trackID string) (*executePreview, error) {
 	sort.Slice(preview.Plans, func(i, j int) bool { return preview.Plans[i].ID < preview.Plans[j].ID })
 	sort.Slice(preview.Spikes, func(i, j int) bool { return preview.Spikes[i].ID < preview.Spikes[j].ID })
 
+	preview.Questions = blockingQuestionRows(time.Now(), preview.Features, preview.Bugs, preview.Spikes)
 	preview.Git = currentGitState(dir)
 	return preview, nil
 }
@@ -283,6 +291,33 @@ func printExecutePreviewText(p *executePreview) {
 	printNodeGroup("Bugs", p.Bugs)
 	printNodeGroup("Plans", p.Plans)
 	printNodeGroup("Spikes", p.Spikes)
+	printBlockingQuestions(p.Questions)
+}
+
+// blockingQuestionRows returns the open blocking questions on the nodes, in
+// node order.
+func blockingQuestionRows(now time.Time, groups ...[]*models.Node) []questionRow {
+	rows := []questionRow{}
+	for _, nodes := range groups {
+		for _, n := range nodes {
+			for _, q := range question.FromNode(n) {
+				if q.Blocking && q.IsOpen() {
+					rows = append(rows, newQuestionRow(n, q, now))
+				}
+			}
+		}
+	}
+	return rows
+}
+
+func printBlockingQuestions(rows []questionRow) {
+	if len(rows) == 0 {
+		return
+	}
+	fmt.Printf("\nBlocking questions (%d) — do not dispatch these items:\n", len(rows))
+	for _, r := range rows {
+		fmt.Printf("  %-20s  %-12s  %s\n", r.ItemID, r.QuestionID, r.Text)
+	}
 }
 
 func printNodeGroup(label string, nodes []*models.Node) {

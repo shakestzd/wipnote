@@ -25,7 +25,7 @@ Execute (<track or plan id>):
 In a worktree, `WIPNOTE_PROJECT_DIR` is set, so `wipnote` commands resolve to the project's store. That is the main project's `.wipnote/`, or for a project with no `.wipnote/` folder a store under `~/.wipnote/projects/` (`wipnote status` prints where); do not assume a path. Never use bare `cd` (the hook blocks it); use a subshell `(cd dir && command)`.
 
 Dispatch the first subagent within **≤5 tool calls**:
-1. One discovery call: `wipnote execute-preview <trk-id> --format json` returns the track (title at `.track.title`), linked features/bugs/plans and git state. Do not call `track show`, `feature show`, `plan show` and `git status` separately.
+1. One discovery call: `wipnote execute-preview <trk-id> --format json` returns the track (title at `.track.title`), linked features/bugs/plans, open blocking questions (`.questions`) and git state. Do not call `track show`, `feature show`, `plan show` and `git status` separately.
 2. Chain any extra git probes with `&&` in one Bash call.
 3. Do not retry flag variants; the flags in this skill are validated by a build-time test.
 
@@ -45,7 +45,7 @@ Whatever the mechanism, every brief still carries the work-item ID so commits an
 
 ```
 LOOP:
-  1. Ready = pending tasks with no blockedBy
+  1. Ready = pending tasks with no blockedBy and no open blocking question
   2. Check file overlap among ready tasks; keep the largest non-conflicting subset
   3. Dispatch that subset in ONE message, one worktree per agent
   4. Wait, merge completed branches to main, run the gate on the merged result
@@ -53,6 +53,10 @@ LOOP:
 ```
 
 If 10 of 13 tasks are independent, all 10 run in the first dispatch. Slices promoted with `wipnote plan promote-slice <plan-id> <num>` (one at a time or all at once) become ordinary features on the track and enter the same loop as soon as their `blocked_by` dependencies complete.
+
+### Blocking questions
+
+Do not dispatch an item that has a row in execute-preview's `questions` list: each row is an open blocking question, and the item waits for the owner's answer. Ask the owner with the row's `text` and `options`, record the reply with `wipnote question answer <question-id> <key>`, then rerun execute-preview. Non-blocking questions do not hold dispatch: starting the item records their recommended option as assumed, and a later answer that differs reopens the item.
 
 ### File overlap
 

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/question"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
@@ -12,7 +13,8 @@ import (
 
 // Owner questions (plan-10a07f8d, GitHub #336): non-blocking questions stored
 // on features, bugs and spikes. The record is core/question; this file wires
-// add and answer, question_list.go wires list.
+// add and answer, question_list.go wires list, question_assume.go wires assume
+// and the start, complete and overturn hooks.
 
 // questionCmd is the top-level `wipnote question` command.
 func questionCmd() *cobra.Command {
@@ -22,7 +24,7 @@ func questionCmd() *cobra.Command {
 		Long: "An owner question is a record on a work item with 2-4 options and an optional " +
 			"recommended option. It does not stop work; it waits for the owner to answer.",
 	}
-	cmd.AddCommand(questionAddCmd(), questionListCmd(), questionAnswerCmd())
+	cmd.AddCommand(questionAddCmd(), questionListCmd(), questionAnswerCmd(), questionAssumeCmd())
 	return cmd
 }
 
@@ -65,11 +67,14 @@ func questionAnswerCmd() *cobra.Command {
 		Short: "Record the owner's answer to a question",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
-			itemID, err := runQuestionAnswer(args[0], args[1], note, force)
+			o, err := answerQuestion(args[0], args[1], note, force)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Answered %s on %s: %s\n", args[0], itemID, args[1])
+			fmt.Printf("Answered %s on %s: %s\n", args[0], o.ItemID, args[1])
+			if msg := o.message(); msg != "" {
+				fmt.Println(msg)
+			}
 			return nil
 		},
 	}
@@ -107,16 +112,23 @@ func runQuestionAdd(itemID, text string, rawOpts []string, recommended string, b
 	return q, nil
 }
 
-// runQuestionAnswer finds the item holding qid, records the answer and returns
-// the item id.
+// runQuestionAnswer records the answer (see answerQuestion) and returns the
+// item id.
 func runQuestionAnswer(qid, key, note string, force bool) (string, error) {
+	o, err := answerQuestion(qid, key, note, force)
+	return o.ItemID, err
+}
+
+// findQuestion runs fn on the item holding qid and its question list, then
+// saves the list when fn succeeds. It returns the item node as it was read.
+func findQuestion(qid string, fn func(qs []question.Question, i int) error) (*models.Node, error) {
 	dir, err := findWipnoteDir()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	p, err := workitem.Open(dir, "claude-code")
 	if err != nil {
-		return "", fmt.Errorf("open project: %w", err)
+		return nil, fmt.Errorf("open project: %w", err)
 	}
 	defer p.Close()
 	for _, node := range questionItems(p) {
@@ -125,13 +137,13 @@ func runQuestionAnswer(qid, key, note string, force bool) (string, error) {
 		if i < 0 {
 			continue
 		}
-		if err := qs[i].RecordAnswer(key, note, time.Now(), force); err != nil {
-			return "", err
+		if err := fn(qs, i); err != nil {
+			return nil, err
 		}
 		col := collectionFor(p, workitem.KindForID(node.ID))
-		return node.ID, saveQuestions(col, node.ID, qs)
+		return node, saveQuestions(col, node.ID, qs)
 	}
-	return "", fmt.Errorf("no question %s on any feature, bug or spike", qid)
+	return nil, fmt.Errorf("no question %s on any feature, bug or spike", qid)
 }
 
 // openQuestionItem resolves id and returns the project and the collection
