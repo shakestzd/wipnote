@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/graph"
@@ -318,15 +317,16 @@ func sortAttention(a []attentionItem) {
 	})
 }
 
-// cleanTitle strips control characters and truncates, so an untrusted title
-// cannot smuggle newlines or oversized content into a result.
+// cleanTitle strips terminal controls (stripTerminalControls), turns tabs and
+// newlines into spaces and truncates, so an untrusted title cannot smuggle
+// escapes, newlines or oversized content into a result.
 func cleanTitle(t string) string {
 	t = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
+		if r == '\t' || r == '\n' {
 			return ' '
 		}
 		return r
-	}, t)
+	}, stripTerminalControls(t))
 	t = strings.TrimSpace(t)
 	if r := []rune(t); len(r) > maxTitleRunes {
 		return string(r[:maxTitleRunes-1]) + "…"

@@ -118,15 +118,17 @@ func questionItems(p *workitem.Project) []*models.Node {
 }
 
 func newQuestionRow(n *models.Node, q question.Question, now time.Time) questionRow {
-	opts := q.Options
-	if opts == nil {
-		opts = []question.Option{}
+	// Displayed text is stripped of terminal controls (finding 10). Keys are
+	// kept as stored: the pane answers with them.
+	opts := make([]question.Option, len(q.Options))
+	for i, o := range q.Options {
+		opts[i] = question.Option{Key: o.Key, Label: stripTerminalControls(o.Label), Tradeoff: stripTerminalControls(o.Tradeoff)}
 	}
 	return questionRow{
-		ItemID: n.ID, ItemTitle: n.Title, QuestionID: q.ID, Text: q.Text, Options: opts,
+		ItemID: n.ID, ItemTitle: stripTerminalControls(n.Title), QuestionID: q.ID, Text: stripTerminalControls(q.Text), Options: opts,
 		Recommended: q.Recommended, Blocking: q.Blocking, Status: q.Status, Assumed: q.Assumed,
-		RaisedBy: q.RaisedBy, Age: questionAge(q.RaisedAt, now), Answer: q.Answer,
-		FreeText: q.IsFreeText(), Note: q.Note,
+		RaisedBy: stripTerminalControls(q.RaisedBy), Age: questionAge(q.RaisedAt, now), Answer: stripTerminalControls(q.Answer),
+		FreeText: q.IsFreeText(), Note: stripTerminalControls(q.Note),
 	}
 }
 

@@ -124,8 +124,10 @@ func (o answerOutcome) message() string {
 	return fmt.Sprintf("%s %s is %s; when it resumes, redo the work built on %s to fit %s.", head, o.ItemID, o.ItemStatus, was, now)
 }
 
-// quoteAnswer renders `"b" (HTML)`, or `"b"` when the key has no label.
+// quoteAnswer renders `"b" (HTML)`, or `"b"` when the key has no label,
+// without terminal controls.
 func quoteAnswer(key, label string) string {
+	key, label = stripTerminalControls(key), stripTerminalControls(label)
 	if label == "" || label == key {
 		return fmt.Sprintf("%q", key)
 	}
@@ -160,14 +162,15 @@ func assumeQuestionsOnStart(w io.Writer, col *workitem.Collection, id string) {
 // printAssumeResult tells what start did to the item's open questions.
 func printAssumeResult(w io.Writer, id string, r question.AssumeResult) {
 	for _, q := range r.Assumed {
-		fmt.Fprintf(w, "question %s: assumed %q (recommended) for %q; an answer can still overturn it\n", q.ID, q.Assumed, q.Text)
+		fmt.Fprintf(w, "question %s: assumed %q (recommended) for %q; an answer can still overturn it\n",
+			q.ID, stripTerminalControls(q.Assumed), stripTerminalControls(q.Text))
 	}
 	for _, q := range r.Unassumed {
-		fmt.Fprintf(w, "question %s stays open (no recommended option): %s\n", q.ID, q.Text)
+		fmt.Fprintf(w, "question %s stays open (no recommended option): %s\n", q.ID, stripTerminalControls(q.Text))
 	}
 	for _, q := range r.Blocking {
 		fmt.Fprintf(w, "warning: blocking question %s is open on %s: %s [%s]\n  answer it first: wipnote question answer %s <key>\n",
-			q.ID, id, q.Text, optionKeys(q), q.ID)
+			q.ID, id, stripTerminalControls(q.Text), optionKeys(q), q.ID)
 	}
 }
 
@@ -182,6 +185,6 @@ func warnOpenQuestionsOnComplete(w io.Writer, col *workitem.Collection, id strin
 		if !q.IsOpen() {
 			continue
 		}
-		fmt.Fprintf(w, "warning: question %s is still %s on %s: %s [%s]\n", q.ID, q.Status, id, q.Text, optionKeys(q))
+		fmt.Fprintf(w, "warning: question %s is still %s on %s: %s [%s]\n", q.ID, q.Status, id, stripTerminalControls(q.Text), optionKeys(q))
 	}
 }

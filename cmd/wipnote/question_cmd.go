@@ -72,7 +72,7 @@ func questionAnswerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Answered %s on %s: %s\n", args[0], o.ItemID, o.Answer)
+			fmt.Println(answeredLine(args[0], o))
 			if msg := o.message(); msg != "" {
 				fmt.Println(msg)
 			}
@@ -294,8 +294,14 @@ func anyOverturned(qs []question.Question) bool {
 	return false
 }
 
+// answeredLine is the line `question answer` prints first.
+func answeredLine(qid string, o answerOutcome) string {
+	return fmt.Sprintf("Answered %s on %s: %s", qid, o.ItemID, stripTerminalControls(o.Answer))
+}
+
 // optionKeys renders a question's option keys, marking the recommended one,
-// or "free text" for a question with no options.
+// or "free text" for a question with no options. It is for display: terminal
+// controls in a key stored before keys were restricted are stripped.
 func optionKeys(q question.Question) string {
 	if q.IsFreeText() {
 		return "free text"
@@ -307,5 +313,5 @@ func optionKeys(q question.Question) string {
 			keys[i] += "*"
 		}
 	}
-	return strings.Join(keys, "/")
+	return stripTerminalControls(strings.Join(keys, "/"))
 }
