@@ -86,6 +86,9 @@ func New(text string, opts []Option, recommended string, blocking bool, raisedBy
 	}
 	seen := map[string]bool{}
 	for _, o := range opts {
+		if !ValidKey(o.Key) {
+			return nil, fmt.Errorf("option key %q must be letters, digits, '_' or '-', not starting with '-'", o.Key)
+		}
 		if seen[o.Key] {
 			return nil, fmt.Errorf("option key %q is used twice", o.Key)
 		}
@@ -102,9 +105,25 @@ func New(text string, opts []Option, recommended string, blocking bool, raisedBy
 	return q, nil
 }
 
-// NewID returns a fresh question id.
+// ValidKey reports whether key is [A-Za-z0-9_-]+ not starting with '-': one
+// shell argument the CLI never reads as a flag.
+func ValidKey(key string) bool {
+	if key == "" || key[0] == '-' {
+		return false
+	}
+	for _, r := range key {
+		ok := r == '_' || r == '-' || ('0' <= r && r <= '9') || ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z')
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// NewID returns a fresh question id: q- and 64 random bits in hex. Ids
+// minted earlier with 32 bits still resolve; lookups match the whole id.
 func NewID() string {
-	b := make([]byte, 4)
+	b := make([]byte, 8)
 	_, _ = rand.Read(b)
 	return "q-" + hex.EncodeToString(b)
 }
@@ -153,26 +172,42 @@ func (q *Question) RecordAnswer(key, note string, now time.Time, force bool) err
 	return nil
 }
 
-// FromNode returns the node's questions, or nil when it has none.
+// FromNode returns the node's questions, or nil when it has none or the
+// property cannot be read. It is for read-only views; a writer uses Parse so
+// an unreadable property is refused, not overwritten.
 func FromNode(n *models.Node) []Question {
+	qs, _ := Parse(n)
+	return qs
+}
+
+// Parse returns the node's questions: nil and no error when the property is
+// absent, an error naming the item when it is present but cannot be read.
+func Parse(n *models.Node) ([]Question, error) {
 	if n == nil {
-		return nil
+		return nil, nil
 	}
 	raw, ok := n.Properties[PropQuestions]
 	if !ok || raw == nil {
-		return nil
+		return nil, nil
 	}
-	var data []byte
-	if s, isStr := raw.(string); isStr {
-		data = []byte(s)
-	} else {
-		data, _ = json.Marshal(raw)
-	}
+	data, err := propertyJSON(raw)
 	var qs []Question
-	if err := json.Unmarshal(data, &qs); err != nil {
-		return nil
+	if err == nil {
+		err = json.Unmarshal(data, &qs)
 	}
-	return qs
+	if err != nil {
+		return nil, fmt.Errorf("the questions property on %s cannot be read: %w", n.ID, err)
+	}
+	return qs, nil
+}
+
+// propertyJSON returns the stored property as JSON: a string holds JSON, any
+// other value is marshalled.
+func propertyJSON(raw any) ([]byte, error) {
+	if s, ok := raw.(string); ok {
+		return []byte(s), nil
+	}
+	return json.Marshal(raw)
 }
 
 // Property returns the questions in the shape stored on Node.Properties.
