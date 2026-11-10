@@ -1,7 +1,9 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { AgentRow, Mode, PromptInfo, Tally, WorkCard } from '../types'
+import type { AgentRow, Mode, PromptInfo, WorkCard } from '../types'
+import { endAgentCall, noteAgentCall, reconcileAgents } from './agents'
+import type { Hint } from './agents'
 import type { BandData } from './band'
 import { drawBand } from './band'
 import { hydrate, refreshAfterTurn, refreshChanged, registerRefs, storeCard, wipnoteJSON } from './refcards'
@@ -12,7 +14,6 @@ import { findProject, newRunCache, readRuns } from './runs'
 import type { SwapState } from './swap'
 import { swapSeen, swapStarted } from './swap'
 import {
-  STALL_MS,
   keepFor,
   applyWipnote,
   baseName,
@@ -32,7 +33,9 @@ import { parseStatusCounts, viewOf } from './workview'
 import type { WorkView } from './workview'
 
 const prompt = atom({ plugin: 'wipnote-orchestra', key: 'prompt' } as const, null)
+// agents and tally are written in agents.ts, which declares them too.
 const agents = atom({ plugin: 'wipnote-orchestra', key: 'agents' } as const, [])
+const tally = atom({ plugin: 'wipnote-orchestra', key: 'tally' } as const, { done: 0, failed: 0 })
 const items = atom({ plugin: 'wipnote-orchestra', key: 'items' } as const, [])
 const cards = atom({ plugin: 'wipnote-orchestra', key: 'cards' } as const, [])
 const mainTool = atom({ plugin: 'wipnote-orchestra', key: 'mainTool' } as const, null)
@@ -41,14 +44,11 @@ const mode = atom({ plugin: 'wipnote-orchestra', key: 'mode' } as const, 'full')
 const placement = atom({ plugin: 'wipnote-orchestra', key: 'placement' } as const, 'below')
 const permissionMode = atom({ plugin: 'wipnote-orchestra', key: 'permissionMode' } as const, null)
 const claim = atom({ plugin: 'wipnote-orchestra', key: 'claim' } as const, null)
-const tally = atom({ plugin: 'wipnote-orchestra', key: 'tally' } as const, { done: 0, failed: 0 })
 const counts = atom({ plugin: 'wipnote-orchestra', key: 'counts' } as const, null)
 const runs = atom({ plugin: 'wipnote-orchestra', key: 'runs' } as const, [])
 const questions = atom({ plugin: 'wipnote-orchestra', key: 'questions' } as const, null)
 
 const KEEP_DONE_MS = 90_000
-
-type Hint = { workItem?: string; model?: string }
 
 async function refreshPrompt($: EngineInterface) {
   const [cwd, home, usage, git, top, model] = await Promise.all([
@@ -73,57 +73,6 @@ async function refreshPrompt($: EngineInterface) {
     limits: usage.rateLimits.map(({ kind, percentUsed, resetsAt }) => ({ kind, percentUsed, resetsAt })),
   }
   await update($, prompt, () => info)
-}
-
-/**
- * Syncs the rows with `$.agent.list()`. A row the list has shown and no longer shows ended (the
- * engine dropped its task) and counts as done. A row only tool calls made (an agent the list never
- * showed, such as a workflow's) is closed uncounted once it has been quiet for STALL_MS with no
- * call running. Each agent is counted in the tally once.
- */
-async function reconcileAgents($: EngineInterface, at: number, hints: ReadonlyMap<string, Hint>) {
-  const listed = await $.agent.list()
-  const ended: Tally = { done: 0, failed: 0 }
-  await update($, agents, rows => {
-    ended.done = 0
-    ended.failed = 0
-    const close = (row: AgentRow, status: string): AgentRow => {
-      if (row.counted === true) return { ...row, status, endedAt: row.endedAt ?? at }
-      if (status === 'failed' || status === 'killed') ended.failed += 1
-      else ended.done += 1
-      return { ...row, status, endedAt: at, counted: true }
-    }
-    const byId = new Map(rows.map(row => [row.id, row]))
-    for (const info of listed) {
-      const row = byId.get(info.id)
-      const wasLive = row === undefined || isLive(row.status)
-      const next: AgentRow = {
-        tools: 0,
-        startedAt: at,
-        ...row,
-        id: info.id,
-        type: info.name ?? info.type,
-        description: info.description,
-        workItem: row?.workItem ?? hints.get(info.description)?.workItem,
-        model: row?.model ?? hints.get(info.description)?.model,
-        status: info.status,
-        listed: true,
-      }
-      byId.set(info.id, wasLive && !isLive(info.status) ? close(next, info.status) : next)
-    }
-    const seen = new Set(listed.map(info => info.id))
-    for (const row of byId.values()) {
-      if (seen.has(row.id) || !isLive(row.status)) continue
-      if (row.listed === true) byId.set(row.id, close(row, 'completed'))
-      else if ((row.inFlight ?? 0) === 0 && at - (row.lastAt ?? row.startedAt) >= STALL_MS) {
-        byId.set(row.id, { ...row, status: 'completed', endedAt: at, counted: true })
-      }
-    }
-    return [...byId.values()].slice(-100)
-  })
-  if (ended.done + ended.failed > 0) {
-    await update($, tally, t => ({ done: t.done + ended.done, failed: t.failed + ended.failed }))
-  }
 }
 
 
@@ -266,12 +215,24 @@ async function bandData($: EngineInterface, zone: string, view: WorkView): Promi
   return { info, rows, tally: ended, keepMs: KEEP_DONE_MS, work, cards: known, counts: total ?? undefined, questions: asked ?? undefined, view, doing, runs: delegated, at, zone }
 }
 
-export const register: Register = (on, options) => {
-  const zone = zoneOf(options.timeZone)
-  const view = viewOf(options)
-  const pending = new Map<string, Hint>()
-  const swap: SwapState = {}
+type On = Parameters<Register>[0]
 
+/** One second of the band's clock: the swap check, the agent sync and the staggered refreshes. */
+async function tick($: EngineInterface, n: number, pending: ReadonlyMap<string, Hint>) {
+  const at = await $.clock.now()
+  const rows = await read($, agents)
+  const isBusy = rows.some(row => isLive(row.status) || at - (row.endedAt ?? 0) < keepFor(row.status, KEEP_DONE_MS))
+  if (isBusy || n % 30 === 0) {
+    await update($, now, () => at)
+  }
+  if (n % 2 === 0) await reconcileAgents($, at, pending)
+  if (n % 5 === 0) await refreshPrompt($)
+  if (n % 5 === 1) await refreshCards($)
+  if (n % 5 === 3) await refreshQuestions($)
+}
+
+/** session.start: the /orchestra command, the first reads and the one-second clock. */
+function onSessionStart(on: On, swap: SwapState, pending: ReadonlyMap<string, Hint>) {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'orchestra',
@@ -286,27 +247,19 @@ export const register: Register = (on, options) => {
     await update($, now, () => started)
     runsProject = undefined
     void refreshRuns($, 0).catch(() => undefined)
-    let tick = 0
+    let n = 0
     $.clock.every(1000, () => {
-      tick += 1
+      n += 1
       void checkSwap($, swap).catch(() => undefined) // a swap session.end did not see
-      void (async () => {
-        const at = await $.clock.now()
-        const rows = await read($, agents)
-        const isBusy = rows.some(row => isLive(row.status) || at - (row.endedAt ?? 0) < keepFor(row.status, KEEP_DONE_MS))
-        if (isBusy || tick % 30 === 0) {
-          await update($, now, () => at)
-        }
-        if (tick % 2 === 0) await reconcileAgents($, at, pending)
-        if (tick % 5 === 0) await refreshPrompt($)
-        if (tick % 5 === 1) await refreshCards($)
-        if (tick % 5 === 3) await refreshQuestions($)
-      })().catch(() => undefined)
-      void refreshRuns($, tick).catch(() => undefined)
+      void tick($, n, pending).catch(() => undefined)
+      void refreshRuns($, n).catch(() => undefined)
     })
     return next(e)
   })
+}
 
+/** /orchestra full|compact|off|above|below; no argument toggles off and full. */
+function onCommand(on: On) {
   on('command.run', { command: 'orchestra' }, async ($, e) => {
     const arg = e.args.trim()
     if (arg === 'above' || arg === 'below') {
@@ -323,7 +276,10 @@ export const register: Register = (on, options) => {
     await update($, mode, () => wanted)
     return { text: `Orchestra band: ${wanted}.` }
   })
+}
 
+/** An agent spawn: its work item and model hint, then its row once the engine names it. */
+function onAgentSpawn(on: On, pending: Map<string, Hint>) {
   on('agent.spawn', async ($, e, next) => {
     const hint: Hint = {
       workItem: workItemIn(e.prompt),
@@ -356,34 +312,15 @@ export const register: Register = (on, options) => {
     }
     return ran
   }).catch(($, e, next) => next(e))
+}
 
+/** Every tool call: the main loop's current call, a subagent's row, and the items a Bash call names. */
+function onToolCall(on: On, pending: ReadonlyMap<string, Hint>) {
   on('tool.call', async ($, e, next) => {
     const input = e as unknown as Record<string, unknown>
     const doing = describeCall(String(e.tool), input)
-    if (e.agentId === undefined) {
-      await update($, mainTool, () => doing)
-    } else {
-      const id = e.agentId
-      const at = await $.clock.now()
-      await update($, agents, rows => {
-        const row = rows.find(one => one.id === id)
-        const base: AgentRow = row ?? {
-          id,
-          type: 'agent',
-          description: '',
-          status: 'running',
-          startedAt: at,
-          tools: 0,
-        }
-        const hint = pending.get(base.description)
-        const workItem = base.workItem ?? hint?.workItem
-        const model = base.model ?? hint?.model
-        return [
-          ...rows.filter(one => one.id !== id),
-          { ...base, workItem, model, tools: base.tools + 1, lastTool: doing, lastAt: at, inFlight: (base.inFlight ?? 0) + 1 },
-        ]
-      })
-    }
+    if (e.agentId === undefined) await update($, mainTool, () => doing)
+    else await noteAgentCall($, e.agentId, doing, pending)
     if (e.tool === 'Bash') {
       const command = e.command
       await update($, items, list => applyWipnote(list, command))
@@ -393,21 +330,13 @@ export const register: Register = (on, options) => {
       if (e.tool === 'Bash') void refreshChanged($, e.command).catch(() => undefined)
       return r
     } finally {
-      // The call ended, answered or thrown: one fewer running for its agent
-      const id = e.agentId
-      if (id !== undefined) {
-        try {
-          const at = await $.clock.now()
-          await update($, agents, rows =>
-            rows.map(row => (row.id === id ? { ...row, lastAt: at, inFlight: Math.max(0, (row.inFlight ?? 1) - 1) } : row)),
-          )
-        } catch {
-          /* the next call or the list sets it again */
-        }
-      }
+      if (e.agentId !== undefined) await endAgentCall($, e.agentId)
     }
   }).catch(($, e, next) => next(e))
+}
 
+/** turn.complete refreshes; session.end catches a /resume, /branch or /clear swap. */
+function onTurnAndSwap(on: On, swap: SwapState) {
   on('turn.complete', async ($, e, next) => {
     await update($, mainTool, () => null)
     await refreshPrompt($).catch(() => undefined)
@@ -423,9 +352,10 @@ export const register: Register = (on, options) => {
     if (e.reason === 'clear' || e.reason === 'resume') await checkSwap($, swap)
     return r
   })
+}
 
-  registerRefs(on)
-
+/** The band above the prompt, when placed there. */
+function onRenderAbove(on: On, zone: string, view: WorkView) {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const [shown, where] = await Promise.all([read($, mode), read($, placement)])
     if (e.props.hasSurvey || shown === 'off' || where !== 'above') return next(e)
@@ -437,7 +367,10 @@ export const register: Register = (on, options) => {
     })
     return tree ?? next(e)
   })
+}
 
+/** The band below the prompt, under the engine's own hint line. */
+function onRenderBelow(on: On, zone: string, view: WorkView) {
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
     const [shown, where] = await Promise.all([read($, mode), read($, placement)])
     if (shown === 'off' || where !== 'below') return next(e)
@@ -464,4 +397,19 @@ export const register: Register = (on, options) => {
       </Box>
     )
   })
+}
+
+export const register: Register = (on, options) => {
+  const zone = zoneOf(options.timeZone)
+  const view = viewOf(options)
+  const pending = new Map<string, Hint>()
+  const swap: SwapState = {}
+  onSessionStart(on, swap, pending)
+  onCommand(on)
+  onAgentSpawn(on, pending)
+  onToolCall(on, pending)
+  onTurnAndSwap(on, swap)
+  registerRefs(on)
+  onRenderAbove(on, zone, view)
+  onRenderBelow(on, zone, view)
 }
