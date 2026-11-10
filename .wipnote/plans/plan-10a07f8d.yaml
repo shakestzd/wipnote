@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 11
+    version: 12
 design:
     problem: |
         Questions an orchestrator owes the owner live only in the agent's prose. In the 2026-11-07 session (issue #336) they got buried under later replies, were answered turns after the work they affected, and the owner had to ask for the question tool at least five times. Work either waited on an answer or went ahead on a default that the item never recorded.
@@ -133,6 +133,7 @@ slices:
             - name: answered_at
               type: RFC 3339 time
     - id: slice-2
+      feature_id: feat-13e24183
       num: 2
       title: Non-blocking by default, blocking questions in execute-preview
       what: |
@@ -169,6 +170,7 @@ slices:
             - 'Copy feature_reopen.go per type: duplicates the reopen path; workitem_reopen.go shares it for bug and spike.'
             - 'Generic `workitem set-status` back to in-progress: skips the reopen bookkeeping feature reopen does.'
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** item start (`wiStartCmd` in cmd/wipnote/workitem.go calls runWiSetStatus; the hook goes in afterStart in workitem_set_status.go) or an explicit `question assume`; later, `question answer`.
         **State:** status open -> assumed on start, assumed -> confirmed or overturned on answer. Questions without a recommended option stay open on start.
@@ -478,3 +480,8 @@ feedback:
           value: promoted
           created_at: "2026-11-10T04:53:00Z"
           updated_at: "2026-11-10T04:53:00Z"
+        - section: slice-2
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-10T05:44:13Z"
+          updated_at: "2026-11-10T05:44:13Z"
