@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 5
+    version: 11
 design:
     problem: |
         Questions an orchestrator owes the owner live only in the agent's prose. In the 2026-11-07 session (issue #336) they got buried under later replies, were answered turns after the work they affected, and the owner had to ask for the question tool at least five times. Work either waited on an answer or went ahead on a default that the item never recorded.
@@ -39,6 +39,7 @@ design:
           accessed: "2026-11-08"
 slices:
     - id: slice-1
+      feature_id: feat-be385b11
       num: 1
       title: Question record and `wipnote question add|list|answer`
       what: |
@@ -64,7 +65,7 @@ slices:
         Unit: core/question merge and validation (option count 2-4, recommended key optional but must be an option, duplicate id, status values).
         CLI: add, list and answer against a temp store; JSON output shape including status; --open filter; refusal cases; --force re-answer.
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://github.com/shakestzd/wipnote/issues/336
@@ -78,6 +79,8 @@ slices:
         rejected:
             - 'planyaml.PlanQuestion as-is: lives in plan YAML and answers go to the SQLite plan_feedback table, not on the item; its field set is reused instead.'
             - 'delegate session questions: per-session hook events with bare string options, no item link or recommended option.'
+      approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-noun
           text: New top-level `question` noun, or per-item verbs like `feature question add`?
@@ -157,7 +160,7 @@ slices:
         Unit: assume, confirm and overturn transitions; assume refuses a question with no recommended option.
         CLI: start with open questions records assumptions; start with a blocking question warns; overturned answer reopens a done feature and a done bug; execute-preview JSON and text include blocking questions.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Internal wipnote behaviour only; builds on the slice 1 record and the existing feature reopen command, no external API.
       adopt_vs_build:
@@ -165,6 +168,7 @@ slices:
         rejected:
             - 'Copy feature_reopen.go per type: duplicates the reopen path; workitem_reopen.go shares it for bug and spike.'
             - 'Generic `workitem set-status` back to in-progress: skips the reopen bookkeeping feature reopen does.'
+      approval_status: approved
       decisions_notes: |
         **Trigger:** item start (`wiStartCmd` in cmd/wipnote/workitem.go calls runWiSetStatus; the hook goes in afterStart in workitem_set_status.go) or an explicit `question assume`; later, `question answer`.
         **State:** status open -> assumed on start, assumed -> confirmed or overturned on answer. Questions without a recommended option stay open on start.
@@ -206,9 +210,10 @@ slices:
         Unit: mapping of run question rows to Question records, including string options, recommended, answered asks and excluded permission rows.
         CLI: result on a closed run files once, run twice files nothing new; worker without an item warns.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Uses the existing delegate outbox and hook question data (internal/delegate/session/questions.go); no external API.
+      approval_status: approved
       decisions_notes: |
         **Trigger:** `wipnote delegate result NAME` (session.Result in internal/delegate/session/mail.go).
         **Source:** session.Questions returns only pending asks and nothing for a closed run (questions.go runQuestions), so this slice adds a reader over all of the run's ask events and question files, excluding KindPermission. The item comes from the ledger row's WorkItem (core/delegationledger/record.go).
@@ -251,7 +256,7 @@ slices:
         Contract: the emitted JSON matches the Claude Code and Codex Stop output formats (decision block plus reason).
         Benchmark: no-records path.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/hooks
@@ -260,6 +265,7 @@ slices:
         - url: https://learn.chatgpt.com/docs/hooks
           claim: Codex Stop input has stop_hook_active and last_assistant_message; decision block with reason continues the turn.
           accessed: "2026-11-08"
+      approval_status: approved
       decisions_notes: |
         **Trigger:** the Stop hook (hooks.Stop in core/hooks/missing_events.go, dispatched from cmd/wipnote/hook.go; manifest entry already targets claude, codex and antigravity).
         **State:** reads open records via the slice 1 list. Loop guard is stop_hook_active, verified in both Claude Code and Codex docs; runner.go already parses last_assistant_message and gains StopHookActive.
@@ -307,13 +313,14 @@ slices:
         Unit: model.ts parse of the list JSON; band count text; new-blocking detection for the toast; answer-output toast text.
         Repo: new mods_test test for the wipnote-questions scaffold.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Follows the existing wipnote-plan-review pane ($.process.run polling, $.ui.open, $.ui.toast in mods/wipnote-plan-review/hooks/register.tsx) and its scaffold files; the pane click-handler API is checked against the plugin-authoring skill during the slice.
       adopt_vs_build:
         decision: build
         rejected:
             - 'Extend wipnote-plan-review: that pane is scoped to one plan''s slices; questions span all items.'
+      approval_status: approved
       decisions_notes: |
         **Trigger:** pane open (poll while placed), band refresh, card render.
         **State:** none in the mod; all data from `wipnote question list --format json`.
@@ -439,3 +446,35 @@ critique:
           severity: Low
           mitigation: Slice 4 confirms WIPNOTE_DELEGATE_RUN propagation and tests the worker path.
     synthesis: 'Both critics ran; three design dangers (missing status field, nonexistent bug/spike reopen, closed-run worker questions) and the feasibility warnings were fixed in place, and validate-yaml is clean apart from done_when length advisories. No danger remains. Open items for the reviewer: A4 (Antigravity Stop format, kept prompt-only) and A8 (worker env marker reaching hooks, checked in slice 4). Look first at slice 2''s reopen scope, which now adds bug and spike reopen, and slice 4''s decision-block-versus-additionalContext choice.'
+feedback:
+    entries:
+        - section: slice-1
+          action: approve
+          value: "true"
+          created_at: "2026-11-10T04:51:56Z"
+          updated_at: "2026-11-10T04:51:56Z"
+        - section: slice-2
+          action: approve
+          value: "true"
+          created_at: "2026-11-10T04:51:57Z"
+          updated_at: "2026-11-10T04:51:57Z"
+        - section: slice-3
+          action: approve
+          value: "true"
+          created_at: "2026-11-10T04:51:57Z"
+          updated_at: "2026-11-10T04:51:57Z"
+        - section: slice-4
+          action: approve
+          value: "true"
+          created_at: "2026-11-10T04:51:57Z"
+          updated_at: "2026-11-10T04:51:57Z"
+        - section: slice-5
+          action: approve
+          value: "true"
+          created_at: "2026-11-10T04:51:58Z"
+          updated_at: "2026-11-10T04:51:58Z"
+        - section: slice-1
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-10T04:53:00Z"
+          updated_at: "2026-11-10T04:53:00Z"

@@ -477,7 +477,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="1"></span>
         <span>#1 Question record and `wipnote question add|list|answer`</span>
         
         <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
@@ -486,7 +486,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="2"></span>
         <span>#2 Non-blocking by default, blocking questions in execute-preview</span>
         
         
@@ -495,7 +495,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="3"></span>
         <span>#3 File worker questions as records</span>
         
         
@@ -504,7 +504,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="4"></span>
         <span>#4 Ask with the question tool in batches; Stop hook nudge</span>
         
         
@@ -513,7 +513,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="5"></span>
         <span>#5 Mods: questions pane, band count, toast and ref cards</span>
         
         
@@ -537,7 +537,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Issue #336. Questions an orchestrator owes the owner become records on work items. They are non-blocking by default: work goes ahead on the recommended option and the item records the assumption. Workers&#39; questions are collected from delegate results. Open questions are asked in batches with the harness question tool and shown in a mod.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v5 · 5 slices · Created 2026-11-08</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v11 · 5 slices · Created 2026-11-08</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -685,15 +685,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="Question record and `wipnote question add|list|answer`" data-status="pending" data-deps="" data-files="6" data-questions="1"></div>
-    <div data-node="2" data-name="Non-blocking by default, blocking questions in execute-preview" data-status="pending" data-deps="1" data-files="7"></div>
-    <div data-node="3" data-name="File worker questions as records" data-status="pending" data-deps="1" data-files="5"></div>
-    <div data-node="4" data-name="Ask with the question tool in batches; Stop hook nudge" data-status="pending" data-deps="1" data-files="5"></div>
-    <div data-node="5" data-name="Mods: questions pane, band count, toast and ref cards" data-status="pending" data-deps="1" data-files="12"></div>
+    <div data-node="1" data-name="Question record and `wipnote question add|list|answer`" data-status="approved" data-deps="" data-files="6" data-questions="1"></div>
+    <div data-node="2" data-name="Non-blocking by default, blocking questions in execute-preview" data-status="approved" data-deps="1" data-files="7"></div>
+    <div data-node="3" data-name="File worker questions as records" data-status="approved" data-deps="1" data-files="5"></div>
+    <div data-node="4" data-name="Ask with the question tool in batches; Stop hook nudge" data-status="approved" data-deps="1" data-files="5"></div>
+    <div data-node="5" data-name="Mods: questions pane, band count, toast and ref cards" data-status="approved" data-deps="1" data-files="12"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1230.4" height="216" viewBox="0 0 1230.4 216" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M471.6 69.54 L156.8 108 L156.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M538.8 80 L462.4 108 L462.4 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M691.6 80 L768 108 L768 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M758.8 69.54 L1073.6 108 L1073.6 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="471.6" y="24" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="615.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Question record and `wipnote…  ?1</text><text class="dep-node-meta" x="615.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Non-blocking by default, bloc…</text><text class="dep-node-meta" x="156.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="329.59999999999997" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="462.4" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 File worker questions as reco…</text><text class="dep-node-meta" x="462.4" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="635.2" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="768" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Ask with the question tool in…</text><text class="dep-node-meta" x="768" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="940.8" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1073.6" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Mods: questions pane, band co…</text><text class="dep-node-meta" x="1073.6" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">12 files</text></g></a></g></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1230.4" height="216" viewBox="0 0 1230.4 216" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M471.6 69.54 L156.8 108 L156.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M538.8 80 L462.4 108 L462.4 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M691.6 80 L768 108 L768 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M758.8 69.54 L1073.6 108 L1073.6 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-approved"><rect class="dep-node-box" x="471.6" y="24" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="615.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Question record and `wipnote…  ?1</text><text class="dep-node-meta" x="615.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-approved"><rect class="dep-node-box" x="24" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="156.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Non-blocking by default, bloc…</text><text class="dep-node-meta" x="156.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-approved"><rect class="dep-node-box" x="329.59999999999997" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="462.4" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 File worker questions as reco…</text><text class="dep-node-meta" x="462.4" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-approved"><rect class="dep-node-box" x="635.2" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="768" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Ask with the question tool in…</text><text class="dep-node-meta" x="768" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-approved"><rect class="dep-node-box" x="940.8" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1073.6" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Mods: questions pane, band co…</text><text class="dep-node-meta" x="1073.6" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">12 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -737,7 +737,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
     <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
-    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 1: Question record and `wipnote question add|list|answer`">
     <span class="slice-num">#1</span>
     <span class="slice-title-col">
@@ -748,15 +748,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-1">Approved</span>
           
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" checked aria-label="Approve slice 1">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -927,7 +927,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 2: Non-blocking by default, blocking questions in execute-preview">
     <span class="slice-num">#2</span>
     <span class="slice-title-col">
@@ -939,14 +939,14 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
           
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-2">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" checked aria-label="Approve slice 2">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1069,7 +1069,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 3: File worker questions as records">
     <span class="slice-num">#3</span>
     <span class="slice-title-col">
@@ -1081,14 +1081,14 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
           
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-3">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" checked aria-label="Approve slice 3">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1212,7 +1212,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 4: Ask with the question tool in batches; Stop hook nudge">
     <span class="slice-num">#4</span>
     <span class="slice-title-col">
@@ -1224,14 +1224,14 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
           
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-4">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" checked aria-label="Approve slice 4">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1359,7 +1359,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 5: Mods: questions pane, band count, toast and ref cards">
     <span class="slice-num">#5</span>
     <span class="slice-title-col">
@@ -1371,14 +1371,14 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
           
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-5">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" checked aria-label="Approve slice 5">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
