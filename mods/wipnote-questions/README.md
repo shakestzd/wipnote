@@ -5,7 +5,7 @@ A Claude Code mod that lists the open wipnote questions across work items in a p
 ## What it does
 
 - `/questions-pane` opens the pane. It reads `wipnote question list --open --format json` and polls every 5 s while placed. Each row shows the question, item, age, `blocking` and the recommended key (★), then its options.
-- `/answer-question <question-id> <option-key>` runs `wipnote question answer <qid> <key>`, toasts the command's first output line (for example "overturned, <item> reopened"), shows it in the pane, and the row leaves the list.
+- `/answer-question <question-id> <option-key>` runs `wipnote question answer <qid> <key>`; `/answer-question <question-id> --text <reply>` answers a free-text question (one with no options, marked "free text" in the pane). The toast is the overturn or reopen warning when the answer made one, else the command's first output line; the pane shows the whole output. The row leaves the list.
 - The orchestra band shows "N open questions · M blocking", toasts a new blocking question, and wipnote-ref cards list the item's open questions (see `mods/wipnote-orchestra`).
 
 The mod API used here has no clickable element, so choosing an option is the command above.

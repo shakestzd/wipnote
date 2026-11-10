@@ -1,13 +1,13 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
-import type { Listing } from '../types'
-import { answerArgv, countLine, failReason, firstLine, listArgv, parseQuestions, rowLine } from './model'
+import type { Answer, Listing } from '../types'
+import { answerArgv, countLine, failReason, fullOutput, listArgv, parseAnswerArgs, parseQuestions, rowLine, toastLine } from './model'
 
 const PANE = 'wipnote-questions'
-// Change the tag when Listing's fields change: it declines what an earlier version stored.
-const listing = atom({ plugin: 'wipnote-questions', key: 'listing' } as const, null, { shape: 'listing-1' })
-const answered = atom({ plugin: 'wipnote-questions', key: 'answered' } as const, null)
+// Change the tag when a stored shape changes: it declines what an earlier version stored.
+const listing = atom({ plugin: 'wipnote-questions', key: 'listing' } as const, null, { shape: 'listing-2' })
+const answered = atom({ plugin: 'wipnote-questions', key: 'answered' } as const, null, { shape: 'answered-2' })
 
 const POLL_MS = 5000
 let timer: Timer | undefined
@@ -36,13 +36,18 @@ async function refresh($: EngineInterface) {
   await update($, listing, () => next)
 }
 
-/** Runs `question answer`, toasts its output, and drops the row at once; the next poll confirms. */
-async function answer($: EngineInterface, questionId: string, key: string) {
-  const ran = await $.process.run(answerArgv(questionId, key), { timeoutMs: 15000 }).catch(() => undefined)
-  const out = ran === undefined ? 'wipnote unavailable' : firstLine(ran.exitCode === 0 ? ran.stdout : ran.stderr || ran.stdout)
-  const line = out !== '' ? out : `${questionId}: ${key}`
-  $.ui.toast(line)
-  await update($, answered, () => line)
+/**
+ * Runs `question answer`, toasts the overturn or reopen line when there is one (else the first line),
+ * shows the whole output in the pane, and drops the row at once; the next poll confirms.
+ */
+async function answer($: EngineInterface, questionId: string, a: Answer) {
+  const ran = await $.process.run(answerArgv(questionId, a), { timeoutMs: 15000 }).catch(() => undefined)
+  const out = ran === undefined ? 'wipnote unavailable' : ran.exitCode === 0 ? ran.stdout : ran.stderr || ran.stdout
+  const fallback = `${questionId}: ${'key' in a ? a.key : a.text}`
+  const line = toastLine(out)
+  const lines = fullOutput(out)
+  $.ui.toast(line !== '' ? line : fallback)
+  await update($, answered, () => (lines.length > 0 ? lines : [fallback]))
   if (ran?.exitCode === 0) {
     await update($, listing, l => (l?.state === 'loaded' ? { ...l, rows: l.rows.filter(r => r.id !== questionId) } : l))
   }
@@ -61,8 +66,8 @@ export const register: Register = on => {
     await $.command.register({ name: 'questions-pane', description: 'Show the open wipnote questions in a side pane' })
     await $.command.register({
       name: 'answer-question',
-      description: 'Answer an open wipnote question with one of its option keys',
-      argumentHint: '<question-id> <option-key>',
+      description: 'Answer an open wipnote question with an option key, or --text for a free-text question',
+      argumentHint: '<question-id> <option-key> | <question-id> --text <reply>',
     })
     return next(e)
   })
@@ -83,10 +88,10 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'answer-question' }, async ($, e) => {
-    const [id, key] = e.args.trim().split(/\s+/)
-    if (id === undefined || id === '' || key === undefined) return { text: 'Usage: /answer-question <question-id> <option-key>.' }
-    await answer($, id, key)
-    return { text: `Answered ${id}: ${key}.` }
+    const parsed = parseAnswerArgs(e.args)
+    if (parsed === undefined) return { text: 'Usage: /answer-question <question-id> <option-key>, or <question-id> --text <reply>.' }
+    await answer($, parsed.id, parsed.answer)
+    return { text: `Answered ${parsed.id}.` }
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
@@ -98,11 +103,14 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         <Text bold>{countLine(l.rows)}</Text>
-        {last !== null && <Text dimColor wrap="truncate-end">{last}</Text>}
+        {last?.map((line, i) => (
+          <Text key={i} dimColor wrap="wrap">{line}</Text>
+        ))}
         {l.rows.map(r => (
           <Box key={r.id} flexDirection="column" marginTop={1}>
             <Text wrap="truncate-end">{r.text}</Text>
             <Text dimColor wrap="truncate-end">{`${r.id} · ${r.itemTitle !== '' ? `${r.itemTitle} · ` : ''}${rowLine(r)}`}</Text>
+            {r.freeText && <Text dimColor wrap="truncate-end">{`free text: /answer-question ${r.id} --text <reply>`}</Text>}
             {r.options.map(o => (
               <Text key={o.key} wrap="truncate-end">{`${o.key === r.recommended ? '★' : '○'} ${o.key}. ${o.label}${o.tradeoff !== undefined ? ` — ${o.tradeoff}` : ''}`}</Text>
             ))}

@@ -10,7 +10,12 @@ export type QuestionRow = {
   recommended: string
   blocking: boolean
   age: string
+  /** No options: answer with --text. */
+  freeText: boolean
 }
+
+/** An answer: an option key, or a free-text question's reply. */
+export type Answer = { key: string } | { text: string }
 
 /** The list the pane shows, or why it cannot show it. */
 export type Listing =
@@ -21,8 +26,8 @@ declare module 'claude-code' {
   interface PluginState {
     'wipnote-questions': {
       listing: Shaped<Listing | null>
-      /** The last answer's output, shown under the list. */
-      answered: string | null
+      /** The last answer's whole output, line by line, shown under the list. */
+      answered: Shaped<string[] | null>
     }
   }
 }
