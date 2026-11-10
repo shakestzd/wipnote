@@ -72,7 +72,7 @@ func questionAnswerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Answered %s on %s: %s\n", args[0], o.ItemID, o.Answer)
+			fmt.Println(answeredLine(args[0], o))
 			if msg := o.message(); msg != "" {
 				fmt.Println(msg)
 			}
@@ -127,45 +127,78 @@ func runQuestionAdd(itemID, text string, rawOpts []string, recommended string, b
 
 // questionSaveHook, when set, runs after findQuestion has located the item
 // and before it saves: a test seam for a concurrent writer.
-var questionSaveHook func()
+// questionAfterSaveHook runs right after the save: a seam for a writer that
+// lands after it.
+var questionSaveHook, questionAfterSaveHook func()
 
 // findQuestion runs fn on question qid as currently stored and saves it. The
 // item is located on a snapshot; fn then runs inside the item's write lock on
 // the questions as they are now, and only qid is merged back, so a concurrent
-// add or answer on another question is kept. It returns the item as written
-// and the question after fn.
-func findQuestion(qid string, fn func(q *question.Question) error) (*models.Node, question.Question, error) {
+// add or answer on another question is kept. An overturned answer on a done
+// item reopens it in that same write (saveQuestions). It returns what the
+// write did and the question after fn.
+func findQuestion(qid string, fn func(q *question.Question) error) (questionWrite, question.Question, error) {
 	dir, err := findWipnoteDir()
 	if err != nil {
-		return nil, question.Question{}, err
+		return questionWrite{}, question.Question{}, err
 	}
 	p, err := workitem.Open(dir, "claude-code")
 	if err != nil {
-		return nil, question.Question{}, fmt.Errorf("open project: %w", err)
+		return questionWrite{}, question.Question{}, fmt.Errorf("open project: %w", err)
 	}
 	defer p.Close()
-	for _, node := range questionItems(p) {
-		if question.Index(question.FromNode(node), qid) < 0 {
-			continue
-		}
-		if questionSaveHook != nil {
-			questionSaveHook()
-		}
-		var got question.Question
-		saved, err := updateQuestions(collectionFor(p, workitem.KindForID(node.ID)), node.ID, func(cur []question.Question) ([]question.Question, error) {
-			i := question.Index(cur, qid)
-			if i < 0 {
-				return nil, fmt.Errorf("question %s is no longer on %s", qid, node.ID)
-			}
-			got = cur[i]
-			if err := fn(&got); err != nil {
-				return nil, err
-			}
-			return []question.Question{got}, nil
-		})
-		return saved, got, err
+	node, err := locateQuestion(p, qid)
+	if err != nil {
+		return questionWrite{}, question.Question{}, err
 	}
-	return nil, question.Question{}, fmt.Errorf("no question %s on any feature, bug or spike", qid)
+	if questionSaveHook != nil {
+		questionSaveHook()
+	}
+	var got question.Question
+	w, err := saveQuestions(collectionFor(p, workitem.KindForID(node.ID)), node.ID, func(_ *models.Node, cur []question.Question) ([]question.Question, error) {
+		i := question.Index(cur, qid)
+		if i < 0 {
+			return nil, fmt.Errorf("question %s is no longer on %s", qid, node.ID)
+		}
+		got = cur[i]
+		if err := fn(&got); err != nil {
+			return nil, err
+		}
+		return []question.Question{got}, nil
+	})
+	if err != nil {
+		return w, got, err
+	}
+	if questionAfterSaveHook != nil {
+		questionAfterSaveHook()
+	}
+	if w.reopened {
+		persistReopen(dir, workitem.KindForID(node.ID), node.ID)
+	}
+	return w, got, nil
+}
+
+// locateQuestion returns the one feature, bug or spike whose stored
+// questions hold qid. An id found on more than one item is refused, naming
+// them, so an answer never lands on a guess.
+func locateQuestion(p *workitem.Project, qid string) (*models.Node, error) {
+	var hits []*models.Node
+	for _, node := range questionItems(p) {
+		if question.Index(question.FromNode(node), qid) >= 0 {
+			hits = append(hits, node)
+		}
+	}
+	switch len(hits) {
+	case 0:
+		return nil, fmt.Errorf("no question %s on any feature, bug or spike", qid)
+	case 1:
+		return hits[0], nil
+	}
+	ids := make([]string, len(hits))
+	for i, n := range hits {
+		ids[i] = n.ID
+	}
+	return nil, fmt.Errorf("question id %s is on more than one item (%s); nothing was recorded", qid, strings.Join(ids, ", "))
 }
 
 // openQuestionItem resolves id and returns the project and the collection
@@ -195,17 +228,39 @@ type refusal struct{ err error }
 
 func (r refusal) Error() string { return r.err.Error() }
 
-// errNoQuestionChange tells updateQuestions that fn changed nothing.
+// errNoQuestionChange tells saveQuestions that fn changed nothing.
 var errNoQuestionChange = errors.New("no question changed")
 
-// updateQuestions runs fn on the item's questions as stored, inside the
-// item's write lock, and saves the questions fn returns merged by id
-// (question.Merge) into that current list. Nothing is written when fn returns
-// none. It returns the item as it now stands.
+// questionWrite is what one locked questions write did.
+type questionWrite struct {
+	node *models.Node // the item as it now stands
+	// reopened: an overturned answer reopened the done item in that write.
+	reopened bool
+}
+
+// updateQuestions is saveQuestions for a fn that needs only the questions.
 func updateQuestions(col *workitem.Collection, id string, fn func(cur []question.Question) ([]question.Question, error)) (*models.Node, error) {
+	w, err := saveQuestions(col, id, func(_ *models.Node, cur []question.Question) ([]question.Question, error) {
+		return fn(cur)
+	})
+	return w.node, err
+}
+
+// saveQuestions runs fn on the item and its questions as stored, inside the
+// item's write lock, and saves the questions fn returns merged by id
+// (question.Merge) into that current list. When a saved question is
+// overturned and the item is done, the item is reopened in the same write,
+// its status checked inside the lock, so a concurrent start or complete is
+// never undone. Nothing is written when fn returns none, and a questions
+// property that cannot be read is refused, never overwritten.
+func saveQuestions(col *workitem.Collection, id string, fn func(n *models.Node, cur []question.Question) ([]question.Question, error)) (questionWrite, error) {
+	var w questionWrite
 	node, err := col.Update(id, func(n *models.Node) error {
-		cur := question.FromNode(n)
-		changed, err := fn(cur)
+		cur, err := question.Parse(n)
+		if err != nil {
+			return refusal{fmt.Errorf("%w; nothing was written: fix or remove the property in %s by hand", err, id)}
+		}
+		changed, err := fn(n, cur)
 		if err != nil {
 			return refusal{err}
 		}
@@ -213,22 +268,40 @@ func updateQuestions(col *workitem.Collection, id string, fn func(cur []question
 			return errNoQuestionChange
 		}
 		n.Properties[question.PropQuestions] = question.Property(question.Merge(cur, changed))
+		w.reopened = anyOverturned(changed) && col.Reopen(n)
 		return nil
 	})
 	var r refusal
 	switch {
 	case errors.Is(err, errNoQuestionChange):
-		return col.Get(id)
+		node, err = col.Get(id)
+		return questionWrite{node: node}, err
 	case errors.As(err, &r):
-		return nil, r.err
+		return questionWrite{}, r.err
 	case err != nil:
-		return nil, fmt.Errorf("save questions on %s: %w", id, err)
+		return questionWrite{}, fmt.Errorf("save questions on %s: %w", id, err)
 	}
-	return node, nil
+	w.node = node
+	return w, nil
+}
+
+func anyOverturned(qs []question.Question) bool {
+	for _, q := range qs {
+		if q.Status == question.StatusOverturned {
+			return true
+		}
+	}
+	return false
+}
+
+// answeredLine is the line `question answer` prints first.
+func answeredLine(qid string, o answerOutcome) string {
+	return fmt.Sprintf("Answered %s on %s: %s", qid, o.ItemID, stripTerminalControls(o.Answer))
 }
 
 // optionKeys renders a question's option keys, marking the recommended one,
-// or "free text" for a question with no options.
+// or "free text" for a question with no options. It is for display: terminal
+// controls in a key stored before keys were restricted are stripped.
 func optionKeys(q question.Question) string {
 	if q.IsFreeText() {
 		return "free text"
@@ -240,5 +313,5 @@ func optionKeys(q question.Question) string {
 			keys[i] += "*"
 		}
 	}
-	return strings.Join(keys, "/")
+	return stripTerminalControls(strings.Join(keys, "/"))
 }

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 const openNodeHTML = `<article id="feat-aaaa0001" data-type="feature" data-status="todo" data-node-props="{&#34;questions&#34;:[{&#34;id&#34;:&#34;q-1&#34;,&#34;text&#34;:&#34;t&#34;,&#34;options&#34;:[],&#34;status&#34;:&#34;%s&#34;}]}"><header><h1>T</h1></header></article>`
@@ -21,14 +22,18 @@ func writeItem(t *testing.T, dir, kind, id, body string) {
 	}
 }
 
-func TestOpenIDsInProgress(t *testing.T) {
+func TestOpenIDsOnItems_Statuses(t *testing.T) {
 	dir := t.TempDir()
-	if got := OpenIDsInProgress(dir); len(got) != 0 {
+	scan := func() []string {
+		got, _ := OpenIDsOnItems(dir, []string{"feat-aaaa0001", "bug-bbbb0002"}, time.Now().Add(time.Minute))
+		return got
+	}
+	if got := scan(); len(got) != 0 {
 		t.Fatalf("empty project: %v", got)
 	}
 	writeItem(t, dir, "features", "feat-aaaa0001", itemWith("in-progress", "open"))
 	writeItem(t, dir, "bugs", "bug-bbbb0002", `<article id="bug-bbbb0002" data-type="bug"><header><h1>B</h1></header></article>`)
-	if got, want := OpenIDsInProgress(dir), []string{"q-1"}; !reflect.DeepEqual(got, want) {
+	if got, want := scan(), []string{"q-1"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v want %v", got, want)
 	}
 	cases := map[string][2]string{
@@ -40,7 +45,7 @@ func TestOpenIDsInProgress(t *testing.T) {
 	}
 	for name, c := range cases {
 		writeItem(t, dir, "features", "feat-aaaa0001", itemWith(c[0], c[1]))
-		if got := OpenIDsInProgress(dir); len(got) != 0 {
+		if got := scan(); len(got) != 0 {
 			t.Errorf("%s counted: %v", name, got)
 		}
 	}

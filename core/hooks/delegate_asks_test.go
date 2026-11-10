@@ -42,3 +42,23 @@ func TestDelegateEvents_AskKeepsOptionsAndPaneAnswer(t *testing.T) {
 		t.Fatalf("a failed ask is not answered: %v", lines[2])
 	}
 }
+
+// A question longer than the stored bound still finds the pane answer: the
+// answers map is keyed by the full question text, so the lookup runs before
+// the text is truncated for storage.
+func TestDelegateEvents_LongAskKeepsPaneAnswer(t *testing.T) {
+	long := strings.Repeat("why ", 400) + "?" // 1601 runes
+	input := map[string]any{"questions": []any{
+		map[string]any{"question": long, "options": []any{map[string]any{"label": "yes"}, map[string]any{"label": "no"}}},
+	}}
+	end := &CloudEvent{ToolName: "AskUserQuestion", ToolInput: input, ToolResult: map[string]any{
+		"answers": map[string]any{long: "no"},
+	}}
+	asks := askAnswers(end)
+	if len(asks) != 1 || asks[0].Answer != "no" {
+		t.Fatalf("pane answer lost for a long question: %+v", asks)
+	}
+	if n := len([]rune(asks[0].Question)); n > delegateSummaryMax+1 {
+		t.Fatalf("stored question is %d runes, want at most %d", n, delegateSummaryMax+1)
+	}
+}

@@ -61,7 +61,10 @@ async function show($: EngineInterface) {
   else $.ui.toast(`Questions pane is waiting (${r.reason}). Type /questions-pane to show it.`)
 }
 
-export const register: Register = on => {
+type On = Parameters<Register>[0]
+
+/** session.start registers the two commands; closing the pane or the session stops the poll. */
+function onLifecycle(on: On) {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'questions-pane', description: 'Show the open wipnote questions in a side pane' })
     await $.command.register({
@@ -81,7 +84,10 @@ export const register: Register = on => {
     stopPoll()
     return next(e)
   })
+}
 
+/** /questions-pane and /answer-question. */
+function onCommands(on: On) {
   on('command.run', { command: 'questions-pane' }, async $ => {
     await show($)
     return { text: 'Questions pane.' }
@@ -93,7 +99,10 @@ export const register: Register = on => {
     await answer($, parsed.id, parsed.answer)
     return { text: `Answered ${parsed.id}.` }
   })
+}
 
+/** The pane: the count, the last answer's output, and each open question with its options. */
+function onRender(on: On) {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     startPoll($)
     const { Box, Text } = $.ui.resolve(e)
@@ -119,4 +128,10 @@ export const register: Register = on => {
       </Box>
     )
   })
+}
+
+export const register: Register = on => {
+  onLifecycle(on)
+  onCommands(on)
+  onRender(on)
 }

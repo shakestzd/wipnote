@@ -48,21 +48,27 @@ func executeReopen(typeName, id string) error {
 	}
 	defer p.Close()
 	col := collectionFor(p, typeName)
-	node, err := col.Get(id)
-	if err != nil {
-		return fmt.Errorf("get %s %s: %w", typeName, id, err)
-	}
-	if node.Status != models.StatusDone {
-		return fmt.Errorf("%s %s is not done (status: %q) — nothing to reopen", typeName, id, node.Status)
-	}
-	if _, err := col.Start(id); err != nil {
+	// The done check and the write are one locked transaction (col.Reopen),
+	// so a concurrent start or complete is never rolled back.
+	if _, err := col.Update(id, func(n *models.Node) error {
+		if !col.Reopen(n) {
+			return fmt.Errorf("%s %s is not done (status: %q) — nothing to reopen", typeName, id, n.Status)
+		}
+		return nil
+	}); err != nil {
 		return fmt.Errorf("reopen %s %s: %w", typeName, id, err)
 	}
-	// Non-fatal: failures log to stderr (feat-712f9194 / roborev #1678).
-	if shouldAutocommitWorkitemArtifact(typeName) {
-		if commitErr := persistWorkitemArtifactTransition(dir, typeName, id, "reopen"); commitErr != nil {
-			fmt.Fprintf(os.Stderr, "autocommit warning: %v\n", commitErr)
-		}
-	}
+	persistReopen(dir, typeName, id)
 	return nil
+}
+
+// persistReopen autocommits a reopened item's artifact so the transition is
+// durable. Non-fatal: failures log to stderr (feat-712f9194 / roborev #1678).
+func persistReopen(dir, typeName, id string) {
+	if !shouldAutocommitWorkitemArtifact(typeName) {
+		return
+	}
+	if commitErr := persistWorkitemArtifactTransition(dir, typeName, id, "reopen"); commitErr != nil {
+		fmt.Fprintf(os.Stderr, "autocommit warning: %v\n", commitErr)
+	}
 }
