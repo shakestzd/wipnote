@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
-// itemDirs are the .wipnote folders whose items can carry questions.
-var itemDirs = []string{"features", "bugs", "spikes"}
+// itemDirs maps the id prefixes of the items that can carry questions to
+// their .wipnote folders.
+var itemDirs = map[string]string{"feat-": "features", "bug-": "bugs", "spk-": "spikes"}
 
 // propMarkers are the two spellings of the questions key in an item file: the
 // attribute escape (&#34;) the writer emits and plain quotes.
@@ -20,21 +23,36 @@ var propMarkers = [][]byte{[]byte("questions&#34;"), []byte(`"questions"`)}
 // in-progress item; the parse confirms it.
 var inProgressMarker = []byte(`data-status="in-progress"`)
 
-// OpenIDsInProgress returns the ids of the questions still awaiting the owner
-// on in-progress features, bugs and spikes: status open only, since an
-// assumed question is work that went ahead on purpose. It is built for a hot
-// path: a file whose <article> tag does not mention the questions key and the
-// in-progress status is skipped on a byte scan, without a parse, so a project
-// with no such records costs one bounded read per item.
-func OpenIDsInProgress(projectDir string) []string {
-	var ids []string
-	for _, kind := range itemDirs {
-		paths, _ := filepath.Glob(filepath.Join(projectDir, ".wipnote", kind, "*.html"))
-		for _, p := range paths {
+// OpenIDsOnItems returns the ids of the questions still awaiting the owner on
+// the named features, bugs and spikes that are in progress: status open only,
+// since an assumed question is work that went ahead on purpose. Only the named
+// items' files are read, and a file whose <article> tag does not mention the
+// questions key and the in-progress status is skipped without a parse.
+// complete is false when the deadline passed before every item was read; the
+// ids found so far are returned with it.
+func OpenIDsOnItems(projectDir string, itemIDs []string, deadline time.Time) (ids []string, complete bool) {
+	for _, id := range itemIDs {
+		if !time.Now().Before(deadline) {
+			return ids, false
+		}
+		if p := itemPath(projectDir, id); p != "" {
 			ids = append(ids, openIDsInFile(p)...)
 		}
 	}
-	return ids
+	return ids, true
+}
+
+// itemPath is the file of a feature, bug or spike id, or "" for any other id.
+func itemPath(projectDir, id string) string {
+	if strings.ContainsAny(id, `/\`) {
+		return ""
+	}
+	for prefix, dir := range itemDirs {
+		if strings.HasPrefix(id, prefix) {
+			return filepath.Join(projectDir, ".wipnote", dir, id+".html")
+		}
+	}
+	return ""
 }
 
 func openIDsInFile(path string) []string {

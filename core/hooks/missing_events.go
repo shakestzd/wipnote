@@ -32,7 +32,7 @@ func Stop(event *CloudEvent) (*HookResult, error) {
 	if err := runSessionExitReconcile(projectDir, currentHarness().String(), sessionID, true); err != nil {
 		return nil, err
 	}
-	if block := stopQuestionNudge(event, projectDir); block != nil {
+	if block := stopQuestionNudge(event, projectDir, sessionID); block != nil {
 		return block, nil
 	}
 	return &HookResult{Continue: true}, nil
