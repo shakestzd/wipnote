@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"context"
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"sync"
 	"testing"
@@ -198,4 +199,40 @@ func TestView_ShowsPendingAsks(t *testing.T) {
 	}
 	cancel()
 	<-done
+}
+
+func runStyled(t *testing.T, colour *bool) string {
+	t.Helper()
+	rf := newRun(t)
+	if err := rf.WriteStart(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	write(t, rf, runstore.FileCleanMD, "### Assistant\n\nsome **bold** text\n<!-- fold closed: Bash: ls · exit 0 · 1 lines -->\n**Bash** `ls`\n<!-- /fold -->\n```\n**raw**\n")
+	finishRun(t, rf, "the answer", "input 1")
+	var out bytes.Buffer
+	opts := ViewOptions{Poll: time.Millisecond, Color: colour, Width: func() int { return 0 }}
+	if err := View(context.Background(), rf, &out, opts); err != nil {
+		t.Fatal(err)
+	}
+	return out.String()
+}
+
+// Styling is off for a non-terminal writer and when forced off, and the
+// output is then the raw Markdown; forced on it is styled.
+func TestView_StyleOnlyWhenColour(t *testing.T) {
+	off := false
+	on := true
+	plainOut, forcedOff, styled := runStyled(t, nil), runStyled(t, &off), runStyled(t, &on)
+	if plainOut != forcedOff || strings.Contains(plainOut, "\x1b[") {
+		t.Errorf("non-terminal output was styled:\n%q", plainOut)
+	}
+	for _, want := range []string{"### Assistant", "some **bold** text", "✓ Bash: ls"} {
+		if !strings.Contains(plainOut, want) {
+			t.Errorf("raw output lacks %q", want)
+		}
+	}
+	if !strings.Contains(styled, "\x1b[") || strings.Contains(styled, "### ") ||
+		!strings.Contains(ansi.Strip(styled), "✓ Bash: ls") || !strings.Contains(ansi.Strip(styled), "  **raw**") {
+		t.Errorf("styled output wrong:\n%q", styled)
+	}
 }
