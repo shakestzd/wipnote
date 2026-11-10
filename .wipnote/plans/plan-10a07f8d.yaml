@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 14
+    version: 15
 design:
     problem: |
         Questions an orchestrator owes the owner live only in the agent's prose. In the 2026-11-07 session (issue #336) they got buried under later replies, were answered turns after the work they affected, and the owner had to ask for the question tool at least five times. Work either waited on an answer or went ahead on a default that the item never recorded.
@@ -287,6 +287,7 @@ slices:
             - Open question records and last line ends with "?"
             - Block once, reason names the records and the question tool
     - id: slice-5
+      feature_id: feat-7b54b3e9
       num: 5
       title: 'Mods: questions pane, band count, toast and ref cards'
       what: |
@@ -327,6 +328,7 @@ slices:
         rejected:
             - 'Extend wipnote-plan-review: that pane is scoped to one plan''s slices; questions span all items.'
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** pane open (poll while placed), band refresh, card render.
         **State:** none in the mod; all data from `wipnote question list --format json`.
@@ -499,3 +501,8 @@ feedback:
           value: promoted
           created_at: "2026-11-10T05:45:08Z"
           updated_at: "2026-11-10T05:45:08Z"
+        - section: slice-5
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-10T05:45:40Z"
+          updated_at: "2026-11-10T05:45:40Z"
