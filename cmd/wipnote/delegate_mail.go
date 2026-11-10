@@ -129,7 +129,10 @@ func delegateResultCmd() *cobra.Command {
 		Short: "Print the newest result file a worker wrote",
 		Long: `Prints the newest outbox result file's body and the task it answers, whatever
 the worker's state, or {"result": "none"}. Prints {run, name, result, task,
-body, created}.`,
+body, created}, plus questions_filed (ids) when it filed the worker's
+delegate reply --ask and AskUserQuestion questions as question records on its
+work item (once each; permission prompts are not filed) and a warning when it
+could not.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return delegateSessionVerb(func(d session.Deps) error {
@@ -137,10 +140,35 @@ body, created}.`,
 				if err != nil {
 					return err
 				}
-				return writeJSON(cmd.OutOrStdout(), r)
+				return writeJSON(cmd.OutOrStdout(), withFiledAsks(d, args[0], r))
 			})
 		},
 	}
+}
+
+// resultWithAsks is result's payload plus the worker questions it filed.
+type resultWithAsks struct {
+	session.ResultOut
+	QuestionsFiled []string `json:"questions_filed,omitempty"`
+	Warning        string   `json:"warning,omitempty"`
+}
+
+// withFiledAsks files the run's worker questions on its item (once) and adds
+// the new ids to the payload. A filing failure is a warning: the result still
+// prints.
+func withFiledAsks(d session.Deps, name string, r session.ResultOut) resultWithAsks {
+	out := resultWithAsks{ResultOut: r}
+	asks, err := session.RunAsks(d, name)
+	if err == nil {
+		var f filedAsks
+		if f, err = fileWorkerAsks(name, asks); err == nil {
+			out.QuestionsFiled, out.Warning = f.Filed, f.Warning
+		}
+	}
+	if err != nil {
+		out.Warning = "worker questions were not filed: " + err.Error()
+	}
+	return out
 }
 
 func delegateQuestionsCmd() *cobra.Command {
