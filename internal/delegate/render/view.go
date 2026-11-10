@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/term"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
 )
@@ -127,7 +128,7 @@ func (v *viewer) step(final bool) {
 		data = data[:bytes.LastIndexByte(data, '\n')+1]
 	}
 	v.off += int64(len(data))
-	for _, l := range splitLines(data) {
+	for _, l := range splitLines([]byte(stripControls(string(data)))) {
 		v.print(l)
 	}
 	if final && v.src == runstore.FileCleanMD {
@@ -177,14 +178,14 @@ func (v *viewer) finish(info runstore.RunInfo) error {
 	v.sty.reset() // an unclosed fence ends with the run
 	fmt.Fprintf(v.w, "\n%s\n", Status(statusOf(info)))
 	last, _, err := v.rf.ReadFrom(runstore.FileLastMD, 0)
-	if answer := trimSpace(string(last)); err == nil && answer != "" {
-		_, err = fmt.Fprintf(v.w, "\n--- answer ---\n%s\n", answer)
-		return err
+	if answer := trimSpace(stripControls(string(last))); err == nil && answer != "" {
+		fmt.Fprintf(v.w, "\n%s\n", v.dimmed("--- answer ---"))
+		return v.printBlock(answer, true)
 	}
 	tail, err := v.rf.Tail(runstore.FileCleanLog, tailAnswer)
-	if log := trimSpace(string(tail)); err == nil && log != "" {
-		_, err = fmt.Fprintf(v.w, "\n--- end of clean.log ---\n%s\n", log)
-		return err
+	if log := trimSpace(stripControls(string(tail))); err == nil && log != "" {
+		fmt.Fprintf(v.w, "\n--- end of clean.log ---\n")
+		return v.printBlock(log, looksMarkdown(log))
 	}
 	_, err = fmt.Fprintln(v.w, "\n(no answer was written)")
 	return err
@@ -219,4 +220,50 @@ func styleMode(w io.Writer, opts ViewOptions) (bool, func() int) {
 		}
 	}
 	return colour, width
+}
+
+// dimmed is a divider line, dim when styling.
+func (v *viewer) dimmed(l string) string {
+	if !v.colour {
+		return l
+	}
+	return styles.dim.Render(l)
+}
+
+// printBlock prints text line by line; markdown lines go through a fresh
+// styler, so a fence open in the transcript does not leak into them.
+func (v *viewer) printBlock(text string, markdown bool) error {
+	var sty lineStyle
+	w := v.width()
+	for _, l := range strings.Split(text, "\n") {
+		if markdown {
+			l = sty.style(l, w, v.colour)
+		}
+		if _, err := fmt.Fprintln(v.w, l); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var mdHintRe = regexp.MustCompile("(?m)^ {0,3}(#{1,6} |`{3}|~{3})|\\*\\*[^*\\n]+\\*\\*|`[^`\\n]+`")
+
+// looksMarkdown tells Markdown from plain log text.
+func looksMarkdown(s string) bool { return mdHintRe.MatchString(s) }
+
+// c1Escapes rewrites the C1 introducers as their ESC forms, which Strip
+// understands; the other C1 controls are dropped by the rune filter.
+var c1Escapes = strings.NewReplacer("\u009b", "\x1b[", "\u009d", "\x1b]", "\u0090", "\x1bP",
+	"\u0098", "\x1bX", "\u009e", "\x1b^", "\u009f", "\x1b_", "\u009c", "\x1b\\")
+
+// stripControls removes escape sequences and C0/C1 control characters from
+// model-controlled text, keeping tab and newline.
+func stripControls(s string) string {
+	s = ansi.Strip(c1Escapes.Replace(s))
+	return strings.Map(func(r rune) rune {
+		if r == '\t' || r == '\n' || (r >= 0x20 && r != 0x7f && (r < 0x80 || r > 0x9f)) {
+			return r
+		}
+		return -1
+	}, s)
 }

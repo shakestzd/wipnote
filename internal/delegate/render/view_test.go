@@ -236,3 +236,85 @@ func TestView_StyleOnlyWhenColour(t *testing.T) {
 		t.Errorf("styled output wrong:\n%q", styled)
 	}
 }
+
+func runAnswer(t *testing.T, colour bool, clean, answer string) string {
+	t.Helper()
+	rf := newRun(t)
+	if err := rf.WriteStart(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if clean != "" {
+		write(t, rf, runstore.FileCleanMD, clean)
+	}
+	finishRun(t, rf, answer, "input 1")
+	var out bytes.Buffer
+	opts := ViewOptions{Poll: time.Millisecond, Color: &colour, Width: func() int { return 0 }}
+	if err := View(context.Background(), rf, &out, opts); err != nil {
+		t.Fatal(err)
+	}
+	return out.String()
+}
+
+func TestView_AnswerStyledWithColour(t *testing.T) {
+	got := runAnswer(t, true, "### Hi\n", "## Result\n\nsome **bold** text")
+	i := strings.Index(got, "answer ---")
+	if i < 0 || !strings.Contains(got[:i], "\x1b[") {
+		t.Fatalf("divider not styled:\n%q", got)
+	}
+	ans := got[i:]
+	if !strings.Contains(ans, "\x1b[") || strings.Contains(ans, "## ") || strings.Contains(ans, "**") {
+		t.Errorf("answer not styled:\n%q", ans)
+	}
+}
+
+func TestView_AnswerPassthroughWithoutColour(t *testing.T) {
+	got := runAnswer(t, false, "", "## Result\n\nsome **bold** text")
+	if !strings.Contains(got, "\n--- answer ---\n## Result\n\nsome **bold** text\n") || strings.Contains(got, "\x1b") {
+		t.Errorf("answer changed:\n%q", got)
+	}
+}
+
+func TestView_OpenFenceDoesNotLeakIntoAnswer(t *testing.T) {
+	got := runAnswer(t, true, "```\ncode\n", "plain answer")
+	ans := got[strings.Index(got, "answer ---"):]
+	line := strings.Split(ans, "\n")[1]
+	if strings.Contains(line, "\x1b[") || line != "plain answer" {
+		t.Errorf("fence leaked into answer: %q", line)
+	}
+}
+
+func TestView_StripsControlSequencesBothModes(t *testing.T) {
+	evil := "a\x1b]0;title\x07b\x1b[31mc\u009b31md\x07e\tf\rg\u0085h"
+	for _, colour := range []bool{false, true} {
+		got := runAnswer(t, colour, evil+"\nsecond\n", evil)
+		plain := ansi.Strip(got)
+		if strings.Contains(got, "title") || strings.ContainsAny(plain, "\x07\r\u009b\u0085") {
+			t.Errorf("colour=%v controls leaked:\n%q", colour, got)
+		}
+		if !strings.Contains(strings.ReplaceAll(plain, "    ", "\t"), "abcde\tfgh\nsecond") {
+			t.Errorf("colour=%v text lost:\n%q", colour, plain)
+		}
+	}
+}
+
+func TestView_LogFallbackStyledOnlyIfMarkdown(t *testing.T) {
+	for _, tc := range []struct {
+		log    string
+		styled bool
+	}{{"> ls\n  = exit 0: a b\n", false}, {"## Notes\nsome **bold**\n", true}} {
+		rf := newRun(t)
+		write(t, rf, runstore.FileCleanLog, tc.log)
+		if err := rf.Finish(0, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		on := true
+		var out bytes.Buffer
+		if err := View(context.Background(), rf, &out, ViewOptions{Poll: time.Millisecond, Color: &on, Width: func() int { return 0 }}); err != nil {
+			t.Fatal(err)
+		}
+		tail := out.String()[strings.Index(out.String(), "end of clean.log"):]
+		if got := strings.Contains(tail, "\x1b["); got != tc.styled {
+			t.Errorf("log %q: styled=%v want %v\n%q", tc.log, got, tc.styled, tail)
+		}
+	}
+}
