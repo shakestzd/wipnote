@@ -273,16 +273,32 @@ func (c *Collection) SetFindings(id, findings string) error {
 // Update runs fn on the node as stored, under the item's write lock, and
 // writes the node when fn succeeds. A caller that read the item earlier uses
 // it to merge its change into the current state instead of overwriting a
-// concurrent write. fn's error is returned as is and nothing is written.
+// concurrent write. fn's error is returned as is and nothing is written. The
+// new UpdatedAt is strictly after the stored one, so a status change made in
+// fn (Reopen) orders after the transition before it.
 func (c *Collection) Update(id string, fn func(*models.Node) error) (*models.Node, error) {
 	return c.mutateNode(id, func(node *models.Node) error {
 		if node.Properties == nil {
 			node.Properties = make(map[string]any)
 		}
+		prev := node.UpdatedAt
 		if err := fn(node); err != nil {
 			return err
 		}
-		node.UpdatedAt = time.Now().UTC()
+		node.UpdatedAt = transitionTime(prev)
 		return nil
 	})
+}
+
+// Reopen sets a done node back to in-progress, as Start does, for a caller
+// already inside the item's lock (an Update fn), so the status check and the
+// write are one transaction. It reports whether the node was done; any other
+// status is left as it is.
+func (c *Collection) Reopen(node *models.Node) bool {
+	if node.Status != models.StatusDone {
+		return false
+	}
+	node.Status = models.StatusInProgress
+	node.AgentAssigned = c.base.Agent
+	return true
 }

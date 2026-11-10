@@ -36,11 +36,11 @@ func questionAssumeCmd() *cobra.Command {
 // item id. Blocking questions and ones without a recommended option are
 // refused.
 func runQuestionAssume(qid string) (string, error) {
-	node, _, err := findQuestion(qid, func(q *question.Question) error { return q.Assume() })
+	w, _, err := findQuestion(qid, func(q *question.Question) error { return q.Assume() })
 	if err != nil {
 		return "", err
 	}
-	return node.ID, nil
+	return w.node.ID, nil
 }
 
 // answerOutcome is what recording an answer did to the question and item.
@@ -77,28 +77,23 @@ func answerQuestionText(qid, text, note string, force bool) (answerOutcome, erro
 }
 
 func recordOwnerAnswer(qid string, record func(q *question.Question) error) (answerOutcome, error) {
-	node, q, err := findQuestion(qid, record)
+	w, q, err := findQuestion(qid, record)
 	if err != nil {
 		return answerOutcome{}, err
 	}
-	return settleItem(node, q)
+	return outcomeOf(w.node, q, w.reopened), nil
 }
 
-// settleItem reports what an answer did and reopens a done item whose
-// assumption it overturned.
-func settleItem(node *models.Node, q question.Question) (answerOutcome, error) {
-	o := answerOutcome{
+// outcomeOf reports what an answer did. reopened says the write that
+// recorded it also reopened the done item (saveQuestions); node is the item
+// as that write left it.
+func outcomeOf(node *models.Node, q question.Question, reopened bool) answerOutcome {
+	return answerOutcome{
 		QuestionID: q.ID, ItemID: node.ID, ItemType: workitem.KindForID(node.ID),
 		ItemStatus: node.Status, Status: q.Status, Assumed: q.Assumed, Answer: q.Answer,
 		AssumedLabel: optionLabel(q, q.Assumed), AnswerLabel: optionLabel(q, q.Answer),
+		Reopened: reopened,
 	}
-	if o.Status == question.StatusOverturned && node.Status == models.StatusDone {
-		if err := executeReopen(o.ItemType, node.ID); err != nil {
-			return o, fmt.Errorf("answer recorded, but reopening %s failed: %w", node.ID, err)
-		}
-		o.Reopened, o.ItemStatus = true, models.StatusInProgress
-	}
-	return o, nil
 }
 
 func optionLabel(q question.Question, key string) string {
@@ -138,17 +133,32 @@ func quoteAnswer(key, label string) string {
 }
 
 // assumeQuestionsOnStart assumes the recommended option on the item's open
-// non-blocking questions and warns on open blocking ones. It never fails the
-// start: errors are printed as warnings.
+// non-blocking questions and warns on open blocking ones. The item's status
+// is checked inside the same locked write: an item a concurrent complete has
+// already moved on gets no assumptions. It never fails the start: errors are
+// printed as warnings.
 func assumeQuestionsOnStart(w io.Writer, col *workitem.Collection, id string) {
 	var r question.AssumeResult
-	if _, err := updateQuestions(col, id, func(cur []question.Question) ([]question.Question, error) {
+	var status models.NodeStatus
+	if _, err := saveQuestions(col, id, func(n *models.Node, cur []question.Question) ([]question.Question, error) {
+		if status = n.Status; status != models.StatusInProgress {
+			return nil, nil
+		}
 		r = question.AssumeOpen(cur)
 		return r.Assumed, nil
 	}); err != nil {
 		fmt.Fprintf(w, "question warning: %v\n", err)
 		return
 	}
+	if status != models.StatusInProgress {
+		fmt.Fprintf(w, "question note: %s is no longer in progress (status: %s), so no question on it was assumed\n", id, status)
+		return
+	}
+	printAssumeResult(w, id, r)
+}
+
+// printAssumeResult tells what start did to the item's open questions.
+func printAssumeResult(w io.Writer, id string, r question.AssumeResult) {
 	for _, q := range r.Assumed {
 		fmt.Fprintf(w, "question %s: assumed %q (recommended) for %q; an answer can still overturn it\n", q.ID, q.Assumed, q.Text)
 	}

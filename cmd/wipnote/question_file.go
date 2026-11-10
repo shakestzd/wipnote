@@ -8,6 +8,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/question"
+	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/internal/delegate/session"
 )
 
@@ -50,15 +51,18 @@ func fileWorkerAsks(name string, run session.RunAsksOut) (filedAsks, error) {
 	defer p.Close()
 	var settled []question.Question
 	var warns []string
-	node, err := updateQuestions(col, id, func(cur []question.Question) ([]question.Question, error) {
-		changed, filed, answered, w := applyWorkerAsks(name, cur, run.Asks, time.Now())
-		out.Filed, out.Answered, settled, warns = filed, answered, lateAnswered(changed, answered), w
+	w, err := saveQuestions(col, id, func(_ *models.Node, cur []question.Question) ([]question.Question, error) {
+		changed, filed, answered, ws := applyWorkerAsks(name, cur, run.Asks, time.Now())
+		out.Filed, out.Answered, settled, warns = filed, answered, lateAnswered(changed, answered), ws
 		return changed, nil
 	})
 	if err != nil {
 		return out, err
 	}
-	warns = append(warns, settleWorkerAnswers(node, settled)...)
+	if w.reopened {
+		persistReopen(p.ProjectDir, workitem.KindForID(id), id)
+	}
+	warns = append(warns, settleWorkerAnswers(w, settled)...)
 	out.Warning = strings.Join(warns, "; ")
 	return out, nil
 }
@@ -116,20 +120,19 @@ func lateAnswered(changed []question.Question, ids []string) []question.Question
 	return out
 }
 
-// settleWorkerAnswers reports overturns among late answers and reopens a
-// done item, as `question answer` does.
-func settleWorkerAnswers(node *models.Node, qs []question.Question) []string {
+// settleWorkerAnswers reports overturns among late answers. The write that
+// recorded them already reopened a done item (saveQuestions); the first
+// overturn says so, the others name the item as in progress.
+func settleWorkerAnswers(w questionWrite, qs []question.Question) []string {
 	var warns []string
+	reopened := w.reopened
 	for _, q := range qs {
-		o, err := settleItem(node, q)
-		if err != nil {
-			warns = append(warns, err.Error())
+		o := outcomeOf(w.node, q, reopened && q.Status == question.StatusOverturned)
+		if o.Reopened {
+			reopened = false
 		}
 		if msg := o.message(); msg != "" {
 			warns = append(warns, msg)
-		}
-		if o.Reopened {
-			node.Status = models.StatusInProgress
 		}
 	}
 	return warns
