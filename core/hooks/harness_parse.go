@@ -97,6 +97,7 @@ type codexPayload struct {
 	Prompt               string          `json:"prompt"`
 	LastAssistantMessage string          `json:"last_assistant_message"`
 	StopReason           string          `json:"stop_reason"`
+	StopHookActive       bool            `json:"stop_hook_active"`
 	ToolName             string          `json:"tool_name"`
 	ToolInput            map[string]any  `json:"tool_input"`
 	ToolUseID            string          `json:"tool_use_id"`
@@ -185,6 +186,7 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 		TurnID:               p.TurnID,
 		LastAssistantMessage: p.LastAssistantMessage,
 		StopReason:           p.StopReason,
+		StopHookActive:       p.StopHookActive,
 		ToolName:             p.ToolName,
 		ToolInput:            p.ToolInput,
 		ToolUseID:            p.ToolUseID,

@@ -22,6 +22,10 @@ When an agent returns mid-step with no summary or commit SHA, it hit a budget pa
 
 If you stop making progress, stop and report what you know.
 
+## Ask the owner with the question tool
+
+When you need a decision from the owner, ask with the harness question tool, not a prose question. Batch up to four questions per call and list the recommended option first. Record each answer with `wipnote question answer <question-id> <option-key>`; `wipnote question list --open` shows what is still unanswered. On Claude Code and Codex, a Stop hook blocks once when a reply ends with a prose question while open question records exist.
+
 ## Hard rules
 
 - Never hand-edit `.wipnote/`; use the CLI. Plan YAML changes go through `wipnote plan rewrite-yaml`. A project with no `.wipnote/` folder keeps its store under `~/.wipnote/projects/`: get the path from `wipnote status`, do not assume it.

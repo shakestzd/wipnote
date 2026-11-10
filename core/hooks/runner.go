@@ -65,6 +65,9 @@ type CloudEvent struct {
 	// Stop / SubagentStop / StopFailure
 	StopReason           string `json:"stop_reason"`
 	LastAssistantMessage string `json:"last_assistant_message"`
+	// StopHookActive is true when the harness is already continuing because a
+	// Stop hook blocked once; the question nudge must not block again.
+	StopHookActive bool `json:"stop_hook_active"`
 
 	// SubagentStop: the subagent's own transcript, in a nested subagents/
 	// folder; transcript_path stays the main session's.
