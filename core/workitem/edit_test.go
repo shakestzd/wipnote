@@ -1,6 +1,7 @@
 package workitem_test
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -434,3 +435,30 @@ func TestCollectionRemoveEdge(t *testing.T) {
 		t.Error("expected removed=false for non-existent edge")
 	}
 }
+
+// Update runs its function on the node as stored, under the item's write
+// lock, and writes nothing when the function fails.
+func TestCollectionUpdate(t *testing.T) {
+	p := newTestProject(t)
+	feat, _ := p.Features.Create("Update Test")
+	if err := p.Features.Edit(feat.ID).SetProperty("k", "stored").Save(); err != nil {
+		t.Fatal(err)
+	}
+	node, err := p.Features.Update(feat.ID, func(n *models.Node) error {
+		n.Properties["k"] = n.Properties["k"].(string) + "+updated"
+		return nil
+	})
+	if err != nil || node.Properties["k"] != "stored+updated" {
+		t.Fatalf("update: %v %+v", err, node)
+	}
+	if _, err := p.Features.Update(feat.ID, func(n *models.Node) error {
+		n.Properties["k"] = "lost"
+		return errUpdate
+	}); err != errUpdate {
+		t.Fatalf("want the function's error, got %v", err)
+	}
+	got, _ := p.Features.Get(feat.ID)
+	assertEqual(t, "k", got.Properties["k"].(string), "stored+updated")
+}
+
+var errUpdate = errors.New("refused")

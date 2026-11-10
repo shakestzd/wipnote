@@ -269,3 +269,20 @@ func (c *Collection) SetFindings(id, findings string) error {
 	}
 	return nil
 }
+
+// Update runs fn on the node as stored, under the item's write lock, and
+// writes the node when fn succeeds. A caller that read the item earlier uses
+// it to merge its change into the current state instead of overwriting a
+// concurrent write. fn's error is returned as is and nothing is written.
+func (c *Collection) Update(id string, fn func(*models.Node) error) (*models.Node, error) {
+	return c.mutateNode(id, func(node *models.Node) error {
+		if node.Properties == nil {
+			node.Properties = make(map[string]any)
+		}
+		if err := fn(node); err != nil {
+			return err
+		}
+		node.UpdatedAt = time.Now().UTC()
+		return nil
+	})
+}

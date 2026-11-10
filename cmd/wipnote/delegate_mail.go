@@ -149,12 +149,14 @@ could not.`,
 // resultWithAsks is result's payload plus the worker questions it filed.
 type resultWithAsks struct {
 	session.ResultOut
-	QuestionsFiled []string `json:"questions_filed,omitempty"`
-	Warning        string   `json:"warning,omitempty"`
+	QuestionsFiled    []string `json:"questions_filed,omitempty"`
+	QuestionsAnswered []string `json:"questions_answered,omitempty"`
+	Warning           string   `json:"warning,omitempty"`
 }
 
-// withFiledAsks files the run's worker questions on its item (once) and adds
-// the new ids to the payload. A filing failure is a warning: the result still
+// withFiledAsks files the run's worker questions on its item (once), records
+// answers that arrived since an earlier filing, and adds both id lists to the
+// payload. A filing failure is a warning: the result still
 // prints.
 func withFiledAsks(d session.Deps, name string, r session.ResultOut) resultWithAsks {
 	out := resultWithAsks{ResultOut: r}
@@ -162,7 +164,7 @@ func withFiledAsks(d session.Deps, name string, r session.ResultOut) resultWithA
 	if err == nil {
 		var f filedAsks
 		if f, err = fileWorkerAsks(name, asks); err == nil {
-			out.QuestionsFiled, out.Warning = f.Filed, f.Warning
+			out.QuestionsFiled, out.QuestionsAnswered, out.Warning = f.Filed, f.Answered, f.Warning
 		}
 	}
 	if err != nil {

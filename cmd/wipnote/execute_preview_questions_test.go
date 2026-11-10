@@ -12,7 +12,7 @@ func TestExecutePreview_ListsOpenBlockingQuestions(t *testing.T) {
 	blocking := addQuestionWith(t, featID, "a", true)
 	answered := addQuestionWith(t, bugID, "a", true)
 	addQuestionWith(t, bugID, "b", false) // non-blocking: not listed
-	if _, err := runQuestionAnswer(answered.ID, "a", "", false); err != nil {
+	if _, err := answerQuestion(answered.ID, "a", "", false); err != nil {
 		t.Fatal(err)
 	}
 

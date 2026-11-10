@@ -24,7 +24,7 @@ If you stop making progress, stop and report what you know.
 
 ## Ask the owner with the question tool
 
-When you need a decision from the owner, ask with the harness question tool, not a prose question. Batch up to four questions per call and list the recommended option first. Record each answer with `wipnote question answer <question-id> <option-key>`; `wipnote question list --open` shows what is still unanswered. On Claude Code and Codex, a Stop hook blocks once when a reply ends with a prose question while open question records exist.
+When you need a decision from the owner, ask with the harness question tool, not a prose question. Batch up to four questions per call and list the recommended option first. Record each answer with `wipnote question answer <question-id> <option-key>`, or `--text "<reply>"` for a question with no options; `wipnote question list --open` shows what is still unanswered. On Claude Code and Codex, a Stop hook blocks once when a reply ends with a prose question while an in-progress item has open question records.
 
 ## Hard rules
 
