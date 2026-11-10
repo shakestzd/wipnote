@@ -21,8 +21,9 @@ import (
 // questions, as a JSON list (the data-node-props escape hatch).
 const PropQuestions = "questions"
 
-// Question statuses. This slice sets open on add and confirmed on answer;
-// assumed and overturned are written by later commands.
+// Question statuses. Add sets open; Assume (question assume, item start) sets
+// assumed; an answer sets confirmed, or overturned when it differs from the
+// assumed option.
 const (
 	StatusOpen       = "open"
 	StatusAssumed    = "assumed"
@@ -131,7 +132,9 @@ func (q *Question) IsOpen() bool {
 }
 
 // RecordAnswer stores the owner's answer. An unknown key is refused; a
-// question that already has an answer needs force.
+// question that already has an answer needs force. The status becomes
+// confirmed, or overturned when an assumed option exists and the answer
+// differs; a forced re-answer runs the same check again.
 func (q *Question) RecordAnswer(key, note string, now time.Time, force bool) error {
 	if !q.HasKey(key) {
 		return fmt.Errorf("answer %q is not one of %s", key, q.keyList())
@@ -140,7 +143,7 @@ func (q *Question) RecordAnswer(key, note string, now time.Time, force bool) err
 		return fmt.Errorf("%s is already answered (%s); pass --force to change it", q.ID, q.Answer)
 	}
 	q.Answer, q.Note = key, strings.TrimSpace(note)
-	q.Status = StatusConfirmed
+	q.settle()
 	q.AnsweredAt = now.UTC().Format(time.RFC3339)
 	return nil
 }
