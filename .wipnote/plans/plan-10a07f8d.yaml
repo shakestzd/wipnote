@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 12
+    version: 13
 design:
     problem: |
         Questions an orchestrator owes the owner live only in the agent's prose. In the 2026-11-07 session (issue #336) they got buried under later replies, were answered turns after the work they affected, and the owner had to ask for the question tool at least five times. Work either waited on an answer or went ahead on a default that the item never recorded.
@@ -187,6 +187,7 @@ slices:
             - Same as assumed -> confirmed
             - Different -> overturned, item reopened
     - id: slice-3
+      feature_id: feat-e7500356
       num: 3
       title: File worker questions as records
       what: |
@@ -216,6 +217,7 @@ slices:
       comment: ""
       research_waiver: Uses the existing delegate outbox and hook question data (internal/delegate/session/questions.go); no external API.
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** `wipnote delegate result NAME` (session.Result in internal/delegate/session/mail.go).
         **Source:** session.Questions returns only pending asks and nothing for a closed run (questions.go runQuestions), so this slice adds a reader over all of the run's ask events and question files, excluding KindPermission. The item comes from the ledger row's WorkItem (core/delegationledger/record.go).
@@ -485,3 +487,8 @@ feedback:
           value: promoted
           created_at: "2026-11-10T05:44:13Z"
           updated_at: "2026-11-10T05:44:13Z"
+        - section: slice-3
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-10T05:44:40Z"
+          updated_at: "2026-11-10T05:44:40Z"
