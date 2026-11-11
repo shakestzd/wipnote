@@ -23,6 +23,9 @@ type SharedCollectorOpts struct {
 	SpawnFn SharedSpawnFn
 	// WatchdogIntervalEnv names the env var overriding the watchdog interval.
 	WatchdogIntervalEnv string
+	// Harness is "claude" or "codex" when the launcher knows it; it picks the
+	// resume command in the moved-port warning. Empty names both.
+	Harness string
 }
 
 // SharedCollector implements Lifecycle on top of the project's shared
@@ -57,9 +60,9 @@ func (c *SharedCollector) Spawn(binPath, sessionID, projectDir string) (int, fun
 	if err := postLauncher(rec.Port, AttachPath, launcher); err != nil {
 		return 0, nil, fmt.Errorf("attach to shared collector: %w", err)
 	}
-	WriteSharedCollectorPID(projectDir, sessionID, rec.PID, rec.Port)
+	w := &sharedWatch{c: c, binPath: binPath, sessionID: sessionID, projectDir: projectDir, rec: rec, exportPort: rec.Port}
+	w.writePID(rec)
 
-	w := &sharedWatch{c: c, binPath: binPath, sessionID: sessionID, projectDir: projectDir, rec: rec}
 	stop := w.start()
 	var once sync.Once
 	cleanup := func() {
@@ -80,6 +83,15 @@ type sharedWatch struct {
 	binPath, sessionID, projectDir string
 	mu                             sync.Mutex
 	rec                            SharedRecord
+	// exportPort is the port the harness was launched against; it never
+	// changes. warnedPort is the last moved-to port already reported.
+	exportPort, warnedPort int
+}
+
+// writePID records rec as the collector and keeps the launch-time export port.
+func (w *sharedWatch) writePID(rec SharedRecord) {
+	WriteSharedSessionPID(w.projectDir, w.sessionID, rec.PID, rec.Port,
+		SessionExport{Port: w.exportPort, Launcher: os.Getpid(), Harness: w.c.opts.Harness})
 }
 
 func (w *sharedWatch) current() SharedRecord {
@@ -122,10 +134,12 @@ func (w *sharedWatch) check() {
 		fmt.Fprintf(w.c.opts.Stderr, "wipnote: warning: shared collector re-attach failed: %v\n", err)
 		return
 	}
-	if rec.Port != cur.Port {
-		fmt.Fprintf(w.c.opts.Stderr, "wipnote: warning: shared collector moved to port %d; this session still exports to %d\n", rec.Port, cur.Port)
+	if rec.Port != w.exportPort && rec.Port != w.warnedPort {
+		w.warnedPort = rec.Port
+		fmt.Fprintf(w.c.opts.Stderr, "wipnote: warning: shared collector moved to port %d; this session still exports to %d: %s\n",
+			rec.Port, w.exportPort, MovedPortAdvice(w.c.opts.Harness))
 	}
-	WriteSharedCollectorPID(w.projectDir, w.sessionID, rec.PID, rec.Port)
+	w.writePID(rec)
 	w.mu.Lock()
 	w.rec = rec
 	w.mu.Unlock()

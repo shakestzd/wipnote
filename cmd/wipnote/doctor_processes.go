@@ -14,7 +14,8 @@ import (
 // doctorProcessesLong is the --processes half of `wipnote doctor`'s help.
 const doctorProcessesLong = `--processes lists this project's wipnote background processes: the headless
 writer daemon (_serve-child) and the otel-collect collectors. It probes each:
-the writer's read socket, a collector's /healthz. It only reports.
+the writer's read socket, a collector's /healthz. It also lists live sessions whose export port is no
+longer the shared collector's port. It only reports.
 
 --restart-all also stops each hung or orphaned one: SIGTERM, then SIGKILL
 after a grace period, and starts a fresh writer if it stopped one. Launchers
@@ -54,6 +55,7 @@ func runDoctorProcesses(ctx context.Context, w io.Writer, restart bool) error {
 		return fmt.Errorf("list processes: %w", err)
 	}
 	stoppable := writeProcessReport(w, root, procs)
+	writeMovedSessions(w, root)
 	if !restart {
 		if stoppable > 0 {
 			fmt.Fprintf(w, "\n%d hung or orphaned. Run `wipnote doctor --processes --restart-all` to stop them.\n", stoppable)
