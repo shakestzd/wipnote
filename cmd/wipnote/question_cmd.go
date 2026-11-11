@@ -147,7 +147,7 @@ func findQuestion(qid string, fn func(q *question.Question) error) (questionWrit
 		return questionWrite{}, question.Question{}, fmt.Errorf("open project: %w", err)
 	}
 	defer p.Close()
-	node, err := locateQuestion(p, qid)
+	node, qid, err := locateQuestion(p, qid)
 	if err != nil {
 		return questionWrite{}, question.Question{}, err
 	}
@@ -176,29 +176,6 @@ func findQuestion(qid string, fn func(q *question.Question) error) (questionWrit
 		persistReopen(dir, workitem.KindForID(node.ID), node.ID)
 	}
 	return w, got, nil
-}
-
-// locateQuestion returns the one feature, bug or spike whose stored
-// questions hold qid. An id found on more than one item is refused, naming
-// them, so an answer never lands on a guess.
-func locateQuestion(p *workitem.Project, qid string) (*models.Node, error) {
-	var hits []*models.Node
-	for _, node := range questionItems(p) {
-		if question.Index(question.FromNode(node), qid) >= 0 {
-			hits = append(hits, node)
-		}
-	}
-	switch len(hits) {
-	case 0:
-		return nil, fmt.Errorf("no question %s on any feature, bug or spike", qid)
-	case 1:
-		return hits[0], nil
-	}
-	ids := make([]string, len(hits))
-	for i, n := range hits {
-		ids[i] = n.ID
-	}
-	return nil, fmt.Errorf("question id %s is on more than one item (%s); nothing was recorded", qid, strings.Join(ids, ", "))
 }
 
 // openQuestionItem resolves id and returns the project and the collection
