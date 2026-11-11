@@ -107,8 +107,8 @@ function onRender(on: On) {
     startPoll($)
     const { Box, Text } = $.ui.resolve(e)
     const [l, last] = await Promise.all([read($, listing), read($, answered)])
-    if (l === null) return <Text dimColor>Loading questions…</Text>
-    if (l.state === 'failed') return <Text color="red" wrap="truncate-end">{l.reason}</Text>
+    if (l === null) return <Text color="subtle">Loading questions…</Text>
+    if (l.state === 'failed') return <Text color="error" wrap="truncate-end">{l.reason}</Text>
     // Every line names a theme key: the pane is painted in Claude Code's
     // theme, and a Text with no colour takes the terminal's own foreground,
     // which is unreadable when the two differ (light theme, dark terminal).
