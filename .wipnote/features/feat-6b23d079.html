@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Style streamed Markdown in delegate run-pane</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-6b23d079"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-10T08:58:09.089127"
+             data-updated="2026-11-10T09:25:05.730362" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="capability" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-standalone_reason="small follow-up from owner request; no plan needed">
+
+        <header>
+            <h1>Style streamed Markdown in delegate run-pane</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/41595e9e-fd7d-44a2-839d-1c6ac59550d2.html" data-relationship="implemented_in" data-since="2026-11-10T08:59:04.240437">session 41595e9e-fd7d-44a2-839d-1c6ac59550d2</a></li>
+                    <li><a href="../sessions/2c0231a9-7b72-464d-a327-907d97cbb1f1.html" data-relationship="implemented_in" data-since="2026-11-10T09:25:05.730228">session 2c0231a9-7b72-464d-a327-907d97cbb1f1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-11-10T08:58:09.119474">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>delegate run-pane prints clean.md lines raw, so owners see literal ### and ** and backslash escapes. Style each committed line once with lipgloss (headings, inline bold/italic/code with escapes removed, dim fenced code including an unclosed fence, table header/separator rows, list and quote markers, green/red tool glyphs), wrap to the current width on a TTY, never redraw a printed line, and print raw lines unchanged when not a TTY or NO_COLOR is set. No new dependencies.</p>
+        </section>
+    </article>
+</body>
+</html>

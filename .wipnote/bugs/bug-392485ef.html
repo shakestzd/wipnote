@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>check-host-paths.sh fails on macOS bash 3.2, even for clean files</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-392485ef"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-11-02T21:00:22.055572"
+             data-updated="2026-11-02T21:00:22.078291" data-agent-assigned="claude-code" data-track-id="trk-757c1c9f" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788">
+
+        <header>
+            <h1>check-host-paths.sh fails on macOS bash 3.2, even for clean files</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-757c1c9f.html" data-relationship="part_of" data-since="2026-11-02T21:00:22.078074">trk-757c1c9f</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The script uses declare -A, a bash 4 feature, so under the macOS system bash it exits non-zero for any staged file and the pre-commit hook reports host paths that are not there. The hook only reaches it for staged .claude files today. Fix the script, then decide whether to scan staged .wipnote files, since 15 tracked item files already contain host-like paths.
+Why
+A broken gate blocks valid commits on macOS, and the .wipnote scan cannot be enabled until it works
+Acceptance Criteria
+The script passes a clean staged file and fails a host path under macOS bash</p>
+        </section>
+    </article>
+</body>
+</html>
