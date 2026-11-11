@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Protect wipnote workflow tools from TokenEconomizer tool pruning</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-234108f2"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-11T18:01:26.841999"
+             data-updated="2026-11-11T18:11:50.464073" data-agent-assigned="claude-code" data-track-id="trk-43e0650a" data-created-by-cli-version="0.89.0-69-ga9b2e6bfe" data-change_kind="capability" data-created_in_session="8f507f39-1e60-456f-9fa0-4c8d853cd003">
+
+        <header>
+            <h1>Protect wipnote workflow tools from TokenEconomizer tool pruning</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="37462ba1476c89df68baca0a000e9ea6beeec9de.html" data-relationship="committed_in" data-since="2026-11-11T13:11:45">feat(harness): protect wipnote workflow tools from TokenEconomizer pruning</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/8f507f39-1e60-456f-9fa0-4c8d853cd003.html" data-relationship="implemented_in" data-since="2026-11-11T18:01:30.782731">session 8f507f39-1e60-456f-9fa0-4c8d853cd003</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-43e0650a.html" data-relationship="part_of" data-since="2026-11-11T18:01:26.85916">trk-43e0650a</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>TokenEconomizer (microsoft/TokenEconomizer, a Claude Code plugin) cuts token cost by auto-denying tools a repo rarely uses via .claude/settings.local.json. wipnote&#39;s workflow relies on rarely-used tools (AskUserQuestion, Agent, Task*, Skill, ToolSearch, wipnote MCP tools). The wipnote claude launcher exports TE_TOOLPRUNE_PROTECT (only when unset) so pruning never removes them.
+Why
+Let users run TokenEconomizer alongside wipnote for lower token cost without it silently disabling wipnote&#39;s question tool, task mirroring or delegation
+Acceptance Criteria
+wipnote claude launch env carries TE_TOOLPRUNE_PROTECT with wipnote&#39;s workflow tools, user-set value wins, tests pass</p>
+        </section>
+    </article>
+</body>
+</html>
