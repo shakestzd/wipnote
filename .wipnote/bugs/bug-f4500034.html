@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Session keeps exporting to the old port after the shared collector moves (#338)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-f4500034"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-11T01:27:29.519507"
+             data-updated="2026-11-11T02:38:00.176424" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788">
+
+        <header>
+            <h1>Session keeps exporting to the old port after the shared collector moves (#338)</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-11T02:30:20.745237">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                    <li><a href="../sessions/edf91c63-47d1-4b05-bf91-a6dd19fa7d32.html" data-relationship="implemented_in" data-since="2026-11-11T02:38:00.176311">session edf91c63-47d1-4b05-bf91-a6dd19fa7d32</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-11-11T01:27:29.533455">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #338. A running session warns &#39;shared collector moved to port N; this session still exports to M&#39; and keeps exporting to the old port; the warning gives no recovery step. Repro unknown (a collector restart is suspected); event loss unverified. Decide between re-pointing the session&#39;s exporter and an actionable warning.</p>
+        </section>
+    </article>
+</body>
+</html>
