@@ -72,7 +72,7 @@ func questionAnswerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println(answeredLine(args[0], o))
+			fmt.Println(answeredLine(o))
 			if msg := o.message(); msg != "" {
 				fmt.Println(msg)
 			}
@@ -271,9 +271,10 @@ func anyOverturned(qs []question.Question) bool {
 	return false
 }
 
-// answeredLine is the line `question answer` prints first.
-func answeredLine(qid string, o answerOutcome) string {
-	return fmt.Sprintf("Answered %s on %s: %s", qid, o.ItemID, stripTerminalControls(o.Answer))
+// answeredLine is the line `question answer` prints first. It names the
+// full question id, not the prefix the owner typed.
+func answeredLine(o answerOutcome) string {
+	return fmt.Sprintf("Answered %s on %s: %s", o.QuestionID, o.ItemID, stripTerminalControls(o.Answer))
 }
 
 // optionKeys renders a question's option keys, marking the recommended one,

@@ -89,3 +89,22 @@ func TestAnswer_ExactIDBeatsPrefix(t *testing.T) {
 		t.Fatalf("exact id not answered: %+v", got)
 	}
 }
+
+// The answer and assume lines name the full id even when a prefix was typed.
+func TestAnswerLine_NamesFullIDForPrefix(t *testing.T) {
+	_, hgDir := prepProject(t)
+	id := createItem(t, hgDir, "feature", "One", testSetupTrack(t, hgDir))
+	full := prefixQuestion("q-ffff112222333344")
+	full.Recommended = "a"
+	putQuestions(t, id, full)
+	if _, got, err := assumeQuestion("ffff11"); err != nil || got != full.ID {
+		t.Fatalf("assume by prefix returned %q, %v; want %s", got, err, full.ID)
+	}
+	o, err := answerQuestion("q-ffff11", "b", "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line := answeredLine(o); !strings.Contains(line, full.ID) {
+		t.Fatalf("answer line %q lacks the full id", line)
+	}
+}

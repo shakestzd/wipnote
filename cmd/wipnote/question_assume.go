@@ -22,11 +22,11 @@ func questionAssumeCmd() *cobra.Command {
 		Short: "Record the recommended option as assumed on an open non-blocking question",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			itemID, err := runQuestionAssume(args[0])
+			itemID, qid, err := assumeQuestion(args[0])
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Assumed the recommended option for %s on %s\n", args[0], itemID)
+			fmt.Printf("Assumed the recommended option for %s on %s\n", qid, itemID)
 			return nil
 		},
 	}
@@ -36,11 +36,18 @@ func questionAssumeCmd() *cobra.Command {
 // item id. Blocking questions and ones without a recommended option are
 // refused.
 func runQuestionAssume(qid string) (string, error) {
-	w, _, err := findQuestion(qid, func(q *question.Question) error { return q.Assume() })
+	itemID, _, err := assumeQuestion(qid)
+	return itemID, err
+}
+
+// assumeQuestion is runQuestionAssume that also returns the question's full
+// id, which differs from qid when qid is a prefix.
+func assumeQuestion(qid string) (itemID, questionID string, err error) {
+	w, q, err := findQuestion(qid, func(q *question.Question) error { return q.Assume() })
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return w.node.ID, nil
+	return w.node.ID, q.ID, nil
 }
 
 // answerOutcome is what recording an answer did to the question and item.

@@ -75,17 +75,7 @@ func TestQuestionOutput_StripsTerminalControls(t *testing.T) {
 		t.Fatalf("start output lacks the blocking question: %q", start.String())
 	}
 
-	rows, _ := collectQuestionRows(hgDir, id, false, time.Now())
-	for _, format := range []string{"text", "json"} {
-		var list bytes.Buffer
-		if err := renderQuestionRows(&list, rows, format); err != nil {
-			t.Fatal(err)
-		}
-		assertNoControls(t, "list "+format, list.String())
-		if format == "text" && !strings.Contains(list.String(), "Which store?") {
-			t.Fatalf("list lost the text: %q", list.String())
-		}
-	}
+	assertListStripsControls(t, hgDir, id)
 	var done bytes.Buffer
 	warnOpenQuestionsOnComplete(&done, col, id)
 	assertNoControls(t, "complete", done.String())
@@ -102,5 +92,22 @@ func TestQuestionOutput_StripsTerminalControls(t *testing.T) {
 	if !strings.Contains(o.message(), "overturned") {
 		t.Fatalf("no overturn: %q", o.message())
 	}
-	assertNoControls(t, "answer line", answeredLine(q.ID, o))
+	assertNoControls(t, "answer line", answeredLine(o))
+}
+
+// assertListStripsControls checks `question list` text and JSON for item id
+// print no terminal controls and keep the question text.
+func assertListStripsControls(t *testing.T, hgDir, id string) {
+	t.Helper()
+	rows, _ := collectQuestionRows(hgDir, id, false, time.Now())
+	for _, format := range []string{"text", "json"} {
+		var list bytes.Buffer
+		if err := renderQuestionRows(&list, rows, format); err != nil {
+			t.Fatal(err)
+		}
+		assertNoControls(t, "list "+format, list.String())
+		if format == "text" && !strings.Contains(list.String(), "Which store?") {
+			t.Fatalf("list lost the text: %q", list.String())
+		}
+	}
 }
