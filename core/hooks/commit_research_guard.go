@@ -219,7 +219,7 @@ func checkDependencyResearchCommitGuard(event *CloudEvent, ctx *toolUseContext) 
 	if err != nil || len(staged) == 0 {
 		return ""
 	}
-	manifests := stagedDependencyManifests(staged)
+	manifests := stagedDependencyChanges(repoRoot, stagedDependencyManifests(staged))
 	if len(manifests) == 0 {
 		return "" // fast pass: no dependency manifest staged
 	}
