@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import type { Answer, Listing } from '../types'
-import { answerArgv, countLine, failReason, fullOutput, listArgv, parseAnswerArgs, parseQuestions, rowLine, shortID, toastLine } from './model'
+import { answerArgv, countLine, failReason, fullOutput, listArgv, parseAnswerArgs, parseQuestions, optionKey, optionLabel, rowLine, shortID, toastLine } from './model'
 
 const PANE = 'wipnote-questions'
 // Change the tag when a stored shape changes: it declines what an earlier version stored.
@@ -41,6 +41,20 @@ async function refresh($: EngineInterface) {
  * shows the whole output in the pane, and drops the row at once; the next poll confirms.
  */
 async function answer($: EngineInterface, questionId: string, a: Answer) {
+  if (inFlight.has(questionId)) return
+  inFlight.add(questionId)
+  try {
+    await runAnswer($, questionId, a)
+  } finally {
+    inFlight.delete(questionId)
+  }
+}
+
+// Questions with an answer being recorded: a second click on the same row
+// while the first runs is dropped, so a double click never answers twice.
+const inFlight = new Set<string>()
+
+async function runAnswer($: EngineInterface, questionId: string, a: Answer) {
   const ran = await $.process.run(answerArgv(questionId, a), { timeoutMs: 15000 }).catch(() => undefined)
   const out = ran === undefined ? 'wipnote unavailable' : ran.exitCode === 0 ? ran.stdout : ran.stderr || ran.stdout
   const fallback = `${questionId}: ${'key' in a ? a.key : a.text}`
@@ -105,28 +119,36 @@ function onCommands(on: On) {
 function onRender(on: On) {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     startPoll($)
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Button, Text } = $.ui.resolve(e)
     const [l, last] = await Promise.all([read($, listing), read($, answered)])
     if (l === null) return <Text color="subtle">Loading questions…</Text>
     if (l.state === 'failed') return <Text color="error" wrap="truncate-end">{l.reason}</Text>
     // Every line names a theme key: the pane is painted in Claude Code's
     // theme, and a Text with no colour takes the terminal's own foreground,
     // which is unreadable when the two differ (light theme, dark terminal).
+    // Each option is a Button: a click (or Enter, or its digit on the first
+    // question once the pane has focus) records that answer.
     return (
       <Box flexDirection="column">
         <Text bold color="text">{countLine(l.rows)}</Text>
         {last?.map((line, i) => (
           <Text key={i} color="subtle" wrap="wrap">{line}</Text>
         ))}
-        {l.rows.map(r => (
+        {l.rows.map((r, row) => (
           <Box key={r.id} flexDirection="column" marginTop={1}>
             <Text bold color={r.blocking ? 'warning' : 'text'} wrap="wrap">{r.text}</Text>
             <Text color="subtle" wrap="truncate-end">{`${r.id} · ${r.itemTitle !== '' ? `${r.itemTitle} · ` : ''}${rowLine(r)}`}</Text>
             {r.freeText && <Text color="suggestion" wrap="truncate-end">{`answer: /answer-question ${shortID(r.id)} --text <reply>`}</Text>}
-            {r.options.map(o => (
-              <Text key={o.key} color={o.key === r.recommended ? 'success' : 'text'} wrap="wrap">{`${o.key === r.recommended ? '★' : '○'} ${o.key}. ${o.label}${o.tradeoff !== undefined ? ` — ${o.tradeoff}` : ''}`}</Text>
+            {r.options.map((o, i) => (
+              <Button
+                key={optionKey(r.id, o.key)}
+                hotkey={row === 0 ? String(i + 1) : undefined}
+                variant={o.key === r.recommended ? 'primary' : undefined}
+                onPress={() => void answer($, r.id, { key: o.key }).catch(() => undefined)}
+              >
+                {optionLabel(o, o.key === r.recommended)}
+              </Button>
             ))}
-            {!r.freeText && <Text color="suggestion" wrap="truncate-end">{`answer: /answer-question ${shortID(r.id)} <key>`}</Text>}
           </Box>
         ))}
       </Box>

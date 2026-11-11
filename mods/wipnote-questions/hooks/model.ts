@@ -103,3 +103,13 @@ export function toastLine(out: string): string {
 export function shortID(id: string): string {
   return id.slice(0, 8)
 }
+
+/** A Button's address for one option of one question: unique across the pane. */
+export function optionKey(questionId: string, key: string): string {
+  return `${questionId}:${key}`
+}
+
+/** What an option's Button reads: "★ yes. Yes, first — quicker to accept". */
+export function optionLabel(o: { key: string; label: string; tradeoff?: string }, recommended: boolean): string {
+  return `${recommended ? '★' : '○'} ${o.key}. ${o.label}${o.tradeoff !== undefined ? ` — ${o.tradeoff}` : ''}`
+}
