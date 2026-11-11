@@ -118,7 +118,7 @@ func checkDependencyResearchCompleteGate(col *workitem.Collection, ev *completio
 	}
 
 	codePaths, _ := ev.codeBearingPaths()
-	manifests := dependencyManifests(codePaths)
+	manifests := dependencyChangedManifests(ev, dependencyManifests(codePaths))
 	if len(manifests) == 0 {
 		return nil // no dependency change → exempt
 	}

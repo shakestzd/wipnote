@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -199,5 +200,56 @@ func TestR5_NoManifestStaged_Allows(t *testing.T) {
 	}
 	if warn := checkDependencyResearchCommitGuard(ev, &toolUseContext{SessionID: sid, ProjectDir: root}); warn != "" {
 		t.Errorf("expected ALLOW: no dependency manifest staged (no regression); got %q", warn)
+	}
+}
+
+// stagePackageJSONRepo commits package.json with base, then stages next.
+func stagePackageJSONRepo(t *testing.T, base, next string) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := initTestGitRepoOnBranch(t, root, "main"); err != nil {
+		t.Skipf("cannot init git repo: %v", err)
+	}
+	pj := filepath.Join(root, "package.json")
+	if err := os.WriteFile(pj, []byte(base), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testGitAdd(t, root, pj)
+	if out, err := exec.Command("git", "-C", root, "commit", "-q", "-m", "base").CombinedOutput(); err != nil {
+		t.Fatalf("commit: %v %s", err, out)
+	}
+	if err := os.WriteFile(pj, []byte(next), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testGitAdd(t, root, pj)
+	return root
+}
+
+func packageJSONCommitWarn(t *testing.T, root string) string {
+	t.Helper()
+	const sid = "r5-pkg-sess"
+	appendCanonicalToolEvent(root, sid, canonicalToolEvent{Tool: "Read", Summary: "package.json"})
+	ev := &CloudEvent{ToolName: "Bash", CWD: root, ToolInput: map[string]any{"command": `git commit -m "edit"`}}
+	return checkDependencyResearchCommitGuard(ev, &toolUseContext{SessionID: sid, ProjectDir: root})
+}
+
+// #334: a staged package.json whose only change is scripts is not a
+// dependency change, so the commit guard stays quiet.
+func TestR5_StagedPackageJSONScriptsOnly_Allows(t *testing.T) {
+	root := stagePackageJSONRepo(t,
+		`{"scripts":{"test":"node --test a.js"},"dependencies":{"d3":"^7.0.0"}}`,
+		`{"scripts":{"test":"node --test a.js b.js"},"dependencies":{"d3":"^7.0.0"}}`)
+	if warn := packageJSONCommitWarn(t, root); warn != "" {
+		t.Fatalf("a scripts-only package.json change tripped the commit guard: %q", warn)
+	}
+}
+
+// #334: a staged package.json that adds a dependency still trips the guard.
+func TestR5_StagedPackageJSONDependencyAdded_Blocks(t *testing.T) {
+	root := stagePackageJSONRepo(t,
+		`{"dependencies":{"d3":"^7.0.0"}}`,
+		`{"dependencies":{"d3":"^7.0.0","d3-scale":"^4.0.0"}}`)
+	if warn := packageJSONCommitWarn(t, root); !strings.Contains(warn, "package.json") {
+		t.Fatalf("a dependency added to package.json must trip the commit guard, got %q", warn)
 	}
 }

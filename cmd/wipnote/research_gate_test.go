@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -192,5 +193,49 @@ func TestResearchGate_DepChangeWithWaiver_Completes(t *testing.T) {
 	}
 	if !strings.Contains(node.Content, reason) {
 		t.Errorf("waiver reason not persisted on artifact")
+	}
+}
+
+// commitPackageJSON writes package.json with body and commits it with msg.
+func commitPackageJSON(t *testing.T, root, body, msg string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	provGit(t, root, "add", "--", "package.json")
+	provGit(t, root, "commit", "-q", "-m", msg)
+}
+
+// #334: an item whose only package.json change is its scripts block changes
+// no dependency, so completion needs no research evidence.
+func TestResearchGate_PackageJSONScriptsOnly_Exempt(t *testing.T) {
+	tmpDir, hgDir := prepProject(t)
+	id := createItem(t, hgDir, "feature", "Test list", testSetupTrack(t, hgDir))
+	commitPackageJSON(t, tmpDir, `{"name":"app","scripts":{"test":"node --test a.js"},"dependencies":{"d3":"^7.0.0"}}`, "baseline")
+	commitPackageJSON(t, tmpDir, `{"name":"app","scripts":{"test":"node --test a.js b.js"},"dependencies":{"d3":"^7.0.0"}}`, "add test ("+id+")")
+
+	wiResearchURL = nil
+	wiResearchWaiver = ""
+	t.Cleanup(func() { wiResearchURL = nil; wiResearchWaiver = "" })
+
+	if err := runWiSetStatus("feature", id, "done"); err != nil && strings.Contains(err.Error(), "research") {
+		t.Fatalf("a scripts-only package.json change tripped the research gate: %v", err)
+	}
+}
+
+// #334: a package.json change that adds a dependency still needs research.
+func TestResearchGate_PackageJSONDependencyAdded_Blocked(t *testing.T) {
+	tmpDir, hgDir := prepProject(t)
+	id := createItem(t, hgDir, "feature", "Add scale", testSetupTrack(t, hgDir))
+	commitPackageJSON(t, tmpDir, `{"name":"app","dependencies":{"d3":"^7.0.0"}}`, "baseline")
+	commitPackageJSON(t, tmpDir, `{"name":"app","dependencies":{"d3":"^7.0.0","d3-scale":"^4.0.0"}}`, "add d3-scale ("+id+")")
+
+	wiResearchURL = nil
+	wiResearchWaiver = ""
+	t.Cleanup(func() { wiResearchURL = nil; wiResearchWaiver = "" })
+
+	err := runWiSetStatus("feature", id, "done")
+	if err == nil || !strings.Contains(err.Error(), "package.json") {
+		t.Fatalf("a dependency added to package.json must trip the research gate, got %v", err)
 	}
 }
