@@ -94,3 +94,12 @@ export function toastLine(out: string): string {
   const lines = fullOutput(out)
   return lines.find(l => l.startsWith('Assumption overturned') || l.includes('Reopened ')) ?? lines[0] ?? ''
 }
+
+/**
+ * The id as the pane suggests typing it: "q-" and 6 hex digits. The CLI
+ * resolves a unique prefix of at least 4 digits and refuses an ambiguous one,
+ * so a short id never answers the wrong question.
+ */
+export function shortID(id: string): string {
+  return id.slice(0, 8)
+}

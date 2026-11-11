@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import {
-  answerArgv, countLine, failReason, fullOutput, listArgv, parseAnswerArgs, parseQuestions, rowLine, toastLine,
+  answerArgv, countLine, failReason, fullOutput, listArgv, parseAnswerArgs, parseQuestions, rowLine, shortID, toastLine,
 } from '../hooks/model'
 
 const json = JSON.stringify([
@@ -68,4 +68,10 @@ test('toasts the overturn or reopen line when there is one, else the first line'
 test('keeps the whole output for the pane', async () => {
   expect(fullOutput(overturn)).toEqual(overturn.split('\n').slice(0, 2))
   expect(fullOutput(' \n')).toEqual([])
+})
+
+test('shortens a question id to the prefix the CLI resolves', async () => {
+  expect(shortID('q-70cb39622fc549ec')).toBe('q-70cb39')
+  expect(shortID('q-1234abcd')).toBe('q-1234ab')
+  expect(shortID('q-1')).toBe('q-1')
 })

@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import type { Answer, Listing } from '../types'
-import { answerArgv, countLine, failReason, fullOutput, listArgv, parseAnswerArgs, parseQuestions, rowLine, toastLine } from './model'
+import { answerArgv, countLine, failReason, fullOutput, listArgv, parseAnswerArgs, parseQuestions, rowLine, shortID, toastLine } from './model'
 
 const PANE = 'wipnote-questions'
 // Change the tag when a stored shape changes: it declines what an earlier version stored.
@@ -109,20 +109,24 @@ function onRender(on: On) {
     const [l, last] = await Promise.all([read($, listing), read($, answered)])
     if (l === null) return <Text dimColor>Loading questions…</Text>
     if (l.state === 'failed') return <Text color="red" wrap="truncate-end">{l.reason}</Text>
+    // Every line names a theme key: the pane is painted in Claude Code's
+    // theme, and a Text with no colour takes the terminal's own foreground,
+    // which is unreadable when the two differ (light theme, dark terminal).
     return (
       <Box flexDirection="column">
-        <Text bold>{countLine(l.rows)}</Text>
+        <Text bold color="text">{countLine(l.rows)}</Text>
         {last?.map((line, i) => (
-          <Text key={i} dimColor wrap="wrap">{line}</Text>
+          <Text key={i} color="subtle" wrap="wrap">{line}</Text>
         ))}
         {l.rows.map(r => (
           <Box key={r.id} flexDirection="column" marginTop={1}>
-            <Text wrap="truncate-end">{r.text}</Text>
-            <Text dimColor wrap="truncate-end">{`${r.id} · ${r.itemTitle !== '' ? `${r.itemTitle} · ` : ''}${rowLine(r)}`}</Text>
-            {r.freeText && <Text dimColor wrap="truncate-end">{`free text: /answer-question ${r.id} --text <reply>`}</Text>}
+            <Text bold color={r.blocking ? 'warning' : 'text'} wrap="wrap">{r.text}</Text>
+            <Text color="subtle" wrap="truncate-end">{`${r.id} · ${r.itemTitle !== '' ? `${r.itemTitle} · ` : ''}${rowLine(r)}`}</Text>
+            {r.freeText && <Text color="suggestion" wrap="truncate-end">{`answer: /answer-question ${shortID(r.id)} --text <reply>`}</Text>}
             {r.options.map(o => (
-              <Text key={o.key} wrap="truncate-end">{`${o.key === r.recommended ? '★' : '○'} ${o.key}. ${o.label}${o.tradeoff !== undefined ? ` — ${o.tradeoff}` : ''}`}</Text>
+              <Text key={o.key} color={o.key === r.recommended ? 'success' : 'text'} wrap="wrap">{`${o.key === r.recommended ? '★' : '○'} ${o.key}. ${o.label}${o.tradeoff !== undefined ? ` — ${o.tradeoff}` : ''}`}</Text>
             ))}
+            {!r.freeText && <Text color="suggestion" wrap="truncate-end">{`answer: /answer-question ${shortID(r.id)} <key>`}</Text>}
           </Box>
         ))}
       </Box>
