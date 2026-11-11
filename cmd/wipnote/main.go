@@ -91,148 +91,20 @@ func main() {
 // buildRoot constructs and returns a fully-registered root cobra command,
 // but does NOT call Execute(). It is the single source of truth for all
 // command registration — both main() and tests use this function so the
-// command tree cannot drift.
+// command tree cannot drift. The command lists live in root_commands.go.
 func buildRoot() *cobra.Command {
-	// Canonical claim-ledger writes have to reach the commit queue, but
-	// core/claimledger cannot import internal/commitqueue. Install the producer
-	// seam here, where every CLI command and hook handler in this binary picks
-	// it up.
-	initClaimLedgerCommitSeam()
-	initSessionLedgerCommitSeam()
-	initGateLedgerCommitSeam()
-	initDelegationLedgerCommitSeam()
-	initRunLedgerCommitSeam()
-
-	spike := workitemCmd("spike", "spikes")
-	spike.AddCommand(spikeResetCmd())
-	spike.AddCommand(linkCommitCmd("spike"))
-	spike.AddCommand(wiResearchCmd("spike"))
-
-	bug := workitemCmd("bug", "bugs")
-	bug.AddCommand(bugResetCmd())
-	bug.AddCommand(linkCommitCmd("bug"))
-	bug.AddCommand(wiResearchCmd("bug"))
-
+	initLedgerCommitSeams()
+	spike := researchItemCmd("spike", "spikes", spikeResetCmd())
+	bug := researchItemCmd("bug", "bugs", bugResetCmd())
 	return cliinternal.BuildRoot(cliinternal.RootOptions{
 		ProjectDirFlag:    &projectDirFlag,
 		PersistentPreRunE: persistentPreRunE,
-		WorkItems: []cliinternal.GroupedCommand{
-			{GroupID: "workitems", Command: featureCmdWithExtras()},
-			{GroupID: "workitems", Command: spike},
-			{GroupID: "workitems", Command: bug},
-			{GroupID: "workitems", Command: trackCmdWithExtras()},
-			{GroupID: "workitems", Command: planCmdWithExtras()},
-			{GroupID: "workitems", Command: archCmd()},
-		},
-		Query: []cliinternal.GroupedCommand{
-			{GroupID: "query", Command: recapCmd()},
-			{GroupID: "query", Command: findCmd()},
-			{GroupID: "query", Command: wipCmd()},
-			{GroupID: "query", Command: statusCmd()},
-			{GroupID: "query", Command: snapshotCmd()},
-			{GroupID: "query", Command: mcpCmd()},
-			{GroupID: "query", Command: linkCmd()},
-			{GroupID: "query", Command: sessionCmd()},
-			{GroupID: "query", Command: sessionsCmd()},
-			{GroupID: "query", Command: analyticsCmd()},
-			{GroupID: "query", Command: skillCmd()},
-			{GroupID: "query", Command: recommendCmd()},
-			{GroupID: "query", Command: relevantCmd()},
-			{GroupID: "query", Command: newHistoryCmd()},
-			{GroupID: "query", Command: newLineageCmd()},
-			{GroupID: "query", Command: blameCmd()},
-			{GroupID: "query", Command: codeAreasCmd()},
-			{GroupID: "query", Command: contextPackCmd()},
-			{GroupID: "query", Command: executePreviewCmd()},
-			{GroupID: "query", Command: searchCmd()},
-			{GroupID: "query", Command: whoCmd()},
-		},
-		Quality: []cliinternal.GroupedCommand{
-			{GroupID: "quality", Command: checkCmd()},
-			{GroupID: "quality", Command: healthCmd()},
-			{GroupID: "quality", Command: specCmd()},
-			{GroupID: "quality", Command: tddCmd()},
-			{GroupID: "quality", Command: reviewCmd()},
-			{GroupID: "quality", Command: complianceCmd()},
-			{GroupID: "quality", Command: reconcileCmd()},
-			{GroupID: "quality", Command: launcherCmd()},
-			{GroupID: "quality", Command: doctorCmd()},
-			{GroupID: "quality", Command: guardCmd()},
-			{GroupID: "quality", Command: researchCmd()},
-			{GroupID: "quality", Command: ciCmd()},
-		},
-		Data: []cliinternal.GroupedCommand{
-			{GroupID: "data", Command: batchCmd()},
-			{GroupID: "data", Command: ingestCmd()},
-			// `wipnote backfill` is gone (feat-fc3cc9e0). Both subcommands
-			// (`feature-files`, `tool-calls-feature`) read `tool_calls` — a
-			// table hydration never populates — and wrote to `feature_files` /
-			// `tool_calls` in the per-process projection. They could only ever
-			// scan zero rows and persist nothing, while printing a count. The
-			// surviving capability is `wipnote reindex backfill-orphans`, which
-			// derives file attribution from git and writes it to the work
-			// item's canonical HTML.
-			// `wipnote sweep orphaned-events` is gone (feat-fc3cc9e0). It read
-			// agent_events rows still marked 'started' out of the per-project
-			// SQLite file. No such file exists, and an in-flight tool call is
-			// not recorded in any durable store — so a standalone CLI process
-			// can never see one. It would have reported "Swept 0" forever. The
-			// automatic sweeps that share the writer daemon's live projection
-			// (PostToolUse per-session, SessionStart project-wide, the daemon's
-			// own drain loop) are unaffected by this removal.
-			{GroupID: "data", Command: reindexCmd()},
-			{GroupID: "data", Command: migrateCmd()},
-			{GroupID: "data", Command: migrateTracksCmd()},
-			{GroupID: "data", Command: cleanCmd()},
-			{GroupID: "data", Command: cleanupCmd()},
-			{GroupID: "data", Command: archiveCmd()},
-			{GroupID: "data", Command: claimsCmd()},
-			{GroupID: "data", Command: staleCmd()},
-			{GroupID: "data", Command: cacheCmd()},
-			{GroupID: "data", Command: syncCmd()},
-			{GroupID: "data", Command: pruneCmd()},
-			{GroupID: "data", Command: registryCmd()},
-			{GroupID: "data", Command: storeCmd()},
-			{GroupID: "data", Command: commitQueueCmd()},
-		},
-		Dev: []cliinternal.GroupedCommand{
-			{GroupID: "dev", Command: yoloCmd()},
-			{GroupID: "dev", Command: upgradeCmd()},
-			{GroupID: "dev", Command: buildCmd()},
-			{GroupID: "dev", Command: agentInitCmd()},
-			{GroupID: "dev", Command: shCmd()},
-			{GroupID: "dev", Command: delegateCmd()},
-			{GroupID: "dev", Command: wrapperRunCmd()},
-		},
-		Ungrouped: []*cobra.Command{
-			versionCmd(),
-			statuslineCmd(),
-			serveChildCmd(),
-			otelCollectCmd(),
-			hookCmd(),
-			claudeCmd(),
-			codexCmd(),
-			antigravityCmd(),
-			orchestratorCmd(),
-			installHooksCmd(),
-			reportCmd(),
-			budgetCmd(),
-			helpCmd(),
-			claimCmd(),
-			purgeSpikesCmd(),
-			traceCmd(),
-			graphCmd(),
-			queryCmd(),
-			devCmd(),
-			pluginCmd(),
-			projectsCmd(),
-			initCmd(),
-			setupCmd(),
-			setupCLICmd(),
-			shellAliasCmd(),
-			pricingCmd(),
-			harnessCmd(),
-		},
+		WorkItems:         workItemCommands(spike, bug),
+		Query:             queryCommands(),
+		Quality:           qualityCommands(),
+		Data:              dataCommands(),
+		Dev:               devCommands(),
+		Ungrouped:         ungroupedCommands(),
 	})
 }
 

@@ -19,10 +19,13 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Card, CardEntry, FailKind } from '../types'
 import { Latest, changedRefs, classifyExit, failureText, needsFetch, parseCard, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from './refs'
 import type { CliResult } from './refs'
+import { itemQuestionsArgv, parseOpen, questionLines } from './questions'
 
 type On = Parameters<Register>[0]
 
 const refs = atom({ plugin: 'wipnote-orchestra', key: 'refs' } as const, {})
+// An item's open questions, as card lines; a failed read keeps the last ones.
+const cardQuestions = atom({ plugin: 'wipnote-orchestra', key: 'cardQuestions' } as const, {})
 const CLI_TIMEOUT_MS = 15_000
 const MAX_REFRESH = 10
 const SCAN_MESSAGES = 200
@@ -79,6 +82,13 @@ export async function storeCard($: EngineInterface, id: string, stdout: string):
   if (latest.isNewest(`card:${id}`, ticket)) await setEntry($, id, { state: 'loaded', card, at: await $.clock.now() })
 }
 
+/** Reads the item's open questions into the atom, for its card. */
+async function loadQuestions($: EngineInterface, id: string): Promise<void> {
+  const r = await wipnoteJSON($, itemQuestionsArgv(id))
+  const rows = r.ok ? parseOpen(r.stdout) : undefined
+  if (rows !== undefined) await update($, cardQuestions, all => ({ ...all, [id]: questionLines(rows) }))
+}
+
 /** Loads one card into the atom; the write redraws every message that reads it. */
 async function loadCard($: EngineInterface, id: string): Promise<void> {
   const ticket = latest.take(`card:${id}`)
@@ -86,6 +96,7 @@ async function loadCard($: EngineInterface, id: string): Promise<void> {
   const r = await fetchCard($, id)
   if (!latest.isNewest(`card:${id}`, ticket)) return
   const at = await $.clock.now()
+  if ('card' in r) await loadQuestions($, id).catch(() => undefined)
   await setEntry($, id, 'card' in r ? { state: 'loaded', card: r.card, at } : { state: 'failed', reason: r.fail, at })
 }
 
@@ -137,14 +148,35 @@ export function refreshAfterTurn($: EngineInterface): void {
   void hydrate($).catch(() => undefined)
 }
 
-/**
- * The wipnote-ref hooks: fetch on reply, the model rule, and the card drawing.
- * register.tsx owns session.start, session.end and turn.complete (an
- * event takes one unmatched hook per mod) and calls hydrate and refreshAfterTurn.
- */
-export function registerRefs(on: On): void {
-  // A stored reply with a wipnote-ref fence starts the card fetches; the
-  // render hook below only reads the result.
+type Elements = ReturnType<EngineInterface['ui']['resolve']>
+
+/** One ref's card: its title, status, step bar and open questions; a dim line while loading or failed. */
+function drawCard({ Box, Text }: Elements, id: string, entry: CardEntry | undefined, asked: readonly string[]) {
+  if (!entry) return <Text key={id} dimColor>{id}</Text>
+  if (entry.state === 'loading') return <Text key={id} dimColor>⧗ {id}</Text>
+  if (entry.state === 'failed') {
+    return <Text key={id} dimColor>{failureText(id, entry.reason)}</Text>
+  }
+  const c = entry.card
+  return (
+    <Box key={id} flexDirection="column" borderStyle="round" paddingX={1}>
+      <Text>
+        <Text bold>{c.title || c.id}</Text>
+        <Text dimColor>  {c.id}</Text>
+      </Text>
+      <Text>
+        <Text color={STATUS_COLOR[c.status] ?? 'subtle'}>● {c.status}</Text>
+        {c.steps.length > 0 ? <Text dimColor>  {stepBar(c.steps)} {stepCount(c.steps)}</Text> : null}
+      </Text>
+      {asked.map((line, n) => (
+        <Text key={`q${n}`} color="warning" wrap="truncate-end">{line}</Text>
+      ))}
+    </Box>
+  )
+}
+
+/** A stored reply with a wipnote-ref fence starts the card fetches; the render hook only reads the result. */
+function onReplyStored(on: On): void {
   on('session.append', { door: 'response' }, async ($, e, next) => {
     const r = await next(e)
     const text = e.message.content
@@ -154,14 +186,21 @@ export function registerRefs(on: On): void {
     if (ids.length > 0) void loadStale($, ids)
     return r
   })
+}
 
+/**
+ * The wipnote-ref hooks: fetch on reply, the model rule, and the card drawing.
+ * register.tsx owns session.start, session.end and turn.complete (an
+ * event takes one unmatched hook per mod) and calls hydrate and refreshAfterTurn.
+ */
+export function registerRefs(on: On): void {
+  onReplyStored(on)
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const segments = splitRefs(e.props.text)
     if (!segments.some(s => s.kind === 'refs')) return next(e)
-
-    const { Box, Text, Markdown } = $.ui.resolve(e)
-    const all = await read($, refs)
-
+    const els = $.ui.resolve(e)
+    const { Box, Markdown } = els
+    const [all, asked] = await Promise.all([read($, refs), read($, cardQuestions)])
     return (
       <Box flexDirection="column">
         {segments.map((s, i) =>
@@ -169,27 +208,7 @@ export function registerRefs(on: On): void {
             <Markdown key={`t${i}`} text={s.text} />
           ) : (
             <Box key={`r${i}`} flexDirection="column">
-              {s.ids.map(id => {
-                const entry = all[id]
-                if (!entry) return <Text key={id} dimColor>{id}</Text>
-                if (entry.state === 'loading') return <Text key={id} dimColor>⧗ {id}</Text>
-                if (entry.state === 'failed') {
-                  return <Text key={id} dimColor>{failureText(id, entry.reason)}</Text>
-                }
-                const c = entry.card
-                return (
-                  <Box key={id} flexDirection="column" borderStyle="round" paddingX={1}>
-                    <Text>
-                      <Text bold>{c.title || c.id}</Text>
-                      <Text dimColor>  {c.id}</Text>
-                    </Text>
-                    <Text>
-                      <Text color={STATUS_COLOR[c.status] ?? 'subtle'}>● {c.status}</Text>
-                      {c.steps.length > 0 ? <Text dimColor>  {stepBar(c.steps)} {stepCount(c.steps)}</Text> : null}
-                    </Text>
-                  </Box>
-                )
-              })}
+              {s.ids.map(id => drawCard(els, id, all[id], asked[id] ?? []))}
             </Box>
           ),
         )}

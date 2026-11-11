@@ -29,6 +29,9 @@ type ReplyOptions struct {
 	Body    string
 	Ask     bool
 	Options []string
+	// Recommended is the option to prefer: an option's label or its 1-based
+	// number. It must name one of Options.
+	Recommended string
 }
 
 // Reply writes a worker's answer to a task of its own run through the run
@@ -60,9 +63,25 @@ func Reply(d Deps, runID string, o ReplyOptions) (ReplyOut, error) {
 	out := ReplyOut{Run: info.Run, Name: info.Name, Task: task, Kind: ReplyResult}
 	if o.Ask {
 		out.Kind = ReplyQuestion
-		out.ID, err = mb.WriteQFile(task, o.Body, o.Options)
+		rec, err := recommendedLabel(o)
+		if err != nil {
+			return out, err
+		}
+		out.ID, err = mb.WriteQFileRec(task, o.Body, o.Options, rec)
 		return out, err
 	}
 	out.ID = task + "-result"
 	return out, mb.WriteResult(task, runstore.Message{Run: info.Run, From: info.Name, To: "caller", Body: o.Body})
+}
+
+// recommendedLabel resolves --recommended to the label of one option.
+func recommendedLabel(o ReplyOptions) (string, error) {
+	r := strings.TrimSpace(o.Recommended)
+	if r == "" {
+		return "", nil
+	}
+	if i, ok := optionIndex(o.Options, r); ok {
+		return o.Options[i], nil
+	}
+	return "", fmt.Errorf("delegate reply: --recommended %q is not one of the --option values or their numbers", r)
 }

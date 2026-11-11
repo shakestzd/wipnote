@@ -26,6 +26,8 @@ type QFile struct {
 	Body     string   `json:"body,omitempty"`
 	Question string   `json:"question,omitempty"`
 	Options  []string `json:"options,omitempty"`
+	// Recommended is the worker's pick, the label of one option.
+	Recommended string `json:"recommended,omitempty"`
 }
 
 // Text is the question's text.
@@ -82,6 +84,11 @@ func (m *Mailbox) Answered(id string) (bool, error) {
 // by temp file and rename, n one past the highest readable one. It returns
 // the question id.
 func (m *Mailbox) WriteQFile(task, text string, options []string) (string, error) {
+	return m.WriteQFileRec(task, text, options, "")
+}
+
+// WriteQFileRec is WriteQFile with the worker's recommended option.
+func (m *Mailbox) WriteQFileRec(task, text string, options []string, recommended string) (string, error) {
 	if !ValidMsgID(task) {
 		return "", fmt.Errorf("runstore: invalid task id %q", task)
 	}
@@ -94,5 +101,5 @@ func (m *Mailbox) WriteQFile(task, text string, options []string) (string, error
 		n = qs[len(qs)-1].N + 1
 	}
 	id := task + "-q" + strconv.Itoa(n)
-	return id, m.writeJSON(Outbox, id+".json", QFile{ID: id, Task: task, N: n, Body: text, Options: options})
+	return id, m.writeJSON(Outbox, id+".json", QFile{ID: id, Task: task, N: n, Body: text, Options: options, Recommended: recommended})
 }

@@ -56,10 +56,12 @@ export function parseSlices(stdout: string): Parsed | undefined {
 }
 
 export const MARK: Record<Approval, { glyph: string; color: string; label: string }> = {
-  approved: { glyph: '✔', color: 'green', label: 'approved' },
-  changes_requested: { glyph: '↺', color: 'yellow', label: 'changes' },
-  rejected: { glyph: '✘', color: 'red', label: 'rejected' },
-  pending: { glyph: '○', color: 'gray', label: 'pending' },
+  // Theme keys, not raw colours: the pane is painted in Claude Code's theme,
+  // where a raw yellow or gray can vanish against a light background.
+  approved: { glyph: '✔', color: 'success', label: 'approved' },
+  changes_requested: { glyph: '↺', color: 'warning', label: 'changes' },
+  rejected: { glyph: '✘', color: 'error', label: 'rejected' },
+  pending: { glyph: '○', color: 'inactive', label: 'pending' },
 }
 
 /** "2 approved · 1 changes · 3 pending", in review order, zero counts left out. */

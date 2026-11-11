@@ -1,0 +1,508 @@
+meta:
+    id: plan-10a07f8d
+    track_id: trk-2e707ed1
+    title: 'Owner questions: non-blocking records on work items, asked with the question tool'
+    description: 'Issue #336. Questions an orchestrator owes the owner become records on work items. They are non-blocking by default: work goes ahead on the recommended option and the item records the assumption. Workers'' questions are collected from delegate results. Open questions are asked in batches with the harness question tool and shown in a mod.'
+    created_at: "2026-11-08"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 15
+design:
+    problem: |
+        Questions an orchestrator owes the owner live only in the agent's prose. In the 2026-11-07 session (issue #336) they got buried under later replies, were answered turns after the work they affected, and the owner had to ask for the question tool at least five times. Work either waited on an answer or went ahead on a default that the item never recorded.
+    goals:
+        - Every open owner question is a record on a feature, bug or spike, listed in one place.
+        - Work continues on the recommended option unless a question is marked blocking, and the item records the assumption.
+        - A late answer that differs from the assumption is flagged and reopens the affected item or slice.
+        - Open questions are asked through the harness question tool in batches of at most four, recommended option first.
+        - The owner sees open questions in a side pane and a band count, and can answer from there.
+    constraints:
+        - The store stays HTML-canonical; the question record is a node property, like the research record.
+        - No new runtime dependencies.
+        - Files under 500 lines, functions under 50.
+        - Hooks stay thin wrappers over `wipnote hook <handler>` and must not slow the hot path noticeably.
+    approved: false
+    comment: ""
+    research:
+        - url: https://github.com/shakestzd/wipnote/issues/336
+          claim: 'The owner''s request: question records, non-blocking default, worker collection, question-tool batching, mods.'
+          accessed: "2026-11-08"
+        - url: https://code.claude.com/docs/en/hooks
+          claim: A Stop hook can return decision "block" with a required reason to make Claude continue; its input includes last_assistant_message and stop_hook_active (true when Claude is already continuing because of a stop hook).
+          accessed: "2026-11-08"
+        - url: https://code.claude.com/docs/en/agent-sdk/user-input
+          claim: AskUserQuestion takes 1-4 questions per call with 2-4 options each, header at most 12 characters; the tool is not available in subagents.
+          accessed: "2026-11-08"
+        - url: https://learn.chatgpt.com/docs/hooks
+          claim: Codex Stop input carries stop_hook_active and last_assistant_message; output {"decision":"block","reason":...} continues the turn.
+          accessed: "2026-11-08"
+slices:
+    - id: slice-1
+      feature_id: feat-be385b11
+      num: 1
+      title: Question record and `wipnote question add|list|answer`
+      what: |
+        Store owner questions as a node property on features, bugs and spikes, modelled on the research record. Add `wipnote question add`, `list` and `answer`, with 2-4 options, an optional recommended option, an optional blocking flag, a status, and an answer stored on the item.
+      why: |
+        Gives every open question a home that survives across turns and shows in lineage (goal 1). All later slices read or write this record.
+      files:
+        - core/question/record.go (new)
+        - core/question/record_test.go (new)
+        - cmd/wipnote/question_cmd.go (new)
+        - cmd/wipnote/question_list.go (new)
+        - cmd/wipnote/question_cmd_test.go (new)
+        - cmd/wipnote/main.go
+      deps: []
+      done_when:
+        - '`question add <item> "<text>" --option k:label[:tradeoff] ... [--recommended k] [--blocking]` stores an open record and prints its id.'
+        - '`add` refuses fewer than 2 or more than 4 options, an unknown recommended key, and items that are not a feature, bug or spike.'
+        - '`question list [--item <id>] [--open] [--format json]` spans all item types; `--open` means status open or assumed; rows carry status.'
+        - '`question answer <qid> <key> [--note]` records answer and time; an unknown key is refused, a re-answer needs `--force`.'
+      effort: M
+      risk: Low
+      tests: |
+        Unit: core/question merge and validation (option count 2-4, recommended key optional but must be an option, duplicate id, status values).
+        CLI: add, list and answer against a temp store; JSON output shape including status; --open filter; refusal cases; --force re-answer.
+      complexity: complex
+      approved: true
+      comment: ""
+      research:
+        - url: https://github.com/shakestzd/wipnote/issues/336
+          claim: 'Proposal item 1 gives the command shapes: add with --option, --recommended, --blocking; list; answer with --note.'
+          accessed: "2026-11-08"
+        - url: https://code.claude.com/docs/en/agent-sdk/user-input
+          claim: AskUserQuestion allows 2-4 options per question, so add caps options at 4.
+          accessed: "2026-11-08"
+      adopt_vs_build:
+        decision: build
+        rejected:
+            - 'planyaml.PlanQuestion as-is: lives in plan YAML and answers go to the SQLite plan_feedback table, not on the item; its field set is reused instead.'
+            - 'delegate session questions: per-session hook events with bare string options, no item link or recommended option.'
+      approval_status: approved
+      execution_status: promoted
+      questions:
+        - id: q-noun
+          text: New top-level `question` noun, or per-item verbs like `feature question add`?
+          answer: Top-level noun with the item id as an argument, registered in buildRoot like researchCmd; one `list` must span all item types.
+      decisions_notes: |
+        **Trigger:** an orchestrator or worker runs `wipnote question add` on a work item.
+        **State:** a list of Question records in one node property, read and merged the way `research.FromNode` / `research.Merge` (core/research/record.go) handle the research record (cmd/wipnote/research_cmd.go saveResearchRecord, openItem). The field set extends planyaml.PlanQuestion (id, text, recommended, options, answer) with blocking, status, raised_by, raised_at, source_id, assumed, note and answered_at; the option `tradeoff` is a new field beside QuestionOption's key and label.
+        **Status:** open on add; assumed, confirmed and overturned are set by slice 2. `--force` re-answer exists so an overturned question can be corrected; slice 2 re-runs its overturn check on it.
+        **Payload:** `list --format json` rows carry item id, item title, question id, text, options, recommended, blocking, status, assumed, raised_by, age and answer, so the mod and the hook read one shape. Items that no longer resolve are skipped.
+        **Size:** list and its JSON rendering live in question_list.go so question_cmd.go stays under 500 lines once slice 2 adds assume.
+        **Rejected:** steps (a done-flag checklist, no options or answer); edges (relations, not payload); a separate questions/ directory of files (a second store to sync, and the answer would not sit on the item).
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - core/question/record.go (new)
+            - core/question/record_test.go (new)
+            - cmd/wipnote/question_cmd.go (new)
+            - cmd/wipnote/question_list.go (new)
+            - cmd/wipnote/question_cmd_test.go (new)
+            - cmd/wipnote/main.go
+        - type: data-model
+          fields:
+            name: Question (node property on feature, bug or spike)
+          rows:
+            - name: id
+              type: string (q-<8 hex>)
+            - name: text
+              type: string
+            - name: options
+              type: list of {key, label, tradeoff}, 2-4 entries
+            - name: recommended
+              type: string (an option key, or empty)
+            - name: blocking
+              type: bool
+            - name: status
+              type: open | assumed | confirmed | overturned (default open)
+            - name: raised_by
+              type: string (session id or worker name)
+            - name: source_id
+              type: string (worker question id for dedup, or empty)
+            - name: raised_at
+              type: RFC 3339 time
+            - name: assumed
+              type: string (option key work proceeded on, or empty)
+            - name: answer
+              type: string (option key, empty while open)
+            - name: note
+              type: string
+            - name: answered_at
+              type: RFC 3339 time
+    - id: slice-2
+      feature_id: feat-13e24183
+      num: 2
+      title: Non-blocking by default, blocking questions in execute-preview
+      what: |
+        When work goes ahead with an open non-blocking question, record the recommended option as assumed. A later answer that differs marks the assumption overturned and reopens the item; add `bug reopen` and `spike reopen` beside the existing `feature reopen`. Blocking questions warn at start and are listed in execute-preview.
+      why: |
+        Work keeps moving without hiding the default it chose (goal 2), and a changed answer is visible and acted on (goal 3).
+      files:
+        - core/question/record.go
+        - cmd/wipnote/question_cmd.go
+        - cmd/wipnote/workitem_set_status.go
+        - cmd/wipnote/feature_reopen.go
+        - cmd/wipnote/workitem_reopen.go (new)
+        - cmd/wipnote/execute_preview.go
+        - plugin/skills/execute/SKILL.md
+      deps:
+        - 1
+      done_when:
+        - '`question assume <qid>` and `<type> start` record assumed = recommended for open non-blocking questions; start never fails on question errors.'
+        - Start warns on an open blocking question and records no assumption; complete warns when open questions remain.
+        - An answer equal to assumed confirms; a different one overturns and reopens a done feature, bug or spike, or names the in-progress item.
+        - '`execute-preview` lists open blocking questions per item; the execute skill says not to dispatch an item with one.'
+      effort: M
+      risk: Med
+      tests: |
+        Unit: assume, confirm and overturn transitions; assume refuses a question with no recommended option.
+        CLI: start with open questions records assumptions; start with a blocking question warns; overturned answer reopens a done feature and a done bug; execute-preview JSON and text include blocking questions.
+      complexity: standard
+      approved: true
+      comment: ""
+      research_waiver: Internal wipnote behaviour only; builds on the slice 1 record and the existing feature reopen command, no external API.
+      adopt_vs_build:
+        decision: build
+        rejected:
+            - 'Copy feature_reopen.go per type: duplicates the reopen path; workitem_reopen.go shares it for bug and spike.'
+            - 'Generic `workitem set-status` back to in-progress: skips the reopen bookkeeping feature reopen does.'
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |
+        **Trigger:** item start (`wiStartCmd` in cmd/wipnote/workitem.go calls runWiSetStatus; the hook goes in afterStart in workitem_set_status.go) or an explicit `question assume`; later, `question answer`.
+        **State:** status open -> assumed on start, assumed -> confirmed or overturned on answer. Questions without a recommended option stay open on start.
+        **Reopen:** only feature reopen exists today (feature_reopen.go); workitem_reopen.go adds the bug and spike verbs on the same code path.
+        **Payload:** execute-preview gains a `questions` list of blocking records per item.
+        **Rejected:** blocking every open question (defeats the non-blocking default the owner chose); silently keeping the assumption on a different answer (the owner chose flag-and-reopen); a follow-up item for rework (owner chose reopen).
+      blocks:
+        - type: diagram
+          title: Answer flow
+          entries:
+            - Question added (open)
+            - Work proceeds on recommended, assumed recorded
+            - Owner answers
+            - Same as assumed -> confirmed
+            - Different -> overturned, item reopened
+    - id: slice-3
+      feature_id: feat-e7500356
+      num: 3
+      title: File worker questions as records
+      what: |
+        When `wipnote delegate result` runs, file each structured worker question from the run (outbox `delegate reply --ask` files and hook-captured AskUserQuestion calls, answered or not, open or closed run) as a question record on the worker's work item, once. Add `--recommended` to `delegate reply --ask`. Update the worker brief to raise owner questions that way.
+      why: |
+        Worker questions are the largest source in the issue's session; they must land on the item instead of in report prose (goal 1).
+      files:
+        - internal/delegate/session/questions.go
+        - internal/delegate/session/mail.go
+        - cmd/wipnote/delegate_mail.go
+        - cmd/wipnote/delegate_reply.go
+        - plugin/skills/delegate/SKILL.md
+      deps:
+        - 1
+      done_when:
+        - '`delegate result NAME` on a closed run files each unfiled worker ask on the worker''s item and prints the ids; a re-run files nothing.'
+        - A question already answered through `delegate answer` is filed with its answer; permission prompts are not filed.
+        - A worker with no work item gets a warning naming the questions instead of a silent drop.
+        - The delegate skill tells workers to use `delegate reply --ask` (with `--recommended`) and not to list questions in the report.
+      effort: M
+      risk: Med
+      tests: |
+        Unit: mapping of run question rows to Question records, including string options, recommended, answered asks and excluded permission rows.
+        CLI: result on a closed run files once, run twice files nothing new; worker without an item warns.
+      complexity: standard
+      approved: true
+      comment: ""
+      research_waiver: Uses the existing delegate outbox and hook question data (internal/delegate/session/questions.go); no external API.
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |
+        **Trigger:** `wipnote delegate result NAME` (session.Result in internal/delegate/session/mail.go).
+        **Source:** session.Questions returns only pending asks and nothing for a closed run (questions.go runQuestions), so this slice adds a reader over all of the run's ask events and question files, excluding KindPermission. The item comes from the ledger row's WorkItem (core/delegationledger/record.go).
+        **State:** each filed record sets source_id to the worker question id (tool use id or <task-id>-q<n>); a re-run skips ids already present.
+        **Payload:** worker options are bare strings; each becomes an option with key = its index and no trade-off text. recommended comes from the new `delegate reply --ask --recommended`, otherwise empty.
+        **Note:** AskUserQuestion is not available in Claude subagents (agent-sdk user-input docs); hook-captured asks only come from workers that run as full sessions, so the outbox file is the primary path.
+        **Rejected:** parsing an "Owner questions" section from the report prose (owner chose structured only; depends on a heading format workers drift from).
+      blocks:
+        - type: diagram
+          title: Worker question path
+          entries:
+            - Worker runs delegate reply --ask or AskUserQuestion
+            - Outbox file or hook event
+            - delegate result NAME
+            - question add on the worker's item (deduplicated by source_id)
+    - id: slice-4
+      feature_id: feat-7314623e
+      num: 4
+      title: Ask with the question tool in batches; Stop hook nudge
+      what: |
+        Add an orchestrator rule to ask open questions with the harness question tool, at most four per call, recommended option first. Add a Stop hook check that blocks once when a reply ends with a prose question while open records exist, on Claude Code and Codex; Antigravity gets the prompt rule only.
+      why: |
+        The owner asked for the question tool five times in one session; the rule and the nudge make it the default (goal 4).
+      files:
+        - cmd/wipnote/prompts/system-prompt.md
+        - core/hooks/missing_events.go
+        - core/hooks/runner.go
+        - core/hooks/missing_events_test.go
+        - cmd/wipnote/hook.go
+      deps:
+        - 1
+      done_when:
+        - The orchestrator prompt says to ask open questions with the question tool, at most four per call, recommended first, and to record answers with `question answer`.
+        - Stop blocks with a reason naming open question ids when the last non-empty line outside a code block ends with "?" and open records exist.
+        - Stop allows when stop_hook_active is true, in delegate worker sessions, and on Antigravity.
+        - A benchmark shows the check adds under 5 ms when no question records exist.
+      effort: M
+      risk: Med
+      tests: |
+        Unit: Stop handler with and without open records, trailing "?" inside and outside a code block, stop_hook_active true, worker session, Antigravity harness.
+        Contract: the emitted JSON matches the Claude Code and Codex Stop output formats (decision block plus reason).
+        Benchmark: no-records path.
+      complexity: standard
+      approved: true
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/hooks
+          claim: Stop input has last_assistant_message and stop_hook_active; output decision block requires a reason; Claude Code caps consecutive stop-hook continuations.
+          accessed: "2026-11-08"
+        - url: https://learn.chatgpt.com/docs/hooks
+          claim: Codex Stop input has stop_hook_active and last_assistant_message; decision block with reason continues the turn.
+          accessed: "2026-11-08"
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |
+        **Trigger:** the Stop hook (hooks.Stop in core/hooks/missing_events.go, dispatched from cmd/wipnote/hook.go; manifest entry already targets claude, codex and antigravity).
+        **State:** reads open records via the slice 1 list. Loop guard is stop_hook_active, verified in both Claude Code and Codex docs; runner.go already parses last_assistant_message and gains StopHookActive.
+        **Workers:** delegated workers also fire Stop; the check skips sessions the delegate launcher marks as workers (WIPNOTE_DELEGATE_RUN is set; confirm it reaches the hook process during the slice), so only the orchestrator is nudged.
+        **Payload:** decision "block" with a reason naming the question ids and the tool to use. Codex uses the existing emitter (codexEventAcceptsDecision covers Stop in core/hooks/harness_response.go). Antigravity's Stop format is undocumented, so it gets the prompt rule alone.
+        **Rejected:** a context note only (prose questions still reach the owner first); no hook (owner chose block once).
+      blocks:
+        - type: diagram
+          title: Stop nudge
+          entries:
+            - Stop hook fires
+            - stop_hook_active, worker or Antigravity? -> allow stop
+            - Open question records and last line ends with "?"
+            - Block once, reason names the records and the question tool
+    - id: slice-5
+      feature_id: feat-7b54b3e9
+      num: 5
+      title: 'Mods: questions pane, band count, toast and ref cards'
+      what: |
+        Add a wipnote-questions mod pane that lists open questions across items and answers them with `wipnote question answer`, showing the command's result. Show an open and blocking count in the orchestra band, a toast on a new blocking question, and open questions on ref cards.
+      why: |
+        The owner sees every open decision in one place and can answer without searching the chat (goal 5).
+      files:
+        - mods/wipnote-questions/.claude-plugin/plugin.json (new)
+        - mods/wipnote-questions/hooks/hooks.json (new)
+        - mods/wipnote-questions/hooks/register.tsx (new)
+        - mods/wipnote-questions/hooks/model.ts (new)
+        - mods/wipnote-questions/types/index.d.ts (new)
+        - mods/wipnote-questions/tsconfig.json (new)
+        - mods/wipnote-questions/tests/model.test.ts (new)
+        - mods/wipnote-questions/README.md (new)
+        - mods/wipnote-orchestra/hooks/register.tsx
+        - mods/wipnote-orchestra/hooks/band.tsx
+        - mods/wipnote-orchestra/hooks/refcards.tsx
+        - cmd/wipnote/mods_test.go
+      deps:
+        - 1
+      done_when:
+        - The pane lists open questions from `question list --open --format json` with item, age, blocking and recommended, polling while placed.
+        - Choosing an option runs `question answer`, toasts its output (including "overturned, <item> reopened"), and the row leaves the list.
+        - The band shows "N open questions · M blocking" when N > 0; a new blocking question toasts; ref cards show the item's open questions.
+        - A new mods_test test checks the wipnote-questions mod has its manifest and hooks files.
+      effort: L
+      risk: Med
+      tests: |
+        Unit: model.ts parse of the list JSON; band count text; new-blocking detection for the toast; answer-output toast text.
+        Repo: new mods_test test for the wipnote-questions scaffold.
+      complexity: standard
+      approved: true
+      comment: ""
+      research_waiver: Follows the existing wipnote-plan-review pane ($.process.run polling, $.ui.open, $.ui.toast in mods/wipnote-plan-review/hooks/register.tsx) and its scaffold files; the pane click-handler API is checked against the plugin-authoring skill during the slice.
+      adopt_vs_build:
+        decision: build
+        rejected:
+            - 'Extend wipnote-plan-review: that pane is scoped to one plan''s slices; questions span all items.'
+      approval_status: approved
+      execution_status: promoted
+      decisions_notes: |
+        **Trigger:** pane open (poll while placed), band refresh, card render.
+        **State:** none in the mod; all data from `wipnote question list --format json`.
+        **Orchestra:** polling lives in mods/wipnote-orchestra/hooks/register.tsx, so the count and toast detection go there; band.tsx only draws. Ref cards call `question list --item <id> --open --format json` beside the existing show call in refcards.tsx.
+        **Loading:** the launcher finds mods by reading the mods/ folder and mirrors the tree on deploy; no registration is needed.
+        **Payload:** the slice 1 JSON row shape.
+        **Rejected:** a file watch on the store (the existing mods poll the CLI and the store may be outside the repo); putting the list in the band itself (too little room).
+      blocks:
+        - type: wireframe
+          title: Questions pane
+          fields:
+            html: |
+                <div style="font-family:var(--wf-font);color:var(--wf-fg);background:var(--wf-bg);padding:8px;border:1px solid var(--wf-border)">
+                  <div style="font-weight:bold">Open questions · 3 (1 blocking)</div>
+                  <div style="margin-top:6px;padding:6px;border:1px solid var(--wf-border)">
+                    <div>feat-1234 · 2h · BLOCKING</div>
+                    <div>Key by RemoteAddr or X-Forwarded-For?</div>
+                    <div style="color:var(--wf-muted)">[RemoteAddr (recommended)] [X-Forwarded-For]</div>
+                  </div>
+                  <div style="margin-top:6px;padding:6px;border:1px solid var(--wf-border)">
+                    <div>bug-5678 · 1d · assumed: retry</div>
+                    <div>Retry once or fail fast?</div>
+                    <div style="color:var(--wf-muted)">[Retry (recommended)] [Fail fast]</div>
+                  </div>
+                </div>
+questions: []
+critique:
+    reviewed_at: "2026-11-08"
+    reviewers:
+        - local-design
+        - local-feasibility
+    assumptions:
+        - id: A1
+          status: verified
+          text: Claude Code Stop input carries last_assistant_message and stop_hook_active; decision block needs a reason.
+          evidence: https://code.claude.com/docs/en/hooks#stop-input
+        - id: A2
+          status: verified
+          text: AskUserQuestion takes 1-4 questions with 2-4 options each and is unavailable in subagents.
+          evidence: https://code.claude.com/docs/en/agent-sdk/user-input
+        - id: A3
+          status: verified
+          text: Codex Stop accepts decision block plus reason and passes stop_hook_active.
+          evidence: https://learn.chatgpt.com/docs/hooks; core/hooks/harness_response.go codexEventAcceptsDecision
+        - id: A4
+          status: unverified
+          text: Antigravity Stop block output format.
+          evidence: 'unverified: no canonical Antigravity hook docs; slice 4 keeps it prompt-rule only'
+        - id: A5
+          status: verified
+          text: Research-record pattern (research.FromNode/Merge, saveResearchRecord, openItem) exists to copy.
+          evidence: core/research/record.go:70,140; cmd/wipnote/research_cmd.go:93,107
+        - id: A6
+          status: falsified
+          text: bug and spike reopen commands exist.
+          evidence: 'runtime: ls cmd/wipnote | grep reopen -> feature_reopen.go, plan_reopen.go only; slice 2 now adds workitem_reopen.go'
+        - id: A7
+          status: falsified
+          text: session.Questions returns worker questions after a run closes.
+          evidence: internal/delegate/session/questions.go runQuestions returns empty for a closed run; slice 3 now reads all ask events
+        - id: A8
+          status: plausible
+          text: WIPNOTE_DELEGATE_RUN reaches the Stop hook process in worker sessions.
+          evidence: 'unverified: env var found in cmd/internal; propagation to hooks checked during slice 4'
+    critics:
+        - title: Design critic
+          sections:
+            - heading: Fixed
+              items:
+                - badge: danger
+                  kind: fixed
+                  text: Slice 1 data model lacked the status field slice 2 uses; status open|assumed|confirmed|overturned added, --open defined.
+                - badge: danger
+                  kind: fixed
+                  text: Slice 2 relied on bug/spike reopen that does not exist; workitem_reopen.go added.
+                - badge: danger
+                  kind: fixed
+                  text: Slice 3 source is empty for closed runs; slice now reads all ask events and question files, dedup via new source_id.
+                - badge: warn
+                  kind: fixed
+                  text: 'Blocking question at start, complete with open questions, re-answer (--force), recommended optional: all now defined.'
+                - badge: warn
+                  kind: fixed
+                  text: Stop trailing-question heuristic defined (last non-empty line outside code ends with ?); perf bound is <5 ms benchmark.
+                - badge: warn
+                  kind: fixed
+                  text: Pane now toasts the answer output so an overturn-driven reopen is visible.
+        - title: Feasibility critic
+          sections:
+            - heading: Fixed
+              items:
+                - badge: warn
+                  kind: fixed
+                  text: Slice 2 missing workitem_set_status.go (afterStart); added.
+                - badge: warn
+                  kind: fixed
+                  text: Slice 3 missing session/mail.go and delegate_reply.go (--recommended); added; permission rows excluded.
+                - badge: warn
+                  kind: fixed
+                  text: Slice 4 would block delegate workers; workers, stop_hook_active and Antigravity now allow stop.
+                - badge: warn
+                  kind: fixed
+                  text: Slice 5 missing mod scaffold files and orchestra register.tsx (where polling lives); added; mods_test needs a new test.
+                - badge: warn
+                  kind: fixed
+                  text: Slice 1 question_cmd.go size risk; list split into question_list.go; options capped at 4.
+            - heading: Confirmed
+              items:
+                - badge: success
+                  kind: verified
+                  text: Cited research, delegate, hooks and plan-review pane patterns exist; mods load by directory scan with no registration.
+                - badge: info
+                  kind: note
+                  text: Stop also accepts hookSpecificOutput.additionalContext, a softer alternative to decision block.
+    risks:
+        - risk: Stop nudge misfires on rhetorical trailing questions and annoys the owner.
+          severity: Medium
+          mitigation: Block only once per turn via stop_hook_active and only when open records exist.
+        - risk: Overturned answer reopens a done item unexpectedly from the pane.
+          severity: Medium
+          mitigation: Pane toasts the answer command output naming the reopened item.
+        - risk: Worker marker does not reach hook processes, so workers get nudged.
+          severity: Low
+          mitigation: Slice 4 confirms WIPNOTE_DELEGATE_RUN propagation and tests the worker path.
+    synthesis: 'Both critics ran; three design dangers (missing status field, nonexistent bug/spike reopen, closed-run worker questions) and the feasibility warnings were fixed in place, and validate-yaml is clean apart from done_when length advisories. No danger remains. Open items for the reviewer: A4 (Antigravity Stop format, kept prompt-only) and A8 (worker env marker reaching hooks, checked in slice 4). Look first at slice 2''s reopen scope, which now adds bug and spike reopen, and slice 4''s decision-block-versus-additionalContext choice.'
+feedback:
+    entries:
+        - section: slice-1
+          action: approve
+          value: "true"
+          created_at: "2026-11-10T04:51:56Z"
+          updated_at: "2026-11-10T04:51:56Z"
+        - section: slice-2
+          action: approve
+          value: "true"
+          created_at: "2026-11-10T04:51:57Z"
+          updated_at: "2026-11-10T04:51:57Z"
+        - section: slice-3
+          action: approve
+          value: "true"
+          created_at: "2026-11-10T04:51:57Z"
+          updated_at: "2026-11-10T04:51:57Z"
+        - section: slice-4
+          action: approve
+          value: "true"
+          created_at: "2026-11-10T04:51:57Z"
+          updated_at: "2026-11-10T04:51:57Z"
+        - section: slice-5
+          action: approve
+          value: "true"
+          created_at: "2026-11-10T04:51:58Z"
+          updated_at: "2026-11-10T04:51:58Z"
+        - section: slice-1
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-10T04:53:00Z"
+          updated_at: "2026-11-10T04:53:00Z"
+        - section: slice-2
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-10T05:44:13Z"
+          updated_at: "2026-11-10T05:44:13Z"
+        - section: slice-3
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-10T05:44:40Z"
+          updated_at: "2026-11-10T05:44:40Z"
+        - section: slice-4
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-10T05:45:08Z"
+          updated_at: "2026-11-10T05:45:08Z"
+        - section: slice-5
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-10T05:45:40Z"
+          updated_at: "2026-11-10T05:45:40Z"

@@ -53,6 +53,7 @@ Prints {run, name, task, id, kind}.`,
 	cmd.Flags().StringVar(&o.Task, "task", "", "the task id to answer (default: the run's newest task)")
 	cmd.Flags().BoolVar(&o.Ask, "ask", false, "write a question for your caller instead of the result")
 	cmd.Flags().StringArrayVar(&o.Options, "option", nil, "a choice for --ask (repeat for each)")
+	cmd.Flags().StringVar(&o.Recommended, "recommended", "", "with --ask: the option you recommend (its text or number)")
 	cmd.Flags().StringVar(&file, "file", "", "read the reply from a file (- for stdin)")
 	return cmd
 }

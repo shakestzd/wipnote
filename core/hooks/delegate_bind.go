@@ -37,6 +37,7 @@ type DelegateEvent struct {
 	Tool      string
 	ToolUseID string
 	Summary   string
+	Asks      []delegateAsk
 }
 
 var (
@@ -48,17 +49,18 @@ var (
 const delegateTail = 4 << 10
 
 type delegateLine struct {
-	V         int    `json:"v"`
-	Seq       int64  `json:"seq"`
-	TS        string `json:"ts"`
-	Run       string `json:"run"`
-	Kind      string `json:"kind"`
-	SID       string `json:"sid,omitempty"`
-	AgentID   string `json:"agent_id,omitempty"`
-	AgentType string `json:"agent_type,omitempty"`
-	Tool      string `json:"tool,omitempty"`
-	ToolUseID string `json:"tool_use_id,omitempty"`
-	Summary   string `json:"summary,omitempty"`
+	V         int           `json:"v"`
+	Seq       int64         `json:"seq"`
+	TS        string        `json:"ts"`
+	Run       string        `json:"run"`
+	Kind      string        `json:"kind"`
+	SID       string        `json:"sid,omitempty"`
+	AgentID   string        `json:"agent_id,omitempty"`
+	AgentType string        `json:"agent_type,omitempty"`
+	Tool      string        `json:"tool,omitempty"`
+	ToolUseID string        `json:"tool_use_id,omitempty"`
+	Summary   string        `json:"summary,omitempty"`
+	Asks      []delegateAsk `json:"asks,omitempty"`
 }
 
 // RecordDelegateEvent appends ev to the worker's events file when this
@@ -78,7 +80,7 @@ func RecordDelegateEvent(projectDir string, ev DelegateEvent) {
 	}
 	line := delegateLine{V: 1, TS: time.Now().UTC().Format(time.RFC3339Nano), Run: run, Kind: ev.Kind,
 		SID: ev.SID, AgentID: ev.AgentID, AgentType: ev.AgentType, Tool: ev.Tool, ToolUseID: ev.ToolUseID,
-		Summary: boundSummary(ev.Summary)}
+		Summary: boundSummary(ev.Summary), Asks: ev.Asks}
 	seq, torn := delegateNextSeq(dir, path)
 	line.Seq = seq
 	data, err := json.Marshal(line)

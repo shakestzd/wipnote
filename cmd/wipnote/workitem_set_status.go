@@ -155,6 +155,8 @@ func (t *statusTransition) runCompletionGates() error {
 		// Completion closes every open episode on the item, a live delegate
 		// worker's included (plan-28b4a7f6 slice 16): warn, never refuse.
 		warnLiveDelegation(stderr, dir, id)
+		// Open or assumed owner questions remain: warn, never refuse.
+		warnOpenQuestionsOnComplete(stderr, col, id)
 	}
 	return t.runGateRecordCheck()
 }
@@ -299,6 +301,9 @@ func (t *statusTransition) afterStart() {
 	// and never closed. Print before any dispatch happens; never refuse.
 	emitAlreadyFixedAdvisory(os.Stderr, paths.CodeRoot(filepath.Dir(dir)), id, t.node)
 	emitResearchStartAdvisory(os.Stderr, filepath.Dir(dir), t.node)
+	// Assume recommended options on open non-blocking questions; warn on
+	// blocking ones. Never fails the start (feat-13e24183).
+	assumeQuestionsOnStart(stderr, t.col, id)
 	if sessionID != "" {
 		// Durable claim history (feat-21d12cdb) was recorded inside col.Start's
 		// item lock by claimEpisodeOnStart, ordered with the transition.

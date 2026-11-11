@@ -97,6 +97,7 @@ type codexPayload struct {
 	Prompt               string          `json:"prompt"`
 	LastAssistantMessage string          `json:"last_assistant_message"`
 	StopReason           string          `json:"stop_reason"`
+	StopHookActive       bool            `json:"stop_hook_active"`
 	ToolName             string          `json:"tool_name"`
 	ToolInput            map[string]any  `json:"tool_input"`
 	ToolUseID            string          `json:"tool_use_id"`
@@ -147,21 +148,7 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 		return nil, fmt.Errorf("parseCodexEvent: %w", err)
 	}
 
-	agentID := harness.GetByHooksHarness(harness.HooksCodex).AgentID
-	if parent := strings.TrimSpace(os.Getenv("WIPNOTE_PARENT_AGENT")); parent != "" && parent != agentID {
-		agentID = parent
-	}
-	// bug-190950e0 / feat-b7bc4267: when the payload carries a real
-	// per-subagent agent_id (see codexPayload doc comment), it is ground
-	// truth from the harness and must win over both the generic harness
-	// default and the WIPNOTE_PARENT_AGENT hardening override above.
-	// Previously this value was silently discarded here and every Codex
-	// event — subagent or not — was stamped with the same generic "codex"
-	// identity, collapsing every subagent claim onto __root__ downstream.
-	if p.AgentID != "" {
-		agentID = p.AgentID
-	}
-
+	agentID := codexAgentID(p.AgentID)
 	// Prefer the confirmed-live "tool_response" field; fall back to
 	// "tool_result" for any build that uses the other spelling rather than
 	// hardcoding a single field name (see codexPayload doc comment).
@@ -185,6 +172,7 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 		TurnID:               p.TurnID,
 		LastAssistantMessage: p.LastAssistantMessage,
 		StopReason:           p.StopReason,
+		StopHookActive:       p.StopHookActive,
 		ToolName:             p.ToolName,
 		ToolInput:            p.ToolInput,
 		ToolUseID:            p.ToolUseID,
@@ -193,6 +181,27 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 		TaskData:             p.TaskData,
 	}
 	return ev, nil
+}
+
+// codexAgentID is the agent identity of a Codex event: the payload's own
+// per-subagent agent_id when it has one, else WIPNOTE_PARENT_AGENT when set to
+// another harness, else the Codex harness default.
+func codexAgentID(payloadAgentID string) string {
+	agentID := harness.GetByHooksHarness(harness.HooksCodex).AgentID
+	if parent := strings.TrimSpace(os.Getenv("WIPNOTE_PARENT_AGENT")); parent != "" && parent != agentID {
+		agentID = parent
+	}
+	// bug-190950e0 / feat-b7bc4267: when the payload carries a real
+	// per-subagent agent_id (see codexPayload doc comment), it is ground
+	// truth from the harness and must win over both the generic harness
+	// default and the WIPNOTE_PARENT_AGENT hardening override above.
+	// Previously this value was silently discarded here and every Codex
+	// event — subagent or not — was stamped with the same generic "codex"
+	// identity, collapsing every subagent claim onto __root__ downstream.
+	if payloadAgentID != "" {
+		agentID = payloadAgentID
+	}
+	return agentID
 }
 
 // parseGeminiEvent converts a Gemini CLI hook payload into our internal

@@ -55,8 +55,21 @@ type Event struct {
 	Tool      string `json:"tool,omitempty"`
 	ToolUseID string `json:"tool_use_id,omitempty"`
 	Summary   string `json:"summary,omitempty"`
+	// Asks is set on an AskUserQuestion's question event (each question
+	// with its options) and on its tool_end (each answer).
+	Asks []EventAsk `json:"asks,omitempty"`
 	// Writer is the file the event was read from; it is not stored.
 	Writer string `json:"-"`
+}
+
+// EventAsk is one question of an AskUserQuestion call, as the worker's
+// hooks record it (core/hooks delegate_asks.go writes the same shape).
+type EventAsk struct {
+	Question    string   `json:"question"`
+	Header      string   `json:"header,omitempty"`
+	MultiSelect bool     `json:"multi_select,omitempty"`
+	Options     []string `json:"options,omitempty"`
+	Answer      string   `json:"answer,omitempty"`
 }
 
 // EventWriter appends to one writer's events file. A writer name must be

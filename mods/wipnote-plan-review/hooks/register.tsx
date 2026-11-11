@@ -106,31 +106,33 @@ export const register: Register = on => {
     if (r === null) {
       return (
         <Box flexDirection="column">
-          <Text dimColor>No plan in view.</Text>
-          <Text dimColor>Run /plan-review-pane &lt;plan-id&gt;.</Text>
+          <Text color="subtle">No plan in view.</Text>
+          <Text color="subtle">Run /plan-review-pane &lt;plan-id&gt;.</Text>
         </Box>
       )
     }
     if (r.state === 'failed') {
       return (
         <Box flexDirection="column">
-          <Text bold>{r.planId}</Text>
-          <Text color="red" wrap="truncate-end">{r.reason}</Text>
+          <Text bold color="text">{r.planId}</Text>
+          <Text color="error" wrap="truncate-end">{r.reason}</Text>
         </Box>
       )
     }
     // Every slice goes in the tree: the pane's body scrolls a taller one.
+    // Every line names a theme key: a Text with no colour takes the terminal's
+    // foreground, unreadable on the pane when the two themes differ.
     return (
       <Box flexDirection="column">
-        <Text bold wrap="truncate-end">{r.title !== '' ? r.title : r.planId}</Text>
-        <Text dimColor wrap="truncate-end">{`${r.planId} · ${r.status} · ${tallyLine(r.slices)}`}</Text>
+        <Text bold color="text" wrap="truncate-end">{r.title !== '' ? r.title : r.planId}</Text>
+        <Text color="subtle" wrap="truncate-end">{`${r.planId} · ${r.status} · ${tallyLine(r.slices)}`}</Text>
         {r.slices.map(s => (
           <Box key={`s${s.num}`} flexDirection="column">
-            <Text wrap="truncate-end">
+            <Text color="text" wrap="truncate-end">
               <Text color={MARK[s.approval].color}>{MARK[s.approval].glyph}</Text>
-              <Text>{` ${s.num}. ${s.title}`}</Text>
+              <Text color="text">{` ${s.num}. ${s.title}`}</Text>
             </Text>
-            <Text dimColor wrap="truncate-end">{`   ${MARK[s.approval].label} · ${detailLine(s)}`}</Text>
+            <Text color="subtle" wrap="truncate-end">{`   ${MARK[s.approval].label} · ${detailLine(s)}`}</Text>
           </Box>
         ))}
       </Box>

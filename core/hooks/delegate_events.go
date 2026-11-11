@@ -57,7 +57,7 @@ func recordDelegateToolStart(event *CloudEvent, projectDir, sessionID string) {
 	ev := DelegateEvent{Kind: "tool_start", SID: sessionID, AgentID: event.AgentID, AgentType: event.AgentType,
 		Tool: event.ToolName, ToolUseID: event.ToolUseID}
 	if event.ToolName == "AskUserQuestion" {
-		ev.Kind, ev.Summary = "question", askSummary(event.ToolInput)
+		ev.Kind, ev.Summary, ev.Asks = "question", askSummary(event.ToolInput), askItems(event.ToolInput)
 	}
 	RecordDelegateEvent(projectDir, ev)
 }
@@ -70,13 +70,22 @@ func delegateToolAllowed(r *HookResult) bool {
 	return r.HookSpecificOutput == nil || r.HookSpecificOutput.PermissionDecision != "deny"
 }
 
-// recordDelegateToolEnd is PostToolUse's and PostToolUseFailure's event.
-func recordDelegateToolEnd(event *CloudEvent, projectDir, sessionID string) {
+// recordDelegateToolEnd is PostToolUse's and PostToolUseFailure's event. A
+// failed call writes summary "failed"; a successful AskUserQuestion carries
+// the person's answers (delegate_asks.go).
+func recordDelegateToolEnd(event *CloudEvent, projectDir, sessionID string, failed bool) {
 	if !inDelegateWorker(event) {
 		return
 	}
-	RecordDelegateEvent(projectDir, DelegateEvent{Kind: "tool_end", SID: sessionID, AgentID: event.AgentID,
-		AgentType: event.AgentType, Tool: event.ToolName, ToolUseID: event.ToolUseID})
+	ev := DelegateEvent{Kind: "tool_end", SID: sessionID, AgentID: event.AgentID,
+		AgentType: event.AgentType, Tool: event.ToolName, ToolUseID: event.ToolUseID}
+	switch {
+	case failed:
+		ev.Summary = "failed"
+	case event.ToolName == "AskUserQuestion":
+		ev.Asks = askAnswers(event)
+	}
+	RecordDelegateEvent(projectDir, ev)
 }
 
 // recordDelegatePermission records a permission prompt the person sees.
