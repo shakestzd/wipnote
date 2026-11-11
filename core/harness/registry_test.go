@@ -308,13 +308,35 @@ func TestRegistry_LaunchEnv_Claude(t *testing.T) {
 		t.Fatal("Get(\"claude_code\") returned nil")
 	}
 
-	want := []string{"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1", "CLAUDE_CODE_ENABLE_TODO_TOOLS=1"}
+	want := []string{
+		"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1",
+		"CLAUDE_CODE_ENABLE_TODO_TOOLS=1",
+		"TE_TOOLPRUNE_PROTECT=" + harness.TokenEconomizerProtectedTools,
+	}
 	if len(cfg.LaunchEnv) != len(want) {
 		t.Fatalf("Get(\"claude_code\").LaunchEnv = %v, want %v", cfg.LaunchEnv, want)
 	}
 	for i, w := range want {
 		if cfg.LaunchEnv[i] != w {
 			t.Errorf("Get(\"claude_code\").LaunchEnv[%d] = %q, want %q", i, cfg.LaunchEnv[i], w)
+		}
+	}
+}
+
+// TestTokenEconomizerProtectedTools_CoversWorkflowTools pins the tools wipnote's
+// workflow needs: TokenEconomizer's auto tool pruning must never deny them, or the
+// question tool, task-step mirroring, delegation and skills stop working silently.
+func TestTokenEconomizerProtectedTools_CoversWorkflowTools(t *testing.T) {
+	got := map[string]bool{}
+	for _, p := range strings.Split(harness.TokenEconomizerProtectedTools, ",") {
+		if p != strings.TrimSpace(p) || p == "" {
+			t.Fatalf("protect list entry %q has spaces or is empty", p)
+		}
+		got[p] = true
+	}
+	for _, want := range []string{"AskUserQuestion", "Agent", "Task*", "Skill", "ToolSearch", "SendMessage", "mcp__plugin_wipnote_*", "mcp__claude-in-chrome__*"} {
+		if !got[want] {
+			t.Errorf("TokenEconomizerProtectedTools missing %q: %s", want, harness.TokenEconomizerProtectedTools)
 		}
 	}
 }

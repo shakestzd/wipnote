@@ -6,6 +6,18 @@ import "fmt"
 // Cross-package assertion is in registry_test.go (TestRegistry_IDsMatchOtelConsts).
 const _claudeOtelID = "claude_code"
 
+// TokenEconomizerProtectedTools lists the Claude Code tools that the
+// TokenEconomizer plugin (github.com/microsoft/TokenEconomizer) must never
+// prune. Its default "auto" tool pruning writes deny rules to the repo's
+// .claude/settings.local.json for tools a repository's sessions rarely use.
+// wipnote's workflow depends on tools that are rare but load-bearing: the
+// question tool for owner decisions, Task* for step mirroring, Agent and
+// SendMessage for delegation, Skill and ToolSearch for loading workflows,
+// wipnote's own MCP tools, and the Chrome tools the researcher agent uses for
+// visual QA. The value is read as comma-separated fnmatch patterns from the
+// TE_TOOLPRUNE_PROTECT env var (feat-234108f2).
+const TokenEconomizerProtectedTools = "AskUserQuestion,Agent,Task*,Skill,ToolSearch,SendMessage,mcp__plugin_wipnote_*,mcp__claude-in-chrome__*"
+
 // claudeOtelEnv returns the OTel-related environment variables to inject when
 // launching Claude Code. The port comes from the per-session collector spawned
 // by the launcher. The sessionID argument is ignored by Claude (no session.id
@@ -53,9 +65,13 @@ func init() {
 		// 4.8, Sonnet 5, Fable 5 and later) unless this is set. wipnote's step
 		// tracking runs through them (the TaskCreated/TaskCompleted hooks), so
 		// without it every work item on a current model reads Steps: 0/M.
+		//
+		// TE_TOOLPRUNE_PROTECT: see TokenEconomizerProtectedTools. Harmless
+		// when the TokenEconomizer plugin is not installed.
 		LaunchEnv: []string{
 			"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1",
 			"CLAUDE_CODE_ENABLE_TODO_TOOLS=1",
+			"TE_TOOLPRUNE_PROTECT=" + TokenEconomizerProtectedTools,
 		},
 	}
 	if cfg.OtelEnv == nil {
