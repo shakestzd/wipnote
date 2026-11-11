@@ -235,3 +235,98 @@ func TestProbeHealth_Unreachable(t *testing.T) {
 		t.Fatal("probe of a closed port succeeded")
 	}
 }
+
+// syncBuf is a goroutine-safe stderr stand-in.
+type syncBuf struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (s *syncBuf) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuf) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+// movedPortWatch attaches a session on a fake collector, kills that collector
+// and occupies its port so the next re-ensure falls back to another port.
+func movedPortWatch(t *testing.T, harness string, errW io.Writer) (w *sharedWatch, project, pidFile string, oldPort int) {
+	t.Helper()
+	project = mkSharedProject(t)
+	var calls atomic.Int32
+	var last *fakeShared
+	sc := NewSharedCollector(SharedCollectorOpts{Stderr: errW, SpawnFn: countingSpawn(t, &calls, &last), Harness: harness})
+	port, cleanup, err := sc.Spawn("wipnote", "sessM", project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(cleanup)
+	_ = last.srv.Close()
+	ln, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(port))
+	if err != nil {
+		t.Skipf("cannot occupy port %d: %v", port, err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	w = &sharedWatch{c: sc, binPath: "wipnote", sessionID: "sessM", projectDir: project, rec: SharedRecord{PID: os.Getpid(), Port: port}, exportPort: port}
+	_ = os.Remove(SharedLeasePath(project))
+	pidFile = filepath.Join(project, ".wipnote", "sessions", "sessM", ".collector-pid")
+	return w, project, pidFile, port
+}
+
+func TestSharedWatch_MovedPortWarnsOnceWithRecovery(t *testing.T) {
+	var buf syncBuf
+	w, _, pidFile, oldPort := movedPortWatch(t, "claude", &buf)
+	w.check()
+	w.check() // lease now matches; no second warning
+	out := buf.String()
+	if n := strings.Count(out, "moved to port"); n != 1 {
+		t.Fatalf("moved warnings = %d, want 1:\n%s", n, out)
+	}
+	for _, want := range []string{"telemetry from this session may be lost", "wipnote claude --continue", "exports to " + strconv.Itoa(oldPort)} {
+		if !strings.Contains(out, want) {
+			t.Errorf("warning lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "codex") {
+		t.Errorf("claude warning names codex:\n%s", out)
+	}
+	if got := ReadSessionExport(pidFile).Port; got != oldPort {
+		t.Fatalf("export_port after move = %d, want launch port %d", got, oldPort)
+	}
+	if got := ReadCollectorPort(pidFile); got == oldPort {
+		t.Fatalf("port= line still the old port %d", got)
+	}
+}
+
+func TestSharedWatch_MovedPortUnknownHarnessNamesBoth(t *testing.T) {
+	var buf syncBuf
+	w, _, _, _ := movedPortWatch(t, "", &buf)
+	w.check()
+	out := buf.String()
+	if !strings.Contains(out, "wipnote claude --continue") || !strings.Contains(out, "wipnote codex --continue") {
+		t.Fatalf("expected both recovery commands:\n%s", out)
+	}
+}
+
+func TestSharedCollector_SpawnRecordsExportPort(t *testing.T) {
+	project := mkSharedProject(t)
+	var calls atomic.Int32
+	var last *fakeShared
+	sc := NewSharedCollector(SharedCollectorOpts{Stderr: io.Discard, SpawnFn: countingSpawn(t, &calls, &last), Harness: "codex"})
+	port, cleanup, err := sc.Spawn("wipnote", "sessE", project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	pidFile := filepath.Join(project, ".wipnote", "sessions", "sessE", ".collector-pid")
+	exp := ReadSessionExport(pidFile)
+	if exp.Port != port || exp.Launcher != os.Getpid() || exp.Harness != "codex" {
+		t.Fatalf("export record = %+v, want port %d launcher %d codex", exp, port, os.Getpid())
+	}
+}

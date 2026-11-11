@@ -49,10 +49,11 @@ func sharedCollectorEnabled() bool {
 
 // attachSharedCollectorTo attaches this launch to the project's shared
 // collector, starting it when none answers.
-func attachSharedCollectorTo(projectDir, binPath, sessionID string, errW io.Writer) (otelEnvOverrides, error) {
+func attachSharedCollectorTo(projectDir, binPath, sessionID, harness string, errW io.Writer) (otelEnvOverrides, error) {
 	sc := collector.NewSharedCollector(collector.SharedCollectorOpts{
 		Stderr:  errW,
 		SpawnFn: spawnSharedCollectorFn,
+		Harness: harness,
 	})
 	port, cleanup, err := sc.Spawn(binPath, sessionID, projectDir)
 	if err != nil {
@@ -74,9 +75,15 @@ func attachSharedCollectorTo(projectDir, binPath, sessionID string, errW io.Writ
 // Spawn. On spawn failure, returns an empty overrides and wantExit=true
 // when WIPNOTE_OTEL_STRICT=1.
 func spawnSessionCollectorTo(projectDir, binPath string, errW io.Writer) (otelEnvOverrides, bool) {
+	return spawnHarnessSessionCollectorTo(projectDir, binPath, "", errW)
+}
+
+// spawnHarnessSessionCollectorTo is spawnSessionCollectorTo for a launcher
+// that knows its harness ("claude" or "codex"); "" means unknown.
+func spawnHarnessSessionCollectorTo(projectDir, binPath, harness string, errW io.Writer) (otelEnvOverrides, bool) {
 	sessionID := generateOtelSessionID()
 	if sharedCollectorEnabled() {
-		overrides, err := attachSharedCollectorTo(projectDir, binPath, sessionID, errW)
+		overrides, err := attachSharedCollectorTo(projectDir, binPath, sessionID, harness, errW)
 		if err == nil {
 			return overrides, false
 		}
@@ -112,7 +119,7 @@ func spawnSessionCollector(projectDir string) otelEnvOverrides {
 		return otelEnvOverrides{}
 	}
 
-	overrides, wantExit := spawnSessionCollectorTo(projectDir, binPath, os.Stderr)
+	overrides, wantExit := spawnHarnessSessionCollectorTo(projectDir, binPath, "claude", os.Stderr)
 	if wantExit {
 		os.Exit(1)
 	}
@@ -124,7 +131,7 @@ func spawnSessionCollector(projectDir string) otelEnvOverrides {
 // a FATAL line naming the harness when neither starts. wantExit is true under
 // WIPNOTE_OTEL_STRICT=1.
 func spawnHarnessCollectorTo(projectDir, binPath, harnessName string, errW io.Writer) (otelEnvOverrides, bool) {
-	overrides, wantExit := spawnSessionCollectorTo(projectDir, binPath, errW)
+	overrides, wantExit := spawnHarnessSessionCollectorTo(projectDir, binPath, harnessName, errW)
 	if overrides.CollectorPort == 0 {
 		fmt.Fprintf(errW, "wipnote: FATAL: %s collector spawn failed\n", harnessName)
 	}
