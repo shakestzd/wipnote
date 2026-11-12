@@ -1,0 +1,18 @@
+meta:
+    id: plan-7ead3e02
+    track_id: trk-43e0650a
+    title: TokenEconomizer for every wipnote user, informed by wipnote history
+    description: Bundle Microsoft's TokenEconomizer with wipnote, on by default for Claude Code, with pruning held for approval, and feed wipnote's cross-project history into what it protects and learns.
+    created_at: "2026-11-12"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
