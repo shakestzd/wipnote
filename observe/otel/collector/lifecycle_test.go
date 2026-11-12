@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/shakestzd/wipnote/observe/otel/collector"
 )
@@ -144,5 +147,55 @@ func TestProcessCollector_Spawn_FailsAfterMaxRetries(t *testing.T) {
 	stderr := buf.String()
 	if !strings.Contains(stderr, "FATAL") {
 		t.Errorf("expected FATAL line in stderr, got: %q", stderr)
+	}
+}
+
+// Once the harness runs it owns the terminal, so the per-session watchdog's
+// respawn lines go to the project's collector log, never to Stderr: a line
+// written there lands inside the harness's prompt (bug-40a7717c).
+func TestProcessCollector_WatchdogWarningsGoToTheCollectorLog(t *testing.T) {
+	t.Setenv("WIPNOTE_OTEL_WATCHDOG_INTERVAL", "50ms")
+	project := t.TempDir()
+	var procs []*os.Process
+	var mu sync.Mutex
+	spawn := func(_, _, _ string, _ int) (int, *os.Process, error) {
+		cmd := exec.Command("/bin/sh", "-c", "sleep 60")
+		if err := cmd.Start(); err != nil {
+			return 0, nil, err
+		}
+		t.Cleanup(func() { _ = cmd.Process.Kill(); _, _ = cmd.Process.Wait() })
+		mu.Lock()
+		procs = append(procs, cmd.Process)
+		mu.Unlock()
+		return 9999, cmd.Process, nil
+	}
+	var term bytes.Buffer
+	c := collector.NewProcessCollector(collector.ProcessCollectorOpts{Stderr: &term, SpawnFn: spawn})
+	_, cleanup, err := c.Spawn("/fake/bin", "sessW", project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(cleanup)
+
+	mu.Lock()
+	first := procs[0]
+	mu.Unlock()
+	_ = first.Kill()
+	_, _ = first.Wait()
+
+	logPath := filepath.Join(project, ".wipnote", "logs", "otel-collector.log")
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if data, _ := os.ReadFile(logPath); strings.Contains(string(data), "collector respawned") {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	data, _ := os.ReadFile(logPath)
+	if !strings.Contains(string(data), "collector died") || !strings.Contains(string(data), "collector respawned") {
+		t.Fatalf("collector log lacks the respawn lines:\n%s", data)
+	}
+	if term.Len() != 0 {
+		t.Fatalf("watchdog wrote to the terminal:\n%s", term.String())
 	}
 }

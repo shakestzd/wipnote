@@ -144,19 +144,15 @@ func (w *sharedWatch) check() {
 	w.mu.Unlock()
 }
 
-// logf writes one timestamped watchdog warning to opts.Log, or appends it to
-// the project's otel-collector.log, where `wipnote doctor` and a person
-// debugging telemetry look.
+// logf writes one watchdog warning to opts.Log, or to the project's
+// otel-collector.log, where `wipnote doctor` and a person debugging telemetry
+// look.
 func (w *sharedWatch) logf(format string, args ...any) {
-	line := fmt.Sprintf("%s wipnote: warning: "+format+"\n", append([]any{time.Now().UTC().Format(time.RFC3339)}, args...)...)
-	if w.c.opts.Log != nil {
-		_, _ = io.WriteString(w.c.opts.Log, line)
-		return
+	out := w.c.opts.Log
+	if out == nil {
+		out = CollectorLog(w.projectDir)
 	}
-	if f := openSharedLog(w.projectDir); f != nil {
-		_, _ = f.WriteString(line)
-		_ = f.Close()
-	}
+	fmt.Fprintf(out, "wipnote: warning: "+format+"\n", args...)
 }
 
 // postLauncher registers (AttachPath) or releases (DetachPath) a launcher
