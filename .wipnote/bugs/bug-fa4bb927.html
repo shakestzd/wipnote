@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Shared OTel collector moves ports mid-session and the launcher prints repeated warnings into the Claude TUI</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-fa4bb927"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-12T02:49:05.579904"
+             data-updated="2026-11-12T02:49:09.264426" data-agent-assigned="claude-code" data-track-id="trk-505c1685" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788">
+
+        <header>
+            <h1>Shared OTel collector moves ports mid-session and the launcher prints repeated warnings into the Claude TUI</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-12T02:49:09.264331">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-505c1685.html" data-relationship="part_of" data-since="2026-11-12T02:49:05.596797">trk-505c1685</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>When a launch&#39;s 1s health probe of the live shared collector fails, EnsureShared spawns a replacement on a new port and the old collector steps aside, so running sessions lose their export endpoint. The launcher watchdog then writes &#39;shared collector moved to port N&#39; to stderr on every move, which garbles the Claude Code prompt, and after the first move it reports the wrong export port.
+Why
+Running sessions silently lose telemetry and the warning text corrupts the user&#39;s prompt input.
+Acceptance Criteria
+A collector that is alive but slow is not replaced on a new port; a replacement reuses the port sessions export to; the launcher never writes collector warnings to the terminal while the child harness runs; the moved warning names the port the session actually exports to and fires once.</p>
+        </section>
+    </article>
+</body>
+</html>
