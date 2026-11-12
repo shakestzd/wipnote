@@ -469,11 +469,69 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <a href="/" class="brand">wipnote</a>
     <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
   </div>
-  
+  <a href="#visual-overview" class="nav-link" data-spy="visual-overview" data-initial="V">Visual</a>
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
   
-  <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span>#1 Bundle a pinned TokenEconomizer and load it by default</span>
+        
+        <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 Review and apply pruning proposals inside wipnote</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 Protect tools that wipnote work types need, across projects</span>
+        
+        <span class="nav-triage-badge nav-triage-question" title="1 open question(s)">?1</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Propose an external-facts input to TokenEconomizer upstream</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span>#5 Export wipnote learnings and repeated gate failures as facts</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-6" class="slice-nav-item" data-slice-nav="6">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="6"></span>
+        <span>#6 Report cost per completed work item before and after</span>
+        
+        
+      </a>
+    </li>
+    
+  </ul>
+  
+  
   
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
   <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="&#9825;">Chat</a>
@@ -488,7 +546,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Bundle Microsoft&#39;s TokenEconomizer with wipnote, on by default for Claude Code, with pruning held for approval, and feed wipnote&#39;s cross-project history into what it protects and learns.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-11-12</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 6 slices · Created 2026-11-12</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -505,16 +563,161 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </details>
 
 <!-- ZONE 0: Visual Overview (blocks-first headline — expanded, above dependency graph) -->
-
+<section class="visual-overview" id="visual-overview" data-zone="visual-overview">
+  <h2>Visual Overview</h2>
+  <div class="overview-group" data-block-kind="data-model">
+    <h3>Data Models</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-3-block-data-model-1" title="Jump to slice 3">
+          <span class="slice-num">#3</span>
+          <span class="overview-slice-title">Protect tools that wipnote work types need, across projects</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-3-block-data-model-1" data-block-anchor="slice-3-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Protect list sources</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>agent_tools</code></td><td><code>tools: frontmatter in plugin/agents/*.md</code></td><td>&mdash;</td></tr>
+      <tr><td><code>wipnote_mcp</code></td><td><code>pattern mcp__plugin_wipnote_*</code></td><td>&mdash;</td></tr>
+      <tr><td><code>work_type_tools</code></td><td><code>AgentEvent.ToolName grouped by work-item type, from registered projects</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-4-block-data-model-1" title="Jump to slice 4">
+          <span class="slice-num">#4</span>
+          <span class="overview-slice-title">Propose an external-facts input to TokenEconomizer upstream</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-4-block-data-model-1" data-block-anchor="slice-4-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">&lt;state root&gt;/repos/&lt;repo key&gt;/external_facts.json (proposed)</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>source</code></td><td><code>string (&#34;wipnote&#34;)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>facts</code></td><td><code>list of {text: string, kind: string, evidence: int}</code></td><td>&mdash;</td></tr>
+      <tr><td><code>written_at</code></td><td><code>RFC3339 string</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  <div class="overview-group" data-block-kind="file-tree">
+    <h3>File Trees</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-1-block-file-tree-1" title="Jump to slice 1">
+          <span class="slice-num">#1</span>
+          <span class="overview-slice-title">Bundle a pinned TokenEconomizer and load it by default</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-1-block-file-tree-1" data-block-anchor="slice-1-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="7" y1="9" x2="14" y2="9" stroke="var(--border)"/></svg><code class="file-path">scripts/deploy-all.sh</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="9" stroke="var(--border)"/><line x1="7" y1="9" x2="14" y2="9" stroke="var(--border)"/></svg><code class="file-path">scripts/install.sh</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/tokeneconomizer.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/claude.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/launcher_doctor.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/harness/registry_claude.go</code></li>
+    <li class="file-entry"><code class="file-path">THIRD_PARTY_NOTICES.md (new)</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-2-block-file-tree-1" title="Jump to slice 2">
+          <span class="slice-num">#2</span>
+          <span class="overview-slice-title">Review and apply pruning proposals inside wipnote</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-2-block-file-tree-1" data-block-anchor="slice-2-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/economize.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/session_start.go</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-3-block-file-tree-1" title="Jump to slice 3">
+          <span class="slice-num">#3</span>
+          <span class="overview-slice-title">Protect tools that wipnote work types need, across projects</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-3-block-file-tree-1" data-block-anchor="slice-3-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/economize/protect.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/claude_env.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/harness/registry_claude.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/registry/registry.go</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-5-block-file-tree-1" title="Jump to slice 5">
+          <span class="slice-num">#5</span>
+          <span class="overview-slice-title">Export wipnote learnings and repeated gate failures as facts</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-5-block-file-tree-1" data-block-anchor="slice-5-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/economize/facts.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/session_end.go</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-6-block-file-tree-1" title="Jump to slice 6">
+          <span class="slice-num">#6</span>
+          <span class="overview-slice-title">Report cost per completed work item before and after</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-6-block-file-tree-1" data-block-anchor="slice-6-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/analytics.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/economize/report.go (new)</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  <div class="overview-group" data-block-kind="diagram">
+    <h3>Diagrams</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-1-block-diagram-1" title="Jump to slice 1">
+          <span class="slice-num">#1</span>
+          <span class="overview-slice-title">Bundle a pinned TokenEconomizer and load it by default</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-1-block-diagram-1" data-block-anchor="slice-1-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Launch decision</span></div>
+  <div class="diagram-flow diagram-tb"><svg xmlns="http://www.w3.org/2000/svg" width="601.6" height="388" viewBox="0 0 601.6 388" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="179.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="95.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">wipnote claude starts</text><path class="diagram-edge" d="M95.6 42 L149.6 74" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="6" y="74" width="287.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="149.6" y="96" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">WIPNOTE_NO_TOKENECONOMIZER set? skip</text><path class="diagram-edge" d="M149.6 110 L290 142" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="6" y="142" width="568" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="290" y="164" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">tokeneconomizer@ enabled in ~/.claude/settings.json? skip, keep user&#39;s copy</text><path class="diagram-edge" d="M290 178 L254 210" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="6" y="210" width="496" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="254" y="232" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">python3 &gt;= 3.10 on PATH? else skip and note it in launcher doctor</text><path class="diagram-edge" d="M254 246 L243.2 278" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="6" y="278" width="474.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="243.2" y="300" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">add --plugin-dir &lt;share&gt;/wipnote/vendor/tokeneconomizer/plugin</text><path class="diagram-edge" d="M243.2 314 L300.8 346" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="6" y="346" width="589.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="300.8" y="368" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">addIfUnset TE_TOOLPRUNE=propose, TE_MICROSKILLS=envfacts, TE_HISTORY_IMPORT=on</text></svg></div>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  
+</section>
 
 <!-- ZONE 1: Dependency Graph (drawn at render time — no script, no CDN) -->
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Bundle a pinned TokenEconomizer and load it by default" data-status="pending" data-deps="" data-files="7" data-questions="1"></div>
+    <div data-node="2" data-name="Review and apply pruning proposals inside wipnote" data-status="pending" data-deps="1" data-files="2"></div>
+    <div data-node="3" data-name="Protect tools that wipnote work types need, across projects" data-status="pending" data-deps="1" data-files="4" data-questions="1"></div>
+    <div data-node="4" data-name="Propose an external-facts input to TokenEconomizer upstream" data-status="pending" data-deps="" data-files="3"></div>
+    <div data-node="5" data-name="Export wipnote learnings and repeated gate failures as facts" data-status="pending" data-deps="4" data-files="2"></div>
+    <div data-node="6" data-name="Report cost per completed work item before and after" data-status="pending" data-deps="1" data-files="2"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" class="dep-graph-static"></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1255.6" height="216" viewBox="0 0 1255.6 216" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M329.6 77.76 L156.8 108 L156.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M476.8 80 L476.8 108 L476.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1098.8 80 L1098.8 108 L1098.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M624 77.76 L796.8 108 L796.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="329.6" y="24" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="476.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Bundle a pinned TokenEconomiz…  ?1</text><text class="dep-node-meta" x="476.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Review and apply pruning prop…</text><text class="dep-node-meta" x="156.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="329.6" y="136" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="476.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Protect tools that wipnote wo…  ?1</text><text class="dep-node-meta" x="476.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="966" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1098.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Propose an external-facts inp…</text><text class="dep-node-meta" x="1098.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="969.5999999999999" y="136" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1098.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Export wipnote learnings and…</text><text class="dep-node-meta" x="1098.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-6"><g id="graph-node-6" class="dep-node dep-node-pending"><rect class="dep-node-box" x="664" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="796.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#6 Report cost per completed wor…</text><text class="dep-node-meta" x="796.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -523,17 +726,38 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>TokenEconomizer cut 3,805 prompt tokens per request (45,232 to 41,427) on the
+wipnote repo, but only users who clone it and run two marketplace commands get
+it. Its defaults also fight wipnote: auto pruning removed 17 tools mid-session,
+and it learns per repository from transcripts alone, so it cannot know that a
+repo&#39;s first UI work item will need the Chrome tools, or what wipnote already
+tells the agent at session start.
+</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>Every wipnote claude launch loads a pinned TokenEconomizer unless the user opts out.</li>
+<li data-markdown>No tool removal happens without the user approving it inside wipnote.</li>
+<li data-markdown>Tools that any wipnote work type needs stay available in every project, including ones that have not done that work yet.</li>
+<li data-markdown>wipnote learnings and repeated gate failures reach TokenEconomizer&#39;s facts through a documented upstream input.</li>
+<li data-markdown>wipnote reports cost per completed work item before and after TokenEconomizer was enabled.</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>Claude Code only in this plan; Codex follows as separate work.</li>
+<li data-markdown>Never write TokenEconomizer&#39;s private state files (injection.json, untool.json, envelope.json); its maintainers treat them as a compatibility surface.</li>
+<li data-markdown>Hooks fail open; a machine without Python 3.10+ launches exactly as before.</li>
+<li data-markdown>A user&#39;s own TokenEconomizer install wins; never load two copies.</li>
+<li data-markdown>User-set TE_* environment variables always win (addIfUnset).</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -542,23 +766,942 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
+    <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 1: Bundle a pinned TokenEconomizer and load it by default">
+    <span class="slice-num">#1</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Bundle a pinned TokenEconomizer and load it by default</span>
+      <span class="slice-preview">Ship TokenEconomizer v0.1.0 in the release tarball beside the mods.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
     
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Ship TokenEconomizer v0.1.0 in the release tarball beside the mods. wipnote claude
+passes it with --plugin-dir unless WIPNOTE_NO_TOKENECONOMIZER is set, the user has
+their own install, or Python 3.10+ is missing. Launch defaults: pruning proposes
+only, envfacts facts, history import on.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Users get the measured saving without cloning anything, at one tested version,
+with defaults that never remove a tool unasked.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>scripts/deploy-all.sh, scripts/install.sh, cmd/wipnote/tokeneconomizer.go (new), cmd/wipnote/claude.go, cmd/wipnote/launcher_doctor.go, core/harness/registry_claude.go, THIRD_PARTY_NOTICES.md (new)</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>A fresh install from the release tarball has &lt;share&gt;/wipnote/vendor/tokeneconomizer/plugin and its LICENSE, and THIRD_PARTY_NOTICES.md names it</li><li>wipnote claude adds the TokenEconomizer --plugin-dir by default, and omits it when WIPNOTE_NO_TOKENECONOMIZER=1, when the user&#39;s settings enable tokeneconomizer@tokeneconomizer, or when no Python 3.10&#43; is found</li><li>The launch env carries TE_TOOLPRUNE=propose, TE_MICROSKILLS=envfacts and TE_HISTORY_IMPORT=on unless the user already set them</li><li>wipnote launcher doctor reports loaded, skipped (and why), and the pinned version</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-1-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> every wipnote claude launch (owner chose on by default, 2026-11-11).
+<strong>State:</strong> vendored tree at &lt;share&gt;/wipnote/vendor/tokeneconomizer, resolved like mods (env override, beside plugin, shared tree, dev checkout).
+<strong>Payload:</strong> --plugin-dir plus TE_* defaults via LaunchEnv addIfUnset.
+<strong>Rejected:</strong> opt-in only (owner wants reach); upstream auto pruning (removed 17 tools mid-session in this repo);
+<code>wipnote tokeneconomizer install</code> running the marketplace commands (unpinned, extra manual step);
+a Go port (rebuilds a moving research codebase and loses the paper&#39;s measured behaviour).</p>
+</div>
+        <label for="slice-1-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-1-block-file-tree-1" data-block-anchor="slice-1-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="7" y1="9" x2="14" y2="9" stroke="var(--border)"/></svg><code class="file-path">scripts/deploy-all.sh</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="9" stroke="var(--border)"/><line x1="7" y1="9" x2="14" y2="9" stroke="var(--border)"/></svg><code class="file-path">scripts/install.sh</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/tokeneconomizer.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/claude.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/launcher_doctor.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/harness/registry_claude.go</code></li>
+    <li class="file-entry"><code class="file-path">THIRD_PARTY_NOTICES.md (new)</code></li>
+    
+  </ul>
+</div></div>
+    <div class="block-anchor" id="slice-1-block-diagram-1" data-block-anchor="slice-1-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Launch decision</span></div>
+  <div class="diagram-flow diagram-tb"><svg xmlns="http://www.w3.org/2000/svg" width="601.6" height="388" viewBox="0 0 601.6 388" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="179.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="95.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">wipnote claude starts</text><path class="diagram-edge" d="M95.6 42 L149.6 74" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="6" y="74" width="287.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="149.6" y="96" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">WIPNOTE_NO_TOKENECONOMIZER set? skip</text><path class="diagram-edge" d="M149.6 110 L290 142" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="6" y="142" width="568" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="290" y="164" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">tokeneconomizer@ enabled in ~/.claude/settings.json? skip, keep user&#39;s copy</text><path class="diagram-edge" d="M290 178 L254 210" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="6" y="210" width="496" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="254" y="232" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">python3 &gt;= 3.10 on PATH? else skip and note it in launcher doctor</text><path class="diagram-edge" d="M254 246 L243.2 278" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="6" y="278" width="474.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="243.2" y="300" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">add --plugin-dir &lt;share&gt;/wipnote/vendor/tokeneconomizer/plugin</text><path class="diagram-edge" d="M243.2 314 L300.8 346" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="6" y="346" width="589.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="300.8" y="368" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">addIfUnset TE_TOOLPRUNE=propose, TE_MICROSKILLS=envfacts, TE_HISTORY_IMPORT=on</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 2</span>
+            <ul><li>TestResolveTokenEconomizerDir_{Default,OptOut,UserInstallWins,NoPython}</li><li>TestClaudeLaunchEnv_TokenEconomizerDefaults_UserValuesWin</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>install.sh into a temp prefix, assert the vendor tree and LICENSE exist</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>If the user already installed TokenEconomizer through the marketplace, load ours too?</p>
+          
+          
+          <textarea
+            data-section="slice-1-question-q-double-load"
+            data-comment-for="slice-1-question-q-double-load"
+            placeholder="Answer question q-double-load...">No. Their copy wins; loading both would run every hook twice and double-count the ledger.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: Review and apply pruning proposals inside wipnote">
+    <span class="slice-num">#2</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Review and apply pruning proposals inside wipnote</span>
+      <span class="slice-preview">Add wipnote economize with show, apply and restore, wrapping the bundled te CLI</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Add <code>wipnote economize</code> with show, apply and restore, wrapping the bundled te CLI
+with wipnote&#39;s protect list set. SessionStart adds one line when a proposal is
+pending, with the token saving from <code>te toolprune measure</code> once measured.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>With pruning set to propose, the saving only arrives when someone applies the list;
+this gives users one visible, reversible step instead of a hidden te script path.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/economize.go (new), core/hooks/session_start.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>wipnote economize show lists the pending proposal with wipnote&#39;s protect list applied</li><li>wipnote economize apply writes it and restore removes only the rules TokenEconomizer added</li><li>SessionStart context names a pending proposal in one line and stays silent when none is pending</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-2-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> user runs wipnote economize, or a session starts with a pending proposal.
+<strong>State:</strong> none in wipnote; te owns the proposal and the applied list.
+<strong>Payload:</strong> te stdout passed through; SessionStart adds one line.
+<strong>Rejected:</strong> auto-apply at SessionEnd (same mid-session surprise as upstream auto);
+parsing .claude/settings.local.json in Go (duplicates te&#39;s own bookkeeping of which rules it added).</p>
+</div>
+        <label for="slice-2-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-2-block-file-tree-1" data-block-anchor="slice-2-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/economize.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/session_start.go</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 2</span>
+            <ul><li>TestEconomize_ShowApplyRestore against a fake te script</li><li>TestSessionStart_PendingProposalLine_{Pending,None,NotLoaded}</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: Protect tools that wipnote work types need, across projects">
+    <span class="slice-num">#3</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Protect tools that wipnote work types need, across projects</span>
+      <span class="slice-preview">Replace the hard-coded TETOOLPRUNEPROTECT list with one built at launch: tools</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Replace the hard-coded TE_TOOLPRUNE_PROTECT list with one built at launch: tools
+declared in wipnote&#39;s agent frontmatter, wipnote&#39;s MCP tools, and tools that sessions
+of each work type used in other registered wipnote projects.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>TokenEconomizer never prunes a tool this repo has used, so the gap is tools this repo
+has not needed yet: a repo&#39;s first UI item still needs the Chrome tools that UI work
+used elsewhere.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/economize/protect.go (new), cmd/wipnote/claude_env.go, core/harness/registry_claude.go, internal/registry/registry.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>The launch env&#39;s TE_TOOLPRUNE_PROTECT includes every tool named in plugin/agents/*.md tools: frontmatter</li><li>A tool that a work type used in another registered project is protected in a project that has no session of that type</li><li>The list stays under 4 KB and is built in under 200 ms with 50 registered projects</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-3-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> each wipnote claude launch, before env is built.
+<strong>State:</strong> read-only over registered projects&#39; stores; nothing written.
+<strong>Payload:</strong> comma-separated fnmatch patterns in TE_TOOLPRUNE_PROTECT (addIfUnset).
+<strong>Rejected:</strong> this repo&#39;s own history only (TokenEconomizer already protects ever-used tools, so it adds nothing);
+protecting every tool ever used anywhere (would protect most of the catalog and cancel the saving).</p>
+</div>
+        <label for="slice-3-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-3-block-file-tree-1" data-block-anchor="slice-3-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/economize/protect.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/claude_env.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/harness/registry_claude.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/registry/registry.go</code></li>
+    
+  </ul>
+</div></div>
+    <div class="block-anchor" id="slice-3-block-data-model-1" data-block-anchor="slice-3-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Protect list sources</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>agent_tools</code></td><td><code>tools: frontmatter in plugin/agents/*.md</code></td><td>&mdash;</td></tr>
+      <tr><td><code>wipnote_mcp</code></td><td><code>pattern mcp__plugin_wipnote_*</code></td><td>&mdash;</td></tr>
+      <tr><td><code>work_type_tools</code></td><td><code>AgentEvent.ToolName grouped by work-item type, from registered projects</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 2</span>
+            <ul><li>TestProtectList_IncludesAgentFrontmatterTools</li><li>TestProtectList_CrossProjectWorkType (two temp projects, UI item in one)</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="bench">
+            <span class="test-chip">BENCH &middot; 1</span>
+            <ul><li>BenchmarkProtectList_50Projects</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>How much cross-project use makes a tool protected for a work type?</p>
+          
+          
+          <textarea
+            data-section="slice-3-question-q-threshold"
+            data-comment-for="slice-3-question-q-threshold"
+            placeholder="Answer question q-threshold...">Used in sessions of at least two completed items of that type, so one stray call does not protect a tool everywhere.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Propose an external-facts input to TokenEconomizer upstream">
+    <span class="slice-num">#4</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Propose an external-facts input to TokenEconomizer upstream</span>
+      <span class="slice-preview">Open a pull request to microsoft/TokenEconomizer adding a documented, read-only input:</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Open a pull request to microsoft/TokenEconomizer adding a documented, read-only input:
+a per-repository file of facts another tool already supplies, passed to the
+distiller&#39;s existing external_facts parameter and optionally injected as confirmed facts.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>wipnote must not write TokenEconomizer&#39;s private state; a documented input lets
+wipnote&#39;s knowledge stop the proposer paying to rediscover it.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>tokeneconomizer/plugin/fold.py (upstream microsoft/TokenEconomizer), tokeneconomizer/microskills/distiller.py (upstream microsoft/TokenEconomizer), docs/PLUGIN.md (upstream microsoft/TokenEconomizer)</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>A pull request is open upstream with tests in their suite (python -m pytest tests)</li><li>The upstream maintainers&#39; response is recorded on the feature; if declined, slice 5 switches to wipnote&#39;s own SessionStart injection</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Trigger:</strong> owner chose an upstream PR over wipnote-only injection (2026-11-11).
+<strong>State:</strong> one JSON file per repo state dir, written by other tools, read by fold.
+<strong>Payload:</strong> see data-model block.
+<strong>Rejected:</strong> writing injection.json directly (private, versioned state);
+wipnote-only injection (proposer keeps paying to rediscover the same facts).</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-4-block-data-model-1" data-block-anchor="slice-4-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">&lt;state root&gt;/repos/&lt;repo key&gt;/external_facts.json (proposed)</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>source</code></td><td><code>string (&#34;wipnote&#34;)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>facts</code></td><td><code>list of {text: string, kind: string, evidence: int}</code></td><td>&mdash;</td></tr>
+      <tr><td><code>written_at</code></td><td><code>RFC3339 string</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="upstream">
+            <span class="test-chip">UPSTREAM &middot; 1</span>
+            <ul><li>test that facts in external_facts.json reach the proposer prompt and are not re-proposed</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 5: Export wipnote learnings and repeated gate failures as facts">
+    <span class="slice-num">#5</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Export wipnote learnings and repeated gate failures as facts</span>
+      <span class="slice-preview">At SessionEnd, write the external-facts file for the repo from completed items&#39;</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-5-approval" value="changes_requested" data-section="slice-5" data-action="approve" aria-label="Request changes for slice 5">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-5-approval" value="rejected" data-section="slice-5" data-action="approve" aria-label="Reject slice 5">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>At SessionEnd, write the external-facts file for the repo from completed items&#39;
+--learning text and quality-gate failures that repeated across sessions, capped to the
+newest 20 facts.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>These are exactly the durable repo facts TokenEconomizer would otherwise need three
+sessions to confirm.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/economize/facts.go (new), core/hooks/session_end.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>After SessionEnd the repo&#39;s external_facts.json holds the newest learnings and repeated gate failures, at most 20</li><li>No file is written when TokenEconomizer is not loaded or slice 4&#39;s input is not in the pinned version</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Trigger:</strong> SessionEnd hook.
+<strong>State:</strong> reads the wipnote store; writes only external_facts.json.
+<strong>Payload:</strong> the slice 4 schema.
+<strong>Rejected:</strong> SessionStart export (adds latency to every launch);
+exporting every learning (noise; the injected block has a token cap).</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-5-block-file-tree-1" data-block-anchor="slice-5-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/economize/facts.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">core/hooks/session_end.go</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 2</span>
+            <ul><li>TestExportFacts_LearningsAndRepeatedGateFailures</li><li>TestExportFacts_SkipsWhenUnsupported</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 4</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slice-6" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 6: Report cost per completed work item before and after">
+    <span class="slice-num">#6</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Report cost per completed work item before and after</span>
+      <span class="slice-preview">Add wipnote analytics economize: median and mean cost per completed work item, by</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" aria-label="Approve slice 6">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-6-approval" value="changes_requested" data-section="slice-6" data-action="approve" aria-label="Request changes for slice 6">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-6-approval" value="rejected" data-section="slice-6" data-action="approve" aria-label="Reject slice 6">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Add <code>wipnote analytics economize</code>: median and mean cost per completed work item, by
+item type, for sessions before and after TokenEconomizer first loaded in the project,
+with session counts so small samples are visible.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The per-request saving is not the outcome; cost per finished item is, and it is the
+paper&#39;s own metric.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/analytics.go, internal/economize/report.go (new)</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>The report shows before and after median and mean cost per completed item by type, with n for each</li><li>The before/after boundary is the first session in which TokenEconomizer loaded, recorded by slice 1</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Trigger:</strong> user runs the analytics subcommand.
+<strong>State:</strong> read-only over sessions&#39; OTel cost and their work-item attribution.
+<strong>Payload:</strong> a table; --json for machine use.
+<strong>Rejected:</strong> a single headline percentage (hides small samples and mixed item types).</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-6-block-file-tree-1" data-block-anchor="slice-6-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/analytics.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/economize/report.go (new)</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 2</span>
+            <ul><li>TestEconomizeReport_SplitsAtFirstLoad</li><li>TestEconomizeReport_ShowsSampleSizes</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-6" data-comment-for="slice-6" placeholder="Comments on slice 6..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        <!--PLAN_QUESTIONS_RECAP-->
-      </tbody>
-    </table>
-  </div>
-</details>
+
 
 
 
@@ -569,8 +1712,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">7</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">7</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -662,7 +1805,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5","slice-6"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');

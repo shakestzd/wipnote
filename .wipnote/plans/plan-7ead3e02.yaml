@@ -7,12 +7,357 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 2
+    version: 3
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |
+        TokenEconomizer cut 3,805 prompt tokens per request (45,232 to 41,427) on the
+        wipnote repo, but only users who clone it and run two marketplace commands get
+        it. Its defaults also fight wipnote: auto pruning removed 17 tools mid-session,
+        and it learns per repository from transcripts alone, so it cannot know that a
+        repo's first UI work item will need the Chrome tools, or what wipnote already
+        tells the agent at session start.
+    goals:
+        - Every wipnote claude launch loads a pinned TokenEconomizer unless the user opts out.
+        - No tool removal happens without the user approving it inside wipnote.
+        - Tools that any wipnote work type needs stay available in every project, including ones that have not done that work yet.
+        - wipnote learnings and repeated gate failures reach TokenEconomizer's facts through a documented upstream input.
+        - wipnote reports cost per completed work item before and after TokenEconomizer was enabled.
+    constraints:
+        - Claude Code only in this plan; Codex follows as separate work.
+        - Never write TokenEconomizer's private state files (injection.json, untool.json, envelope.json); its maintainers treat them as a compatibility surface.
+        - Hooks fail open; a machine without Python 3.10+ launches exactly as before.
+        - A user's own TokenEconomizer install wins; never load two copies.
+        - User-set TE_* environment variables always win (addIfUnset).
     approved: false
     comment: ""
-slices: []
+    research:
+        - url: https://github.com/microsoft/TokenEconomizer
+          claim: Plugin layout, Apache-2.0 licence, v0.1.0 tag, TE_* settings read from env, toolprune never prunes a tool ever used in the repo or one listed in toolprune_protect.
+          accessed: "2026-11-11"
+        - url: https://arxiv.org/abs/2610.22732
+          claim: Paper reports 18.4-30.9% lower mean cost on SWE-Bench across five agent-model combinations; the metric is cost per task.
+          accessed: "2026-11-11"
+        - url: https://code.claude.com/docs/en/plugins
+          claim: --plugin-dir loads a plugin for one session, the mechanism wipnote already uses for its plugin and mods.
+          accessed: "2026-11-11"
+slices:
+    - id: slice-1
+      num: 1
+      title: Bundle a pinned TokenEconomizer and load it by default
+      what: |
+        Ship TokenEconomizer v0.1.0 in the release tarball beside the mods. wipnote claude
+        passes it with --plugin-dir unless WIPNOTE_NO_TOKENECONOMIZER is set, the user has
+        their own install, or Python 3.10+ is missing. Launch defaults: pruning proposes
+        only, envfacts facts, history import on.
+      why: |
+        Users get the measured saving without cloning anything, at one tested version,
+        with defaults that never remove a tool unasked.
+      files:
+        - scripts/deploy-all.sh
+        - scripts/install.sh
+        - cmd/wipnote/tokeneconomizer.go (new)
+        - cmd/wipnote/claude.go
+        - cmd/wipnote/launcher_doctor.go
+        - core/harness/registry_claude.go
+        - THIRD_PARTY_NOTICES.md (new)
+      deps: []
+      done_when:
+        - A fresh install from the release tarball has <share>/wipnote/vendor/tokeneconomizer/plugin and its LICENSE, and THIRD_PARTY_NOTICES.md names it
+        - wipnote claude adds the TokenEconomizer --plugin-dir by default, and omits it when WIPNOTE_NO_TOKENECONOMIZER=1, when the user's settings enable tokeneconomizer@tokeneconomizer, or when no Python 3.10+ is found
+        - The launch env carries TE_TOOLPRUNE=propose, TE_MICROSKILLS=envfacts and TE_HISTORY_IMPORT=on unless the user already set them
+        - wipnote launcher doctor reports loaded, skipped (and why), and the pinned version
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestResolveTokenEconomizerDir_{Default,OptOut,UserInstallWins,NoPython}
+        Unit: TestClaudeLaunchEnv_TokenEconomizerDefaults_UserValuesWin
+        Integration: install.sh into a temp prefix, assert the vendor tree and LICENSE exist
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://github.com/microsoft/TokenEconomizer/blob/main/plugin/.claude-plugin/plugin.json
+          claim: The Claude plugin root is plugin/; hooks run scripts/te-hook under the first python3 on PATH and fail open.
+          accessed: "2026-11-11"
+      adopt_vs_build:
+        decision: adopt
+        package: microsoft/TokenEconomizer v0.1.0 (Apache-2.0)
+      questions:
+        - id: q-double-load
+          text: If the user already installed TokenEconomizer through the marketplace, load ours too?
+          answer: No. Their copy wins; loading both would run every hook twice and double-count the ledger.
+      decisions_notes: |
+        **Trigger:** every wipnote claude launch (owner chose on by default, 2026-11-11).
+        **State:** vendored tree at <share>/wipnote/vendor/tokeneconomizer, resolved like mods (env override, beside plugin, shared tree, dev checkout).
+        **Payload:** --plugin-dir plus TE_* defaults via LaunchEnv addIfUnset.
+        **Rejected:** opt-in only (owner wants reach); upstream auto pruning (removed 17 tools mid-session in this repo);
+          `wipnote tokeneconomizer install` running the marketplace commands (unpinned, extra manual step);
+          a Go port (rebuilds a moving research codebase and loses the paper's measured behaviour).
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - scripts/deploy-all.sh
+            - scripts/install.sh
+            - cmd/wipnote/tokeneconomizer.go (new)
+            - cmd/wipnote/claude.go
+            - cmd/wipnote/launcher_doctor.go
+            - core/harness/registry_claude.go
+            - THIRD_PARTY_NOTICES.md (new)
+        - type: diagram
+          title: Launch decision
+          fields:
+            direction: tb
+          entries:
+            - wipnote claude starts
+            - WIPNOTE_NO_TOKENECONOMIZER set? skip
+            - tokeneconomizer@ enabled in ~/.claude/settings.json? skip, keep user's copy
+            - python3 >= 3.10 on PATH? else skip and note it in launcher doctor
+            - add --plugin-dir <share>/wipnote/vendor/tokeneconomizer/plugin
+            - addIfUnset TE_TOOLPRUNE=propose, TE_MICROSKILLS=envfacts, TE_HISTORY_IMPORT=on
+    - id: slice-2
+      num: 2
+      title: Review and apply pruning proposals inside wipnote
+      what: |
+        Add `wipnote economize` with show, apply and restore, wrapping the bundled te CLI
+        with wipnote's protect list set. SessionStart adds one line when a proposal is
+        pending, with the token saving from `te toolprune measure` once measured.
+      why: |
+        With pruning set to propose, the saving only arrives when someone applies the list;
+        this gives users one visible, reversible step instead of a hidden te script path.
+      files:
+        - cmd/wipnote/economize.go (new)
+        - core/hooks/session_start.go
+      deps:
+        - 1
+      done_when:
+        - wipnote economize show lists the pending proposal with wipnote's protect list applied
+        - wipnote economize apply writes it and restore removes only the rules TokenEconomizer added
+        - SessionStart context names a pending proposal in one line and stays silent when none is pending
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestEconomize_ShowApplyRestore against a fake te script
+        Unit: TestSessionStart_PendingProposalLine_{Pending,None,NotLoaded}
+      complexity: standard
+      approved: false
+      comment: ""
+      research_waiver: Wraps the te CLI already read and run in this session (toolprune show, apply, measure); no new external contract.
+      adopt_vs_build:
+        decision: adopt
+        package: TokenEconomizer te CLI (toolprune show/apply/restore/measure)
+      decisions_notes: |
+        **Trigger:** user runs wipnote economize, or a session starts with a pending proposal.
+        **State:** none in wipnote; te owns the proposal and the applied list.
+        **Payload:** te stdout passed through; SessionStart adds one line.
+        **Rejected:** auto-apply at SessionEnd (same mid-session surprise as upstream auto);
+          parsing .claude/settings.local.json in Go (duplicates te's own bookkeeping of which rules it added).
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/economize.go (new)
+            - core/hooks/session_start.go
+    - id: slice-3
+      num: 3
+      title: Protect tools that wipnote work types need, across projects
+      what: |
+        Replace the hard-coded TE_TOOLPRUNE_PROTECT list with one built at launch: tools
+        declared in wipnote's agent frontmatter, wipnote's MCP tools, and tools that sessions
+        of each work type used in other registered wipnote projects.
+      why: |
+        TokenEconomizer never prunes a tool this repo has used, so the gap is tools this repo
+        has not needed yet: a repo's first UI item still needs the Chrome tools that UI work
+        used elsewhere.
+      files:
+        - internal/economize/protect.go (new)
+        - cmd/wipnote/claude_env.go
+        - core/harness/registry_claude.go
+        - internal/registry/registry.go
+      deps:
+        - 1
+      done_when:
+        - 'The launch env''s TE_TOOLPRUNE_PROTECT includes every tool named in plugin/agents/*.md tools: frontmatter'
+        - A tool that a work type used in another registered project is protected in a project that has no session of that type
+        - The list stays under 4 KB and is built in under 200 ms with 50 registered projects
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestProtectList_IncludesAgentFrontmatterTools
+        Unit: TestProtectList_CrossProjectWorkType (two temp projects, UI item in one)
+        Bench: BenchmarkProtectList_50Projects
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://github.com/microsoft/TokenEconomizer/blob/main/tokeneconomizer/toolprune/__init__.py
+          claim: Proposals never include a tool ever used in the repo, so in-repo history adds no protection.
+          accessed: "2026-11-11"
+      adopt_vs_build:
+        decision: build
+        rejected:
+            - 'TokenEconomizer INTERACTIVE_PROTECTED: repo-wide fixed list, no notion of work type'
+            - 'Keep the hard-coded constant: misses tools new agents or skills add, and anything learned elsewhere'
+      questions:
+        - id: q-threshold
+          text: How much cross-project use makes a tool protected for a work type?
+          answer: Used in sessions of at least two completed items of that type, so one stray call does not protect a tool everywhere.
+      decisions_notes: |
+        **Trigger:** each wipnote claude launch, before env is built.
+        **State:** read-only over registered projects' stores; nothing written.
+        **Payload:** comma-separated fnmatch patterns in TE_TOOLPRUNE_PROTECT (addIfUnset).
+        **Rejected:** this repo's own history only (TokenEconomizer already protects ever-used tools, so it adds nothing);
+          protecting every tool ever used anywhere (would protect most of the catalog and cancel the saving).
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - internal/economize/protect.go (new)
+            - cmd/wipnote/claude_env.go
+            - core/harness/registry_claude.go
+            - internal/registry/registry.go
+        - type: data-model
+          fields:
+            name: Protect list sources
+          rows:
+            - name: agent_tools
+              type: 'tools: frontmatter in plugin/agents/*.md'
+            - name: wipnote_mcp
+              type: pattern mcp__plugin_wipnote_*
+            - name: work_type_tools
+              type: AgentEvent.ToolName grouped by work-item type, from registered projects
+    - id: slice-4
+      num: 4
+      title: Propose an external-facts input to TokenEconomizer upstream
+      what: |
+        Open a pull request to microsoft/TokenEconomizer adding a documented, read-only input:
+        a per-repository file of facts another tool already supplies, passed to the
+        distiller's existing external_facts parameter and optionally injected as confirmed facts.
+      why: |
+        wipnote must not write TokenEconomizer's private state; a documented input lets
+        wipnote's knowledge stop the proposer paying to rediscover it.
+      files:
+        - tokeneconomizer/plugin/fold.py (upstream microsoft/TokenEconomizer)
+        - tokeneconomizer/microskills/distiller.py (upstream microsoft/TokenEconomizer)
+        - docs/PLUGIN.md (upstream microsoft/TokenEconomizer)
+      deps: []
+      done_when:
+        - A pull request is open upstream with tests in their suite (python -m pytest tests)
+        - The upstream maintainers' response is recorded on the feature; if declined, slice 5 switches to wipnote's own SessionStart injection
+      effort: M
+      risk: Med
+      tests: |
+        Upstream: test that facts in external_facts.json reach the proposer prompt and are not re-proposed
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://github.com/microsoft/TokenEconomizer/blob/main/tokeneconomizer/microskills/distiller.py
+          claim: Distiller already accepts external_facts and tells the proposer not to restate them; only the internal envfacts layer fills it today.
+          accessed: "2026-11-11"
+      decisions_notes: |
+        **Trigger:** owner chose an upstream PR over wipnote-only injection (2026-11-11).
+        **State:** one JSON file per repo state dir, written by other tools, read by fold.
+        **Payload:** see data-model block.
+        **Rejected:** writing injection.json directly (private, versioned state);
+          wipnote-only injection (proposer keeps paying to rediscover the same facts).
+      blocks:
+        - type: data-model
+          fields:
+            name: <state root>/repos/<repo key>/external_facts.json (proposed)
+          rows:
+            - name: source
+              type: string ("wipnote")
+            - name: facts
+              type: 'list of {text: string, kind: string, evidence: int}'
+            - name: written_at
+              type: RFC3339 string
+    - id: slice-5
+      num: 5
+      title: Export wipnote learnings and repeated gate failures as facts
+      what: |
+        At SessionEnd, write the external-facts file for the repo from completed items'
+        --learning text and quality-gate failures that repeated across sessions, capped to the
+        newest 20 facts.
+      why: |
+        These are exactly the durable repo facts TokenEconomizer would otherwise need three
+        sessions to confirm.
+      files:
+        - internal/economize/facts.go (new)
+        - core/hooks/session_end.go
+      deps:
+        - 4
+      done_when:
+        - After SessionEnd the repo's external_facts.json holds the newest learnings and repeated gate failures, at most 20
+        - No file is written when TokenEconomizer is not loaded or slice 4's input is not in the pinned version
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestExportFacts_LearningsAndRepeatedGateFailures
+        Unit: TestExportFacts_SkipsWhenUnsupported
+      complexity: standard
+      approved: false
+      comment: ""
+      research_waiver: Depends on the file contract agreed in slice 4; no other external source.
+      adopt_vs_build:
+        decision: build
+        rejected:
+            - 'TokenEconomizer envfacts extractors: read transcripts only, never wipnote learnings or gate records'
+      decisions_notes: |
+        **Trigger:** SessionEnd hook.
+        **State:** reads the wipnote store; writes only external_facts.json.
+        **Payload:** the slice 4 schema.
+        **Rejected:** SessionStart export (adds latency to every launch);
+          exporting every learning (noise; the injected block has a token cap).
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - internal/economize/facts.go (new)
+            - core/hooks/session_end.go
+    - id: slice-6
+      num: 6
+      title: Report cost per completed work item before and after
+      what: |
+        Add `wipnote analytics economize`: median and mean cost per completed work item, by
+        item type, for sessions before and after TokenEconomizer first loaded in the project,
+        with session counts so small samples are visible.
+      why: |
+        The per-request saving is not the outcome; cost per finished item is, and it is the
+        paper's own metric.
+      files:
+        - cmd/wipnote/analytics.go
+        - internal/economize/report.go (new)
+      deps:
+        - 1
+      done_when:
+        - The report shows before and after median and mean cost per completed item by type, with n for each
+        - The before/after boundary is the first session in which TokenEconomizer loaded, recorded by slice 1
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestEconomizeReport_SplitsAtFirstLoad
+        Unit: TestEconomizeReport_ShowsSampleSizes
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://arxiv.org/abs/2610.22732
+          claim: The paper compares mean cost per task; per-item cost is the matching unit in wipnote.
+          accessed: "2026-11-11"
+      adopt_vs_build:
+        decision: build
+        rejected:
+            - 'te status ledger: per session only, no link to wipnote work items or types'
+      decisions_notes: |
+        **Trigger:** user runs the analytics subcommand.
+        **State:** read-only over sessions' OTel cost and their work-item attribution.
+        **Payload:** a table; --json for machine use.
+        **Rejected:** a single headline percentage (hides small samples and mixed item types).
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/analytics.go
+            - internal/economize/report.go (new)
 questions: []
