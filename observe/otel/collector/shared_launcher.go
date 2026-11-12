@@ -17,8 +17,10 @@ import (
 
 // SharedCollectorOpts configures a SharedCollector.
 type SharedCollectorOpts struct {
-	// Stderr receives warning lines. Defaults to os.Stderr.
-	Stderr io.Writer
+	// Log receives the watchdog's warnings, which happen while the harness
+	// owns the terminal: a line written there lands inside its prompt
+	// (bug-fa4bb927). Nil appends to the project's otel-collector.log.
+	Log io.Writer
 	// SpawnFn starts a shared collector. Nil means DefaultSharedSpawnFn.
 	SpawnFn SharedSpawnFn
 	// WatchdogIntervalEnv names the env var overriding the watchdog interval.
@@ -37,9 +39,6 @@ type SharedCollector struct {
 
 // NewSharedCollector returns a SharedCollector configured by opts.
 func NewSharedCollector(opts SharedCollectorOpts) *SharedCollector {
-	if opts.Stderr == nil {
-		opts.Stderr = os.Stderr
-	}
 	if opts.SpawnFn == nil {
 		opts.SpawnFn = DefaultSharedSpawnFn
 	}
@@ -127,22 +126,37 @@ func (w *sharedWatch) check() {
 	}
 	rec, err := EnsureShared(w.binPath, w.projectDir, w.c.opts.SpawnFn)
 	if err != nil {
-		fmt.Fprintf(w.c.opts.Stderr, "wipnote: warning: shared collector re-ensure failed: %v\n", err)
+		w.logf("shared collector re-ensure failed: %v", err)
 		return
 	}
 	if err := postLauncher(rec.Port, AttachPath, os.Getpid()); err != nil {
-		fmt.Fprintf(w.c.opts.Stderr, "wipnote: warning: shared collector re-attach failed: %v\n", err)
+		w.logf("shared collector re-attach failed: %v", err)
 		return
 	}
 	if rec.Port != w.exportPort && rec.Port != w.warnedPort {
 		w.warnedPort = rec.Port
-		fmt.Fprintf(w.c.opts.Stderr, "wipnote: warning: shared collector moved to port %d; this session still exports to %d: %s\n",
-			rec.Port, w.exportPort, MovedPortAdvice(w.c.opts.Harness))
+		w.logf("shared collector moved to port %d; session %s still exports to %d: %s",
+			rec.Port, w.sessionID, w.exportPort, MovedPortAdvice(w.c.opts.Harness))
 	}
 	w.writePID(rec)
 	w.mu.Lock()
 	w.rec = rec
 	w.mu.Unlock()
+}
+
+// logf writes one timestamped watchdog warning to opts.Log, or appends it to
+// the project's otel-collector.log, where `wipnote doctor` and a person
+// debugging telemetry look.
+func (w *sharedWatch) logf(format string, args ...any) {
+	line := fmt.Sprintf("%s wipnote: warning: "+format+"\n", append([]any{time.Now().UTC().Format(time.RFC3339)}, args...)...)
+	if w.c.opts.Log != nil {
+		_, _ = io.WriteString(w.c.opts.Log, line)
+		return
+	}
+	if f := openSharedLog(w.projectDir); f != nil {
+		_, _ = f.WriteString(line)
+		_ = f.Close()
+	}
 }
 
 // postLauncher registers (AttachPath) or releases (DetachPath) a launcher
