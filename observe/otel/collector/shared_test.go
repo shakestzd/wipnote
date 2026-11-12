@@ -24,6 +24,8 @@ type fakeShared struct {
 	attached sync.Map
 	// detachedSession is the ?session= of the last detach.
 	detachedSession atomic.Value
+	// healthDelay stalls each /healthz answer, standing in for a busy collector.
+	healthDelay atomic.Int64
 }
 
 func startFakeShared(t *testing.T, requestedPort, pid int) (*fakeShared, error) {
@@ -35,6 +37,7 @@ func startFakeShared(t *testing.T, requestedPort, pid int) (*fakeShared, error) 
 	f := &fakeShared{port: ln.Addr().(*net.TCPAddr).Port, pid: pid}
 	mux := http.NewServeMux()
 	mux.HandleFunc(HealthPath, func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(time.Duration(f.healthDelay.Load()))
 		_ = json.NewEncoder(w).Encode(Health{PID: f.pid, Mode: "shared"})
 	})
 	mux.HandleFunc(AttachPath, func(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +172,7 @@ func TestSharedCollector_SpawnAttachesAndCleanupDetaches(t *testing.T) {
 	project := mkSharedProject(t)
 	var calls atomic.Int32
 	var last *fakeShared
-	sc := NewSharedCollector(SharedCollectorOpts{Stderr: io.Discard, SpawnFn: countingSpawn(t, &calls, &last)})
+	sc := NewSharedCollector(SharedCollectorOpts{Log: io.Discard, SpawnFn: countingSpawn(t, &calls, &last)})
 
 	port, cleanup, err := sc.Spawn("wipnote", "sess1", project)
 	if err != nil {
@@ -256,12 +259,12 @@ func (s *syncBuf) String() string {
 
 // movedPortWatch attaches a session on a fake collector, kills that collector
 // and occupies its port so the next re-ensure falls back to another port.
-func movedPortWatch(t *testing.T, harness string, errW io.Writer) (w *sharedWatch, project, pidFile string, oldPort int) {
+func movedPortWatch(t *testing.T, harness string, logW io.Writer) (w *sharedWatch, project, pidFile string, oldPort int) {
 	t.Helper()
 	project = mkSharedProject(t)
 	var calls atomic.Int32
 	var last *fakeShared
-	sc := NewSharedCollector(SharedCollectorOpts{Stderr: errW, SpawnFn: countingSpawn(t, &calls, &last), Harness: harness})
+	sc := NewSharedCollector(SharedCollectorOpts{Log: logW, SpawnFn: countingSpawn(t, &calls, &last), Harness: harness})
 	port, cleanup, err := sc.Spawn("wipnote", "sessM", project)
 	if err != nil {
 		t.Fatal(err)
@@ -318,7 +321,7 @@ func TestSharedCollector_SpawnRecordsExportPort(t *testing.T) {
 	project := mkSharedProject(t)
 	var calls atomic.Int32
 	var last *fakeShared
-	sc := NewSharedCollector(SharedCollectorOpts{Stderr: io.Discard, SpawnFn: countingSpawn(t, &calls, &last), Harness: "codex"})
+	sc := NewSharedCollector(SharedCollectorOpts{Log: io.Discard, SpawnFn: countingSpawn(t, &calls, &last), Harness: "codex"})
 	port, cleanup, err := sc.Spawn("wipnote", "sessE", project)
 	if err != nil {
 		t.Fatal(err)
@@ -328,5 +331,47 @@ func TestSharedCollector_SpawnRecordsExportPort(t *testing.T) {
 	exp := ReadSessionExport(pidFile)
 	if exp.Port != port || exp.Launcher != os.Getpid() || exp.Harness != "codex" {
 		t.Fatalf("export record = %+v, want port %d launcher %d codex", exp, port, os.Getpid())
+	}
+}
+
+// A collector that is alive but answers its health probe slowly is not
+// replaced: replacing it moved the port under every running session
+// (bug-fa4bb927).
+func TestEnsureShared_SlowLiveCollectorIsKept(t *testing.T) {
+	oldProbe, oldSlow := sharedProbeTimeout, sharedSlowProbeTimeout
+	sharedProbeTimeout, sharedSlowProbeTimeout = 100*time.Millisecond, 2*time.Second
+	t.Cleanup(func() { sharedProbeTimeout, sharedSlowProbeTimeout = oldProbe, oldSlow })
+
+	project := mkSharedProject(t)
+	var calls atomic.Int32
+	var last *fakeShared
+	spawn := countingSpawn(t, &calls, &last)
+	first, err := EnsureShared("wipnote", project, spawn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last.healthDelay.Store(int64(400 * time.Millisecond))
+
+	second, err := EnsureShared("wipnote", project, spawn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 1 || second.Port != first.Port {
+		t.Fatalf("slow collector replaced: spawns=%d port %d -> %d", calls.Load(), first.Port, second.Port)
+	}
+}
+
+// Watchdog warnings go to the project's collector log, never to the terminal
+// the harness owns: a line written there lands inside its prompt
+// (bug-fa4bb927).
+func TestSharedWatch_WarningsGoToTheCollectorLog(t *testing.T) {
+	w, project, _, _ := movedPortWatch(t, "claude", nil)
+	w.check()
+	data, err := os.ReadFile(filepath.Join(project, ".wipnote", "logs", "otel-collector.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "moved to port") || !strings.Contains(string(data), "sessM") {
+		t.Fatalf("collector log lacks the moved warning:\n%s", data)
 	}
 }

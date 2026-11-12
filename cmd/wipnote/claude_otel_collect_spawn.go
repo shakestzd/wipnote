@@ -51,7 +51,6 @@ func sharedCollectorEnabled() bool {
 // collector, starting it when none answers.
 func attachSharedCollectorTo(projectDir, binPath, sessionID, harness string, errW io.Writer) (otelEnvOverrides, error) {
 	sc := collector.NewSharedCollector(collector.SharedCollectorOpts{
-		Stderr:  errW,
 		SpawnFn: spawnSharedCollectorFn,
 		Harness: harness,
 	})

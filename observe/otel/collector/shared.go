@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -60,7 +61,17 @@ type SharedSpawnFn func(binPath, projectDir string, requestedPort int) (int, *os
 
 // sharedLockTimeout bounds how long a launch waits for another launch that is
 // spawning the collector right now.
-var sharedLockTimeout = 5 * time.Second
+var sharedLockTimeout = 15 * time.Second
+
+// Health probe timing. A probe that times out against a collector whose pid is
+// alive is retried with the slower timeout before the collector is judged
+// dead: replacing a busy collector moves the port under every running session,
+// whose exporters cannot follow (bug-fa4bb927).
+var (
+	sharedProbeTimeout     = time.Second
+	sharedSlowProbeTimeout = 3 * time.Second
+	sharedSlowProbes       = 2
+)
 
 // SharedLeasePath is the shared collector lease file for projectDir.
 func SharedLeasePath(projectDir string) string {
@@ -148,8 +159,18 @@ func ProbeHealth(port int, timeout time.Duration) (Health, error) {
 // sharedHealthy reports whether rec names a live collector that answers its
 // own health probe with rec's pid.
 func sharedHealthy(rec SharedRecord) bool {
-	h, err := ProbeHealth(rec.Port, time.Second)
+	h, err := ProbeHealth(rec.Port, sharedProbeTimeout)
+	for i := 0; i < sharedSlowProbes && isTimeout(err) && PIDAlive(rec.PID); i++ {
+		h, err = ProbeHealth(rec.Port, sharedSlowProbeTimeout)
+	}
 	return err == nil && h.PID == rec.PID
+}
+
+// isTimeout reports whether err is a timeout, as opposed to a refused
+// connection or a bad answer, which no amount of waiting fixes.
+func isTimeout(err error) bool {
+	var ne net.Error
+	return errors.As(err, &ne) && ne.Timeout()
 }
 
 // EnsureShared returns the project's live shared collector, spawning one when
