@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote run tee writes stdout and stderr concurrently to a shared writer; flaky TestRunWrapper_NonzeroExitReturnedUnchanged</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-5aae2ebc"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-14T23:23:32.248353"
+             data-updated="2026-11-14T23:23:36.954447" data-agent-assigned="claude-code" data-track-id="trk-43648254" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788">
+
+        <header>
+            <h1>wipnote run tee writes stdout and stderr concurrently to a shared writer; flaky TestRunWrapper_NonzeroExitReturnedUnchanged</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-14T23:23:36.954359">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-43648254.html" data-relationship="part_of" data-since="2026-11-14T23:23:32.265694">trk-43648254</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>execTee wraps the caller&#39;s stdout and stderr in two separate io.MultiWriters that both also write the run log. exec copies the command&#39;s stdout and stderr in two goroutines, so when the caller passes one writer for both (the test does: SetOut and SetErr share a bytes.Buffer) the writes race. go test -race reports the race in bytes.Buffer.Write. A racing write can come back short; MultiWriter then stops with ErrShortWrite before writing the log, so the line never reaches the run log and FirstError is recorded empty. CI saw this on PR #346 (run_test.go:92: first error = &#34;&#34;). Separately, any passthrough write error, such as a closed terminal, also drops the line from the log.
+Why
+A flaky required CI check blocks merges and hides real failures, and the run log is the record wipnote keeps, so it must not lose lines when the terminal writer misbehaves
+Acceptance Criteria
+execTee serialises both streams through one lock, writes the log before the passthrough, and keeps logging when the passthrough fails; go test -race on the run wrapper tests is clean and a regression test shows a failing passthrough still logs every line</p>
+        </section>
+    </article>
+</body>
+</html>
