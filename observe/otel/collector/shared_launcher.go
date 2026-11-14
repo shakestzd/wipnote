@@ -144,19 +144,15 @@ func (w *sharedWatch) check() {
 	w.mu.Unlock()
 }
 
-// logf writes one timestamped watchdog warning to opts.Log, or appends it to
-// the project's otel-collector.log, where `wipnote doctor` and a person
-// debugging telemetry look.
+// logf writes one watchdog warning to opts.Log, or to the project's
+// otel-collector.log, where `wipnote doctor` and a person debugging telemetry
+// look.
 func (w *sharedWatch) logf(format string, args ...any) {
-	line := fmt.Sprintf("%s wipnote: warning: "+format+"\n", append([]any{time.Now().UTC().Format(time.RFC3339)}, args...)...)
-	if w.c.opts.Log != nil {
-		_, _ = io.WriteString(w.c.opts.Log, line)
-		return
+	out := w.c.opts.Log
+	if out == nil {
+		out = CollectorLog(w.projectDir)
 	}
-	if f := openSharedLog(w.projectDir); f != nil {
-		_, _ = f.WriteString(line)
-		_ = f.Close()
-	}
+	fmt.Fprintf(out, "wipnote: warning: "+format+"\n", args...)
 }
 
 // postLauncher registers (AttachPath) or releases (DetachPath) a launcher
@@ -214,13 +210,31 @@ func DefaultSharedSpawnFn(binPath, projectDir string, requestedPort int) (int, *
 // openSharedLog opens <project>/.wipnote/logs/otel-collector.log for append,
 // or returns nil (stderr then goes to /dev/null).
 func openSharedLog(projectDir string) *os.File {
-	dir := filepath.Join(projectDir, ".wipnote", "logs")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil
-	}
-	f, err := os.OpenFile(filepath.Join(dir, "otel-collector.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	f, err := openCollectorLog(projectDir)
 	if err != nil {
 		return nil
 	}
 	return f
+}
+
+// openCollectorLog opens <project>/.wipnote/logs/otel-collector.log for
+// append, creating the logs folder when it is missing.
+func openCollectorLog(projectDir string) (*os.File, error) {
+	dir := filepath.Join(projectDir, ".wipnote", "logs")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	return os.OpenFile(filepath.Join(dir, "otel-collector.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+}
+
+// CheckCollectorLog reports whether the collector log can be opened. Launchers
+// call it before the harness takes the terminal, the last moment a warning can
+// be printed there: once the harness runs, collector warnings go only to this
+// log, so a log that cannot be opened would make them vanish unseen.
+func CheckCollectorLog(projectDir string) error {
+	f, err := openCollectorLog(projectDir)
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }

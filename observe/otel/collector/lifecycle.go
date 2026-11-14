@@ -38,8 +38,14 @@ type SpawnFn func(binPath, sessionID, projectDir string, requestedPort int) (int
 
 // ProcessCollectorOpts configures a ProcessCollector.
 type ProcessCollectorOpts struct {
-	// Stderr is where warning/info/FATAL lines are written. Defaults to os.Stderr.
+	// Stderr receives the launch-time lines written before the harness starts.
+	// Defaults to os.Stderr.
 	Stderr io.Writer
+
+	// Log receives the watchdog's respawn lines, which happen while the
+	// harness owns the terminal: a line written there lands inside its prompt
+	// (bug-40a7717c). Nil appends to the project's otel-collector.log.
+	Log io.Writer
 
 	// StrictMode is reserved for callers that want Spawn errors to be fatal;
 	// the ProcessCollector itself does not call os.Exit — that decision belongs
@@ -97,7 +103,12 @@ func (c *ProcessCollector) Spawn(binPath, sessionID, projectDir string) (int, fu
 	procPtr := newProcPointer(proc)
 	startReaper(procPtr.Load(), projectDir, sessionID)
 
-	stopWatchdog := StartWatchdog(procPtr, port, binPath, sessionID, projectDir, c.opts.Stderr, spawnFn, c.opts.WatchdogIntervalEnv)
+	watchLog := c.opts.Log
+	if watchLog == nil {
+		watchLog = CollectorLog(projectDir)
+		warnUnwritableCollectorLog(projectDir, c.opts.Stderr)
+	}
+	stopWatchdog := StartWatchdog(procPtr, port, binPath, sessionID, projectDir, watchLog, spawnFn, c.opts.WatchdogIntervalEnv)
 	cleanup := makeCleanup(procPtr, projectDir, sessionID, stopWatchdog)
 	return port, cleanup, nil
 }
@@ -125,7 +136,13 @@ func DefaultSpawnFn(binPath, sessionID, projectDir string, requestedPort int) (i
 		"--no-idle-timeout",
 	)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Stderr = os.Stderr
+	// The collector runs for the whole session while the harness owns the
+	// terminal, so its stderr goes to the project's collector log, not the
+	// launcher's stderr, where it would land inside the prompt (bug-40a7717c).
+	if logFile := openSharedLog(projectDir); logFile != nil {
+		cmd.Stderr = logFile
+		defer logFile.Close()
+	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -445,4 +462,32 @@ func IsCollectorAlive(sessDir string) (alive bool, pid int) {
 func RemoveCollectorPID(projectDir, sessionID string) {
 	pidPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID, ".collector-pid")
 	_ = os.Remove(pidPath)
+}
+
+// warnUnwritableCollectorLog prints one launch-time warning when the collector
+// log cannot be opened. It runs before the harness owns the terminal; after
+// that, watchdog warnings and the collector's own errors would be lost.
+func warnUnwritableCollectorLog(projectDir string, w io.Writer) {
+	if err := CheckCollectorLog(projectDir); err != nil {
+		fmt.Fprintf(w, "wipnote: warning: cannot open the collector log (%v); collector warnings this session will be lost\n", err)
+	}
+}
+
+// CollectorLog returns a writer that appends each write, prefixed with a UTC
+// timestamp, to <project>/.wipnote/logs/otel-collector.log. Launcher code that
+// runs while the harness owns the terminal writes its warnings here.
+func CollectorLog(projectDir string) io.Writer { return collectorLog{projectDir: projectDir} }
+
+type collectorLog struct{ projectDir string }
+
+func (l collectorLog) Write(p []byte) (int, error) {
+	f, err := openCollectorLog(l.projectDir)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	if _, err := fmt.Fprintf(f, "%s %s", time.Now().UTC().Format(time.RFC3339), p); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
