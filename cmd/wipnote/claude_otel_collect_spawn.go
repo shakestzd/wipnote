@@ -58,6 +58,12 @@ func attachSharedCollectorTo(projectDir, binPath, sessionID, harness string, err
 	if err != nil {
 		return otelEnvOverrides{}, err
 	}
+	// The shared collector's watchdog writes only to the collector log while
+	// the harness runs; say now, while the terminal is still ours, if that log
+	// cannot be opened.
+	if logErr := collector.CheckCollectorLog(projectDir); logErr != nil {
+		fmt.Fprintf(errW, "wipnote: warning: cannot open the collector log (%v); collector warnings this session will be lost\n", logErr)
+	}
 	return otelEnvOverrides{
 		CollectorPort: port,
 		SessionID:     sessionID,

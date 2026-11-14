@@ -106,6 +106,7 @@ func (c *ProcessCollector) Spawn(binPath, sessionID, projectDir string) (int, fu
 	watchLog := c.opts.Log
 	if watchLog == nil {
 		watchLog = CollectorLog(projectDir)
+		warnUnwritableCollectorLog(projectDir, c.opts.Stderr)
 	}
 	stopWatchdog := StartWatchdog(procPtr, port, binPath, sessionID, projectDir, watchLog, spawnFn, c.opts.WatchdogIntervalEnv)
 	cleanup := makeCleanup(procPtr, projectDir, sessionID, stopWatchdog)
@@ -463,6 +464,15 @@ func RemoveCollectorPID(projectDir, sessionID string) {
 	_ = os.Remove(pidPath)
 }
 
+// warnUnwritableCollectorLog prints one launch-time warning when the collector
+// log cannot be opened. It runs before the harness owns the terminal; after
+// that, watchdog warnings and the collector's own errors would be lost.
+func warnUnwritableCollectorLog(projectDir string, w io.Writer) {
+	if err := CheckCollectorLog(projectDir); err != nil {
+		fmt.Fprintf(w, "wipnote: warning: cannot open the collector log (%v); collector warnings this session will be lost\n", err)
+	}
+}
+
 // CollectorLog returns a writer that appends each write, prefixed with a UTC
 // timestamp, to <project>/.wipnote/logs/otel-collector.log. Launcher code that
 // runs while the harness owns the terminal writes its warnings here.
@@ -471,9 +481,9 @@ func CollectorLog(projectDir string) io.Writer { return collectorLog{projectDir:
 type collectorLog struct{ projectDir string }
 
 func (l collectorLog) Write(p []byte) (int, error) {
-	f := openSharedLog(l.projectDir)
-	if f == nil {
-		return len(p), nil
+	f, err := openCollectorLog(l.projectDir)
+	if err != nil {
+		return 0, err
 	}
 	defer f.Close()
 	if _, err := fmt.Fprintf(f, "%s %s", time.Now().UTC().Format(time.RFC3339), p); err != nil {

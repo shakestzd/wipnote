@@ -199,3 +199,61 @@ func TestProcessCollector_WatchdogWarningsGoToTheCollectorLog(t *testing.T) {
 		t.Fatalf("watchdog wrote to the terminal:\n%s", term.String())
 	}
 }
+
+// The real spawn path must send the collector child's own stderr to the
+// collector log: the child runs for the whole session while the harness owns
+// the terminal, so a line on the launcher's stderr would land in the prompt
+// (bug-40a7717c). A stand-in collector prints a marker to stderr, then the
+// handshake, and the marker must appear in the log.
+func TestDefaultSpawnFn_ChildStderrGoesToTheCollectorLog(t *testing.T) {
+	project := t.TempDir()
+	bin := filepath.Join(t.TempDir(), "fake-wipnote")
+	script := "#!/bin/sh\necho child-stderr-marker >&2\necho 'wipnote-otel-ready port=43210'\nexec sleep 60\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	port, proc, err := collector.DefaultSpawnFn(bin, "sessS", project, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = proc.Kill(); _, _ = proc.Wait() })
+	if port != 43210 {
+		t.Fatalf("port = %d, want 43210", port)
+	}
+	data, _ := os.ReadFile(filepath.Join(project, ".wipnote", "logs", "otel-collector.log"))
+	if !strings.Contains(string(data), "child-stderr-marker") {
+		t.Fatalf("collector log lacks the child's stderr:\n%s", data)
+	}
+}
+
+// When the collector log cannot be opened, the launcher says so once, at
+// launch, while it still owns the terminal; otherwise every later collector
+// warning would vanish unseen (bug-40a7717c).
+func TestProcessCollector_WarnsAtLaunchWhenCollectorLogCannotOpen(t *testing.T) {
+	project := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(project, ".wipnote"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A file where the logs folder belongs makes the log impossible to open.
+	if err := os.WriteFile(filepath.Join(project, ".wipnote", "logs"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var term bytes.Buffer
+	c := collector.NewProcessCollector(collector.ProcessCollectorOpts{
+		Stderr: &term,
+		SpawnFn: func(_, _, _ string, _ int) (int, *os.Process, error) {
+			return 9998, startSleepProc(t), nil
+		},
+	})
+	_, cleanup, err := c.Spawn("/fake/bin", "sessL", project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(cleanup)
+	if got := term.String(); strings.Count(got, "cannot open the collector log") != 1 {
+		t.Fatalf("want one launch warning about the collector log, got:\n%s", got)
+	}
+	if _, err := collector.CollectorLog(project).Write([]byte("x\n")); err == nil {
+		t.Fatal("CollectorLog.Write reported success for a log it could not open")
+	}
+}
