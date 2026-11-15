@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -118,11 +119,13 @@ func execTee(ctx context.Context, argv []string, logPath string, stdout, stderr 
 	if err != nil {
 		logFile = nil
 	}
-	outW, errW := stdout, stderr
+	var mu sync.Mutex
+	var logW io.Writer
 	if logFile != nil {
 		defer logFile.Close()
-		outW, errW = io.MultiWriter(stdout, logFile), io.MultiWriter(stderr, logFile)
+		logW = logFile
 	}
+	var outW, errW io.Writer = logTee{&mu, logW, stdout}, logTee{&mu, logW, stderr}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -136,6 +139,28 @@ func execTee(ctx context.Context, argv []string, logPath string, stdout, stderr 
 	err = c.Wait()
 	stop()
 	return exitStatus(err)
+}
+
+// logTee copies one output stream of the wrapped command to the run log and
+// to the caller's writer. exec copies stdout and stderr in two goroutines, and
+// the caller may pass one writer for both, so the two streams share one lock.
+// The log is written first and a failed passthrough write is ignored: the log
+// is the record wipnote keeps, and before this an io.MultiWriter stopped at a
+// short terminal write and dropped the line from the log (bug-5aae2ebc).
+type logTee struct {
+	mu   *sync.Mutex
+	log  io.Writer // nil when the log file could not be created
+	pass io.Writer
+}
+
+func (t logTee) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.log != nil {
+		_, _ = t.log.Write(p)
+	}
+	_, _ = t.pass.Write(p)
+	return len(p), nil
 }
 
 func forwardSignals(p *os.Process) func() {
