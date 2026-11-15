@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -139,5 +140,33 @@ func TestRunWrapper_RefusesBadWorkItemBeforeRunning(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); err == nil {
 		t.Error("command ran despite the refused record")
+	}
+}
+
+// failingWriter stands in for a terminal that has gone away.
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("terminal closed") }
+
+// The run log is the record wipnote keeps, so a passthrough writer that fails
+// must not drop lines from it. An io.MultiWriter stopped at the failed
+// terminal write before reaching the log, which also made
+// TestRunWrapper_NonzeroExitReturnedUnchanged flaky when a racing write came
+// back short (bug-5aae2ebc).
+func TestExecTee_FailingPassthroughStillLogsEveryLine(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "run.log")
+	code, _ := execTee(t.Context(), []string{"sh", "-c", "echo 'error: boom'; echo out2; echo err1 >&2; exit 3"},
+		logPath, failingWriter{}, failingWriter{})
+	if code != 3 {
+		t.Fatalf("exit %d, want 3", code)
+	}
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"error: boom\n", "out2\n", "err1\n"} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("log lacks %q:\n%s", want, data)
+		}
 	}
 }
