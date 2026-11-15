@@ -204,11 +204,22 @@ func TestView_ShowsPendingAsks(t *testing.T) {
 func runStyled(t *testing.T, colour *bool) string {
 	t.Helper()
 	rf := newRun(t)
-	if err := rf.WriteStart(time.Now()); err != nil {
+	// Fixed start and end, so every render reports the same duration; with
+	// time.Now() a render that straddled a second boundary printed
+	// "finished in 1s" beside another's "0s" and the comparison failed
+	// (bug-cf4b15c9).
+	start := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	if err := rf.WriteStart(start); err != nil {
 		t.Fatal(err)
 	}
 	write(t, rf, runstore.FileCleanMD, "### Assistant\n\nsome **bold** text\n<!-- fold closed: Bash: ls · exit 0 · 1 lines -->\n**Bash** `ls`\n<!-- /fold -->\n```\n**raw**\n")
-	finishRun(t, rf, "the answer", "input 1")
+	write(t, rf, runstore.FileLastMD, "the answer")
+	if err := rf.WriteUsage("input 1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := rf.Finish(0, start.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
 	var out bytes.Buffer
 	opts := ViewOptions{Poll: time.Millisecond, Color: colour, Width: func() int { return 0 }}
 	if err := View(context.Background(), rf, &out, opts); err != nil {
