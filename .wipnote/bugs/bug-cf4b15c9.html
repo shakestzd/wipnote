@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>TestView_StyleOnlyWhenColour compares renders whose durations can differ by a second</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-cf4b15c9"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-15T19:54:10.51466"
+             data-updated="2026-11-15T19:54:15.989543" data-agent-assigned="claude-code" data-track-id="trk-43648254" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788">
+
+        <header>
+            <h1>TestView_StyleOnlyWhenColour compares renders whose durations can differ by a second</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-15T19:54:15.989445">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-43648254.html" data-relationship="part_of" data-since="2026-11-15T19:54:10.532215">trk-43648254</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>runStyled stamps start and finish with time.Now() per render; when a render straddles a second boundary its &#39;finished in Ns&#39; differs from the others and plainOut != forcedOff. It blocked the v0.91.3 deploy twice.
+Why
+A test that depends on wall-clock timing blocks releases at random.
+Acceptance Criteria
+runStyled uses fixed start and finish times and the test passes under -count=50 in the full package run.</p>
+        </section>
+    </article>
+</body>
+</html>
