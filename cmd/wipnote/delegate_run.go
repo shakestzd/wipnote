@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/shakestzd/wipnote/core/paths"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -13,6 +13,7 @@ import (
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/oneshot"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
@@ -67,14 +68,14 @@ Codex inside needs this host in dangerFullAccessHosts (bwrap fails there).`
 // report the retired herdr pane mod printed. The exit status is the tool's.
 func delegateRunCmd() *cobra.Command {
 	var label, workItem string
-	var noPane, write, inContainer bool
+	var noPane, write, inContainer, progress bool
 	cmd := &cobra.Command{
 		Use:   "run [--label L] [--work-item ID] [--no-pane] [--write] [--container] -- <codex exec|codex review|claude -p|ccx task> ...",
 		Short: "Run one delegated codex, claude -p or ccx call and print its report",
 		Long:  delegateRunLong,
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			code, err := runDelegateRun(cmd, args, label, workItem, runFlags{noPane: noPane, write: write, container: inContainer})
+			code, err := runDelegateRun(cmd, args, label, workItem, runFlags{noPane: noPane, write: write, container: inContainer, progress: progress})
 			if err != nil {
 				return err
 			}
@@ -90,11 +91,12 @@ func delegateRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&noPane, "no-pane", false, "run headless even inside herdr")
 	cmd.Flags().BoolVar(&write, "write", false, "codex exec: --sandbox workspace-write instead of read-only")
 	cmd.Flags().BoolVar(&inContainer, "container", false, "run the tool in the project's own devcontainer")
+	cmd.Flags().BoolVar(&progress, "progress", false, "print key=value lines (started, one per tool step, done) instead of the report, for Claude Code's Monitor tool")
 	return cmd
 }
 
 // runFlags are delegate run's boolean flags.
-type runFlags struct{ noPane, write, container bool }
+type runFlags struct{ noPane, write, container, progress bool }
 
 func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, f runFlags) (int, error) {
 	wipnoteDir, err := findWipnoteDir()
@@ -133,7 +135,15 @@ func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, f
 	}
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	var prog *runProgress
+	if f.progress {
+		prog = newRunProgress(cmd.OutOrStdout())
+		o.Stdout, o.OnRun = io.Discard, prog.start
+	}
 	res, err := oneshot.Run(ctx, o)
+	if prog != nil {
+		prog.finish(res, err)
+	}
 	return res.Exit, err
 }
 
