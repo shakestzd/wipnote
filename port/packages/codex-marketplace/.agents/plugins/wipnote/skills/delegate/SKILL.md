@@ -28,7 +28,7 @@ Delegate run:
 ```
 
 ```bash
-wipnote delegate run [--label L] [--work-item ID] [--no-pane] [--write] [--container] -- <tool argv>
+wipnote delegate run [--label L] [--work-item ID] [--no-pane] [--write] [--container] [--progress] -- <tool argv>
 ```
 
 ```bash
@@ -58,7 +58,7 @@ Rules:
 - A bare `ccx task` in the Bash tool is denied. The denial names `wipnote delegate run --container -- <task words>` when the task is plain words and the project has its own devcontainer; otherwise (ccx flags such as `--resume`, or no devcontainer) it names `wipnote delegate run -- ccx task ...`. Run the form it names.
 - Inside the herdr TUI (`HERDR_ENV=1`) the call runs in a herdr pane. Inside the Herdr app or bare `hc` (`HC_TERMINAL_ID`) it runs in an hc terminal. Otherwise it runs headless.
 - The command exits with the tool's exit status, or 130 when its pane was closed.
-- A long run blocks until it ends. Run it in the background when the harness lets you.
+- A long run blocks until it ends. On Claude Code, run it under the Monitor tool with `--progress`: in place of the report it prints one line when the run starts (`run=R state=started`), one per finished tool step (`run=R state=step step=ok|fail title="..."`) and one at the end (`run=R state=done exit=N end=REASON answer=<last.md> page=<run.html>`, or `state=failed error="..."` when the run was refused). A `step=fail` line shows a failing step while the run goes on. Read the answer from the `answer=` file. Other harnesses run it in the background without `--progress`.
 
 One-shot runs do not claim a work item and do not count as a worker.
 
@@ -177,7 +177,7 @@ A stopped worker's claim ends as `abandoned`. When a worker crashed or lost its 
 
 ## Where the results live
 
-- **The report.** `delegate run` prints a status line, the answer (or the end of the log on failure) and `run page: <dir>/run.html`. Long sections are cut, and a line names the file with the rest.
+- **The report.** Without `--progress`, `delegate run` prints a status line, the answer (or the end of the log on failure) and `run page: <dir>/run.html`. Long sections are cut, and a line names the file with the rest.
 - **The run page** (`run.html`) is the full run as one HTML page. Show it to the user, or give them its path.
 - **The run folder** is `.wipnote/delegate/runs/<run-id>/` in the store (`wipnote status` prints where the store is; it may be under `~/.wipnote/projects/`). It is not committed. Finished runs are removed after `keepDays` (7 days by default).
 - **The delegations ledger** is `.wipnote/delegations-ledger.html` in the store. It is committed to the store's repo. Each run is one row: run id (`dlg-...`), mode, harness, label, work item, start and end, exit, end reason and token counts. Never edit it by hand.

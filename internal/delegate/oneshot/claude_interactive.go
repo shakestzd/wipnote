@@ -151,6 +151,9 @@ func spawnWorker(ctx context.Context, o Options, plan claudePlan) (*worker, erro
 	if err != nil {
 		return nil, err
 	}
+	if o.OnRun != nil {
+		o.OnRun(rf)
+	}
 	info, err := session.ReadInfo(rf)
 	return &worker{o: o, w: w, deps: deps, plan: plan, sp: sp, rf: rf, info: info}, err
 }

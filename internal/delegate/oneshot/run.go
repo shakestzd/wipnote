@@ -46,6 +46,9 @@ type Options struct {
 	// Worker makes a claude -p run inside herdr an interactive worker
 	// (slice 22); nil keeps the claude -p pane path.
 	Worker *WorkerOptions
+	// OnRun, when set, is called once the run folder exists, before the
+	// tool starts; delegate run --progress follows the run from it.
+	OnRun func(rf *runstore.RunFolder)
 
 	sandbox codex.Mode // the ladder's decision, set by Run
 }
@@ -93,6 +96,9 @@ func Run(ctx context.Context, o Options) (Result, error) {
 	if err != nil {
 		_ = o.Ledger.Close(rec.ID, delegationledger.CloseInfo{Reason: delegationledger.EndGone})
 		return Result{}, err
+	}
+	if o.OnRun != nil {
+		o.OnRun(rf)
 	}
 	res, err := runFolder(ctx, o, r, rf)
 	if err != nil {
