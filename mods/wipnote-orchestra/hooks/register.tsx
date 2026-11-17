@@ -1,39 +1,28 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { AgentRow, Mode, PromptInfo, WorkCard } from '../types'
-import { endAgentCall, noteAgentCall, reconcileAgents } from './agents'
+import type { CardEntry, RunRow, WorkCard } from '../types'
+import { callEnded, callStarted, reconcileRows, spawnedRows } from './agents'
 import type { Hint } from './agents'
 import type { BandData } from './band'
 import { drawBand } from './band'
-import { hydrate, refreshAfterTurn, refreshChanged, registerRefs, storeCard, wipnoteJSON } from './refcards'
-import { parseWho } from './refs'
-import { fresh, openArgv, parseOpen, questionsText } from './questions'
+import { CLI_TIMEOUT_MS, cardOf, cardResult, changedIds, cliResult, drawAssistant, entryOf, openIds, questionsOf, replyIds, replyText, staleIds, transcriptIds } from './refcards'
+import { Latest, parseWho, splitRefs } from './refs'
+import type { CliResult } from './refs'
+import { fresh, itemQuestionsArgv, openArgv, parseOpen, questionsText } from './questions'
 import type { OpenQuestion } from './questions'
-import { findProject, newRunCache, readRuns } from './runs'
+import { FOLDER_FILES, GIT_COMMON_ARGV, LEDGER_FILE, RUNS_DIR, commonCheckout, emptyLedger, folderFacts, ledgerKey, ledgerRead, newRunCache, parentDir, plainFiles, runIds, runRow } from './runs'
+import type { LedgerCache, RunCache } from './runs'
+import { aboveRoom, belowRoom, hintOf, isBusy, promptInfo, trackIds, wantedMode, withHint, withTracks } from './glue'
 import type { SwapState } from './swap'
 import { swapSeen, swapStarted } from './swap'
-import {
-  keepFor,
-  applyWipnote,
-  baseName,
-  modelLabel,
-  describeCall,
-  isLive,
-  parseGitStatus,
-  parseItemJson,
-  parseTrackText,
-  showArgv,
-  pillIndent,
-  shortDir,
-  workItemIn,
-  zoneOf,
-} from './model'
+import { applyWipnote, modelLabel, describeCall, parseItemJson, parseTrackText, showArgv, pillIndent, zoneOf } from './model'
 import { parseStatusCounts, viewOf } from './workview'
 import type { WorkView } from './workview'
 
+export type Elements = ReturnType<EngineInterface['ui']['resolve']>
+
 const prompt = atom({ plugin: 'wipnote-orchestra', key: 'prompt' } as const, null)
-// agents and tally are written in agents.ts, which declares them too.
 const agents = atom({ plugin: 'wipnote-orchestra', key: 'agents' } as const, [])
 const tally = atom({ plugin: 'wipnote-orchestra', key: 'tally' } as const, { done: 0, failed: 0 })
 const items = atom({ plugin: 'wipnote-orchestra', key: 'items' } as const, [])
@@ -47,6 +36,9 @@ const claim = atom({ plugin: 'wipnote-orchestra', key: 'claim' } as const, null)
 const counts = atom({ plugin: 'wipnote-orchestra', key: 'counts' } as const, null)
 const runs = atom({ plugin: 'wipnote-orchestra', key: 'runs' } as const, [])
 const questions = atom({ plugin: 'wipnote-orchestra', key: 'questions' } as const, null)
+const refs = atom({ plugin: 'wipnote-orchestra', key: 'refs' } as const, {})
+// An item's open questions, as card lines; a failed read keeps the last ones.
+const cardQuestions = atom({ plugin: 'wipnote-orchestra', key: 'cardQuestions' } as const, {})
 
 const KEEP_DONE_MS = 90_000
 
@@ -55,26 +47,153 @@ async function refreshPrompt($: EngineInterface) {
     $.session.cwd(),
     $.env.get('HOME'),
     $.session.usage(),
-    $.process
-      .run(['git', 'status', '--porcelain=v1', '--branch'], { timeoutMs: 5000 })
-      .catch(() => undefined),
+    $.process.run(['git', 'status', '--porcelain=v1', '--branch'], { timeoutMs: 5000 }).catch(() => undefined),
     $.process.run(['git', 'rev-parse', '--show-toplevel'], { timeoutMs: 5000 }).catch(() => undefined),
     $.session.model().catch(() => undefined),
   ])
-  const root = top?.exitCode === 0 ? top.stdout.trim() : ''
-  const info: PromptInfo = {
-    dir: root !== '' ? baseName(root) : shortDir(cwd, home),
-    dirty: 0,
-    ahead: 0,
-    behind: 0,
-    ...(git?.exitCode === 0 ? parseGitStatus(git.stdout) : {}),
-    model: model !== undefined ? modelLabel(model) : undefined,
-    ctxPercent: usage.context.percent,
-    limits: usage.rateLimits.map(({ kind, percentUsed, resetsAt }) => ({ kind, percentUsed, resetsAt })),
-  }
-  await update($, prompt, () => info)
+  await update($, prompt, () => promptInfo({ cwd, home, usage, git, top, model }))
 }
 
+/** Runs a read-only wipnote command as this session; a spawn failure or timeout is 'unavailable'. */
+async function wipnoteJSON($: EngineInterface, argv: string[]): Promise<CliResult> {
+  try {
+    const sessionId = await $.session.id()
+    return cliResult(await $.process.run(argv, { timeoutMs: CLI_TIMEOUT_MS, env: { CLAUDE_CODE_SESSION_ID: sessionId } }))
+  } catch {
+    return cliResult(undefined)
+  }
+}
+
+// Overlapping lookups finish in any order. Each one takes a ticket, and only
+// the newest ticket may write, so an older, slower lookup never wins.
+const latest = new Latest()
+
+function setEntry($: EngineInterface, id: string, entry: CardEntry): Promise<unknown> {
+  return update($, refs, all => ({ ...all, [id]: entry }))
+}
+
+/**
+ * Stores a card from `show` output the band already fetched, so an active item costs one lookup,
+ * not one for the band and one for its card. It takes a ticket like loadCard, so it never
+ * overwrites a newer lookup.
+ */
+async function storeCard($: EngineInterface, id: string, stdout: string): Promise<void> {
+  const ticket = latest.take(`card:${id}`)
+  const card = cardOf(id, stdout)
+  if (card === undefined) return
+  if (latest.isNewest(`card:${id}`, ticket)) await setEntry($, id, { state: 'loaded', card, at: await $.clock.now() })
+}
+
+/** Reads the item's open questions into the atom, for its card; a failed read keeps the last ones. */
+async function loadQuestions($: EngineInterface, id: string): Promise<void> {
+  const lines = questionsOf(await wipnoteJSON($, itemQuestionsArgv(id)))
+  if (lines !== undefined) await update($, cardQuestions, all => ({ ...all, [id]: lines }))
+}
+
+/** Loads one card into the atom; the write redraws every message that reads it. */
+async function loadCard($: EngineInterface, id: string): Promise<void> {
+  const ticket = latest.take(`card:${id}`)
+  await setEntry($, id, { state: 'loading', at: await $.clock.now() })
+  const r = cardResult(id, await wipnoteJSON($, showArgv(id)))
+  if (!latest.isNewest(`card:${id}`, ticket)) return
+  const at = await $.clock.now()
+  if ('card' in r) await loadQuestions($, id).catch(() => undefined)
+  await setEntry($, id, entryOf(r, at))
+}
+
+/** Starts a fetch for every id that is missing or stale. */
+async function loadStale($: EngineInterface, ids: string[]): Promise<void> {
+  const all = await read($, refs)
+  for (const id of staleIds(all, ids, await $.clock.now())) void loadCard($, id)
+}
+
+/** After a Bash call ends, re-fetches the cards it changed, so a card moves mid-turn. Only drawn cards are fetched. */
+async function refreshChanged($: EngineInterface, command: string): Promise<void> {
+  for (const id of changedIds(await read($, refs), command)) void loadCard($, id)
+}
+
+/** Loads the cards the transcript already references: the refs atom starts empty in a new or resumed session. */
+async function hydrate($: EngineInterface): Promise<void> {
+  const ids = transcriptIds(await $.session.messages())
+  if (ids.length > 0) await loadStale($, ids)
+}
+
+/** After a turn: the open cards (stalest first) and any the transcript references but the atom lacks. */
+function refreshAfterTurn($: EngineInterface): void {
+  void read($, refs).then(all => openIds(all).forEach(id => void loadCard($, id))).catch(() => undefined)
+  void hydrate($).catch(() => undefined)
+}
+
+/** Syncs the agent rows with `$.agent.list()` and counts the ones that ended (reconcileRows). */
+async function reconcileAgents($: EngineInterface, at: number, hints: ReadonlyMap<string, Hint>) {
+  const listed = await $.agent.list()
+  let ended = { done: 0, failed: 0 }
+  await update($, agents, rows => {
+    const next = reconcileRows(rows, listed, at, hints)
+    ended = next.ended
+    return next.rows
+  })
+  if (ended.done + ended.failed > 0) {
+    await update($, tally, t => ({ done: t.done + ended.done, failed: t.failed + ended.failed }))
+  }
+}
+
+/** A subagent's tool call starts or ends: its row counts the call. */
+async function noteAgentCall($: EngineInterface, id: string, doing: string, pending: ReadonlyMap<string, Hint>) {
+  const at = await $.clock.now()
+  await update($, agents, rows => callStarted(rows, id, doing, pending, at))
+}
+
+async function endAgentCall($: EngineInterface, id: string) {
+  try {
+    const at = await $.clock.now()
+    await update($, agents, rows => callEnded(rows, id, at))
+  } catch {
+    /* the next call or the list sets it again */
+  }
+}
+
+/** The ledger's rows, read again only when its size or mtime changed. */
+async function readLedger($: EngineInterface, path: string, last: LedgerCache): Promise<LedgerCache> {
+  const key = ledgerKey(await $.fs.stat(path).catch(() => undefined))
+  if (key === undefined) return emptyLedger()
+  if (key === last.key) return last
+  return ledgerRead(key, await $.fs.read(path).then(String).catch(() => undefined))
+}
+
+async function readFolder($: EngineInterface, dir: string) {
+  const files = plainFiles(await $.fs.list(dir))
+  const read = (name: string) => (files.has(name) ? $.fs.read(`${dir}/${name}`).then(String).catch(() => '') : Promise.resolve(''))
+  return folderFacts(files, await Promise.all(FOLDER_FILES.map(read)))
+}
+
+/** The project whose .wipnote/ holds the runs, found as wipnote's CLI finds it: env, main checkout, then up from the cwd. */
+async function findProject($: EngineInterface): Promise<string | null> {
+  const has = (dir: string) => $.fs.exists(`${dir}/.wipnote`).catch(() => false)
+  const env = await $.env.get('WIPNOTE_PROJECT_DIR').catch(() => undefined)
+  if (env !== undefined && env !== '' && (await has(env))) return env
+  const git = await $.process.run(GIT_COMMON_ARGV, { timeoutMs: 5000 }).catch(() => undefined)
+  const main = commonCheckout(git?.exitCode, git?.stdout)
+  if (main !== undefined && (await has(main))) return main
+  let dir = (await $.session.cwd()).replace(/\/+$/, '')
+  while (dir !== '') {
+    if (await has(dir)) return dir
+    dir = parentDir(dir)
+  }
+  return (await has('/')) ? '/' : null
+}
+
+async function readRuns($: EngineInterface, project: string, cache: RunCache): Promise<RunRow[]> {
+  cache.ledger = await readLedger($, `${project}/${LEDGER_FILE}`, cache.ledger)
+  const dir = `${project}/${RUNS_DIR}`
+  const ids = runIds(await $.fs.list(dir).catch(() => []), cache)
+  const rows: RunRow[] = []
+  for (const id of ids) {
+    const facts = cache.settled.get(id) ?? (await readFolder($, `${dir}/${id}`).catch(() => undefined))
+    if (facts !== undefined) rows.push(runRow(id, facts, cache))
+  }
+  return rows
+}
 
 /** Titles, status and track progress for the work items in view: the session's own and the agents'. */
 async function refreshCards($: EngineInterface) {
@@ -91,15 +210,11 @@ async function refreshCards($: EngineInterface) {
     await storeCard($, id, ran.stdout)
   }
   const tracks = new Map<string, ReturnType<typeof parseTrackText>>()
-  for (const trackId of new Set(found.map(card => card.trackId).filter((id): id is string => id !== undefined))) {
+  for (const trackId of trackIds(found)) {
     const ran = await $.process.run(['wipnote', 'track', 'show', trackId], { timeoutMs: 5000 }).catch(() => undefined)
     tracks.set(trackId, ran?.exitCode === 0 ? parseTrackText(ran.stdout) : undefined)
   }
-  const next = found.map(card => {
-    const track = card.trackId === undefined ? undefined : tracks.get(card.trackId)
-    return track === undefined ? card : { ...card, trackTitle: track.title, done: track.done, total: track.total }
-  })
-  await update($, cards, () => next)
+  await update($, cards, () => withTracks(found, tracks))
   await refreshCounts($)
 }
 
@@ -115,7 +230,6 @@ const toasted = new Set<string>()
 let hasReadQuestions = false
 
 let isReadingQuestions = false
-
 /**
  * The open questions for the band; a new blocking one toasts. The last list stays on a failure.
  * Nothing is read while the band is off, and a tick that finds a call still running skips.
@@ -190,9 +304,7 @@ function rehydrate($: EngineInterface) {
   void hydrate($).catch(() => undefined)
 }
 
-async function sessionId($: EngineInterface): Promise<string | undefined> {
-  return $.session.id().catch(() => undefined)
-}
+const sessionId = ($: EngineInterface): Promise<string | undefined> => $.session.id().catch(() => undefined)
 
 /** Rehydrates once when the session id moved since it was last seen (swap.ts). */
 async function checkSwap($: EngineInterface, swap: SwapState) {
@@ -221,10 +333,7 @@ type On = Parameters<Register>[0]
 async function tick($: EngineInterface, n: number, pending: ReadonlyMap<string, Hint>) {
   const at = await $.clock.now()
   const rows = await read($, agents)
-  const isBusy = rows.some(row => isLive(row.status) || at - (row.endedAt ?? 0) < keepFor(row.status, KEEP_DONE_MS))
-  if (isBusy || n % 30 === 0) {
-    await update($, now, () => at)
-  }
+  if (isBusy(rows, at, KEEP_DONE_MS) || n % 30 === 0) await update($, now, () => at)
   if (n % 2 === 0) await reconcileAgents($, at, pending)
   if (n % 5 === 0) await refreshPrompt($)
   if (n % 5 === 1) await refreshCards($)
@@ -267,12 +376,7 @@ function onCommand(on: On) {
       return { text: `Orchestra band: ${arg} the prompt.` }
     }
     const current = await read($, mode)
-    const wanted: Mode =
-      arg === 'full' || arg === 'compact' || arg === 'off'
-        ? arg
-        : current === 'off'
-          ? 'full'
-          : 'off'
+    const wanted = wantedMode(arg, current)
     await update($, mode, () => wanted)
     return { text: `Orchestra band: ${wanted}.` }
   })
@@ -281,10 +385,7 @@ function onCommand(on: On) {
 /** An agent spawn: its work item and model hint, then its row once the engine names it. */
 function onAgentSpawn(on: On, pending: Map<string, Hint>) {
   on('agent.spawn', async ($, e, next) => {
-    const hint: Hint = {
-      workItem: workItemIn(e.prompt),
-      model: e.model !== undefined ? modelLabel(e.model) : undefined,
-    }
+    const hint = hintOf(e.prompt, e.model)
     pending.set(e.description, hint)
     // A main-loop spawn carries the main loop's mode: a source no classic.* skip can hide.
     await noteMode($, e.permissionMode, e.parentAgentId)
@@ -293,21 +394,8 @@ function onAgentSpawn(on: On, pending: Map<string, Hint>) {
     const id = ran.agentId
     if (id !== undefined) {
       const model = modelLabel(ran.model)
-      await update($, agents, rows => {
-        const row = rows.find(one => one.id === id)
-        const base: AgentRow = row ?? {
-          id,
-          type: e.subagentType,
-          description: e.description,
-          status: 'running',
-          startedAt: at,
-          tools: 0,
-        }
-        return [
-          ...rows.filter(one => one.id !== id),
-          { ...base, workItem: base.workItem ?? hint.workItem, model },
-        ]
-      })
+      const fresh = { id, type: e.subagentType, description: e.description }
+      await update($, agents, rows => spawnedRows(rows, fresh, hint, model, at))
       pending.delete(e.description)
     }
     return ran
@@ -359,12 +447,7 @@ function onRenderAbove(on: On, zone: string, view: WorkView) {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const [shown, where] = await Promise.all([read($, mode), read($, placement)])
     if (e.props.hasSurvey || shown === 'off' || where !== 'above') return next(e)
-    const tree = drawBand($.ui.resolve(e), await bandData($, zone, view), {
-      width: e.props.bodyColumns,
-      maxRows: e.props.maxRows,
-      isWorking: e.props.isWorking,
-      isCompact: shown === 'compact',
-    })
+    const tree = drawBand($.ui.resolve(e), await bandData($, zone, view), aboveRoom(e.props, shown))
     return tree ?? next(e)
   })
 }
@@ -375,27 +458,28 @@ function onRenderBelow(on: On, zone: string, view: WorkView) {
     const [shown, where] = await Promise.all([read($, mode), read($, placement)])
     if (shown === 'off' || where !== 'below') return next(e)
     const els = $.ui.resolve(e)
-    const tree = drawBand(els, await bandData($, zone, view), {
-      width: Math.max(20, (e.viewport?.columns ?? 100) - 2),
-      maxRows: Math.max(2, Math.floor((e.viewport?.rows ?? 30) / 4) - 1),
-      isWorking: e.props.isWorking,
-      isCompact: shown === 'compact',
-    })
+    const tree = drawBand(els, await bandData($, zone, view), belowRoom(e.viewport, e.props.isWorking, shown))
     if (tree === null) return next(e)
     // Row one is the engine's own hint line, as it draws it; the band takes the rows under it,
     // shifted left past the mode pill the engine draws beside the tree (noteMode, pillIndent).
-    const { Box, Text } = els
-    const indent = pillIndent(await read($, permissionMode), e.props.hint)
-    return (
-      <Box flexDirection="column">
-        <Text key="hint" dimColor wrap="truncate-end">
-          {e.props.hint}
-        </Text>
-        <Box key="band" marginLeft={-indent}>
-          {tree}
-        </Box>
-      </Box>
-    )
+    return withHint(els, tree, e.props.hint, pillIndent(await read($, permissionMode), e.props.hint))
+  })
+}
+
+/** A stored reply with a wipnote-ref fence starts the card fetches; the render hook only reads the result. */
+function onRefs(on: On) {
+  on('session.append', { door: 'response' }, async ($, e, next) => {
+    const r = await next(e)
+    const ids = replyIds(replyText(e.message.content))
+    if (ids.length > 0) void loadStale($, ids)
+    return r
+  })
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    const segments = splitRefs(e.props.text)
+    if (!segments.some(s => s.kind === 'refs')) return next(e)
+    const els = $.ui.resolve(e)
+    const [all, asked] = await Promise.all([read($, refs), read($, cardQuestions)])
+    return drawAssistant(els, segments, all, asked)
   })
 }
 
@@ -409,7 +493,7 @@ export const register: Register = (on, options) => {
   onAgentSpawn(on, pending)
   onToolCall(on, pending)
   onTurnAndSwap(on, swap)
-  registerRefs(on)
+  onRefs(on)
   onRenderAbove(on, zone, view)
   onRenderBelow(on, zone, view)
 }

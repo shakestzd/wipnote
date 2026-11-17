@@ -12,44 +12,30 @@
 // A render hook never writes state, so cards are fetched from events: when a
 // reply is stored (session.append), after each turn (turn.complete), and on
 // start or resume (hydrate). The render hook only reads the refs atom.
-
-import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+//
+// Pure: register.tsx owns the atoms, the hooks and every `$` call; this file turns data into
+// argv, ids, entries and trees.
 
 import type { Card, CardEntry, FailKind } from '../types'
-import { Latest, changedRefs, classifyExit, failureText, needsFetch, parseCard, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from './refs'
-import type { CliResult } from './refs'
-import { itemQuestionsArgv, parseOpen, questionLines } from './questions'
+import type { Elements } from './register'
+import { changedRefs, classifyExit, failureText, needsFetch, parseCard, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from './refs'
+import type { CliResult, Segment } from './refs'
+import { parseOpen, questionLines } from './questions'
 
-type On = Parameters<Register>[0]
-
-const refs = atom({ plugin: 'wipnote-orchestra', key: 'refs' } as const, {})
-// An item's open questions, as card lines; a failed read keeps the last ones.
-const cardQuestions = atom({ plugin: 'wipnote-orchestra', key: 'cardQuestions' } as const, {})
-const CLI_TIMEOUT_MS = 15_000
-const MAX_REFRESH = 10
+export const CLI_TIMEOUT_MS = 15_000
+export const MAX_REFRESH = 10
 const SCAN_MESSAGES = 200
 
 const STATUS_COLOR: Record<string, string> = {
   done: 'success', 'in-progress': 'warning', blocked: 'error', todo: 'subtle',
 }
 
-/** Runs a read-only wipnote command as this session; a spawn failure or timeout is 'unavailable'. */
-export async function wipnoteJSON($: EngineInterface, argv: string[]): Promise<CliResult> {
-  try {
-    const sessionId = await $.session.id()
-    const r = await $.process.run(argv, {
-      timeoutMs: CLI_TIMEOUT_MS,
-      env: { CLAUDE_CODE_SESSION_ID: sessionId },
-    })
-    return classifyExit(r.exitCode, r.stdout, r.stderr)
-  } catch {
-    return { ok: false, kind: 'unavailable' }
-  }
-}
+/** A read-only wipnote command's outcome: a spawn failure or timeout is 'unavailable'. */
+export const cliResult = (r: { exitCode: number; stdout: string; stderr: string } | undefined): CliResult =>
+  r === undefined ? { ok: false, kind: 'unavailable' } : classifyExit(r.exitCode, r.stdout, r.stderr)
 
-async function fetchCard($: EngineInterface, id: string): Promise<{ card: Card } | { fail: FailKind }> {
-  const r = await wipnoteJSON($, showArgv(id))
+/** The card a `show` outcome holds, or why there is none. */
+export function cardResult(id: string, r: CliResult): { card: Card } | { fail: FailKind } {
   if (!r.ok) return { fail: r.kind }
   try {
     return { card: parseCard(id, r.stdout) }
@@ -58,97 +44,52 @@ async function fetchCard($: EngineInterface, id: string): Promise<{ card: Card }
   }
 }
 
-function setEntry($: EngineInterface, id: string, entry: CardEntry): Promise<unknown> {
-  return update($, refs, all => ({ ...all, [id]: entry }))
-}
-
-// Overlapping lookups finish in any order. Each one takes a ticket, and only
-// the newest ticket may write, so an older, slower lookup never wins.
-const latest = new Latest()
-
-/**
- * Stores a card from `show` output the band already fetched, so an active
- * item costs one lookup, not one for the band and one for its card. It takes
- * a ticket like loadCard, so it never overwrites a newer lookup.
- */
-export async function storeCard($: EngineInterface, id: string, stdout: string): Promise<void> {
-  const ticket = latest.take(`card:${id}`)
-  let card: Card
+/** The card in `show` output the band already fetched, or undefined when it does not parse. */
+export function cardOf(id: string, stdout: string): Card | undefined {
   try {
-    card = parseCard(id, stdout)
+    return parseCard(id, stdout)
   } catch {
-    return
+    return undefined
   }
-  if (latest.isNewest(`card:${id}`, ticket)) await setEntry($, id, { state: 'loaded', card, at: await $.clock.now() })
 }
 
-/** Reads the item's open questions into the atom, for its card. */
-async function loadQuestions($: EngineInterface, id: string): Promise<void> {
-  const r = await wipnoteJSON($, itemQuestionsArgv(id))
+/** An item's open questions as card lines, or undefined when they could not be read. */
+export function questionsOf(r: CliResult): string[] | undefined {
   const rows = r.ok ? parseOpen(r.stdout) : undefined
-  if (rows !== undefined) await update($, cardQuestions, all => ({ ...all, [id]: questionLines(rows) }))
+  return rows === undefined ? undefined : questionLines(rows)
 }
 
-/** Loads one card into the atom; the write redraws every message that reads it. */
-async function loadCard($: EngineInterface, id: string): Promise<void> {
-  const ticket = latest.take(`card:${id}`)
-  await setEntry($, id, { state: 'loading', at: await $.clock.now() })
-  const r = await fetchCard($, id)
-  if (!latest.isNewest(`card:${id}`, ticket)) return
-  const at = await $.clock.now()
-  if ('card' in r) await loadQuestions($, id).catch(() => undefined)
-  await setEntry($, id, 'card' in r ? { state: 'loaded', card: r.card, at } : { state: 'failed', reason: r.fail, at })
-}
+/** The entry a finished lookup stores. */
+export const entryOf = (r: { card: Card } | { fail: FailKind }, at: number): CardEntry =>
+  'card' in r ? { state: 'loaded', card: r.card, at } : { state: 'failed', reason: r.fail, at }
 
-/** Starts a fetch for every id that is missing or stale. */
-async function loadStale($: EngineInterface, ids: string[]): Promise<void> {
-  const all = await read($, refs)
-  const now = await $.clock.now()
-  for (const id of ids) if (needsFetch(all[id], now)) void loadCard($, id)
-}
+/** Ids that are missing or stale. */
+export const staleIds = (all: Record<string, CardEntry | undefined>, ids: readonly string[], now: number): string[] =>
+  ids.filter(id => needsFetch(all[id], now))
 
 /**
- * After a turn, re-fetches the cards that can still change: any not done, and
- * any that failed (the user may have pulled). A done item rarely changes, so
- * it waits for the TTL instead of costing a process every turn.
+ * The cards that can still change after a turn: any not done, and any that failed (the user may
+ * have pulled). A done item rarely changes, so it waits for the TTL instead of costing a process.
  */
-async function refreshOpenCards($: EngineInterface): Promise<void> {
-  const all = await read($, refs)
-  for (const id of pickRefresh(Object.entries(all), MAX_REFRESH)) void loadCard($, id)
-}
+export const openIds = (all: Record<string, CardEntry>): string[] => pickRefresh(Object.entries(all), MAX_REFRESH)
 
-/**
- * After a Bash call ends, re-fetches the cards it changed (a ticked step, a
- * start or complete), so a card moves mid-turn instead of at the turn's end.
- * Only cards already drawn are fetched; others load when a reply names them.
- */
-export async function refreshChanged($: EngineInterface, command: string): Promise<void> {
+/** The drawn cards a Bash command changed (a ticked step, a start or complete). The CLI takes a unique id prefix, so ids match by prefix. */
+export function changedIds(all: Record<string, CardEntry>, command: string): string[] {
   const ids = changedRefs(command)
-  if (ids.length === 0) return
-  const all = await read($, refs)
-  // The CLI takes a unique id prefix (feat-65bcc2), so match drawn ids by prefix.
-  for (const id of Object.keys(all)) if (ids.some(one => id.startsWith(one))) void loadCard($, id)
+  if (ids.length === 0) return []
+  return Object.keys(all).filter(id => ids.some(one => id.startsWith(one)))
 }
 
-/**
- * Loads the cards the transcript already references. The refs atom starts
- * empty in a new or resumed session, and session.append sees only new
- * replies, so saved references are read back from the transcript.
- */
-export async function hydrate($: EngineInterface): Promise<void> {
-  const messages = await $.session.messages()
-  if (!Array.isArray(messages)) return
-  const ids = refsInMessages(messages.slice(-SCAN_MESSAGES), MAX_REFRESH)
-  if (ids.length > 0) await loadStale($, ids)
-}
+/** The ids the transcript's last messages reference. */
+export const transcriptIds = (messages: unknown): string[] =>
+  Array.isArray(messages) ? refsInMessages(messages.slice(-SCAN_MESSAGES), MAX_REFRESH) : []
 
-/** After a turn: the open cards (stalest first) and any the transcript references but the atom lacks. */
-export function refreshAfterTurn($: EngineInterface): void {
-  void refreshOpenCards($).catch(() => undefined)
-  void hydrate($).catch(() => undefined)
-}
+/** The ids a stored reply's text references. */
+export const replyIds = (text: string): string[] => splitRefs(text).flatMap(s => (s.kind === 'refs' ? s.ids : []))
 
-type Elements = ReturnType<EngineInterface['ui']['resolve']>
+/** The text of a reply's blocks. */
+export const replyText = (content: ReadonlyArray<{ type: string; text?: unknown }>): string =>
+  content.map(b => (b.type === 'text' && typeof b.text === 'string' ? b.text : '')).join('\n')
 
 /** One ref's card: its title, status, step bar and open questions; a dim line while loading or failed. */
 function drawCard({ Box, Text }: Elements, id: string, entry: CardEntry | undefined, asked: readonly string[]) {
@@ -175,44 +116,25 @@ function drawCard({ Box, Text }: Elements, id: string, entry: CardEntry | undefi
   )
 }
 
-/** A stored reply with a wipnote-ref fence starts the card fetches; the render hook only reads the result. */
-function onReplyStored(on: On): void {
-  on('session.append', { door: 'response' }, async ($, e, next) => {
-    const r = await next(e)
-    const text = e.message.content
-      .map(b => (b.type === 'text' && typeof b.text === 'string' ? b.text : ''))
-      .join('\n')
-    const ids = splitRefs(text).flatMap(s => (s.kind === 'refs' ? s.ids : []))
-    if (ids.length > 0) void loadStale($, ids)
-    return r
-  })
-}
-
-/**
- * The wipnote-ref hooks: fetch on reply, the model rule, and the card drawing.
- * register.tsx owns session.start, session.end and turn.complete (an
- * event takes one unmatched hook per mod) and calls hydrate and refreshAfterTurn.
- */
-export function registerRefs(on: On): void {
-  onReplyStored(on)
-  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
-    const segments = splitRefs(e.props.text)
-    if (!segments.some(s => s.kind === 'refs')) return next(e)
-    const els = $.ui.resolve(e)
-    const { Box, Markdown } = els
-    const [all, asked] = await Promise.all([read($, refs), read($, cardQuestions)])
-    return (
-      <Box flexDirection="column">
-        {segments.map((s, i) =>
-          s.kind === 'text' ? (
-            <Markdown key={`t${i}`} text={s.text} />
-          ) : (
-            <Box key={`r${i}`} flexDirection="column">
-              {s.ids.map(id => drawCard(els, id, all[id], asked[id] ?? []))}
-            </Box>
-          ),
-        )}
-      </Box>
-    )
-  })
+/** An assistant message with wipnote-ref fences: its text as it is, each ref as a card. */
+export function drawAssistant(
+  els: Elements,
+  segments: readonly Segment[],
+  all: Record<string, CardEntry | undefined>,
+  asked: Record<string, readonly string[] | undefined>,
+) {
+  const { Box, Markdown } = els
+  return (
+    <Box flexDirection="column">
+      {segments.map((s, i) =>
+        s.kind === 'text' ? (
+          <Markdown key={`t${i}`} text={s.text} />
+        ) : (
+          <Box key={`r${i}`} flexDirection="column">
+            {s.ids.map(id => drawCard(els, id, all[id], asked[id] ?? []))}
+          </Box>
+        ),
+      )}
+    </Box>
+  )
 }

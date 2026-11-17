@@ -1,5 +1,3 @@
-import type { EngineInterface } from 'claude-code'
-
 import type { RunRow } from '../types'
 import { groupOf } from './model'
 
@@ -9,7 +7,8 @@ import { groupOf } from './model'
  * .wipnote/delegations-ledger.html (core/delegationledger), which holds the
  * mode, harness and name a run folder does not. Read-only: this file only
  * lists, stats and reads files (and asks git where the checkout is); it never
- * writes, creates or removes anything.
+ * writes, creates or removes anything. Pure: register.tsx makes the `$.fs`, `$.env` and `$.process`
+ * calls and hands the results to these functions.
  */
 
 export const RUNS_DIR = '.wipnote/delegate/runs'
@@ -156,13 +155,19 @@ export function observedState(json: string): string | undefined {
   }
 }
 
-/** Reads one run folder: label, start, end, exit, the first line of last.md and the observed state, from plain files only. */
-export async function readFolder($: EngineInterface, dir: string): Promise<FolderFacts> {
-  const entries = await $.fs.list(dir)
-  const files = new Map(entries.filter(one => one.kind === 'file' && !one.isLink).map(one => [one.name, one]))
-  const read = (name: string) => (files.has(name) ? $.fs.read(`${dir}/${name}`).then(String).catch(() => '') : Promise.resolve(''))
-  const names = ['label', 'start', 'end', 'exit', 'last.md', 'state.json']
-  const [label = '', start = '', end = '', exit = '', last = '', state = ''] = await Promise.all(names.map(read))
+/** The files of a run folder worth reading: plain files, not links. */
+export const FOLDER_FILES = ['label', 'start', 'end', 'exit', 'last.md', 'state.json']
+
+/** An entry of a folder listing (`$.fs.list`). */
+export type Entry = { name: string; kind: string; isLink?: boolean; mtimeMs?: number }
+
+/** The plain files of a listing, by name. */
+export const plainFiles = (entries: readonly Entry[]): Map<string, Entry> =>
+  new Map(entries.filter(one => one.kind === 'file' && !one.isLink).map(one => [one.name, one]))
+
+/** One run folder's facts: label, start, end, exit, the first line of last.md and the observed state. `texts` follows FOLDER_FILES. */
+export function folderFacts(files: ReadonlyMap<string, Entry>, texts: readonly string[]): FolderFacts {
+  const [label = '', start = '', end = '', exit = '', last = '', state = ''] = texts
   const code = exit.trim()
   const observed = observedState(state)
   return {
@@ -175,63 +180,48 @@ export async function readFolder($: EngineInterface, dir: string): Promise<Folde
   }
 }
 
-/**
- * The project whose .wipnote/ holds the runs, found as wipnote's CLI finds it:
- * WIPNOTE_PROJECT_DIR when it has one, else the main checkout of a git worktree,
- * else the nearest folder with one from the session's directory up.
- */
-export async function findProject($: EngineInterface): Promise<string | null> {
-  const has = (dir: string) => $.fs.exists(`${dir}/.wipnote`).catch(() => false)
-  const env = await $.env.get('WIPNOTE_PROJECT_DIR').catch(() => undefined)
-  if (env !== undefined && env !== '' && (await has(env))) return env
-  const git = await $.process
-    .run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], { timeoutMs: 5000 })
-    .catch(() => undefined)
-  const common = git?.exitCode === 0 ? git.stdout.trim() : ''
-  if (common.endsWith('/.git') && (await has(common.slice(0, -5) || '/'))) return common.slice(0, -5) || '/'
-  let dir = (await $.session.cwd()).replace(/\/+$/, '')
-  while (dir !== '') {
-    if (await has(dir)) return dir
-    dir = dir.slice(0, dir.lastIndexOf('/'))
-  }
-  return (await has('/')) ? '/' : null
+/** The main checkout a `git rev-parse --git-common-dir` answer names, if it names one. */
+export const commonCheckout = (exitCode: number | undefined, stdout: string | undefined): string | undefined => {
+  const common = exitCode === 0 ? (stdout ?? '').trim() : ''
+  return common.endsWith('/.git') ? common.slice(0, -5) || '/' : undefined
 }
 
-type LedgerCache = { key: string; rows: Map<string, LedgerRow> }
+/** The folder above `dir`, as the walk up from the session's directory takes it. */
+export const parentDir = (dir: string): string => dir.slice(0, dir.lastIndexOf('/'))
 
-/** The ledger's rows, read again only when its size or mtime changed. */
-async function readLedger($: EngineInterface, path: string, last: LedgerCache): Promise<LedgerCache> {
-  const stat = await $.fs.stat(path).catch(() => undefined)
-  if (stat === undefined || stat.kind !== 'file') return { key: '', rows: new Map() }
-  const key = `${stat.size}:${stat.mtimeMs}`
-  if (key === last.key) return last
-  const html = await $.fs.read(path).then(String).catch(() => undefined)
-  return html === undefined ? { key: '', rows: new Map() } : { key, rows: parseLedger(html) }
-}
+/** The args of the git call that finds the main checkout. */
+export const GIT_COMMON_ARGV = ['git', 'rev-parse', '--path-format=absolute', '--git-common-dir']
+
+export type LedgerCache = { key: string; rows: Map<string, LedgerRow> }
+
+export const emptyLedger = (): LedgerCache => ({ key: '', rows: new Map() })
+
+/** The ledger's cache key (size and mtime), or undefined when it is not a file. */
+export const ledgerKey = (stat: { kind: string; size: number; mtimeMs: number } | undefined): string | undefined =>
+  stat === undefined || stat.kind !== 'file' ? undefined : `${stat.size}:${stat.mtimeMs}`
+
+/** The ledger as read: its rows, or none when it could not be read. */
+export const ledgerRead = (key: string, html: string | undefined): LedgerCache =>
+  html === undefined ? emptyLedger() : { key, rows: parseLedger(html) }
 
 /** What readRuns keeps between calls: the settled runs' facts and the ledger as last read. */
 export type RunCache = { settled: Map<string, FolderFacts>; ledger: LedgerCache }
 
-export const newRunCache = (): RunCache => ({ settled: new Map(), ledger: { key: '', rows: new Map() } })
+export const newRunCache = (): RunCache => ({ settled: new Map(), ledger: emptyLedger() })
 
-/**
- * A project's runs, one row per run folder. A folder is read again on every call while its
- * run is open; once it has an exit file or a closed ledger row its facts are kept in `cache`,
- * and dropped when the folder is gone (swept).
- */
-export async function readRuns($: EngineInterface, project: string, cache: RunCache): Promise<RunRow[]> {
-  cache.ledger = await readLedger($, `${project}/${LEDGER_FILE}`, cache.ledger)
-  const dir = `${project}/${RUNS_DIR}`
-  const entries = await $.fs.list(dir).catch(() => [])
+/** The run folders in a listing; the settled ones whose folder is gone (swept) are dropped from `cache`. */
+export function runIds(entries: readonly Entry[], cache: RunCache): string[] {
   const ids = entries.filter(one => one.kind === 'dir' && !one.isLink && RUN_ID.test(one.name)).map(one => one.name)
   for (const id of cache.settled.keys()) if (!ids.includes(id)) cache.settled.delete(id)
-  const rows: RunRow[] = []
-  for (const id of ids) {
-    const facts = cache.settled.get(id) ?? (await readFolder($, `${dir}/${id}`).catch(() => undefined))
-    if (facts === undefined) continue
-    const row = rowOf(id, facts, cache.ledger.rows.get(id))
-    if (row.state === 'ended') cache.settled.set(id, facts)
-    rows.push(row)
-  }
-  return rows
+  return ids
+}
+
+/**
+ * One run's row. A folder is read again on every call while its run is open; once it has an
+ * exit file or a closed ledger row its facts are kept in `cache`.
+ */
+export function runRow(id: string, facts: FolderFacts, cache: RunCache): RunRow {
+  const row = rowOf(id, facts, cache.ledger.rows.get(id))
+  if (row.state === 'ended') cache.settled.set(id, facts)
+  return row
 }
