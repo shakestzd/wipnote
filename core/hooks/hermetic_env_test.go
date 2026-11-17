@@ -44,5 +44,7 @@ func TestMain(m *testing.M) {
 	// later run reads those logs back — TestPreToolUseOverlapAdvisory then hits
 	// the research gate instead of the overlap advisory (issue #195).
 	testenv.ClearAmbientSession()
+	// No test starts a real title generator (feat-00e8112d).
+	spawnTitleGenerator = func(TitleJob) {}
 	os.Exit(m.Run())
 }

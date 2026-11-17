@@ -32,6 +32,8 @@ func Stop(event *CloudEvent) (*HookResult, error) {
 	if err := runSessionExitReconcile(projectDir, currentHarness().String(), sessionID, true); err != nil {
 		return nil, err
 	}
+	// Re-title an item-less session from its work, in the background.
+	refreshTitleOnStop(event, projectDir, sessionID)
 	if block := stopQuestionNudge(event, projectDir, sessionID); block != nil {
 		return block, nil
 	}
