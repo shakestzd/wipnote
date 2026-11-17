@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -47,21 +48,69 @@ func fakeOldHomeStore(t *testing.T, app string) map[string]string {
 	return files
 }
 
-// snapshotOldHomeStore is every path under root with its contents, for a no-change check.
+// snapshotDiff lists the snapshot lines only one side has, so a failed
+// no-change check names the path that changed (bug-a1e7bb9b).
+func snapshotDiff(before, after []string) string {
+	in := func(lines []string) map[string]bool {
+		m := map[string]bool{}
+		for _, l := range lines {
+			m[l] = true
+		}
+		return m
+	}
+	b, a := in(before), in(after)
+	var out []string
+	for _, l := range before {
+		if !a[l] {
+			out = append(out, "- "+l)
+		}
+	}
+	for _, l := range after {
+		if !b[l] {
+			out = append(out, "+ "+l)
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+// snapshotOldHomeStore is every file under root with its contents, for a
+// no-change check. It leaves out the destination (projects/) and the app's
+// runtime state, the entries store import-home itself treats as runtime
+// (logs, debug.log, session markers, pid, lock, socket and temp files):
+// the CLI's ordinary pre-run may write those while the test runs, which is
+// not import-home changing the old store (bug-a1e7bb9b). Project data and
+// the user's config files stay in the snapshot. A file that vanishes while
+// the walk runs is skipped instead of cutting the snapshot short.
 func snapshotOldHomeStore(t *testing.T, root string) []string {
 	t.Helper()
 	var out []string
-	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			if os.IsNotExist(err) {
+				return nil
+			}
+			t.Fatalf("snapshot %s: %v", path, err)
 		}
 		rel, _ := filepath.Rel(root, path)
-		if strings.HasPrefix(rel, "projects") {
-			return nil // the destination lives here
+		if rel != "." && snapshotSkips(rel, d) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.IsDir() {
+			return nil // folders hold no data; a runtime marker may add one
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil // removed since the directory was read
 		}
 		line := rel + " " + info.Mode().String()
 		if info.Mode().IsRegular() {
-			data, _ := os.ReadFile(path)
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
 			line += " " + string(data)
 		}
 		out = append(out, line)
@@ -69,6 +118,17 @@ func snapshotOldHomeStore(t *testing.T, root string) []string {
 	})
 	sort.Strings(out)
 	return out
+}
+
+// snapshotKeeps are app entries import skips that the no-change check still
+// covers: the user's own settings, which nothing in the test may write.
+var snapshotKeeps = map[string]bool{"config.json": true, "config.local.json": true, ".gitignore": true, "styles.css": true}
+
+func snapshotSkips(rel string, d fs.DirEntry) bool {
+	if rel == "projects" || strings.HasPrefix(rel, "projects"+string(filepath.Separator)) {
+		return true // the destination lives here
+	}
+	return skipImportEntry(rel, d) && !snapshotKeeps[rel]
 }
 
 func TestStoreImportHome(t *testing.T) {
@@ -115,8 +175,8 @@ func TestStoreImportHome(t *testing.T) {
 			t.Errorf("copied app or runtime file %s", rel)
 		}
 	}
-	if got := snapshotOldHomeStore(t, app); strings.Join(got, "\n") != strings.Join(before, "\n") {
-		t.Fatal("~/.wipnote changed")
+	if diff := snapshotDiff(before, snapshotOldHomeStore(t, app)); diff != "" {
+		t.Fatalf("~/.wipnote changed:\n%s", diff)
 	}
 	root := filepath.Dir(dest)
 	if out := extGit(t, root, "status", "--porcelain"); out != "" {
@@ -157,5 +217,36 @@ func TestStoreImportHome_NothingToImport(t *testing.T) {
 	newExternalProject(t)
 	if _, err := runCLI(t, "store", "import-home"); err == nil {
 		t.Fatal("import-home succeeded with no ~/.wipnote")
+	}
+}
+
+// The no-change check ignores runtime writes the CLI makes on its own but
+// still names a changed project file or user config (bug-a1e7bb9b).
+func TestSnapshotOldHomeStore_RuntimeWritesAreNotChanges(t *testing.T) {
+	app := filepath.Join(t.TempDir(), ".wipnote")
+	fakeOldHomeStore(t, app)
+	before := snapshotOldHomeStore(t, app)
+	for rel, body := range map[string]string{
+		"debug.log": "more", "logs/x.log": "l", ".active-session": "b", ".otel-notice-shown": "1",
+		"writer.lease.pid": "99", "sessions-ledger.html.lock": "x", "sessions/s9/.session-pid": "1", "x.tmp": "t",
+	} {
+		path := filepath.Join(app, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if diff := snapshotDiff(before, snapshotOldHomeStore(t, app)); diff != "" {
+		t.Fatalf("runtime writes read as changes: %q", diff)
+	}
+	for _, rel := range []string{"features/feat-11111111.html", "config.json"} {
+		if err := os.WriteFile(filepath.Join(app, rel), []byte("changed"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if diff := snapshotDiff(before, snapshotOldHomeStore(t, app)); !strings.Contains(diff, rel) {
+			t.Fatalf("change to %s not named: %q", rel, diff)
+		}
 	}
 }
