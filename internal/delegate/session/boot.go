@@ -55,7 +55,7 @@ func BootArgv(exe string, info Info, brief string) []string {
 		argv = append(argv, claudeDirArgs(info)...)
 	}
 	if info.ResumeSession == "" && info.Harness == HarnessClaude {
-		argv = append(argv, "--name", info.Name)
+		argv = append(argv, "--name", ClaudeSessionName(info.CallerLabel, info.Name))
 	}
 	if brief != "" || len(info.Args) > 0 || len(info.Flags) > 0 {
 		argv = append(argv, "--")
