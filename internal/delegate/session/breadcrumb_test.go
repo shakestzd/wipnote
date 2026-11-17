@@ -16,6 +16,9 @@ func TestParentLabel(t *testing.T) {
 		{"nested chain kept whole", "feat-52d2792b › crumb-names", "abcdef12-3456", "feat-52d2792b › crumb-names"},
 		{"no name uses short session id", "", "abcdef12-3456", "abcdef12"},
 		{"no caller", "", "", ""},
+		{"launch name with title uses the title", "wipnote-20261116-22.59.16 · fix delegate stop drafts", "x", "fix delegate stop drafts"},
+		{"long title after the launch name is cut", "wipnote-20261116-22.59.16 · " + long, "x", "an-exceedingly-long-sess"},
+		{"launch name with empty title keeps the name", "wipnote-20261116-22.59.16 · ", "x", "wipnote-20261116-22.59.16"[:24]},
 	}
 	for _, c := range cases {
 		if got := ParentLabel(c.callerName, c.id); got != c.want {

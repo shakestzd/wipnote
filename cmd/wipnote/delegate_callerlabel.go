@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,18 +34,42 @@ func claudeSessionName(projectsDir, sessionID string) string {
 	return ""
 }
 
+// tailBytes is how much of a transcript's end is read first. Claude Code
+// re-writes the agent-name entry through the session, so the current name is
+// almost always near the end; a parent transcript can be ~100 MB, and a
+// spawn should not scan all of it.
+const tailBytes = 1 << 20
+
+// lastAgentName is the session's latest agent-name: from the file's last
+// tailBytes when one is there, else from the whole file.
 func lastAgentName(path string) string {
 	f, err := os.Open(path)
 	if err != nil {
 		return ""
 	}
 	defer f.Close()
-	sc := bufio.NewScanner(f)
+	if st, err := f.Stat(); err == nil && st.Size() > tailBytes {
+		if _, err := f.Seek(st.Size()-tailBytes, io.SeekStart); err == nil {
+			if name := scanAgentName(f); name != "" {
+				return name
+			}
+		}
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return ""
+		}
+	}
+	return scanAgentName(f)
+}
+
+// scanAgentName returns the last agent-name entry in r. A partial first
+// line (after a seek) fails to parse and is skipped.
+func scanAgentName(r io.Reader) string {
+	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
 	last := ""
 	for sc.Scan() {
 		line := sc.Bytes()
-		if !strings.Contains(string(line), `"agent-name"`) {
+		if !bytes.Contains(line, []byte(`"agent-name"`)) {
 			continue
 		}
 		var e struct {
