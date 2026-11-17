@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Compaction continuity: resume brief, PreCompact steer, SessionStart compact re-inject</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-9bc8e611"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-17T04:14:38.095701"
+             data-updated="2026-11-17T04:44:33.617427" data-agent-assigned="claude-code" data-track-id="trk-1db7bf72" data-created-by-cli-version="0.91.4" data-change_kind="capability" data-created_in_session="b8f1586f-9837-4064-ae45-b163a279ee9d">
+
+        <header>
+            <h1>Compaction continuity: resume brief, PreCompact steer, SessionStart compact re-inject</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="42f67444d3c2b8ecfade11cfc5fd7e678f1a43f9.html" data-relationship="committed_in" data-since="2026-11-16T23:44:09">feat-9bc8e611: keep work item state across compaction (resume brief, PreCompact/PostCompact hooks, SessionStart compact)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9e47cff6-f47b-4bbf-ad59-a89736261de9.html" data-relationship="implemented_in" data-since="2026-11-17T04:15:23.848281">session 9e47cff6-f47b-4bbf-ad59-a89736261de9</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-1db7bf72.html" data-relationship="part_of" data-since="2026-11-17T04:14:38.111906">trk-1db7bf72</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-9bc8e611-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Verify PreCompact/PostCompact payload fields against official hooks docs</li>
+                <li data-completed="false" data-step-id="step-feat-9bc8e611-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Resume brief builder</li>
+                <li data-completed="false" data-step-id="step-feat-9bc8e611-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ PreCompact handler</li>
+                <li data-completed="false" data-step-id="step-feat-9bc8e611-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ SessionStart compact branch</li>
+                <li data-completed="false" data-step-id="step-feat-9bc8e611-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ PostCompact record</li>
+                <li data-completed="false" data-step-id="step-feat-9bc8e611-5" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Manifest and regenerate ports</li>
+                <li data-completed="false" data-step-id="step-feat-9bc8e611-6" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Tests</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>wipnote has no compaction handling. Add (1) a short resume brief built from the active work item (id, why, done-when, steps and state, open questions, files touched, linked commits, next step), (2) a PreCompact hook handler for Claude and Codex that snapshots the brief to the session folder and prints summary instructions naming the active item, (3) SessionStart with source=compact injecting the brief in place of the generic startup guidance, (4) a PostCompact handler storing compact_summary on the session record. Research: spk-3a590262.
+Why
+After compaction an agent keeps only the one-line ACTIVE item hint; steps, questions and next action depend on the harness summary, and hook-added context is summarised away.
+Acceptance Criteria
+With an active item, a PreCompact payload yields summary instructions naming the item and writes a snapshot; a SessionStart payload with source=compact returns the brief under 8000 chars; no active item yields today&#39;s behaviour; manifest registers the events and build-ports output is regenerated; go build, vet and tests pass.</p>
+        </section>
+    </article>
+</body>
+</html>
