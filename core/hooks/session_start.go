@@ -66,7 +66,7 @@ func SessionStart(event *CloudEvent, projectDir string) (*HookResult, error) {
 	}, handlerStart, "handler complete")
 
 	wireSessionFamily(projectDir, sessionID, s.AgentAssigned)
-	return sessionStartResult(projectDir), nil
+	return sessionStartResultForSource(event.Source, projectDir, sessionID), nil
 }
 
 // bootstrapSessionStart repairs the worktree gitdir, starts the background
@@ -198,6 +198,17 @@ func wireSessionFamily(projectDir, sessionID, agentID string) {
 // warnings, continue handoff, and either the version-mismatch warning or the
 // startup attribution guidance.
 func sessionStartResult(projectDir string) *HookResult {
+	return sessionStartResultForSource("", projectDir, "")
+}
+
+// sessionStartResultForSource is sessionStartResult for a session that began
+// by the given source. Only "compact" differs (feat-9bc8e611): after a
+// compaction the agent is mid-task, so the resume brief replaces the generic
+// startup guidance. The startup, resume, clear and fork text is left exactly as
+// it was, because a resumed session's prompt cache only matches while that
+// injected text is byte-identical. A compact with no active item falls back to
+// the startup text too.
+func sessionStartResultForSource(source, projectDir, sessionID string) *HookResult {
 	// Surface (and consume) any durable reconcile warnings persisted by a
 	// prior Gemini/Codex session exit (slice-5, feat-f93fe770). This is the
 	// non-blocking counterpart to the Claude exit-2 path: the user-never-
@@ -209,6 +220,13 @@ func sessionStartResult(projectDir string) *HookResult {
 	warning := versionMismatchWarning()
 	if warning != "" {
 		debugLog(projectDir, "[session-start] version mismatch detected: %s", warning)
+	}
+	if source == "compact" {
+		if brief := BuildResumeBrief(projectDir, sessionID); brief != "" {
+			return &HookResult{AdditionalContext: joinSessionStartContext(continuePrefix, reconcilePrefix, warning, brief)}
+		}
+	}
+	if warning != "" {
 		return &HookResult{AdditionalContext: joinSessionStartContext(continuePrefix, reconcilePrefix, warning)}
 	}
 
