@@ -171,3 +171,43 @@ func TestList_DetachedAndWorkItem(t *testing.T) {
 		t.Errorf("entry: %+v", e)
 	}
 }
+
+// A worktree on the default branch is always an ancestor of it, so without a
+// guard clean would remove it and delete main itself.
+func TestClean_KeepsDefaultBranchWorktree(t *testing.T) {
+	noGH(t)
+	repo := newRepo(t)
+	gitRun(t, repo, "checkout", "-q", "-b", "work")
+	release := filepath.Join(repo, ".claude", "worktrees", "deploy-main")
+	gitRun(t, repo, "worktree", "add", "-q", release, "main")
+
+	entries, err := CleanWorktrees(repo, repo, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := find(t, entries, release)
+	if e.Removable || e.Reason != "default branch" {
+		t.Fatalf("default-branch worktree: removable=%v reason=%q", e.Removable, e.Reason)
+	}
+	if _, err := os.Stat(release); err != nil {
+		t.Fatalf("release worktree removed: %v", err)
+	}
+	gitRun(t, repo, "rev-parse", "--verify", "main")
+}
+
+// A just-created worktree has no commits of its own; it is a worker that has
+// not committed yet, not finished work.
+func TestClean_KeepsBranchWithNoCommitsYet(t *testing.T) {
+	noGH(t)
+	repo := newRepo(t)
+	fresh, _ := addWT(t, repo, "bbbbbbb1")
+
+	entries, err := CleanWorktrees(repo, repo, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := find(t, entries, fresh)
+	if e.Removable || e.Reason != "no commits yet" {
+		t.Fatalf("fresh worktree: removable=%v reason=%q", e.Removable, e.Reason)
+	}
+}

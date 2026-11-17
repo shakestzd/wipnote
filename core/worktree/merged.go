@@ -33,6 +33,7 @@ type Entry struct {
 	Merged     string `json:"merged"`
 	WorkItem   string `json:"work_item,omitempty"`
 	Removable  bool   `json:"removable"`
+	keep       string // why a merged branch must stay anyway (protectReason)
 	Reason     string `json:"reason"`
 	Action     string `json:"action,omitempty"`
 }
@@ -92,8 +93,11 @@ func defaultGhMergedPR(repoRoot, branch, tip string) (int, bool) {
 	if url, err := git(repoRoot, "remote", "get-url", "origin"); err != nil || !strings.Contains(url, "github.com") {
 		return 0, false
 	}
-	out, err := exec.Command("gh", "pr", "list", "--head", branch, "--state", "merged",
-		"--json", "number,headRefOid").Output()
+	// Run in the repo so gh resolves its GitHub remote, not the caller's cwd.
+	cmd := exec.Command("gh", "pr", "list", "--head", branch, "--state", "merged",
+		"--json", "number,headRefOid")
+	cmd.Dir = repoRoot
+	out, err := cmd.Output()
 	if err != nil {
 		return 0, false
 	}
@@ -140,6 +144,7 @@ func inspectEntry(repoRoot, defaultRef string, e *Entry) {
 		e.Merged = MergedNoBranch
 	} else {
 		e.Merged = MergedState(repoRoot, defaultRef, e.Branch, e.Head)
+		e.keep = protectReason(repoRoot, defaultRef, e)
 	}
 	if _, err := os.Stat(e.Path); err != nil {
 		e.Reason = "directory missing (run git worktree prune)"
@@ -176,10 +181,34 @@ func keepReason(e *Entry) string {
 		return "tracked changes"
 	case e.Untracked:
 		return "untracked files"
+	case e.keep != "":
+		return e.keep
 	case e.Branch == "":
 		return "no branch (detached HEAD)"
 	case e.Merged == MergedNot:
 		return "not merged"
+	}
+	return ""
+}
+
+// protectReason keeps branches that count as merged but must never be
+// removed: the default branch itself (a release worktree on main is an
+// ancestor of origin/main, and clean would delete main), and a branch with no
+// commits of its own, which is a just-created worktree whose worker has not
+// committed yet rather than finished work.
+func protectReason(repoRoot, defaultRef string, e *Entry) string {
+	local := defaultRef
+	if _, name, ok := strings.Cut(defaultRef, "/"); ok {
+		local = name
+	}
+	if e.Branch == local || e.Branch == "main" || e.Branch == "master" {
+		return "default branch"
+	}
+	if defaultRef == "" {
+		return ""
+	}
+	if tip, err := git(repoRoot, "rev-parse", defaultRef+"^{commit}"); err == nil && tip == e.Head {
+		return "no commits yet"
 	}
 	return ""
 }
