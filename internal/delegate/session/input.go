@@ -96,10 +96,26 @@ func (in *Input) add(text []rune, dim []bool, from int) {
 	for end > from && (unicode.IsSpace(text[end-1]) || text[end-1] == '│' || text[end-1] == '┃') {
 		end--
 	}
-	if from < end {
-		in.Text += string(text[from:end])
-		in.Dim = append(in.Dim, dim[from:end]...)
+	if from >= end {
+		return
 	}
+	in.Text += string(text[from:end])
+	if isNotice(text[from:end]) {
+		for range text[from:end] {
+			in.Dim = append(in.Dim, true)
+		}
+		return
+	}
+	in.Dim = append(in.Dim, dim[from:end]...)
+}
+
+// isNotice reports a line segment that wipnote itself printed to the
+// worker's terminal, such as "wipnote: warning: shared collector moved…".
+// Every wipnote stderr notice starts "wipnote: ", so the segment is not a
+// person's draft and must not keep delegate stop from closing a finished
+// pane (bug-440acb23).
+func isNotice(seg []rune) bool {
+	return strings.HasPrefix(strings.TrimSpace(string(seg)), "wipnote: ")
 }
 
 // addContinuation appends the input's continuation lines: those after the
@@ -144,21 +160,72 @@ func styledRunes(line string) ([]rune, []bool) {
 	var faint, greyFG bool
 	rs := []rune(line)
 	for i := 0; i < len(rs); i++ {
-		if rs[i] == 0x1b && i+1 < len(rs) && rs[i+1] == '[' {
-			j := i + 2
-			for j < len(rs) && (rs[j] < 0x40 || rs[j] > 0x7e) {
-				j++
+		if rs[i] == 0x1b || (rs[i] >= 0x80 && rs[i] <= 0x9f) {
+			end, params, sgr := skipEscape(rs, i)
+			if sgr {
+				faint, greyFG = applySGR(params, faint, greyFG)
 			}
-			if j < len(rs) && rs[j] == 'm' {
-				faint, greyFG = applySGR(string(rs[i+2:j]), faint, greyFG)
-			}
-			i = j
+			i = end
 			continue
+		}
+		if rs[i] < 0x20 || rs[i] == 0x7f {
+			continue // other control characters draw nothing
 		}
 		text = append(text, rs[i])
 		dims = append(dims, faint || greyFG)
 	}
 	return text, dims
+}
+
+// skipEscape returns the index of the last rune of the escape sequence that
+// starts at rs[i] (ESC or a C1 control), and, for an SGR sequence, its
+// parameters. Besides CSI it skips the control strings a pane writes onto
+// its own lines (OSC titles and Herdr's OSC 7501 state, DCS, SOS, PM, APC)
+// through BEL or ST, and two-rune escapes such as a charset select, so none
+// of their bytes read as typed text (bug-440acb23, #344).
+func skipEscape(rs []rune, i int) (end int, params string, sgr bool) {
+	intro, j := rs[i], i+1
+	if intro == 0x1b {
+		if j >= len(rs) {
+			return i, "", false
+		}
+		switch rs[j] {
+		case '[':
+			intro = 0x9b
+		case ']':
+			intro = 0x9d
+		case 'P', 'X', '^', '_':
+			intro = 0x90 // control strings end the same way
+		default:
+			for j < len(rs) && rs[j] >= 0x20 && rs[j] <= 0x2f {
+				j++ // intermediate bytes, then one final byte
+			}
+			return min(j, len(rs)-1), "", false
+		}
+		j++
+	}
+	switch intro {
+	case 0x9b: // CSI: parameters and intermediates, then a final byte
+		k := j
+		for k < len(rs) && (rs[k] < 0x40 || rs[k] > 0x7e) {
+			k++
+		}
+		if k < len(rs) && rs[k] == 'm' {
+			return k, string(rs[j:k]), true
+		}
+		return min(k, len(rs)-1), "", false
+	case 0x9d, 0x90, 0x98, 0x9e, 0x9f: // OSC, DCS, SOS, PM, APC
+		for k := j; k < len(rs); k++ {
+			switch {
+			case rs[k] == 0x07 || rs[k] == 0x9c:
+				return k, "", false
+			case rs[k] == 0x1b && k+1 < len(rs) && rs[k+1] == '\\':
+				return k + 1, "", false
+			}
+		}
+		return len(rs) - 1, "", false
+	}
+	return i, "", false // any other C1 control is one rune
 }
 
 // applySGR folds one SGR parameter list into the faint and grey flags.

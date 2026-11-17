@@ -189,6 +189,9 @@ func exitAgent(ctx context.Context, d Deps, info Info, o StopOptions) (procs []r
 	if o.NoType {
 		return procs, fmt.Sprintf("pane %s still runs %s and this stop types nothing; the pane stays open", pane, procNames(pi)), false
 	}
+	if answerExitMenu(ctx, d.Herdr, pane) {
+		return procs, waitBareShell(ctx, d, pane, o), true // an earlier stop's /exit is waiting on the menu
+	}
 	if in := ReadInput(ctx, d.Herdr, pane); in.Draft() {
 		return procs, "a draft may be on the worker's input line (" + in.why() + "); nothing was typed, so a person's text is not lost", false
 	}
@@ -217,12 +220,16 @@ func waitBareShell(ctx context.Context, d Deps, pane herdr.PaneID, o StopOptions
 	}
 	deadline := time.Now().Add(wait)
 	var last herdr.ProcessInfo
+	answered := false
 	for time.Now().Before(deadline) {
 		if pi, err := d.Herdr.Processes(ctx, pane); err == nil {
 			if bareShell(pi) {
 				return ""
 			}
 			last = pi
+		}
+		if !answered {
+			answered = answerExitMenu(ctx, d.Herdr, pane)
 		}
 		if sleepCtx(ctx, poll) != nil {
 			return "interrupted while waiting for the agent to exit; the pane stays open"
