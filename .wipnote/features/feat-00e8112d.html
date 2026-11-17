@@ -10,20 +10,29 @@
 <body>
     <article id="feat-00e8112d"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-11-17T04:23:31.892497"
-             data-updated="2026-11-17T04:24:55.745186" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-affected_files="cmd/wipnote/claude_session_name.go,core/hooks/session_title.go,core/hooks/runner.go" data-change_kind="design" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Background model title, applied via the existing sessionTitle hook path; the item title wins; never block a hook; config switch to turn it off.&#34;,&#34;exists&#34;:&#34;core/hooks/session_title.go already renames a session through UserPromptSubmit hookSpecificOutput.sessionTitle when a work item starts (MarkSessionTitlePending, width 48). cmd/wipnote/claude_session_name.go names an item-less launch wipnote-\u003cdate-time\u003e (defaultSessionName) and passes it as --name, which hides Claude Code&#39;s own generated title in /resume. internal/delegate/oneshot runs model calls (claude -p) for one-shot runs.&#34;,&#34;options&#34;:[&#34;Generate a 3-6 word title with a small model in the background after the first prompt and after item-less turns; apply it on the next UserPromptSubmit; item title wins (owner&#39;s choice)&#34;,&#34;Pass no --name and rely on Claude Code&#39;s own generated title until an item starts&#34;,&#34;Slug the first prompt&#39;s words (no model call)&#34;],&#34;question&#34;:&#34;How should wipnote generate a session title from the work done, and how does it set it in Claude Code?&#34;,&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/hooks&#34;},{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/sessions&#34;}],&#34;spike_id&#34;:&#34;spk-007c7306&#34;}}">
+             data-updated="2026-11-17T05:07:32.394224" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-affected_files="cmd/wipnote/claude_session_name.go,core/hooks/session_title.go,core/hooks/runner.go" data-change_kind="design" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Background model title, applied via the existing sessionTitle hook path; the item title wins; never block a hook; config switch to turn it off.&#34;,&#34;exists&#34;:&#34;core/hooks/session_title.go already renames a session through UserPromptSubmit hookSpecificOutput.sessionTitle when a work item starts (MarkSessionTitlePending, width 48). cmd/wipnote/claude_session_name.go names an item-less launch wipnote-\u003cdate-time\u003e (defaultSessionName) and passes it as --name, which hides Claude Code&#39;s own generated title in /resume. internal/delegate/oneshot runs model calls (claude -p) for one-shot runs.&#34;,&#34;options&#34;:[&#34;Generate a 3-6 word title with a small model in the background after the first prompt and after item-less turns; apply it on the next UserPromptSubmit; item title wins (owner&#39;s choice)&#34;,&#34;Pass no --name and rely on Claude Code&#39;s own generated title until an item starts&#34;,&#34;Slug the first prompt&#39;s words (no model call)&#34;],&#34;question&#34;:&#34;How should wipnote generate a session title from the work done, and how does it set it in Claude Code?&#34;,&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/hooks&#34;},{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/sessions&#34;}],&#34;spike_id&#34;:&#34;spk-007c7306&#34;}}">
 
         <header>
             <h1>Name top-level sessions from the work done in them instead of wipnote-&lt;date-time&gt;</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="ba48d03ffd36e0bc150e87800b89528413ce88ae.html" data-relationship="committed_in" data-since="2026-11-17T00:03:06">Merge pull request #355 from shakestzd/feat/session-title-from-work</a></li>
+                    <li><a href="5bad35b1b131fcf766342346a330587ec617f05e.html" data-relationship="committed_in" data-since="2026-11-16T23:49:45">fix(delegate): read the parent&#39;s name from its transcript tail; label &#34;&lt;launch&gt; · &lt;title&gt;&#34; parents by title (feat-52d2792b)</a></li>
+                    <li><a href="bbacf72517771d7e3cd8c5a566bbc1046817ee94.html" data-relationship="committed_in" data-since="2026-11-16T23:48:09">feat(hooks): name item-less sessions from their work (feat-00e8112d)</a></li>
+                    <li><a href="20242764eb5019e307dff59e66eb306a38c908a2.html" data-relationship="committed_in" data-since="2026-11-16T23:40:09">wipnote: start feat-00e8112d</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
