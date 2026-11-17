@@ -315,7 +315,7 @@ func launchClaude(opts LaunchOpts) error {
 	// claude_env.go:buildClaudeLaunchEnv for precedence rules (user-set
 	// OTEL_* always wins).
 	c.Env = buildClaudeLaunchEnv(claudeEnvProjectDir(opts), &envOverrides)
-	c.Env = launcher.AppendOrReplaceEnv(c.Env, opts.ExtraEnv...)
+	c.Env = launcher.AppendOrReplaceEnv(c.Env, append([]string{launchNameEnv(opts.Name)}, opts.ExtraEnv...)...)
 
 	// Publish the work-item daemon's socket into the session (feat-f6759e37)
 	// if the ensure started above is done. markerRoot is the same root the

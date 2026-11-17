@@ -155,6 +155,7 @@ func ungroupedCommands() []*cobra.Command {
 		versionCmd(),
 		statuslineCmd(),
 		serveChildCmd(),
+		sessionTitleCmd(),
 		otelCollectCmd(),
 		hookCmd(),
 		claudeCmd(),

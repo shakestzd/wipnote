@@ -47,7 +47,14 @@ func UserPrompt(event *CloudEvent) (*HookResult, error) {
 	} else {
 		result.Continue = true
 	}
-	if title := pendingSessionTitle(projectDir, sessionID, featureID); title != "" {
+	// An item title due now wins; else a generated title (feat-00e8112d).
+	title := pendingSessionTitle(projectDir, sessionID, featureID)
+	if title == "" {
+		title = generatedTitleOnPrompt(event, projectDir, sessionID, featureID, promptSummary)
+	} else {
+		_ = takePendingGeneratedTitle(projectDir, sessionID)
+	}
+	if title != "" {
 		result.HookSpecificOutput = &HookSpecificOutput{SessionTitle: title}
 	}
 	return result, nil
