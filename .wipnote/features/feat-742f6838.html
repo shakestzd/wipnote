@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote worktree list and clean: manage leftover worktrees in shared repos</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-742f6838"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-17T06:54:31.429866"
+             data-updated="2026-11-17T06:55:44.757822" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="capability" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Merged = ancestor of the default branch&#39;s upstream, OR merge-tree tree equals default tree, OR (gh available) a merged PR whose headRefOid equals the branch tip. gh is optional; offline the first two rules apply.&#34;,&#34;exists&#34;:&#34;core/worktree/cleanup.go InspectCleanupState marks HasUniqueCommits via ancestry only; RemoveManagedWorktree and SnapshotPreservedWorktree exist; core/worktree/delegate.go RemoveIfClean; no user-facing worktree command&#34;,&#34;findings&#34;:&#34;Tested on git 2.55: git cherry reports &#39;+&#39; for every commit of a two-commit branch after a squash merge, so it misses squash merges. merge-tree --write-tree of default and branch equals the default tree after a squash merge, and differs once the branch gains a commit, so it detects squash merges offline and catches later work. gh pr list --state merged returned PR 356 with headRefOid fe21f86bc matching the branch tip; matching headRefOid prevents removing a branch that gained commits after merge.&#34;,&#34;options&#34;:[&#34;git merge-base --is-ancestor (ancestry)&#34;,&#34;git cherry (per-commit patch-id)&#34;,&#34;git merge-tree --write-tree \u003cdefault\u003e \u003cbranch\u003e tree equals \u003cdefault\u003e^{tree}&#34;,&#34;gh pr list --head \u003cbranch\u003e --state merged, headRefOid == branch tip&#34;],&#34;queries&#34;:[&#34;wipnote relevant worktree&#34;,&#34;grep -ri worktree core cmd internal&#34;],&#34;question&#34;:&#34;How can wipnote tell a worktree branch is merged upstream, including squash-merged pull requests, without pushing?&#34;,&#34;rejected&#34;:[{&#34;option&#34;:&#34;git cherry&#34;,&#34;reason&#34;:&#34;misses multi-commit squash merges&#34;}],&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-17&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://git-scm.com/docs/git-merge-tree&#34;},{&#34;retrieved&#34;:&#34;2026-11-17&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://git-scm.com/docs/git-cherry&#34;},{&#34;retrieved&#34;:&#34;2026-11-17&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://cli.github.com/manual/gh_pr_list&#34;}],&#34;spike_id&#34;:&#34;spk-0ada4a1e&#34;}}">
+
+        <header>
+            <h1>wipnote worktree list and clean: manage leftover worktrees in shared repos</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-17T06:55:04.427126">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                    <li><a href="../sessions/74a41224-6b36-4dfc-aa68-37b6ea050180.html" data-relationship="implemented_in" data-since="2026-11-17T06:55:44.757657">session 74a41224-6b36-4dfc-aa68-37b6ea050180</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-17T06:54:31.442673">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add &#39;wipnote worktree list&#39; (each worktree: path, branch, dirty, merged state, linked work item) and &#39;wipnote worktree clean&#39; (removes a worktree and its local branch only when it has no uncommitted or untracked changes and its branch is merged upstream: commits reachable from the default branch, or its GitHub pull request is merged, which covers squash merges). Never touches the main checkout, the current worktree, locked worktrees, or remote branches. Dry run by default; --yes removes. Builds on core/worktree/cleanup.go (InspectCleanupState, RemoveManagedWorktree). Worktrees stay in .claude/worktrees.
+Why
+In shared repos where the wipnote store cannot be committed, merged worktrees and branches pile up and must be cleaned by hand; squash-merged branches never look merged to git.
+Acceptance Criteria
+&#39;wipnote worktree list&#39; shows every worktree with merged state; &#39;wipnote worktree clean&#39; dry-runs by default and with --yes removes only clean, upstream-merged worktrees (including squash-merged PRs) and their local branches; tests cover dirty, unmerged, squash-merged, locked and current-worktree cases.</p>
+        </section>
+    </article>
+</body>
+</html>
