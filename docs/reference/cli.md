@@ -135,6 +135,7 @@ Commands for autonomous development, building, agent configuration, and maintena
 | `build` | `wipnote build` | Build Go binary (dev workflow) |
 | `agent-init` | `wipnote agent-init` | Output shared agent context (safety, attribution, quality gates) |
 | `statusline` | `wipnote statusline --session <id>` / `--cache` | Print the active work item (icon + title, with track progress) as one line. For Claude Code, use the native `/statusline` and point it at `wipnote statusline`, e.g. `wipnote statusline --session "$(jq -r .session_id)"` (or the session-independent `wipnote statusline --cache`) |
+| `worktree` | `wipnote worktree list [--json]` / `wipnote worktree clean [--yes] [--json]` | List the repo's worktrees with dirty and merged state (including squash merges); `clean` dry-runs by default and with `--yes` removes clean, merged worktrees and their local branches |
 | `upgrade` / `update` | `wipnote upgrade [--check] [--version 0.54.9]` | Self-update CLI from GitHub releases |
 
 !!! note "`launch.claude.autoCompactWindow` (config key)"
