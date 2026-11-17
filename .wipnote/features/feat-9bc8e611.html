@@ -10,15 +10,15 @@
 <body>
     <article id="feat-9bc8e611"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-11-17T04:14:38.095701"
-             data-updated="2026-11-17T04:44:33.617427" data-agent-assigned="claude-code" data-track-id="trk-1db7bf72" data-created-by-cli-version="0.91.4" data-change_kind="capability" data-created_in_session="b8f1586f-9837-4064-ae45-b163a279ee9d">
+             data-updated="2026-11-17T04:53:07.057597" data-agent-assigned="claude-code" data-track-id="trk-1db7bf72" data-created-by-cli-version="0.91.4" data-change_kind="capability" data-created_in_session="b8f1586f-9837-4064-ae45-b163a279ee9d" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Compaction continuity: resume brief, PreCompact steer, SessionStart compact re-inject</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -28,6 +28,8 @@
                 <h3>Committed In:</h3>
                 <ul>
                     <li><a href="42f67444d3c2b8ecfade11cfc5fd7e678f1a43f9.html" data-relationship="committed_in" data-since="2026-11-16T23:44:09">feat-9bc8e611: keep work item state across compaction (resume brief, PreCompact/PostCompact hooks, SessionStart compact)</a></li>
+                    <li><a href="b44640caabf0136ba72c0d790e550b28cdd679b1.html" data-relationship="committed_in" data-since="2026-11-16T23:53:04">Merge pull request #351 from shakestzd/delegate/compaction-hooks</a></li>
+                    <li><a href="bb0b8fda9e7584b870776abb5ef92c2005d1da4a.html" data-relationship="committed_in" data-since="2026-11-16T23:44:34">wipnote: start feat-9bc8e611</a></li>
                 </ul>
             </section>
             <section data-edge-type="implemented_in">
@@ -47,13 +49,13 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-feat-9bc8e611-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Verify PreCompact/PostCompact payload fields against official hooks docs</li>
-                <li data-completed="false" data-step-id="step-feat-9bc8e611-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Resume brief builder</li>
-                <li data-completed="false" data-step-id="step-feat-9bc8e611-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ PreCompact handler</li>
-                <li data-completed="false" data-step-id="step-feat-9bc8e611-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ SessionStart compact branch</li>
-                <li data-completed="false" data-step-id="step-feat-9bc8e611-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ PostCompact record</li>
-                <li data-completed="false" data-step-id="step-feat-9bc8e611-5" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Manifest and regenerate ports</li>
-                <li data-completed="false" data-step-id="step-feat-9bc8e611-6" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Tests</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Verify PreCompact/PostCompact payload fields against official hooks docs</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Resume brief builder</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ PreCompact handler</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ SessionStart compact branch</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ PostCompact record</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Manifest and regenerate ports</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Tests</li>
             </ol>
         </section>
 
