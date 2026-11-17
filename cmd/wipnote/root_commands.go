@@ -142,6 +142,7 @@ func devCommands() []cliinternal.GroupedCommand {
 		yoloCmd(),
 		upgradeCmd(),
 		buildCmd(),
+		worktreeCmd(),
 		agentInitCmd(),
 		shCmd(),
 		delegateCmd(),
