@@ -238,7 +238,7 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 		exe = "wipnote"
 	}
 	o := session.SpawnOptions{
-		Name: a.name, Harness: a.harness, WorkItem: a.workItem, WorkTitle: title, CallerSession: caller, CallerPane: env.CallerPane,
+		Name: a.name, Harness: a.harness, WorkItem: a.workItem, WorkTitle: title, CallerSession: caller, CallerLabel: callerLabel(caller), CallerPane: env.CallerPane,
 		Brief: a.brief, Cwd: cwd, Container: a.container, Root: projectDir, Model: a.model, Effort: a.effort, Profile: a.profile, Tools: a.tools, MCP: a.mcp, Plugins: a.plugins, UserRules: a.userRules, ProjectRules: a.projectRules, CacheTTL: a.cacheTTL,
 		Config: session.LoadClaudeConfig(paths.UserConfigPath()), Extra: a.extra, Worktree: a.worktree, Base: a.base,
 		CodexOptIn: (a.container || a.resume != "") && hostOptedIn(projectDir),

@@ -30,6 +30,7 @@ type SpawnOptions struct {
 	Name, Harness, WorkItem string
 	WorkTitle               string
 	CallerSession           string
+	CallerLabel             string // ParentLabel of the caller, for the Claude session name
 	CallerPane              herdr.PaneID
 	Brief                   string
 	Cwd                     string
@@ -287,7 +288,7 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 		return Info{}, nil, err
 	}
 	info := Info{
-		Run: row.ID, Name: o.Name, Harness: o.Harness, WorkItem: o.WorkItem, Caller: o.CallerSession,
+		Run: row.ID, Name: o.Name, Harness: o.Harness, WorkItem: o.WorkItem, Caller: o.CallerSession, CallerLabel: o.CallerLabel,
 		CallerPane: string(o.CallerPane), Cwd: o.Cwd, Place: placeOf(o), Created: d.now().Format(time.RFC3339),
 		ResumedFrom: o.ResumedFrom, ResumeSession: o.ResumeSession, Model: o.Model, Flags: o.Flags, Lean: o.Lean, Setup: o.setup(),
 	}
