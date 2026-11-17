@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>TestStoreImportHome fails intermittently: &#39;~/.wipnote changed&#39; after store import-home</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-a1e7bb9b"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-11-17T04:37:27.3621"
+             data-updated="2026-11-17T04:49:52.134085" data-agent-assigned="claude-code" data-track-id="trk-43648254" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788">
+
+        <header>
+            <h1>TestStoreImportHome fails intermittently: &#39;~/.wipnote changed&#39; after store import-home</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-17T04:49:52.133979">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-43648254.html" data-relationship="part_of" data-since="2026-11-17T04:37:27.37941">trk-43648254</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>snapshotOldHomeStore walks the test&#39;s app home (skipping projects/) before and after runCLI store import-home and compares paths, modes and contents. It passed 3 of 3 alone in two worktrees but failed inside a full gate run while another gate and delegate workers ran. Something writes under the app home during or just after the command (a log, lock, pid or commit-queue file is the likely suspect). The failure message does not say which path changed.
+Why
+The flake fails wipnote check --gate on unrelated changes (feat-52d2792b gate, and likely the first bug-440acb23 gate run on 2026-11-16), which blocks commits and deploys.
+Acceptance Criteria
+The test reports which path changed when it fails; the writer is found and either kept out of the app home or excluded as a runtime file with a reason; 50 consecutive -count runs under parallel load pass.</p>
+        </section>
+    </article>
+</body>
+</html>
