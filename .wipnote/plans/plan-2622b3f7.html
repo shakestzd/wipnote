@@ -586,7 +586,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   </ul>
   
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
-  
+  <a href="#critique" class="nav-link" data-spy="critique" data-initial="C">Critique</a>
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
   <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="&#9825;">Chat</a>
 </nav>
@@ -600,7 +600,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">The owner chose 30 of the 31 changes on the adoption board (spk-deb261d8). This plan carries them out: guidance moves from skills and always-loaded prompt text into CLI output, one worker-rules hook and tests. Retro skill E4 is deferred.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 12 slices · Created 2026-11-18</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v4 · 12 slices · Created 2026-11-18</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -2623,6 +2623,130 @@ Each new rule file has a paths field that matches at least one tracked file.</p>
         <!--PLAN_QUESTIONS_RECAP-->
       </tbody>
     </table>
+  </div>
+</details>
+
+
+<details id="critique" class="section-card" data-phase="critique" data-status="pending">
+  <summary><span>Critique</span><span class="badge badge-pending" data-badge-for="critique">Review</span></summary>
+  <div class="section-body">
+
+    
+    <div class="sub-section">
+      <h4>Assumption Verification</h4>
+      
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:8px;background:var(--bg-input);border-radius:var(--radius)">
+        <span class="badge badge-approved">verified</span>
+        <div>
+          <p style="margin:0;font-size:.9rem">A SubagentStart hook can add context that a plugin-scoped subagent sees.</p>
+          <p style="margin:4px 0 0;font-size:.8rem;color:var(--text-muted)">https://code.claude.com/docs/en/hooks; core/hooks/harness_response.go:29</p>
+        </div>
+      </div>
+      
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:8px;background:var(--bg-input);border-radius:var(--radius)">
+        <span class="badge badge-approved">verified</span>
+        <div>
+          <p style="margin:0;font-size:.9rem">Rule files under .claude/rules can be scoped with a paths field.</p>
+          <p style="margin:4px 0 0;font-size:.8rem;color:var(--text-muted)">https://code.claude.com/docs/en/memory; .claude/rules/debugging.md:2</p>
+        </div>
+      </div>
+      
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:8px;background:var(--bg-input);border-radius:var(--radius)">
+        <span class="badge badge-pending">plausible</span>
+        <div>
+          <p style="margin:0;font-size:.9rem">lifecycle_injection.go has a once-per-session helper that the ACTIVE marker can reuse.</p>
+          <p style="margin:4px 0 0;font-size:.8rem;color:var(--text-muted)">unverified: the implementer names it in the work item before coding</p>
+        </div>
+      </div>
+      
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:8px;background:var(--bg-input);border-radius:var(--radius)">
+        <span class="badge badge-pending">unverified</span>
+        <div>
+          <p style="margin:0;font-size:.9rem">The four external sources support each card-level claim.</p>
+          <p style="margin:4px 0 0;font-size:.8rem;color:var(--text-muted)">unverified: the critic checked that the URLs resolve, not their content. The research workers read them earlier in spk-deb261d8.</p>
+        </div>
+      </div>
+      
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:8px;background:var(--bg-input);border-radius:var(--radius)">
+        <span class="badge badge-pending">unverified</span>
+        <div>
+          <p style="margin:0;font-size:.9rem">The usage counts in design.problem are right.</p>
+          <p style="margin:4px 0 0;font-size:.8rem;color:var(--text-muted)">unverified by the critics; counted from transcripts in spk-deb261d8</p>
+        </div>
+      </div>
+      
+    </div>
+    
+
+    
+    <div class="sub-section" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      
+      <div>
+        <h4>delegate-design (fresh worker, plan and reading list only)</h4>
+        <div style="font-size:.85rem;color:var(--text-dim)"><h5>Round 1, all fixed in the plan</h5>
+<ul>
+  <li><span class="badge badge-danger">danger</span> Slice 3 dropped agent-context sections with no new home. Fixed: slice 3 now records a disposition for every section of both skills.</li>
+  <li><span class="badge badge-danger">danger</span> The 2 KB block and the skill fallback contradicted the deletion. Fixed: the hook contract is verified, the fallback is removed, the limit is 3 KB.</li>
+  <li><span class="badge badge-danger">danger</span> Deleting slices missed evals, tests and hook messages that name the skills. Fixed: each deleting slice lists them.</li>
+  <li><span class="badge badge-warn">warn</span> Slice 3 was not end to end. Fixed: split into slice 3 (block for workers and other harnesses) and slice 4 (hook, then delete).</li>
+  <li><span class="badge badge-warn">warn</span> The prompt slice had no size target and overlapped the delegate slice. Fixed: 3,500-byte target, and one slice edits the prompt after the delegate slice.</li>
+  <li><span class="badge badge-warn">warn</span> The ACTIVE line had undefined states. Fixed: it is resent after any session start, resume, compact or clear, each with a test.</li>
+  <li><span class="badge badge-warn">warn</span> The before-and-after check had no testable pass rule. Fixed: three runs per ref, a stated rule and a planted regression.</li>
+</ul>
+</div>
+      </div>
+      
+      
+      <div>
+        <h4>delegate-feasibility (fresh worker, plan and reading list only)</h4>
+        <div style="font-size:.85rem;color:var(--text-dim)"><h5>Round 1, all fixed in the plan</h5>
+<ul>
+  <li><span class="badge badge-danger">danger</span> Delegate profiles live in internal/delegate/session, not oneshot. Fixed: files and tests corrected.</li>
+  <li><span class="badge badge-danger">danger</span> A no-reference check could not pass while CLAUDE.md names a skill. Fixed: CLAUDE.md is excluded and handled by the owner&#39;s patch in slice 12.</li>
+  <li><span class="badge badge-warn">warn</span> Critique round, critic status and accepted risks had no schema home. Fixed: three optional fields named in slice 8.</li>
+  <li><span class="badge badge-warn">warn</span> execute-preview would pass the 500-line trigger. Fixed: new logic goes in its own file.</li>
+  <li><span class="badge badge-info">info</span> The catalog test already exists. Fixed: slice 1 adds only the stale-row check.</li>
+</ul>
+</div>
+      </div>
+      
+    </div>
+    
+
+    
+
+    
+    <div class="sub-section">
+      <h4>Risk Assessment</h4>
+      <table class="q-table">
+        <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          
+          <tr>
+            <td>Model runs vary, so the before-and-after check can miss or invent a regression.</td>
+            <td><span class="badge badge-revision">Medium</span></td>
+            <td>Three runs per ref and a stated pass rule; a planted regression proves the check can fail.</td>
+          </tr>
+          
+          <tr>
+            <td>Slice 11 is a large mixed deletion.</td>
+            <td><span class="badge badge-revision">Medium</span></td>
+            <td>Accepted: one reference search and one build-ports run cover it, and a test checks every path the built manifests name.</td>
+          </tr>
+          
+          <tr>
+            <td>Slice 11 waits on feat-4151d2f0, which is outside this plan.</td>
+            <td><span class="badge badge-pending">Low</span></td>
+            <td>Recorded as a plan constraint and a done-when line.</td>
+          </tr>
+          
+        </tbody>
+      </table>
+    </div>
+    
+
+    
+
   </div>
 </details>
 

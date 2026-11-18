@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 3
+    version: 4
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -646,3 +646,85 @@ slices:
             - body: Launch modes, Codespaces, upstream monitoring and deploy.
               label: Docs
 questions: []
+critique:
+    reviewed_at: "2026-11-18"
+    reviewers:
+        - delegate-design (fresh worker, plan and reading list only)
+        - delegate-feasibility (fresh worker, plan and reading list only)
+    assumptions:
+        - id: A1
+          status: verified
+          text: A SubagentStart hook can add context that a plugin-scoped subagent sees.
+          evidence: https://code.claude.com/docs/en/hooks; core/hooks/harness_response.go:29
+        - id: A2
+          status: verified
+          text: Rule files under .claude/rules can be scoped with a paths field.
+          evidence: https://code.claude.com/docs/en/memory; .claude/rules/debugging.md:2
+        - id: A3
+          status: plausible
+          text: lifecycle_injection.go has a once-per-session helper that the ACTIVE marker can reuse.
+          evidence: 'unverified: the implementer names it in the work item before coding'
+        - id: A4
+          status: unverified
+          text: The four external sources support each card-level claim.
+          evidence: 'unverified: the critic checked that the URLs resolve, not their content. The research workers read them earlier in spk-deb261d8.'
+        - id: A5
+          status: unverified
+          text: The usage counts in design.problem are right.
+          evidence: unverified by the critics; counted from transcripts in spk-deb261d8
+    critics:
+        - title: Design critic
+          sections:
+            - heading: Round 1, all fixed in the plan
+              items:
+                - badge: danger
+                  kind: danger
+                  text: 'Slice 3 dropped agent-context sections with no new home. Fixed: slice 3 now records a disposition for every section of both skills.'
+                - badge: danger
+                  kind: danger
+                  text: 'The 2 KB block and the skill fallback contradicted the deletion. Fixed: the hook contract is verified, the fallback is removed, the limit is 3 KB.'
+                - badge: danger
+                  kind: danger
+                  text: 'Deleting slices missed evals, tests and hook messages that name the skills. Fixed: each deleting slice lists them.'
+                - badge: warn
+                  kind: warn
+                  text: 'Slice 3 was not end to end. Fixed: split into slice 3 (block for workers and other harnesses) and slice 4 (hook, then delete).'
+                - badge: warn
+                  kind: warn
+                  text: 'The prompt slice had no size target and overlapped the delegate slice. Fixed: 3,500-byte target, and one slice edits the prompt after the delegate slice.'
+                - badge: warn
+                  kind: warn
+                  text: 'The ACTIVE line had undefined states. Fixed: it is resent after any session start, resume, compact or clear, each with a test.'
+                - badge: warn
+                  kind: warn
+                  text: 'The before-and-after check had no testable pass rule. Fixed: three runs per ref, a stated rule and a planted regression.'
+        - title: Feasibility critic
+          sections:
+            - heading: Round 1, all fixed in the plan
+              items:
+                - badge: danger
+                  kind: danger
+                  text: 'Delegate profiles live in internal/delegate/session, not oneshot. Fixed: files and tests corrected.'
+                - badge: danger
+                  kind: danger
+                  text: 'A no-reference check could not pass while CLAUDE.md names a skill. Fixed: CLAUDE.md is excluded and handled by the owner''s patch in slice 12.'
+                - badge: warn
+                  kind: warn
+                  text: 'Critique round, critic status and accepted risks had no schema home. Fixed: three optional fields named in slice 8.'
+                - badge: warn
+                  kind: warn
+                  text: 'execute-preview would pass the 500-line trigger. Fixed: new logic goes in its own file.'
+                - badge: info
+                  kind: info
+                  text: 'The catalog test already exists. Fixed: slice 1 adds only the stale-row check.'
+    risks:
+        - risk: Model runs vary, so the before-and-after check can miss or invent a regression.
+          severity: Medium
+          mitigation: Three runs per ref and a stated pass rule; a planted regression proves the check can fail.
+        - risk: Slice 11 is a large mixed deletion.
+          severity: Medium
+          mitigation: 'Accepted: one reference search and one build-ports run cover it, and a test checks every path the built manifests name.'
+        - risk: Slice 11 waits on feat-4151d2f0, which is outside this plan.
+          severity: Low
+          mitigation: Recorded as a plan constraint and a done-when line.
+    synthesis: ""
