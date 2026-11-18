@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 30
+    version: 32
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -237,7 +237,7 @@ slices:
           claim: SubagentStart returns hookSpecificOutput.additionalContext, added before the subagent's first prompt. core/hooks/harness_response.go:29 already maps it. subagent_start.go:17 returns Continue only today.
           accessed: "2026-11-18"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Decisions:** the edit site is core/hooks/subagent_start.go. The hook adds the block only for agent types that start with wipnote:. The evals for the two skills are deleted, because the slice 2 check now covers the same behaviours (item started, test first, gate run, completion).
         **CLAUDE.md:30** names the code-quality skill. Slice 12 removes that line in the owner's patch.
@@ -251,6 +251,7 @@ slices:
             - delegate spawn adds it to the brief preamble
             - Codex and Antigravity agent files carry it from build-ports
     - id: ""
+      feature_id: feat-61944b76
       num: 5
       title: Trim the system prompt and quiet the hooks
       what: Mark each system prompt and repo rule line as enforced or prose only, then drop, soften or keep it. Replace the two delegate paragraphs with one pointer. Add one sentence on asking only for decisions. Send the ACTIVE line only on an item change or a session start. Cards A2, B1, B3, B4.
@@ -286,6 +287,7 @@ slices:
       comment: ""
       research_waiver: Edits to wipnote's own prompt, rules and hook. The sources are cited in design.research.
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Decisions:** the hook stores the last item it announced in a per-session marker. The SessionStart handler clears the marker for every start source (startup, resume, compact, clear), so the line is sent again after any event that can drop it from context. The implementer reuses the once-per-session helper in lifecycle_injection.go if it fits, and names it in the work item before coding.
         **B3:** the sentence cites the open-question records as its observed failure, as card A1 requires.
@@ -845,9 +847,9 @@ feedback:
           updated_at: "2026-11-18T22:30:59Z"
         - section: slice-4
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-18T22:31:01Z"
-          updated_at: "2026-11-18T22:31:01Z"
+          updated_at: "2026-11-18T23:30:57Z"
         - section: slice-6
           action: set_execution_status
           value: done
@@ -858,3 +860,8 @@ feedback:
           value: promoted
           created_at: "2026-11-18T23:28:19Z"
           updated_at: "2026-11-18T23:28:19Z"
+        - section: slice-5
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-18T23:31:01Z"
+          updated_at: "2026-11-18T23:31:01Z"
