@@ -129,7 +129,23 @@ picks the default. A --tools, --chrome, --settings or --strict-mcp-config after
 -- replaces its default (your --settings replaces the whole overlay). A resume
 that gives none of these keeps the old run's setup. The result shows profile,
 model, effort, tools, mcp, plugins and cacheTTL. Codex workers (which refuse these flags)
-and delegate run are unchanged.`
+and delegate run are unchanged.
+
+Claim rules. The worker co-claims your work item and you keep your claim: the two
+count as one family, so the claim gate refuses neither. There is one live worker
+per item, unless each has its own --worktree. Stop the worker (delegate stop)
+before you complete the item, because completing it closes every open claim on
+it. A stopped worker's claim ends as abandoned, and a lost pane's as expired.
+
+Worker questions. Tell the worker in its brief to raise each question with
+delegate reply --ask "Q" --option "A" --option "B" (2 to 4 options) and not to
+list questions in its report: questions in report prose are not filed. delegate
+result files each --ask question as a question record on the work item.
+
+Outside requests. Put this in every brief: the worker must never put the user's
+email address or another personal identifier into a request to an outside
+service (web fetch, search, API call, User-Agent). When a source needs one to be
+read, the worker reports the source as unreadable instead.`
 
 // spawnFlagVars points at the variables the spawn flags fill.
 type spawnFlagVars struct {
@@ -256,8 +272,18 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	if s.Harness == session.HarnessCodex && spawnedInContainer(d, s.Run) {
 		fmt.Fprintln(cmd.ErrOrStderr(), "wipnote: warning: the Codex worker runs with --sandbox danger-full-access inside the devcontainer (bwrap does not work there; this host opted in through delegate.codex.dangerFullAccessHosts)")
 	}
+	fmt.Fprintln(cmd.ErrOrStderr(), spawnNextHint(s.Name))
 	fmt.Fprintln(cmd.ErrOrStderr(), spawnWatchHint)
 	return writeJSON(cmd.OutOrStdout(), s)
+}
+
+// spawnNextHint names the commands that follow a spawn, so the caller needs no
+// guide (feat-8f910039). The worker raises questions with delegate reply --ask:
+// a question written in report prose is never filed.
+func spawnNextHint(name string) string {
+	return "wipnote: next: wipnote delegate send " + name + " TASK, then wipnote delegate wait " + name +
+		" --timeout 20m, then wipnote delegate result " + name + ". Stop it with wipnote delegate stop " + name +
+		" before you complete its work item. Tell the worker in its brief to raise questions with wipnote delegate reply --ask."
 }
 
 // spawnWatchHint tells the caller to arm the one watch over all its workers.

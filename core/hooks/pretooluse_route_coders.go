@@ -35,7 +35,7 @@ func routeCoders(event *CloudEvent, getenv func(string) string) *guardOutcome {
 then wipnote delegate wait NAME --timeout 10m, wipnote delegate result NAME and wipnote delegate stop NAME.
 Choose its model with --profile simple, standard or deep, and add --worktree when workers edit overlapping files.
 A worker does not load this project's rules by default, so put any rule that must hold in its brief.
-If spawn refuses, for example at the cap of 6 workers, do the work in this session. wipnote skill show delegate has the details.`, agent))
+If spawn refuses, for example at the cap of 6 workers, do the work in this session. wipnote delegate --help has the details.`, agent))
 }
 
 // insideHerdr is the check delegate spawn makes (herdr.EnvFrom), which core

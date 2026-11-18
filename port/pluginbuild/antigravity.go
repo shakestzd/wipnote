@@ -228,9 +228,9 @@ func emitAntigravityAssets(m *Manifest, repoRoot, outDir string, t Target) error
 }
 
 // antigravityExcludedSkills are shared skills the Antigravity tree does not
-// ship. delegate: Antigravity has no delegate workers in v1 (plan-28b4a7f6,
-// q-antigravity answered no).
-var antigravityExcludedSkills = []string{"delegate"}
+// ship. None now: the only entry, the delegate guide, is deleted (feat-8f910039)
+// and its steps live in wipnote delegate --help.
+var antigravityExcludedSkills []string
 
 // removeAntigravityExcludedSkills deletes each excluded skill's directory
 // from the freshly copied skills tree. A skill that is absent is not an error.
