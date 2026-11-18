@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 27
+    version: 28
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -302,6 +302,7 @@ slices:
             - body: The same rule sits in more than one file. Keep one copy.
               label: Duplicate
     - id: ""
+      feature_id: feat-8f910039
       num: 6
       title: Delegate guidance moves into the command
       what: Put the delegate steps into wipnote delegate --help and the hints that spawn prints. Add a delegate profiles command that prints the profile table from code, with a new read-only review profile. Delete the delegate skill and repoint the denial messages and tests that name it. Cards F5, D4. F5 replaces B2.
@@ -344,6 +345,7 @@ slices:
         rejected:
             - 'keep the profile tables in a linked skill file (card B2): agents ran delegate 83 times and rarely opened the skill'
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Decisions:** spawn prints the next command (wait, then result, then stop) as a hint on stderr. The profile table lives in internal/delegate/session/profile.go and delegate profiles prints it, so it cannot drift. The review profile is a new entry in that map. For a Claude worker it passes a disallowed-tools list (Edit, Write, NotebookEdit). For a Codex worker it uses the read-only sandbox.
         **System prompt:** the two delegate paragraphs are cut in slice 5, which depends on this slice, so the prompt has one editor at a time.
@@ -844,3 +846,8 @@ feedback:
           value: promoted
           created_at: "2026-11-18T22:31:01Z"
           updated_at: "2026-11-18T22:31:01Z"
+        - section: slice-6
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-18T22:31:03Z"
+          updated_at: "2026-11-18T22:31:03Z"
