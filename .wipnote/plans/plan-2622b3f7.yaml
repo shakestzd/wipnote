@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 23
+    version: 24
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -355,6 +355,7 @@ slices:
             - Profile tables to delegate profiles
             - Skill deleted
     - id: ""
+      feature_id: feat-bcc2297f
       num: 7
       title: A plan next command replaces the plan skill
       what: Add wipnote plan next <id>. It prints the one next step for that plan and the rules for that step, including vertical slices and no plan for a change of one or two files. Move the reference files the command needs into its output. Delete the plan skill. Cards F2, D5.
@@ -389,6 +390,7 @@ slices:
         rejected:
             - 'keep the skill and shorten it: usage shows agents run the commands and skip the skill'
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Decisions:** the step is derived from plan state (validation result, critique present, slice approvals, promotions), so the command needs no stored cursor. SPEC, ENRICH, EXAMPLES and INTERVIEW_RENDERING content prints only for the step that needs it. Existing hints that end other plan commands point to plan next.
         **Rejected:** a wizard that runs the steps itself, because each step needs the agent's judgement or the owner's decision.
@@ -830,3 +832,8 @@ feedback:
           value: promoted
           created_at: "2026-11-18T21:27:15Z"
           updated_at: "2026-11-18T21:27:15Z"
+        - section: slice-7
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-18T21:27:17Z"
+          updated_at: "2026-11-18T21:27:17Z"
