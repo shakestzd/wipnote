@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>SubagentStart delivers the block, and the two preloaded skills go</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-0b0112a4"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T22:31:01.359359"
+             data-updated="2026-11-18T23:30:56.420175" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>SubagentStart delivers the block, and the two preloaded skills go</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../features/feat-0d9b57bc.html" data-relationship="blocked_by" data-since="2026-11-18T22:31:01.387236">feat-0d9b57bc</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="dcca671a5573cbf35af4d9755ed717e292c28a6a.html" data-relationship="committed_in" data-since="2026-11-18T18:30:35">Merge pull request #367 from shakestzd/delegate/subagent-rules-hook</a></li>
+                    <li><a href="ecc16a15f39ee9667c9561b34148ccd2a94e59e3.html" data-relationship="committed_in" data-since="2026-11-18T18:28:01">feat-0b0112a4: merge main, and state one rule for pre-existing errors</a></li>
+                    <li><a href="e70f539a00e2e6387b1ad2fdbec90c3b18a884a4.html" data-relationship="committed_in" data-since="2026-11-18T18:03:07">feat-0b0112a4: make test-first step of the worker rules firmer</a></li>
+                    <li><a href="754b1523371f0d5aa96bc795ea77ef2e11bc2cfe.html" data-relationship="committed_in" data-since="2026-11-18T17:45:33">feat-0b0112a4: SubagentStart delivers the worker rules, two preloaded skills go</a></li>
+                    <li><a href="887b4ad4376643d464f345fb8afb9fac160d808c.html" data-relationship="committed_in" data-since="2026-11-18T17:31:01">plan(plan-2622b3f7): promote slice-4 → feat-0b0112a4</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/90908f6a-d135-4c2a-ba54-4335376e985c.html" data-relationship="implemented_in" data-since="2026-11-18T22:31:53.463823">session 90908f6a-d135-4c2a-ba54-4335376e985c</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-18T22:31:01.367494">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-2622b3f7.html" data-relationship="planned_in" data-since="2026-11-18T22:31:01.381584">plan-2622b3f7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Extend the SubagentStart hook to add the worker-rules block as additional context for wipnote coder and researcher agents. Remove the skills preload from the agent files. Delete agent-context and code-quality-skill, their eval cases and every reference to them. Change code-hygiene.md to the one rule for pre-existing errors. Card F1 (second half), C3, C4.
+Why
+Coder subagents load about 10 KB of skill text in each of 117 spawns. The block replaces it at under a third of the size.
+Acceptance Criteria
+A subagent of type wipnote:feature-coder receives the block as additionalContext, shown by a test, and another plugin&#39;s agent does not; The agent files carry no skills preload; No tracked file outside CLAUDE.md and CHANGELOG.md names agent-context or code-quality-skill; code-hygiene.md and the block state the same rule for pre-existing errors; The slice 2 check shows the checked behaviours held</p>
+        </section>
+    </article>
+</body>
+</html>
