@@ -119,6 +119,14 @@ func TestUserPrompt_ActiveLineFromClaimLedger(t *testing.T) {
 	if res.AdditionalContext != "ACTIVE: feat-c0ffee01 — Brew the coffee" {
 		t.Fatalf("open claim: want the ACTIVE line, got %q", res.AdditionalContext)
 	}
+	// The line goes out once per item. A second prompt on the same item gets none.
+	res, err = UserPrompt(ev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(res.AdditionalContext, "ACTIVE:") {
+		t.Fatalf("same item again: want no ACTIVE line, got %q", res.AdditionalContext)
+	}
 }
 
 func writeCanonGuardFeature(t *testing.T, wipnoteDir, id, title string) {

@@ -24,35 +24,22 @@ paths:
 
 See `packages/plugin-core/README.md` for new-command / new-hook / new-target recipes.
 
-## Directory Structure (generated Claude tree)
-
-- `plugin/.claude-plugin/plugin.json` — manifest (generated)
-- `plugin/hooks/hooks.json` + `bin/wipnote` — Go binary hook handler (hooks.json generated)
-- `plugin/agents/` — markdown agent definitions (source asset, edit directly)
-- `plugin/skills/` — skill directories with SKILL.md (source asset, edit directly)
-- `plugin/commands/` — slash commands (source asset, edit directly)
-- `plugin/config/` — classification, drift, validation (source asset, edit directly)
-
 **CRITICAL:** Don't put `commands/`, `agents/`, `skills/`, or `hooks/` inside `.claude-plugin/`. Only `plugin.json` belongs there. Caveat: `plugin/` is the Claude target's output directory — the asset subtrees listed above are hand-edited (they are the shared source for every target), while `plugin/.claude-plugin/plugin.json` and `plugin/hooks/hooks.json` are generated from `packages/plugin-core/manifest.json` and must be regenerated, not hand-edited.
 
 ## Workflow
 
 1. Edit shared source: `packages/plugin-core/manifest.json`, `plugin/{commands,agents,skills,…}/`, `cmd/`, or `internal/`
 2. Regenerate target trees: `wipnote plugin build-ports`
-3. Run: `go build ./... && go vet ./... && go test ./...`
+3. Run the gate in `code-hygiene.md`
 4. Build: `wipnote build`
 5. Test: `wipnote claude --dev`
 6. Deploy: `./scripts/deploy-all.sh X.Y.Z --no-confirm`
 
 ## Rules
 
-- Edit `packages/plugin-core/manifest.json` (never the generated `plugin/hooks/hooks.json` or `plugin/.claude-plugin/plugin.json`)
-- Edit Go source in `cmd/` or `internal/` for hook/CLI logic
-- Add agents to `plugin/agents/`, skills to `plugin/skills/`, commands to `plugin/commands/` — all targets pick them up after `wipnote plugin build-ports`
-- Hooks receive CloudEvent JSON on stdin — process via Go binary
-- No stderr from hooks (causes "hook error" in Claude Code UI)
-- Return `{}` to allow, `{"decision":"block","reason":"..."}` to block
-- Prefer file/branch state over session state for hook gates (see "Hook State" below)
+- Hooks receive CloudEvent JSON on stdin and return `{}` to allow or `{"decision":"block","reason":"..."}` to block.
+- No stderr from hooks (causes "hook error" in Claude Code UI).
+- Prefer file/branch state over session state for hook gates (see "Hook State" below).
 
 ## Claude Code Plugin-Loaded Subagent Field Restrictions
 
