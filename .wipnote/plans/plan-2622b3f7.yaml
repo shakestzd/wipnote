@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 17
+    version: 18
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -89,6 +89,7 @@ slices:
             - port/pluginbuild/skill_catalog_test.go
             - .claude/rules/plugin-development.md
     - id: ""
+      feature_id: feat-217fb5f2
       num: 2
       title: Before-and-after check for prompt changes
       what: Write three to five fixed tasks and a script that runs each with wipnote delegate run against the old and the new guidance text, then prints what the agent did side by side. Card A4.
@@ -117,6 +118,7 @@ slices:
         rejected:
             - 'a general eval framework: plugin/evals already holds 13 cases and delegate run records each run'
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Decisions:** prompts are embedded in the binary (cmd/wipnote/claude.go), so the script builds one binary per ref in a git worktree. Each task runs three times per ref. The check compares observable actions from the delegate run ledger, not the wording of replies. Tasks reuse plugin/evals cases where one fits.
         **Pass rule:** a behaviour that holds in three of three runs on the old ref and in fewer than two on the new ref is a regression.
@@ -809,3 +811,8 @@ feedback:
           value: promoted
           created_at: "2026-11-18T20:07:00Z"
           updated_at: "2026-11-18T20:07:00Z"
+        - section: slice-2
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-18T20:07:02Z"
+          updated_at: "2026-11-18T20:07:02Z"
