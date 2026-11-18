@@ -1,0 +1,18 @@
+meta:
+    id: plan-2622b3f7
+    track_id: trk-0677c709
+    title: Move agent guidance into CLI output and hooks
+    description: 'The owner chose 30 of the 31 changes on the adoption board (spk-deb261d8). This plan carries them out: guidance moves from skills and always-loaded prompt text into CLI output, one worker-rules hook and tests. Retro skill E4 is deferred.'
+    created_at: "2026-11-18"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
