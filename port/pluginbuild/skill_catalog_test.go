@@ -3,6 +3,7 @@ package pluginbuild
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -85,5 +86,42 @@ func TestSkillCatalogListsEverySkill(t *testing.T) {
 		if !strings.Contains(catalog, "| `"+dir+"` |") {
 			t.Errorf("catalog skills/skills/SKILL.md has no row for %s (last column `%s`)", dir, dir)
 		}
+	}
+}
+
+// catalogRowSkill pulls the last-column skill dir out of a catalog table row.
+var catalogRowSkill = regexp.MustCompile("(?m)^\\|.*\\| `([a-z0-9-]+)` \\|\\s*$")
+
+// catalogStaleRows returns catalog rows whose skill dir is not in dirs.
+func catalogStaleRows(catalog string, dirs []string) []string {
+	have := map[string]bool{}
+	for _, d := range dirs {
+		have[d] = true
+	}
+	var stale []string
+	for _, m := range catalogRowSkill.FindAllStringSubmatch(catalog, -1) {
+		if !have[m[1]] {
+			stale = append(stale, m[1])
+		}
+	}
+	return stale
+}
+
+func TestSkillCatalog_StaleRowDetected(t *testing.T) {
+	catalog := "| Need | Slash command | `<dir>` |\n|---|---|---|\n| A | `/x` | `plan` |\n| B | `/y` | `gone-skill` |\n"
+	got := catalogStaleRows(catalog, []string{"plan"})
+	if len(got) != 1 || got[0] != "gone-skill" {
+		t.Fatalf("want [gone-skill], got %v", got)
+	}
+}
+
+func TestSkillCatalog_NoStaleRows(t *testing.T) {
+	skillsDir, dirs := sharedSkillDirs(t)
+	raw, err := os.ReadFile(filepath.Join(skillsDir, "skills", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("read catalog: %v", err)
+	}
+	for _, name := range catalogStaleRows(string(raw), dirs) {
+		t.Errorf("catalog skills/skills/SKILL.md has a row for %s, but plugin/skills/%s/SKILL.md does not exist", name, name)
 	}
 }
