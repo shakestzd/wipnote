@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 4
+    version: 17
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -47,6 +47,7 @@ design:
           accessed: "2026-11-18"
 slices:
     - id: ""
+      feature_id: feat-9fd0cb31
       num: 1
       title: Guardrails that keep guidance small
       what: Add a Go test that fails when a skill file or a prompt under cmd/wipnote/prompts passes a byte limit. Make the catalog test also fail on a row for a skill that no longer exists. Print the skills with no eval case. Add the failure-bar rule to the plugin development rule file. Cards A1, A3, E3.
@@ -68,13 +69,15 @@ slices:
         port/pluginbuild: TestGuidanceSize_RealTreeWithinLimits, against plugin/skills and every file in cmd/wipnote/prompts.
         port/pluginbuild: TestSkillCatalog_NoStaleRows. TestSkillCatalogListsEverySkill (skill_catalog_test.go:74) already covers the missing-row case.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: A table-driven Go test over files in this repo. No external library or standard applies.
       adopt_vs_build:
         decision: build
         rejected:
             - 'external linter: the limit is a per-file byte table in this repo, about 40 lines of Go'
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Decisions:** limits are a per-file table in the test, set to today's sizes. A slice that shrinks a file lowers its limit in the same commit. The eval-coverage list only prints, because 13 eval cases exist and most skills are deleted later in this plan.
         **Rejected:** one global limit, because the delegate skill is twice the next largest and would set the bar for all.
@@ -106,13 +109,14 @@ slices:
         Run it on main against main and confirm no behaviour is flagged under the pass rule.
         The checked behaviours are facts from the run ledger: work item started, failing test written first, gate run, commit names the item.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Uses wipnote delegate run and the existing plugin/evals cases. No external library applies.
       adopt_vs_build:
         decision: build
         rejected:
             - 'a general eval framework: plugin/evals already holds 13 cases and delegate run records each run'
+      approval_status: approved
       decisions_notes: |-
         **Decisions:** prompts are embedded in the binary (cmd/wipnote/claude.go), so the script builds one binary per ref in a git worktree. Each task runs three times per ref. The check compares observable actions from the delegate run ledger, not the wording of replies. Tasks reuse plugin/evals cases where one fits.
         **Pass rule:** a behaviour that holds in three of three runs on the old ref and in fewer than two on the new ref is a regression.
@@ -153,13 +157,14 @@ slices:
         port/pluginbuild: TestCodexAgents_CarryWorkerRules and the same for Antigravity.
         port/pluginbuild: the size limit for worker-rules.md passes.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: wipnote's own brief preamble and agent builder. The rule wording comes from the sources in design.research.
       adopt_vs_build:
         decision: build
         rejected:
             - 'keep the two skills: they reach subagents only and never delegate workers'
+      approval_status: approved
       decisions_notes: |-
         **Disposition of agent-context (6.8 KB):** work attribution and completion, the six-step workflow with C1 and C2, safety, and principles go in the block, shortened. Research routing stays in the researcher agent file. Persist-then-summarize goes in the block as one line. Writing style becomes one line that names wipnote prose check (feat-4151d2f0).
         **Disposition of code-quality-skill (3.2 KB):** the per-language gate commands are dropped from prose, because wipnote check --gate detects the language and runs them. The Go suite note (use scripts/go-test-streaming.sh) is repo-specific and stays in CLAUDE.md. Size and design review is printed by check --gate. Record-the-result is one line in the block.
@@ -220,12 +225,13 @@ slices:
         git grep for both skill names returns only CLAUDE.md and CHANGELOG.md.
         Run the hook once with a sample payload and quote the real output in the work item.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/hooks
           claim: SubagentStart returns hookSpecificOutput.additionalContext, added before the subagent's first prompt. core/hooks/harness_response.go:29 already maps it. subagent_start.go:17 returns Continue only today.
           accessed: "2026-11-18"
+      approval_status: approved
       decisions_notes: |-
         **Decisions:** the edit site is core/hooks/subagent_start.go. The hook adds the block only for agent types that start with wipnote:. The evals for the two skills are deleted, because the slice 2 check now covers the same behaviours (item started, test first, gate run, completion).
         **CLAUDE.md:30** names the code-quality skill. Slice 12 removes that line in the owner's patch.
@@ -270,9 +276,10 @@ slices:
         core/hooks: canonical_guards_test.go:119 asserts the line on every prompt today and is rewritten.
         port/pluginbuild: the 3,500-byte limit for system-prompt.md passes.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Edits to wipnote's own prompt, rules and hook. The sources are cited in design.research.
+      approval_status: approved
       decisions_notes: |-
         **Decisions:** the hook stores the last item it announced in a per-session marker. The SessionStart handler clears the marker for every start source (startup, resume, compact, clear), so the line is sent again after any event that can drop it from context. The implementer reuses the once-per-session helper in lifecycle_injection.go if it fits, and names it in the work item before coding.
         **B3:** the sentence cites the open-question records as its observed failure, as card A1 requires.
@@ -323,13 +330,14 @@ slices:
         cmd/wipnote: TestDelegateHelp_Under40Lines.
         git grep for wipnote skill show delegate returns nothing.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Moves wipnote's own guidance into its own command help. The review profile follows the profile map in internal/delegate/session/profile.go.
       adopt_vs_build:
         decision: build
         rejected:
             - 'keep the profile tables in a linked skill file (card B2): agents ran delegate 83 times and rarely opened the skill'
+      approval_status: approved
       decisions_notes: |-
         **Decisions:** spawn prints the next command (wait, then result, then stop) as a hint on stderr. The profile table lives in internal/delegate/session/profile.go and delegate profiles prints it, so it cannot drift. The review profile is a new entry in that map. For a Claude worker it passes a disallowed-tools list (Edit, Write, NotebookEdit). For a Codex worker it uses the read-only sandbox.
         **System prompt:** the two delegate paragraphs are cut in slice 5, which depends on this slice, so the prompt has one editor at a time.
@@ -369,13 +377,14 @@ slices:
         cmd/wipnote: TestPlanNext_OutputUnder40Lines for each step.
         Author one small plan using only plan next and record the transcript in the work item.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: The step logic reads wipnote's own plan YAML state. The slice rules come from the sources in design.research.
       adopt_vs_build:
         decision: build
         rejected:
             - 'keep the skill and shorten it: usage shows agents run the commands and skip the skill'
+      approval_status: approved
       decisions_notes: |-
         **Decisions:** the step is derived from plan state (validation result, critique present, slice approvals, promotions), so the command needs no stored cursor. SPEC, ENRICH, EXAMPLES and INTERVIEW_RENDERING content prints only for the step that needs it. Existing hints that end other plan commands point to plan next.
         **Rejected:** a wizard that runs the steps itself, because each step needs the agent's judgement or the owner's decision.
@@ -421,7 +430,7 @@ slices:
         cmd/wipnote: TestPlanCritique_ThirdRoundRefused.
         plan/planyaml: TestCritique_AcceptedRiskStaysSettled, TestCritique_CriticStatusRecorded, TestCritique_ContestedFindingNeedsCitation.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://github.com/google/elephant-goldfish-model
@@ -431,6 +440,7 @@ slices:
         decision: build
         rejected:
             - 'keep the skill: it was never loaded while the command ran eight times'
+      approval_status: approved
       decisions_notes: |-
         **Decisions:** the briefs are files in the plan's run folder, built from the plan YAML and the files it names. The command prints the two delegate spawn lines and starts no worker itself.
         **Schema:** three optional fields are added to the critique section in plan/planyaml/schema.go: round (int), accepted_risks (list of text plus reason), and status (completed or not_run) on each critic. They are optional, so schema_version stays v4.
@@ -475,13 +485,14 @@ slices:
         cmd/wipnote: TestExecutePreview_OverlapDefersConflictingTask.
         cmd/wipnote: TestExecutePreview_BriefPerTask.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Graph and file-set logic over wipnote's own plan data. No external library applies.
       adopt_vs_build:
         decision: build
         rejected:
             - 'a graph library: plans have under 20 slices and the ready set is one pass over deps'
+      approval_status: approved
       decisions_notes: |-
         **Decisions:** the new logic goes in execute_preview_ready.go, because execute_preview.go is 338 lines and the file trigger is 500. File sets come from each slice's files list, with wipnote trace as the fallback for a promoted feature that has commits. The overlap choice is greedy by slice number, which is stable and explainable. Briefs call renderContextPack (context_pack.go:161). The JSON format keeps its fields and gains ready, deferred and briefs. The overlap eval case is replaced by the Go test. The other two execute evals are deleted with the skill.
         **Rejected:** an exact maximum independent set, because plans have under 20 slices and a stable order matters more.
@@ -518,7 +529,7 @@ slices:
         cmd/wipnote: TestReview_EvidenceHeader.
         cmd/wipnote: TestCheckGate_EvidenceDoesNotFail.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://addyosmani.com/topics/agentic-engineering/
@@ -528,6 +539,7 @@ slices:
         decision: build
         rejected:
             - 'a diff-parsing package: the check reads added and removed lines of a unified diff with three patterns'
+      approval_status: approved
       decisions_notes: |-
         **Decisions:** detection reads the unified diff. It covers Go test functions and t.Skip, JavaScript and TypeScript test and it calls with skip, and Python test functions with a skip marker. Other languages print nothing. The header reads fields the store already holds.
         **Rejected:** failing the gate on a removed test, because a correct refactor removes tests too.
@@ -588,9 +600,10 @@ slices:
         port/pluginbuild: the catalog and size tests are reduced to the final tree and pass.
         git grep for each deleted skill and command name returns only CLAUDE.md and CHANGELOG.md.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Deletes wipnote's own unused files. The usage count in design.problem is the evidence.
+      approval_status: approved
       decisions_notes: |-
         **Decisions:** this slice runs last among the skill slices, so one search confirms no reference remains. With every skill gone, wipnote skill show has nothing to print and is removed. The mods that open panes for ci and plan-review stay, and their docs name the CLI command. The STE lint scripts and tests are deleted with the skill, and wipnote prose check replaces the lint.
         **Writing style:** the STE-lite rule lives as one line in the worker-rules block (slice 3) and in the system prompt section that feat-4151d2f0 adds.
@@ -626,12 +639,13 @@ slices:
         A script checks each path the proposed file names against the tree.
         Each new rule file has a paths field that matches at least one tracked file.
       complexity: standard
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/memory
           claim: A rule file under .claude/rules is scoped with a paths frontmatter field, and loads when matching files are read. Verified by the feasibility critic; .claude/rules/debugging.md:2 uses it.
           accessed: "2026-11-18"
+      approval_status: approved
       decisions_notes: |-
         **Decisions:** the agent writes the new rule files and docs and a proposed CLAUDE.md in the work item as a patch file. The owner applies the patch, because a hard rule bars agents from writing CLAUDE.md.
         **Rejected:** an exception to that hard rule for this one edit.
@@ -728,3 +742,70 @@ critique:
           severity: Low
           mitigation: Recorded as a plan constraint and a done-when line.
     synthesis: ""
+feedback:
+    entries:
+        - section: slice-1
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:55Z"
+          updated_at: "2026-11-18T20:06:55Z"
+        - section: slice-2
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:55Z"
+          updated_at: "2026-11-18T20:06:55Z"
+        - section: slice-3
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:56Z"
+          updated_at: "2026-11-18T20:06:56Z"
+        - section: slice-4
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:56Z"
+          updated_at: "2026-11-18T20:06:56Z"
+        - section: slice-5
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:56Z"
+          updated_at: "2026-11-18T20:06:56Z"
+        - section: slice-6
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:57Z"
+          updated_at: "2026-11-18T20:06:57Z"
+        - section: slice-7
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:57Z"
+          updated_at: "2026-11-18T20:06:57Z"
+        - section: slice-8
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:57Z"
+          updated_at: "2026-11-18T20:06:57Z"
+        - section: slice-9
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:58Z"
+          updated_at: "2026-11-18T20:06:58Z"
+        - section: slice-10
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:58Z"
+          updated_at: "2026-11-18T20:06:58Z"
+        - section: slice-11
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:58Z"
+          updated_at: "2026-11-18T20:06:58Z"
+        - section: slice-12
+          action: approve
+          value: "true"
+          created_at: "2026-11-18T20:06:59Z"
+          updated_at: "2026-11-18T20:06:59Z"
+        - section: slice-1
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-18T20:07:00Z"
+          updated_at: "2026-11-18T20:07:00Z"
