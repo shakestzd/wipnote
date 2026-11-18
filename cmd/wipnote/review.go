@@ -3,12 +3,16 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 
+	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/internal/gate"
 	"github.com/spf13/cobra"
 )
 
@@ -32,6 +36,10 @@ type reviewSummary struct {
 	SizeTriggers    []sizeFinding `json:"size_triggers,omitempty"`
 	Duplicates      []dupPair     `json:"duplicates,omitempty"`
 	DesignQuestions []string      `json:"design_questions"`
+	// Evidence and Header are informational (feat-a1daeef8). They never
+	// change the exit code: a correct refactor removes tests too.
+	Evidence *evidenceBlock `json:"evidence,omitempty"`
+	Header   *reviewHeader  `json:"header,omitempty"`
 }
 
 func reviewCmd() *cobra.Command {
@@ -47,6 +55,9 @@ Groups changes by file with per-file +/- line counts and a total summary,
 then lists changed code over the size review triggers, added blocks that
 repeat code elsewhere, and the design questions to answer for each changed
 module. Size and duplication cover uncommitted work too.
+It opens with the active work item's why, done-when, last gate result,
+linked commits and added lines, and ends with evidence: removed tests, added
+skips and edits to CI, lint and guard config. Evidence never changes the exit code.
 Always exits 0 (informational).
 
 Example:
@@ -71,10 +82,17 @@ func runReview(base string, jsonOut bool) error {
 	}
 
 	addReviewDesignEvidence(summary, base)
+	addReviewEvidence(summary)
 	if jsonOut {
 		return printReviewJSON(summary)
 	}
+	if summary.Header != nil {
+		writeReviewHeader(os.Stdout, *summary.Header)
+	}
 	printReviewText(summary)
+	if summary.Evidence != nil {
+		writeEvidence(os.Stdout, *summary.Evidence)
+	}
 	writeSizeReport(os.Stdout, sizeReport{Base: summary.base, Findings: summary.SizeTriggers})
 	writeDupEvidence(os.Stdout, summary.Duplicates)
 	writeDesignQuestions(os.Stdout)
@@ -98,6 +116,29 @@ func addReviewDesignEvidence(s *reviewSummary, base string) {
 		s.SizeTriggers = report.Findings
 	}
 	s.Duplicates = scanDupEvidence(root, s.base)
+}
+
+// addReviewEvidence adds the weakened-test evidence and the work item header.
+// Outside a git work tree there is no base, so it adds nothing.
+func addReviewEvidence(s *reviewSummary) {
+	if s.base == "" {
+		return
+	}
+	root, err := gitOutput("rev-parse", "--show-toplevel")
+	if err != nil {
+		return
+	}
+	root = strings.TrimSpace(root)
+	ev := scanEvidence(root, s.base)
+	s.Evidence = &ev
+	projectRoot, err := resolveProjectRoot()
+	if err != nil {
+		return
+	}
+	id := gate.ResolveWorkItem(projectRoot, hooks.EnvSessionID(""), dbpkg.NormaliseAgentID(os.Getenv("WIPNOTE_AGENT_ID")), "", io.Discard)
+	if h := buildReviewHeader(projectRoot, id, ev); h.ID != "" {
+		s.Header = &h
+	}
 }
 
 // buildReviewSummary runs git diff --stat and assembles the structured result.

@@ -164,6 +164,27 @@ func (s *Store) LatestForSession(sessionID string) (*Record, error) {
 	return nil, nil
 }
 
+// LatestForWorkItem returns the most recent gate run for workItemID from any
+// session, pass or fail, or nil when the item has none. `wipnote review` shows
+// it so a reader sees the last result without opening the ledger (feat-a1daeef8).
+func (s *Store) LatestForWorkItem(workItemID string) (*Record, error) {
+	workItemID = strings.TrimSpace(workItemID)
+	if workItemID == "" {
+		return nil, nil
+	}
+	records, err := s.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	for i := len(records) - 1; i >= 0; i-- {
+		if records[i].WorkItemID == workItemID {
+			r := records[i]
+			return &r, nil
+		}
+	}
+	return nil, nil
+}
+
 // LatestPassingForWorkItem returns the most recent PASSING gate run for
 // workItemID from any session, provided it was checked within `within`. A nil
 // record with no error means no qualifying run exists.

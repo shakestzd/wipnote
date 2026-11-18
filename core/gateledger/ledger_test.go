@@ -367,3 +367,29 @@ func TestOnCommitReceivesRepoRelativePath(t *testing.T) {
 		t.Fatalf("commit path %q is absolute; host paths must never reach a commit message", gotRel)
 	}
 }
+
+// TestLatestForWorkItem_ReturnsNewestOfAnyStatus: the review header shows the
+// last gate result for an item, pass or fail (feat-a1daeef8).
+func TestLatestForWorkItem_ReturnsNewestOfAnyStatus(t *testing.T) {
+	store := newStore(t)
+	t0 := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	older := passing("s1", "feat-aaaa1111", t0)
+	newer := passing("s2", "feat-aaaa1111", t0.Add(time.Hour))
+	newer.Status = gateledger.StatusFail
+	other := passing("s3", "feat-bbbb2222", t0.Add(2*time.Hour))
+	for _, r := range []gateledger.Record{older, newer, other} {
+		if _, err := store.Append(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := store.LatestForWorkItem("feat-aaaa1111")
+	if err != nil || got == nil {
+		t.Fatalf("LatestForWorkItem = %v, %v", got, err)
+	}
+	if got.Status != gateledger.StatusFail || got.SessionID != "s2" {
+		t.Errorf("got status %q session %q, want fail s2", got.Status, got.SessionID)
+	}
+	if none, _ := store.LatestForWorkItem("feat-cccc3333"); none != nil {
+		t.Errorf("unknown item returned %v, want nil", none)
+	}
+}
