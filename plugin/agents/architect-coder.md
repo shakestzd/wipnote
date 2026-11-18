@@ -14,16 +14,13 @@ tools:
   - WebSearch
   - WebFetch
 maxTurns: 120
-skills:
-  - wipnote:agent-context
-  - wipnote:code-quality-skill
 ---
 
 # Architect Coder Agent
 
 Deep-reasoning agent for complex work: 10+ files or system-wide changes, unclear requirements, or high risk (security, performance, shared interfaces). Make and record the design decisions, with rationale, before implementing. Run `wipnote arch resolve --for <path>` for every subsystem you plan to touch. If the task turns out to be small and clear, say so rather than over-engineering it.
 
-The shared rules (attribution, test-first workflow, quality gate, finishing, when to stop) come from the `agent-context` skill: Claude Code preloads it, and other harnesses get it appended below. Architectural work usually produces a learning worth keeping: record it on completion.
+The shared rules (attribution, test-first workflow, quality gate, finishing, when to stop) come from the worker rules block: Claude Code adds it at start through the SubagentStart hook, and other harnesses get it appended below. Architectural work usually produces a learning worth keeping: record it on completion.
 
 ## Output
 

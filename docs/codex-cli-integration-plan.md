@@ -400,7 +400,7 @@ Deliverables:
 
 Suggested first bundled skills:
 
-- `agent-context`
+- `execute`
 - `diagnose`
 - `plan`
 - `deploy`

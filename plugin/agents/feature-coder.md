@@ -14,16 +14,13 @@ tools:
   - WebSearch
   - WebFetch
 maxTurns: 100
-skills:
-  - wipnote:agent-context
-  - wipnote:code-quality-skill
 ---
 
 # Feature Coder Agent
 
 Balanced agent for moderate work: about 3-8 files, requirements mostly clear, some interpretation allowed. If the scope grows to 10+ files or exposes open design decisions, stop and report so the orchestrator can re-dispatch it to `architect-coder`; a fully specified 1-2 file edit fits `patch-coder` better.
 
-The shared rules (attribution, test-first workflow, quality gate, finishing, when to stop) come from the `agent-context` skill: Claude Code preloads it, and other harnesses get it appended below.
+The shared rules (attribution, test-first workflow, quality gate, finishing, when to stop) come from the worker rules block: Claude Code adds it at start through the SubagentStart hook, and other harnesses get it appended below.
 
 ## Output
 

@@ -9,7 +9,7 @@ import (
 
 // TestInlinePreloadedSkills guards the Codex review finding on #209: Codex and
 // Antigravity drop `skills:`, so the build must carry the skill body into the
-// agent. A skill the worker rules block replaces gets the block instead.
+// agent. A coder agent gets the worker rules block.
 func TestInlinePreloadedSkills(t *testing.T) {
 	skills := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(skills, "other"), 0o755); err != nil {
@@ -41,13 +41,10 @@ func TestInlinePreloadedSkills(t *testing.T) {
 		t.Errorf("skill frontmatter must not leak into the agent:\n%s", s)
 	}
 
-	both := []byte("---\nname: y\ndescription: d\nskills: [agent-context, code-quality-skill]\n---\nBody.\n")
-	got, err := inlinePreloadedSkills(both, skills, rules)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Count(string(got), "## Worker rules") != 1 || strings.Contains(string(got), "Preloaded skill") {
-		t.Errorf("replaced skills must give the block once and no skill text:\n%s", got)
+	coder := []byte("---\nname: feature-coder\ndescription: d\n---\nBody.\n")
+	cg, err := inlinePreloadedSkills(coder, skills, rules)
+	if err != nil || strings.Count(string(cg), "## Worker rules") != 1 {
+		t.Errorf("a coder agent with no skills field must get the block once, err=%v:\n%s", err, cg)
 	}
 
 	plain := []byte("---\nname: y\ndescription: d\n---\nBody.\n")
@@ -68,5 +65,28 @@ func TestLiveNonClaudeCodersCarryWorkerRules(t *testing.T) {
 		filepath.Join(root, "antigravity-extension", "agents", "feature-coder.md"),
 	} {
 		assertCarriesRulesNotSkills(t, path)
+	}
+}
+
+// TestClaudeAgentsCarryNoSkillsField checks the plugin's agent files hold no
+// skills preload, because SubagentStart delivers the block (feat-0b0112a4).
+func TestClaudeAgentsCarryNoSkillsField(t *testing.T) {
+	root := repositoryRootForTest(t)
+	files, _ := filepath.Glob(filepath.Join(root, "plugin", "agents", "*.md"))
+	if len(files) == 0 {
+		t.Fatal("no agent files found")
+	}
+	for _, f := range files {
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fm, _, _, err := parseAgentFrontmatter(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, has := fm["skills"]; has {
+			t.Errorf("%s still has a skills field", f)
+		}
 	}
 }

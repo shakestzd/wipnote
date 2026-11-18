@@ -23,7 +23,7 @@ tools:
   - Write
 maxTurns: 60
 skills:
-  - agent-context
+  - execute
 initialPrompt: "Run wipnote agent-init."
 ---
 
@@ -219,6 +219,13 @@ func TestMapCodexAgentModelAliases(t *testing.T) {
 func TestCodexAdapterEmitsAgentsAsTOML(t *testing.T) {
 	repoRoot := t.TempDir()
 	seedAssets(t, repoRoot)
+	rulesDir := filepath.Join(repoRoot, "cmd", "wipnote", "prompts")
+	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rulesDir, "worker-rules.md"), []byte("## Worker rules\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	agentDir := filepath.Join(repoRoot, "plugin", "agents")
 	if err := os.WriteFile(filepath.Join(agentDir, "feature-coder.md"), []byte(`---
 name: feature-coder
@@ -564,7 +571,7 @@ func assertCarriesRulesNotSkills(t *testing.T, path string) {
 	if !strings.Contains(s, workerRulesHeading) || !strings.Contains(s, workerRulesLine) {
 		t.Errorf("%s lacks the worker rules block", path)
 	}
-	for _, gone := range []string{"Preloaded skill: agent-context", "Preloaded skill: code-quality-skill"} {
+	for _, gone := range []string{"Preloaded skill:"} {
 		if strings.Contains(s, gone) {
 			t.Errorf("%s still carries %q", path, gone)
 		}

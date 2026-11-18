@@ -16,7 +16,7 @@ Each real run costs model money: tasks times runs times two refs. The default is
 ## What it does
 
 1. It adds one git worktree per ref and builds `wipnote` there. The binary differs per ref because prompts are embedded in it (`cmd/wipnote/prompts/`).
-2. For each task in `plugin/evals/prompt-ab/tasks/` it copies the fixture into a fresh git project, creates a work item, and runs `wipnote delegate run -- claude -p`. The worker gets the ref's guidance (`system-prompt.md` and the `agent-context` skill) as extra system prompt and the ref's binary first on `PATH`.
+2. For each task in `plugin/evals/prompt-ab/tasks/` it copies the fixture into a fresh git project, creates a work item, and runs `wipnote delegate run -- claude -p`. The worker gets the ref's guidance (`system-prompt.md` and `worker-rules.md`) as extra system prompt and the ref's binary first on `PATH`.
 3. It reads what the agent did, not what it said. The run folder under `.wipnote/delegate/runs/` keeps `raw.log`, the worker's stream with each command and file write. `prompt_ab.py behaviours` turns that into four facts.
 4. It writes `comparison.md` with the counts per task and behaviour.
 
@@ -39,7 +39,7 @@ Two of three on the new ref passes. A behaviour that did not hold in three of th
 
 ## Planted regression
 
-`--plant-no-tdd` takes the old ref, deletes the "Write failing tests first" rule and its checklist line from the `agent-context` skill, and uses that as the new ref. The check must flag `test_first`.
+`--plant-no-tdd` takes the old ref, deletes the "Write failing tests first" rule and its checklist line from `worker-rules.md`, and uses that as the new ref. The check must flag `test_first`.
 
 ## Not used
 

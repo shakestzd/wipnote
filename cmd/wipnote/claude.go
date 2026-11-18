@@ -482,8 +482,8 @@ func composeSystemPrompt(opts LaunchOpts) string {
 		systemPrompt = systemPromptContent
 	}
 	// Append the shared research-routing disposition exactly once. Source of
-	// truth: cmd/wipnote/prompts/research-routing.md (mirrored for subagents in
-	// the agent-context skill).
+	// truth: cmd/wipnote/prompts/research-routing.md (subagents get theirs from
+	// plugin/agents/researcher.md).
 	if systemPrompt != "" {
 		systemPrompt = strings.TrimSpace(systemPrompt) + "\n\n" + strings.TrimSpace(researchRoutingContent) + "\n"
 	}

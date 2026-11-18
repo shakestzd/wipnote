@@ -72,11 +72,9 @@ print_plan() {
 }
 
 # plant_no_tdd deletes the test-first rule and its checklist line from the
-# rules file in worktree $1: the worker-rules block, or the agent-context skill
-# in a ref that has no block.
+# worker-rules block in worktree $1.
 plant_no_tdd() {
   local f="$1/cmd/wipnote/prompts/worker-rules.md"
-  [ -f "$f" ] || f="$1/plugin/skills/agent-context/SKILL.md"
   grep -v -e 'Write failing tests first' -e 'Failing tests written' -e 'Write one failing test' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
   if grep -q -e 'Write failing tests first' -e 'Write one failing test' "$f"; then echo "plant failed" >&2; return 1; fi
 }
@@ -89,9 +87,8 @@ setup_side() { # side
   if [ "$side" = new ] && [ "$PLANT" = 1 ]; then plant_no_tdd "$wt" || return 1; fi
   mkdir -p "$OUT/bin-$side"
   (cd "$wt" && go build -o "$OUT/bin-$side/wipnote" ./cmd/wipnote) || { echo "build failed for $side" >&2; return 1; }
-  # A ref with the worker-rules block uses it. An older ref falls back to the skill.
   local rules="$wt/cmd/wipnote/prompts/worker-rules.md"
-  [ -f "$rules" ] || rules="$wt/plugin/skills/agent-context/SKILL.md"
+  [ -f "$rules" ] || { echo "no worker-rules.md in $ref" >&2; return 1; }
   cat "$wt/cmd/wipnote/prompts/system-prompt.md" "$rules" > "$OUT/guidance-$side.md"
 }
 
