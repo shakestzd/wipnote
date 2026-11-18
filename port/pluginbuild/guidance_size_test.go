@@ -31,6 +31,7 @@ var promptByteLimits = map[string]int{
 	"gemini-system.md":    4343,
 	"research-routing.md": 571,
 	"system-prompt.md":    4916,
+	"worker-rules.md":     3072,
 	"yolo-prompt.md":      5176,
 }
 
