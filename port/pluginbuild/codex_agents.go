@@ -67,7 +67,7 @@ func emitCodexAgents(m *Manifest, repoRoot, outDir string, knownRoles map[string
 		if err != nil {
 			return fmt.Errorf("read agent %s: %w", e.Name(), err)
 		}
-		if raw, err = inlinePreloadedSkills(raw, filepath.Join(repoRoot, m.AssetSources.Skills)); err != nil {
+		if raw, err = inlinePreloadedSkills(raw, filepath.Join(repoRoot, m.AssetSources.Skills), workerRulesFile(repoRoot)); err != nil {
 			return fmt.Errorf("agent %s: %w", e.Name(), err)
 		}
 		agent, err := translateCodexAgent(e.Name(), raw)
