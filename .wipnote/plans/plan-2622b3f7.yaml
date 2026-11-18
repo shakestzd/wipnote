@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 18
+    version: 19
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -507,6 +507,7 @@ slices:
             - Print one brief per ready task
             - List deferred tasks with the reason
     - id: ""
+      feature_id: feat-a1daeef8
       num: 10
       title: Evidence in review and the gate
       what: Count removed tests and added skips in the diff, and list edits to guard, CI and lint config. Print them in wipnote review and wipnote check --gate as evidence, not as a failure. Open the review with the item's why, done-when, last gate result, linked commits and total added lines. Cards E1, E2.
@@ -542,6 +543,7 @@ slices:
         rejected:
             - 'a diff-parsing package: the check reads added and removed lines of a unified diff with three patterns'
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Decisions:** detection reads the unified diff. It covers Go test functions and t.Skip, JavaScript and TypeScript test and it calls with skip, and Python test functions with a skip marker. Other languages print nothing. The header reads fields the store already holds.
         **Rejected:** failing the gate on a removed test, because a correct refactor removes tests too.
@@ -816,3 +818,8 @@ feedback:
           value: promoted
           created_at: "2026-11-18T20:07:02Z"
           updated_at: "2026-11-18T20:07:02Z"
+        - section: slice-10
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-18T20:07:15Z"
+          updated_at: "2026-11-18T20:07:15Z"
