@@ -199,8 +199,8 @@ func applyPromoteSpecGate(plan *planyaml.PlanYAML, sliceIdx int, wipnoteDir, pla
 	enforcement := hooks.ReadSpecEnforcement(filepath.Dir(wipnoteDir))
 	if enforcement.PromoteSlice && strings.TrimSpace(slice.DecisionsNotes) == "" {
 		if !allowSpecSkip {
-			return fmt.Errorf("slice %d has no decisions; run `wipnote plan elicit-decisions %s %d` first (or follow phase 5 of /wipnote:plan). Override with --allow-spec-skip if intentional.",
-				sliceNum, planID, sliceNum)
+			return fmt.Errorf("slice %d has no decisions; run `wipnote plan elicit-decisions %s %d` first (or run `wipnote plan next %s`). Override with --allow-spec-skip if intentional.",
+				sliceNum, planID, sliceNum, planID)
 		}
 		auditNote := fmt.Sprintf("[%s] promote-slice --allow-spec-skip: promoted without decisions_notes",
 			time.Now().UTC().Format(time.RFC3339))

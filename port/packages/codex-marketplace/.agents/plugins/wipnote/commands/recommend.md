@@ -51,7 +51,7 @@ Recommend:
 4. **Propose one next action:**
    - 2+ independent items with no file overlap: `/wipnote:execute` for parallel dispatch.
    - Dependent items: name the critical path and a sequential order, blocker first.
-   - Work that needs design first: `/wipnote:plan`.
+   - Work that needs design first: `wipnote plan next`.
    - A single item: delegate by size to `patch-coder` (small, tightly scoped), `feature-coder` (ordinary feature) or `architect-coder` (cross-cutting design).
 
 ## Deeper analysis

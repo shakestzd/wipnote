@@ -27,7 +27,7 @@ func skillCmd() *cobra.Command {
 		Use:   "show <skill-dir> [file]",
 		Short: "Print a wipnote skill's SKILL.md (or another .md file in its folder)",
 		Long: "Print a bundled wipnote skill file for the current harness.\n" +
-			"Use it to load a skill that is hidden from the skill list, e.g. 'wipnote skill show plan'.",
+			"Use it to load a skill that is hidden from the skill list, e.g. 'wipnote skill show plan-critique'.",
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			file := "SKILL.md"

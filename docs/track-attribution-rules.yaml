@@ -26,7 +26,6 @@ rules:
   - { glob: "plan/planamend/**",              track_id: "trk-a30e8df4", priority: 100 }
   - { glob: "plan/planchat/**",               track_id: "trk-a30e8df4", priority: 100 }
   - { glob: "core/db/plan_*.go",              track_id: "trk-a30e8df4", priority: 100 }
-  - { glob: "plugin/skills/plan/**",              track_id: "trk-a30e8df4", priority: 100 }
 
   # ---- Subagents ----
   - { glob: "plugin/agents/*.md",                 track_id: "trk-2c83a1e2", priority: 100 }
