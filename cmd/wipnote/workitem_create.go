@@ -106,6 +106,8 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 		return err
 	}
 
+	adviseProse(proseItem{path: "description", text: o.description}, proseItem{path: "why", text: o.why},
+		proseItem{path: "done-when", text: o.doneWhen})
 	node, err := createNode(p, typeName, title, o)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", typeName, err)

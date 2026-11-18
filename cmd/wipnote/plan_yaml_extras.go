@@ -320,6 +320,7 @@ func runValidateYAML(planID string) error {
 	for _, a := range planyaml.ValidateProseAdvisories(plan) {
 		fmt.Fprintf(os.Stderr, "  ! prose advisory: %s\n", a)
 	}
+	adviseProse(planSliceProse(plan)...)
 	fmt.Printf("Plan valid: %d slices, %d questions\n", len(plan.Slices), len(plan.Questions))
 	return nil
 }
