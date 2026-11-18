@@ -36,7 +36,7 @@ Set up wipnote directory structure in project
 2. **Present next steps** using the output template below.
 
 3. **Guide the user:**
-   - How to plan work: `/wipnote:plan "title"`
+   - How to plan work: `wipnote plan next`
    - How to see open work: `wipnote wip` (or `/wipnote:recommend` for what to do next)
    - How to trace why code exists: `wipnote lineage <id>`
 
@@ -63,14 +63,14 @@ Note:
 - Current `wipnote init` does not create legacy analytics directories like `insights/`, `metrics/`, or `cigs/`.
 
 ### Next Steps
-1. Plan new work: `/wipnote:plan "Feature title"`
+1. Plan new work: `wipnote plan next`
 2. See open work: `wipnote wip`
 3. Trace why code exists: `wipnote lineage <id>`
 
 ### Quick Start
 ```bash
 # Start planning
-/wipnote:plan "Add user authentication"
+wipnote plan next
 
 # Begin work
 wipnote feature start <id>

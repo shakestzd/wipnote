@@ -89,7 +89,7 @@ func handleExitPlanMode(event *hooks.CloudEvent, projectDir string) (*hooks.Hook
 }
 
 // exitPlanModeSuggestion tells the agent where the converted plan landed and
-// the next two steps of the plan skill: validate the YAML, then review each
+// the next two steps of `wipnote plan next`: validate the YAML, then review each
 // slice (`plan slices` opens the plan-review pane where the mod is loaded).
 func exitPlanModeSuggestion(yamlPath, planID string) string {
 	return fmt.Sprintf(

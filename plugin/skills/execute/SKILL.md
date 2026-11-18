@@ -166,4 +166,4 @@ Per-wave checklist:
 
 ## Related skills
 
-- `/wipnote:plan`: create the dependency graph before executing.
+- `wipnote plan next`: plan the dependency graph first.

@@ -17,13 +17,12 @@ var skillByteLimits = map[string]int{
 	"agent-context":                6688,
 	"code-quality-skill":           3165,
 	"delegate":                     19939,
-	"execute":                      8597,
+	"execute":                      8588,
 	"guard-authoring":              4521,
-	"plan":                         9771,
-	"plan-critique":                4373,
+	"plan-critique":                4359,
 	"report-issue":                 2687,
 	"simplified-technical-english": 9022,
-	"skills":                       2446,
+	"skills":                       2340,
 	"ui-stills-verification":       7556,
 }
 

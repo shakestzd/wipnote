@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # wipnote Plan Critique
 
-Phase 3 of `/wipnote:plan`: run **after** the plan is drafted and validated, and **before** human review. Skip it for a trivial single-slice plan; it is optional under 3 slices and required when any slice is `complexity: complex`.
+Critique step of `wipnote plan next`: run **after** validation and **before** human review. Skip it for a trivial single-slice plan; it is optional under 3 slices and required when any slice is `complexity: complex`.
 
 ```
 Plan critique (plan-id):

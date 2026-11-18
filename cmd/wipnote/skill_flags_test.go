@@ -93,18 +93,24 @@ func TestSkillFlagsValidator_PassesGoodFixture(t *testing.T) {
 func TestPlanningSkillsAvoidClaudeOnlyCriticRunners(t *testing.T) {
 	root := repoRootForTest(t)
 	paths := []string{
-		filepath.Join(root, "plugin", "skills", "plan", "SKILL.md"),
 		filepath.Join(root, "plugin", "skills", "plan-critique", "SKILL.md"),
 	}
+	texts := map[string]string{}
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)
 		}
-		content := string(data)
+		rel, _ := filepath.Rel(root, path)
+		texts[rel] = string(data)
+	}
+	// The old plan guidance now prints from `wipnote plan next` (feat-bcc2297f).
+	for step, text := range planNextRules {
+		texts["plan next "+step] = text
+	}
+	for rel, content := range texts {
 		for _, forbidden := range []string{"Sonnet+Haiku", "Haiku model", "Sonnet model", "source: haiku", "source: sonnet", "Haiku (design)", "Sonnet (feasibility)"} {
 			if strings.Contains(content, forbidden) {
-				rel, _ := filepath.Rel(root, path)
 				t.Fatalf("%s contains Claude-only critique runner reference %q", rel, forbidden)
 			}
 		}
@@ -113,13 +119,14 @@ func TestPlanningSkillsAvoidClaudeOnlyCriticRunners(t *testing.T) {
 
 func TestPlanningSkillsRequireResearchProvenance(t *testing.T) {
 	root := repoRootForTest(t)
+	// The Draft step of `wipnote plan next` carries the research rules that
+	// the old planning guidance held (feat-bcc2297f).
+	for _, want := range []string{"Research live", "v4 gate", "research_waiver", "adopt_vs_build"} {
+		if !strings.Contains(planNextRules["Draft"], want) {
+			t.Fatalf("plan next Draft step missing research marker %q", want)
+		}
+	}
 	checks := map[string][]string{
-		filepath.Join(root, "plugin", "skills", "plan", "SKILL.md"): {
-			"Mandatory Research",
-			"research gate",   // the schema-enforced gate is documented
-			"research_waiver", // the structured escape hatch is documented
-			"no reinventing the wheel",
-		},
 		filepath.Join(root, "plugin", "skills", "plan-critique", "SKILL.md"): {
 			"Verify external claims via web search / web fetch",
 			"Runtime verification requirements for backend claims",
