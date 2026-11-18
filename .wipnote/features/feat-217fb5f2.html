@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Before-and-after check for prompt changes</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-217fb5f2"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T20:07:02.764836"
+             data-updated="2026-11-18T21:26:47.307577" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;waiver&#34;:&#34;The three go.mod files are test fixtures with a module line only and no dependency&#34;}}">
+
+        <header>
+            <h1>Before-and-after check for prompt changes</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="521ac7ab8ed56f380c4dc5be0e23d80b9b59b781.html" data-relationship="committed_in" data-since="2026-11-18T16:22:53">Merge pull request #363 from shakestzd/delegate/prompt-ab-check</a></li>
+                    <li><a href="d1dd9b2db2d3895eef983d34bd25178282877532.html" data-relationship="committed_in" data-since="2026-11-18T15:56:19">feat-217fb5f2: read test-first from write order, not from a test run</a></li>
+                    <li><a href="2618372f731c53542647a1ad7dca9b197f5fa3ab.html" data-relationship="committed_in" data-since="2026-11-18T15:36:34">feat-217fb5f2: before-and-after check for guidance changes</a></li>
+                    <li><a href="0e7bf3a2f508abd046791247dd793c3c26248270.html" data-relationship="committed_in" data-since="2026-11-18T15:07:02">plan(plan-2622b3f7): promote slice-2 → feat-217fb5f2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/37e46690-194b-4ef0-a305-10c92a72bcd2.html" data-relationship="implemented_in" data-since="2026-11-18T20:16:54.533582">session 37e46690-194b-4ef0-a305-10c92a72bcd2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-18T20:07:02.769191">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-2622b3f7.html" data-relationship="planned_in" data-since="2026-11-18T20:07:02.783245">plan-2622b3f7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Write three to five fixed tasks and a script that runs each with wipnote delegate run against the old and the new guidance text, then prints what the agent did side by side. Card A4.
+Why
+No prompt change in wipnote has proof that behaviour held. Slices 3 to 8 each cut or move guidance and need this check.
+Acceptance Criteria
+One command builds the binary for each of two git refs in its own worktree, runs each fixed task three times per ref, and writes a comparison file; A planted regression (the test-first rule removed from the guidance) is flagged by the check; The procedure page states the pass rule: a behaviour that holds in three of three runs on the old ref and in fewer than two on the new ref is a regression
+[2026-11-18 21:26 claude-code] research-evidence: waiver: The three go.mod files are test fixtures with a module line only and no dependency</p>
+        </section>
+    </article>
+</body>
+</html>
