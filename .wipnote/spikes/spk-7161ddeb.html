@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Bottom-up audit: bloat and outdated code, guidance and prompts across wipnote</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-7161ddeb"
+             data-type="spike"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T16:01:32.85616"
+             data-updated="2026-11-18T16:34:36.151842" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Cut in waves by risk: repo hygiene first, then stale text and release gate, then SQLite-era code, then command surface after owner decisions&#34;,&#34;exists&#34;:&#34;Earlier cut plan plan-7bc7114c (9 slices, all promoted); items it planned but that remain: core/storage dbpath, Gemini emit wrappers, Collection.Filter, claim heartbeat, SQLite help text in plan_slice_cmds.go&#34;,&#34;findings&#34;:&#34;Six layer audits on main 4228d0518. Verified by the orchestrator: no file-backed SQLite is opened by non-test code except observe NewWriter (tests only), so busy-retry, the 24-step migration chain, core/storage dbpath and sqlitelegacy-tagged tests are leftovers; delegation_runs is written every command and read only by a test; claim heartbeat persists nothing; deploy-all.sh runs TestSQLiteContentionStress which does not exist, and tests only the root module (core, plan, port, observe are tested by CI only); about 175,000 lines of tracked-but-gitignored files (docs/archive 116,668, archive 29,597, site 26,424, ui-review, .gotmp-exec); agent-init prints stale sqlite guidance and has no caller; codex dev prompt names packages/codex-marketplace (real path port/packages/...); execute skill names /wipnote:cleanup which does not exist; plan SPEC.md reads slices from plan show which prints none; README and docs/index.md describe .wipnote/wipnote.db; CHANGELOG stops at 0.85.0. Worker claims corrected: core/worktree/cleanup.go is partly live (RemoveManagedWorktree, LoadCleanupConfig); wipnote worktree exists on main; archive/ has 79 tracked files. Unverified worker estimates: ~700 lines of skill text trim, ~8,700 lines of one-shot and zero-caller CLI commands.&#34;,&#34;gaps&#34;:[&#34;No type-resolved dead-code tool was available (deadcode download was blocked); unused-code findings are name-based&#34;,&#34;Function bodies of core/hooks and most internal/ packages were checked by reachability and stale-word scans, not read line by line&#34;],&#34;options&#34;:[&#34;Delete everything every auditor flagged in one pass&#34;,&#34;Cut in waves by risk, each wave its own PR and gate&#34;,&#34;Fix stale text only and leave code&#34;],&#34;question&#34;:&#34;What in wipnote can be cut as bloat or is outdated (code, guidance, prompts)?&#34;,&#34;rejected&#34;:[{&#34;option&#34;:&#34;Delete everything in one pass&#34;,&#34;reason&#34;:&#34;MEDIUM and LOW findings need owner decisions and a single PR would be unreviewable (see issue 359)&#34;},{&#34;option&#34;:&#34;Fix text only&#34;,&#34;reason&#34;:&#34;leaves about 12,000 lines of SQLite-era and one-shot code that every agent still reads&#34;}],&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-18&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://git-scm.com/docs/git-ls-files&#34;},{&#34;retrieved&#34;:&#34;2026-11-18&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://pkg.go.dev/golang.org/x/tools/cmd/deadcode&#34;}]}}">
+
+        <header>
+            <h1>Bottom-up audit: bloat and outdated code, guidance and prompts across wipnote</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-18T16:02:15.657482">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                    <li><a href="../sessions/2f7531ce-ac38-41de-b836-185823a0aefb.html" data-relationship="implemented_in" data-since="2026-11-18T16:02:43.489619">session 2f7531ce-ac38-41de-b836-185823a0aefb</a></li>
+                    <li><a href="../sessions/9ba48f7e-5812-4663-9338-e3f67a55d981.html" data-relationship="implemented_in" data-since="2026-11-18T16:02:49.297564">session 9ba48f7e-5812-4663-9338-e3f67a55d981</a></li>
+                    <li><a href="../sessions/894f2b4c-51d0-4535-a96e-b12a6266a4b1.html" data-relationship="implemented_in" data-since="2026-11-18T16:02:59.233652">session 894f2b4c-51d0-4535-a96e-b12a6266a4b1</a></li>
+                    <li><a href="../sessions/00586d77-7fd5-468d-802e-9470571afe95.html" data-relationship="implemented_in" data-since="2026-11-18T16:03:07.81171">session 00586d77-7fd5-468d-802e-9470571afe95</a></li>
+                    <li><a href="../sessions/30da4dcb-5c2f-4d5d-b569-94932dccd8a1.html" data-relationship="implemented_in" data-since="2026-11-18T16:04:03.54076">session 30da4dcb-5c2f-4d5d-b569-94932dccd8a1</a></li>
+                    <li><a href="../sessions/5d536e16-d80d-4aa1-932d-908cc77158db.html" data-relationship="implemented_in" data-since="2026-11-18T16:04:13.753268">session 5d536e16-d80d-4aa1-932d-908cc77158db</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-18T16:01:32.867973">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Read-only audit of every layer (Go CLI, core, internal, plugin guidance and prompts, mods and generators, docs and repo top level) to list what can be deleted, merged or shortened, each with evidence. No code changes in this spike; findings feed a cut plan.
+[2026-11-18 16:34 claude-code] accepted-advisory (provenance override): Read-only audit: the deliverable is the research record and six layer reports; no source change was made</p>
+        </section>
+    </article>
+</body>
+</html>
