@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
@@ -36,10 +37,25 @@ func rulesLine(info Info) string {
 	return "This project's CLAUDE.md and rules are not loaded. Read them only if the task depends on project conventions.\n"
 }
 
+// WorkerRules is the rules block every worker reads before its task. The
+// main package sets it from the embedded prompts/worker-rules.md, because an
+// internal package cannot import cmd. A worker gets no CLAUDE.md or skills, so
+// without this block it works with none of the shared rules (feat-0d9b57bc).
+var WorkerRules string
+
+// rulesBlock is WorkerRules followed by a blank line, or "" when unset.
+func rulesBlock() string {
+	if WorkerRules == "" {
+		return ""
+	}
+	return strings.TrimSpace(WorkerRules) + "\n\n"
+}
+
 // TaskPreamble is what goes before a task's text, in the brief and in every
-// sent task: the claim, then the result preamble.
+// sent task: the claim, the project-rules note, the worker rules, then the
+// result preamble. A sent task repeats the rules because a /clear drops them.
 func TaskPreamble(info Info, mailDir string) string {
-	return ClaimLine(info.WorkItem) + rulesLine(info) + Preamble(info, mailDir)
+	return ClaimLine(info.WorkItem) + rulesLine(info) + rulesBlock() + Preamble(info, mailDir)
 }
 
 // paneWindow bounds how long a spawn may take from opening its row to

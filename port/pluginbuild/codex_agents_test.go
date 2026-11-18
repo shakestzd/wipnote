@@ -518,3 +518,55 @@ func TestCodexExecuteSkillUsesTargetOverride(t *testing.T) {
 		}
 	}
 }
+
+// workerRulesHeading and workerRulesLine are literals from
+// cmd/wipnote/prompts/worker-rules.md, so these tests do not read the block
+// back through the code under test (feat-0d9b57bc).
+const (
+	workerRulesHeading = "## Worker rules"
+	workerRulesLine    = "After a second failed fix for one problem, write down what both fixes assumed"
+)
+
+func TestCodexAgents_CarryWorkerRules(t *testing.T) {
+	repoRoot := repositoryRootForTest(t)
+	manifest, err := Load(filepath.Join(repoRoot, "packages", "plugin-core", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := t.TempDir()
+	if err := (codexAdapter{}).Emit(manifest, repoRoot, out); err != nil {
+		t.Fatalf("emit codex: %v", err)
+	}
+	path := filepath.Join(out, ".agents", "plugins", "wipnote", "agents", "wipnote-feature-coder.toml")
+	assertCarriesRulesNotSkills(t, path)
+}
+
+func TestAntigravityAgents_CarryWorkerRules(t *testing.T) {
+	repoRoot := repositoryRootForTest(t)
+	manifest, err := Load(filepath.Join(repoRoot, "packages", "plugin-core", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := t.TempDir()
+	if err := (antigravityAdapter{}).Emit(manifest, repoRoot, out); err != nil {
+		t.Fatalf("emit antigravity: %v", err)
+	}
+	assertCarriesRulesNotSkills(t, filepath.Join(out, "agents", "feature-coder.md"))
+}
+
+func assertCarriesRulesNotSkills(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !strings.Contains(s, workerRulesHeading) || !strings.Contains(s, workerRulesLine) {
+		t.Errorf("%s lacks the worker rules block", path)
+	}
+	for _, gone := range []string{"Preloaded skill: agent-context", "Preloaded skill: code-quality-skill"} {
+		if strings.Contains(s, gone) {
+			t.Errorf("%s still carries %q", path, gone)
+		}
+	}
+}

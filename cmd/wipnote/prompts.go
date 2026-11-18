@@ -1,6 +1,10 @@
 package main
 
-import _ "embed"
+import (
+	_ "embed"
+
+	"github.com/shakestzd/wipnote/internal/delegate/session"
+)
 
 //go:embed prompts/system-prompt.md
 var systemPromptContent string
@@ -13,3 +17,8 @@ var geminiSystemPrompt string
 
 //go:embed prompts/research-routing.md
 var researchRoutingContent string
+
+//go:embed prompts/worker-rules.md
+var workerRulesContent string
+
+func init() { session.WorkerRules = workerRulesContent }
