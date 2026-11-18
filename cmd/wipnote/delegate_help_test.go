@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// delegate --help carries the steps the retired delegate skill held
+// delegate --help carries the steps the retired delegation guidance held
 // (feat-8f910039), in under 40 lines.
 func TestDelegateHelp_Under40Lines(t *testing.T) {
 	out, err := runCLI(t, "delegate", "--help")
