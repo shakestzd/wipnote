@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 28
+    version: 30
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -345,7 +345,7 @@ slices:
         rejected:
             - 'keep the profile tables in a linked skill file (card B2): agents ran delegate 83 times and rarely opened the skill'
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Decisions:** spawn prints the next command (wait, then result, then stop) as a hint on stderr. The profile table lives in internal/delegate/session/profile.go and delegate profiles prints it, so it cannot drift. The review profile is a new entry in that map. For a Claude worker it passes a disallowed-tools list (Edit, Write, NotebookEdit). For a Codex worker it uses the read-only sandbox.
         **System prompt:** the two delegate paragraphs are cut in slice 5, which depends on this slice, so the prompt has one editor at a time.
@@ -411,6 +411,7 @@ slices:
             - Spec
             - Close
     - id: ""
+      feature_id: feat-0be892a9
       num: 8
       title: Plan critique emits ready critic briefs
       what: Make wipnote plan critique <id> write a design brief and a feasibility brief. Each holds the plan id and a reading list, with no drafting history. Record each critic as completed or not run. Cap critique at two rounds and keep accepted risks settled. Delete the plan-critique skill. Cards F3, D1, D2, D3.
@@ -451,6 +452,7 @@ slices:
         rejected:
             - 'keep the skill: it was never loaded while the command ran eight times'
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Decisions:** the briefs are files in the plan's run folder, built from the plan YAML and the files it names. The command prints the two delegate spawn lines and starts no worker itself.
         **Schema:** three optional fields are added to the critique section in plan/planyaml/schema.go: round (int), accepted_risks (list of text plus reason), and status (completed or not_run) on each critic. They are optional, so schema_version stays v4.
@@ -848,6 +850,11 @@ feedback:
           updated_at: "2026-11-18T22:31:01Z"
         - section: slice-6
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-18T22:31:03Z"
-          updated_at: "2026-11-18T22:31:03Z"
+          updated_at: "2026-11-18T23:22:19Z"
+        - section: slice-8
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-18T23:28:19Z"
+          updated_at: "2026-11-18T23:28:19Z"
