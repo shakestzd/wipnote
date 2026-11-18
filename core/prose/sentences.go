@@ -6,11 +6,12 @@ import (
 )
 
 var (
-	listLine = regexp.MustCompile(`^(\s*)(?:\d+[.)]|[-*•])\s+`)
-	labelRe  = regexp.MustCompile(`^\*\*[^*\n]+\*\*:?\s*`)
-	abbrevRe = regexp.MustCompile(`(?i)\b(e\.g|i\.e|etc|vs|approx)\.`)
-	wordRe   = regexp.MustCompile(`[A-Za-z0-9][A-Za-z0-9'’_.\-/]*`)
-	paraRe   = regexp.MustCompile(`[^\n]+(?:\n[^\S\n]*[^\s][^\n]*)*`)
+	listLine     = regexp.MustCompile(`^(\s*)(?:\d+[.)]|[-*•])\s+`)
+	numberedLine = regexp.MustCompile(`^\s*\d+[.)]\s+`)
+	labelRe      = regexp.MustCompile(`^\*\*[^*\n]+\*\*:?\s*`)
+	abbrevRe     = regexp.MustCompile(`(?i)\b(e\.g|i\.e|etc|vs|approx)\.`)
+	wordRe       = regexp.MustCompile(`[A-Za-z0-9][A-Za-z0-9'’_.\-/]*`)
+	paraRe       = regexp.MustCompile(`[^\n]+(?:\n[^\S\n]*[^\s][^\n]*)*`)
 )
 
 type seg struct {
@@ -61,6 +62,9 @@ func sentences(s seg, forceStep bool) []sentence {
 	// An item that opens with a code span is a name, not a step: the span is blank here
 	// and the marker's greedy whitespace swallowed it.
 	codeLead := s.list && strings.HasSuffix(listLine.FindString(s.text), "  ")
+	// Only a numbered item or forced step text is a step. A bullet is often a
+	// description, and step-verb on it gave false alarms on real text (feat-4151d2f0).
+	step := forceStep || numberedLine.MatchString(s.text)
 	masked := abbrevRe.ReplaceAllStringFunc(body, func(m string) string { return strings.ReplaceAll(m, ".", "_") })
 	var out []sentence
 	start := 0
@@ -69,7 +73,7 @@ func sentences(s seg, forceStep bool) []sentence {
 		text := strings.TrimSpace(raw)
 		if text != "" {
 			lead := len(raw) - len(strings.TrimLeft(raw, " \t\r\n"))
-			out = append(out, sentence{text, s.start + skip + start + lead, list, len(out) == 0 && !codeLead})
+			out = append(out, sentence{text, s.start + skip + start + lead, list, len(out) == 0 && !codeLead && step})
 		}
 		start = end
 	}

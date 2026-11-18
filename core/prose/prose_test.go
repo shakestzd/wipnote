@@ -35,7 +35,7 @@ func TestRuleTable(t *testing.T) {
 		{RulePerfectTense, "We run the gate.", "We have not run it yet and had created one.", Options{}},
 		{RuleActiveVoice, "The hook writes the file.", "The file is written by the hook.", Options{}},
 		{RuleActiveVoice, "The flag is required.", "The row was deleted.", Options{}},
-		{RuleStepVerb, "- Run the gate.\n", "- The gate runs.\n", Options{}},
+		{RuleStepVerb, "- Run the gate.\n", "1. The gate runs.\n", Options{}},
 		{RuleStepVerb, "Add a flag.", "Adding a flag.", Options{Step: true}},
 		{RuleIngWord, "The parser reads the file.", "The parsing of the file is slow.", Options{}},
 		{RuleVocab, "The tool is plain.", "The tool is seamless.", Options{}},
@@ -93,5 +93,22 @@ func TestEmptyAndRulesTable(t *testing.T) {
 	}
 	if len(Rules()) != 8 {
 		t.Errorf("rules: %d", len(Rules()))
+	}
+}
+
+func TestStepVerb_NumberedOnly(t *testing.T) {
+	has := func(text string) bool {
+		for _, n := range Check(text, Options{}) {
+			if n.Rule == RuleStepVerb {
+				return true
+			}
+		}
+		return false
+	}
+	if has("- The limit is in one table.\n- The notes never block.") {
+		t.Error("step-verb must not fire on descriptive bullets")
+	}
+	if !has("1. The tests are run.\n2. Run the gate.") {
+		t.Error("step-verb must fire on a numbered step that does not start with a verb")
 	}
 }
