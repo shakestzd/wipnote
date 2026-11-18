@@ -1,0 +1,12 @@
+package fixture
+
+// Upper returns s in upper case.
+func Upper(s string) string {
+	out := []rune(s)
+	for i, r := range out {
+		if r >= 'a' && r <= 'z' {
+			out[i] = r - 32
+		}
+	}
+	return string(out)
+}

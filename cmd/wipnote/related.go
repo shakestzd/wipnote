@@ -129,6 +129,9 @@ func runSetDescription(kind, id, text, acceptance, testStrategy, expectedBehavio
 		}
 	}
 
+	adviseProse(proseItem{path: "description", text: text}, proseItem{path: "acceptance", text: acceptance},
+		proseItem{path: "test-strategy", text: testStrategy}, proseItem{path: "expected-behavior", text: expectedBehavior})
+
 	dir, err := findWipnoteDir()
 	if err != nil {
 		return err

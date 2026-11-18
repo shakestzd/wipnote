@@ -95,6 +95,7 @@ func qualityCommands() []cliinternal.GroupedCommand {
 		guardCmd(),
 		researchCmd(),
 		ciCmd(),
+		proseCmd(),
 	)
 }
 

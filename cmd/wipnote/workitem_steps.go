@@ -42,6 +42,7 @@ func runWiAddStep(typeName, id, description string, allowHostPaths bool) error {
 	}
 	defer p.Close()
 
+	adviseProse(proseItem{path: "step", text: description, step: true})
 	col := collectionFor(p, typeName)
 	if err := col.Edit(id).AddStep(description).Save(); err != nil {
 		return fmt.Errorf("add step: %w", err)
