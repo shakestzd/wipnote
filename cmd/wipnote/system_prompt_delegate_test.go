@@ -9,7 +9,7 @@ import (
 // wipnote delegate, never a bare codex, claude -p or ccx call.
 func TestSystemPrompt_DelegateGuidance(t *testing.T) {
 	for _, want := range []string{
-		"wipnote delegate run", "wipnote delegate spawn", "wipnote skill show delegate",
+		"wipnote delegate run", "wipnote delegate spawn", "wipnote delegate --help",
 		"Do not call `codex exec`, `codex review`, `claude -p` or `ccx task` directly",
 		"Inside herdr or the Herdr app, hand coding work to a `wipnote delegate spawn` worker",
 		"Use a subagent when spawn refuses because you are outside Herdr",

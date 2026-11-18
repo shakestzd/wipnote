@@ -20,7 +20,6 @@ Always in the skill list: `execute`, `code-quality-skill`, and `agent-context` (
 | Verify UI changes with screenshots | `/wipnote:ui-stills-verification` | `ui-stills-verification` |
 | Write a guard rule | `/wipnote:guard-authoring` | `guard-authoring` |
 | Rules shared by coder agents, including the test-first implementation workflow (preloaded into them) | — | `agent-context` |
-| Run coding work in a lean `wipnote delegate spawn` worker inside Herdr, or delegate one codex exec, codex review, claude -p or ccx task call with `wipnote delegate run` (not on Antigravity) | `/wipnote:delegate` | `delegate` |
 | Report a wipnote issue upstream — *slash only* | `/wipnote:report-issue` | `report-issue` |
 | Write, convert or check text in ASD-STE100 Simplified Technical English (linter + dictionary lookup) | `/wipnote:simplified-technical-english` | `simplified-technical-english` |
 

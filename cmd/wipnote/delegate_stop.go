@@ -22,7 +22,8 @@ func delegateStopCmd() *cobra.Command {
 shell alone, closes the pane, then checks each recorded pid. It never signals or
 kills. The workers tab closes when its last worker stops. Prints
 {run, name, pane_closed, tab_closed, survivors, why}; why always says why the
-pane stayed open. Exits 1 when the pane was not closed.`,
+pane stayed open. Exits 1 when the pane was not closed. Run it before you
+complete the work item: completing closes every open claim on it.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			wipnoteDir, err := findWipnoteDir()

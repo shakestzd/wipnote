@@ -25,15 +25,23 @@ type Profile struct {
 	UserRules    bool     `json:"userRules,omitempty"`
 	ProjectRules bool     `json:"projectRules,omitempty"`
 	CacheTTL     string   `json:"cacheTTL,omitempty"`
+	// Disallowed are built-in tools the worker never gets, even by --tool.
+	Disallowed []string `json:"disallowedTools,omitempty"`
 }
+
+// ProfileReview is the read-only profile (feat-8f910039): a Claude worker has
+// no edit, write or notebook tool, and a Codex worker runs in the read-only
+// sandbox. It is for reviews, where a worker that edits hides what it found.
+const ProfileReview = "review"
 
 // builtinProfiles are the profiles every install has. full is special: it
 // turns the lean flags off (see Setup.Full).
 var builtinProfiles = map[string]Profile{
-	"simple":    {Model: "haiku", Effort: "low"},
-	"standard":  {Model: "sonnet", Effort: "medium"},
-	"deep":      {Model: "opus", Effort: "high", ProjectRules: true},
-	ProfileFull: {},
+	"simple":      {Model: "haiku", Effort: "low"},
+	"standard":    {Model: "sonnet", Effort: "medium"},
+	"deep":        {Model: "opus", Effort: "high", ProjectRules: true},
+	ProfileReview: {Model: "sonnet", Effort: "medium", Disallowed: []string{"Edit", "Write", "NotebookEdit"}},
+	ProfileFull:   {},
 }
 
 // ClaudeConfig is delegate.claude in ~/.wipnote/config.json.
@@ -153,6 +161,7 @@ func applyProfile(o *SpawnOptions, name string, p Profile) {
 	o.Tools = unionNames(p.Tools, o.Tools)
 	o.MCP = unionNames(p.MCP, o.MCP)
 	o.Plugins = unionNames(p.Plugins, o.Plugins)
+	o.Disallowed = unionNames(p.Disallowed, o.Disallowed)
 	o.UserRules = p.UserRules || o.UserRules
 	o.ProjectRules = p.ProjectRules || o.ProjectRules
 	if o.CacheTTL == "" {
@@ -180,7 +189,7 @@ func checkSetup(o SpawnOptions) error {
 	if o.Harness != HarnessCodex {
 		return nil
 	}
-	if (o.Profile != "" && o.Profile != DefaultProfile) || len(o.Tools)+len(o.MCP)+len(o.Plugins) > 0 || o.UserRules || o.ProjectRules || o.CacheTTL != "" {
+	if (o.Profile != "" && o.Profile != DefaultProfile && o.Profile != ProfileReview) || len(o.Tools)+len(o.MCP)+len(o.Plugins) > 0 || o.UserRules || o.ProjectRules || o.CacheTTL != "" {
 		return fmt.Errorf("%w: --profile, --tool, --mcp, --plugin, --user-rules, --project-rules and --cache-ttl are for Claude workers; --model and --effort work on Codex", ErrBadSetup)
 	}
 	return nil
@@ -189,4 +198,34 @@ func checkSetup(o SpawnOptions) error {
 // choseSetup reports that the spawn asked for capabilities itself.
 func (o SpawnOptions) choseSetup() bool {
 	return len(o.Tools)+len(o.MCP)+len(o.Plugins) > 0 || o.UserRules || o.ProjectRules || o.CacheTTL != ""
+}
+
+// ProfileRow is one line of the table delegate profiles prints.
+type ProfileRow struct {
+	Name   string   `json:"name"`
+	Model  string   `json:"model,omitempty"`
+	Effort string   `json:"effort,omitempty"`
+	Tools  []string `json:"tools"`
+	Note   string   `json:"note,omitempty"`
+}
+
+// ProfileTable is every profile, built-in or from the config, sorted by name.
+// It is read from the same map spawn resolves, so it cannot drift.
+func (c ClaudeConfig) ProfileTable() []ProfileRow {
+	var rows []ProfileRow
+	for _, n := range c.ProfileNames() {
+		_, p, _ := c.Resolve(n)
+		row := ProfileRow{Name: n, Model: p.Model, Effort: p.Effort}
+		if n == ProfileFull {
+			row.Tools = []string{"all of Claude's own"}
+			row.Note = "no lean flags: your model, effort, CLAUDE.md, MCP and skills"
+		} else {
+			row.Tools = withoutNames(unionNames(leanTools, p.Tools), p.Disallowed)
+		}
+		if n == ProfileReview {
+			row.Note = "read-only: no Edit, Write or NotebookEdit; a Codex worker gets --sandbox read-only"
+		}
+		rows = append(rows, row)
+	}
+	return rows
 }

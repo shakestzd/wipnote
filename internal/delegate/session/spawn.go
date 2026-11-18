@@ -65,11 +65,13 @@ type SpawnOptions struct {
 	// keeps ~/.claude/CLAUDE.md. Claude only (see applyProfile, LeanFlags).
 	Profile             string
 	Tools, MCP, Plugins []string
-	UserRules           bool
-	ProjectRules        bool         // keep the project CLAUDE.md and rules; off in simple and standard
-	CacheTTL            string       // "5m" (default) or "1h"; --cache-ttl beats the profile
-	Config              ClaudeConfig // delegate.claude from the user's config
-	mcpConfig           []byte       // the generated --mcp-config, written to the run folder
+	// Disallowed are built-in tools the profile removes (the review profile).
+	Disallowed   []string
+	UserRules    bool
+	ProjectRules bool         // keep the project CLAUDE.md and rules; off in simple and standard
+	CacheTTL     string       // "5m" (default) or "1h"; --cache-ttl beats the profile
+	Config       ClaudeConfig // delegate.claude from the user's config
+	mcpConfig    []byte       // the generated --mcp-config, written to the run folder
 
 	// Worktree gives the worker its own checkout on a new branch, cut from
 	// Base (HEAD when empty); wt is that checkout, or a resumed worker's.
