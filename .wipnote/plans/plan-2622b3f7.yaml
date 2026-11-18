@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 19
+    version: 23
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -77,7 +77,7 @@ slices:
         rejected:
             - 'external linter: the limit is a per-file byte table in this repo, about 40 lines of Go'
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Decisions:** limits are a per-file table in the test, set to today's sizes. A slice that shrinks a file lowers its limit in the same commit. The eval-coverage list only prints, because 13 eval cases exist and most skills are deleted later in this plan.
         **Rejected:** one global limit, because the delegate skill is twice the next largest and would set the bar for all.
@@ -118,7 +118,7 @@ slices:
         rejected:
             - 'a general eval framework: plugin/evals already holds 13 cases and delegate run records each run'
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Decisions:** prompts are embedded in the binary (cmd/wipnote/claude.go), so the script builds one binary per ref in a git worktree. Each task runs three times per ref. The check compares observable actions from the delegate run ledger, not the wording of replies. Tasks reuse plugin/evals cases where one fits.
         **Pass rule:** a behaviour that holds in three of three runs on the old ref and in fewer than two on the new ref is a regression.
@@ -132,6 +132,7 @@ slices:
             - Read actions from the run ledger
             - Print the comparison
     - id: ""
+      feature_id: feat-0d9b57bc
       num: 3
       title: Worker-rules block for delegate workers and other harnesses
       what: Write one rules block of at most 3 KB and embed it in the binary. Add it to the brief preamble of every delegate worker. Make the Codex and Antigravity agent builds append this block where they append the preloaded skills today. Cards F1 (first half), C1 to C5.
@@ -167,6 +168,7 @@ slices:
         rejected:
             - 'keep the two skills: they reach subagents only and never delegate workers'
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Disposition of agent-context (6.8 KB):** work attribution and completion, the six-step workflow with C1 and C2, safety, and principles go in the block, shortened. Research routing stays in the researcher agent file. Persist-then-summarize goes in the block as one line. Writing style becomes one line that names wipnote prose check (feat-4151d2f0).
         **Disposition of code-quality-skill (3.2 KB):** the per-language gate commands are dropped from prose, because wipnote check --gate detects the language and runs them. The Go suite note (use scripts/go-test-streaming.sh) is repo-specific and stays in CLAUDE.md. Size and design review is printed by check --gate. Record-the-result is one line in the block.
@@ -543,7 +545,7 @@ slices:
         rejected:
             - 'a diff-parsing package: the check reads added and removed lines of a unified diff with three patterns'
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Decisions:** detection reads the unified diff. It covers Go test functions and t.Skip, JavaScript and TypeScript test and it calls with skip, and Python test functions with a skip marker. Other languages print nothing. The header reads fields the store already holds.
         **Rejected:** failing the gate on a removed test, because a correct refactor removes tests too.
@@ -810,16 +812,21 @@ feedback:
           updated_at: "2026-11-18T20:06:59Z"
         - section: slice-1
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-18T20:07:00Z"
-          updated_at: "2026-11-18T20:07:00Z"
+          updated_at: "2026-11-18T21:27:12Z"
         - section: slice-2
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-18T20:07:02Z"
-          updated_at: "2026-11-18T20:07:02Z"
+          updated_at: "2026-11-18T21:27:13Z"
         - section: slice-10
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-18T20:07:15Z"
-          updated_at: "2026-11-18T20:07:15Z"
+          updated_at: "2026-11-18T21:27:13Z"
+        - section: slice-3
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-18T21:27:15Z"
+          updated_at: "2026-11-18T21:27:15Z"
