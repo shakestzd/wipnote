@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Worker-rules block for delegate workers and other harnesses</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-0d9b57bc"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T21:27:15.772008"
+             data-updated="2026-11-18T22:30:53.85369" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Worker-rules block for delegate workers and other harnesses</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../features/feat-9fd0cb31.html" data-relationship="blocked_by" data-since="2026-11-18T21:27:15.797963">feat-9fd0cb31</a></li>
+                    <li><a href="../features/feat-217fb5f2.html" data-relationship="blocked_by" data-since="2026-11-18T21:27:15.803952">feat-217fb5f2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="2f06f0e9120fef5262d55cae0e3761be7e38a218.html" data-relationship="committed_in" data-since="2026-11-18T17:23:43">Merge pull request #364 from shakestzd/delegate/worker-rules-block</a></li>
+                    <li><a href="2e6fd982239c0b576845fe4e61ca282517ee6c92.html" data-relationship="committed_in" data-since="2026-11-18T16:38:59">feat(delegate): worker-rules block for delegate workers and other harnesses (feat-0d9b57bc)</a></li>
+                    <li><a href="7cee3b3cfdceec124056f332a2c5d6e56dbe9e73.html" data-relationship="committed_in" data-since="2026-11-18T16:27:15">plan(plan-2622b3f7): promote slice-3 → feat-0d9b57bc</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/cb796f71-0f40-4008-b2c7-57354443c348.html" data-relationship="implemented_in" data-since="2026-11-18T21:28:02.020065">session cb796f71-0f40-4008-b2c7-57354443c348</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-18T21:27:15.777939">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-2622b3f7.html" data-relationship="planned_in" data-since="2026-11-18T21:27:15.792581">plan-2622b3f7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Write one rules block of at most 3 KB and embed it in the binary. Add it to the brief preamble of every delegate worker. Make the Codex and Antigravity agent builds append this block where they append the preloaded skills today. Cards F1 (first half), C1 to C5.
+Why
+Delegate workers got no rules in 60 spawns. The block must exist and reach every harness before the skills it replaces can go.
+Acceptance Criteria
+A delegate worker&#39;s brief preamble carries the block, shown by a test; Codex and Antigravity agent files built by build-ports carry the block and not the two skills; The block is at most 3 KB and the size test has a limit for it; Every section of agent-context and code-quality-skill has a recorded disposition: in the block, printed by a named command, or dropped with a reason</p>
+        </section>
+    </article>
+</body>
+</html>
