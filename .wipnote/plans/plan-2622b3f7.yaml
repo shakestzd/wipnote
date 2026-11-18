@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 32
+    version: 33
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -469,6 +469,7 @@ slices:
             - Findings recorded with a file or doc line
             - Round two at most, accepted risks stay settled
     - id: ""
+      feature_id: feat-d06e3fb2
       num: 9
       title: Execute-preview does the dispatch maths
       what: 'Make execute-preview compute the ready set and the file overlap between ready tasks, and print a brief for each task. Its output states the review rule: block only on a failing run or a user-visible bug. Delete the execute skill and its mention of a cleanup command that does not exist. Cards F4, D6.'
@@ -507,6 +508,7 @@ slices:
         rejected:
             - 'a graph library: plans have under 20 slices and the ready set is one pass over deps'
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Decisions:** the new logic goes in execute_preview_ready.go, because execute_preview.go is 338 lines and the file trigger is 500. File sets come from each slice's files list, with wipnote trace as the fallback for a promoted feature that has commits. The overlap choice is greedy by slice number, which is stable and explainable. Briefs call renderContextPack (context_pack.go:161). The JSON format keeps its fields and gains ready, deferred and briefs. The overlap eval case is replaced by the Go test. The other two execute evals are deleted with the skill.
         **Rejected:** an exact maximum independent set, because plans have under 20 slices and a stable order matters more.
@@ -865,3 +867,8 @@ feedback:
           value: promoted
           created_at: "2026-11-18T23:31:01Z"
           updated_at: "2026-11-18T23:31:01Z"
+        - section: slice-9
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-18T23:31:05Z"
+          updated_at: "2026-11-18T23:31:05Z"
