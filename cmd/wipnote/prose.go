@@ -20,8 +20,7 @@ Run "wipnote prose rules" for the rule table. Use it on a pull request body,
 issue or README before it is posted.`
 
 func proseCmd() *cobra.Command {
-	// Hidden so the compact help stays under its line budget; the system prompt names it.
-	cmd := &cobra.Command{Use: "prose", Short: "Check text against the plain-writing rules", Hidden: true}
+	cmd := &cobra.Command{Use: "prose", Short: "Check text against the plain-writing rules"}
 	cmd.AddCommand(proseCheckCmd(), proseRulesCmd())
 	return cmd
 }
