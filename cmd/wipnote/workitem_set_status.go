@@ -348,6 +348,7 @@ func (t *statusTransition) attachLearning() {
 		return
 	}
 	dir, id := t.dir, t.id
+	adviseProse(proseItem{path: "learning", text: wiLearning})
 	// Validate the learning body and kind (non-fatally, after state change).
 	learningBody := strings.TrimSpace(wiLearning)
 	validationErr := validateLearningKind(wiLearningKind)
