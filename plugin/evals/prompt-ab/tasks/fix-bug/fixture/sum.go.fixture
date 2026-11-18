@@ -1,0 +1,10 @@
+package fixture
+
+// Sum returns the sum of all values in xs.
+func Sum(xs []int) int {
+	total := 0
+	for i := 1; i < len(xs); i++ {
+		total += xs[i]
+	}
+	return total
+}
