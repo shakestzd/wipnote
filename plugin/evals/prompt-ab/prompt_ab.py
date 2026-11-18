@@ -51,21 +51,19 @@ def go_writes(name, inp):
 
 def behaviours(path, item):
     seen = {"build": False, "vet": False, "test": False, "gate_cmd": False, "start": False, "commit": False}
-    test_edit = test_run_after_test = False
+    test_edit = False
     first_impl_ok = None  # decided at the first non-test .go write
     for name, inp in tool_calls(path):
         for p in go_writes(name, inp):
             if is_test_file(p):
                 test_edit = True
             elif first_impl_ok is None:
-                first_impl_ok = test_edit and test_run_after_test
+                first_impl_ok = test_edit
         if name != "Bash":
             continue
         cmd = inp.get("command", "")
         if re.search(r"wipnote\s+(feature|bug|spike)\s+start\s+" + re.escape(item), cmd):
             seen["start"] = True
-        if test_edit and re.search(r"\bgo\s+test\b", cmd):
-            test_run_after_test = True
         for k in ("build", "vet", "test"):
             seen[k] |= bool(re.search(r"\bgo\s+" + k + r"\b", cmd))
         seen["gate_cmd"] |= bool(re.search(r"\bwipnote\s+check\b.*--gate", cmd))

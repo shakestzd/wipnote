@@ -25,7 +25,7 @@ Each real run costs model money: tasks times runs times two refs. The default is
 | Behaviour | Holds when |
 |---|---|
 | `started` | The agent ran `wipnote feature start <item>` |
-| `test_first` | A test file was written and run before the first non-test `.go` write, by file tool or shell redirect |
+| `test_first` | A test file was written before the first non-test `.go` write, by file tool or shell redirect, in command order. The record does not show whether the test failed, so the check does not read that |
 | `gate` | The agent ran `wipnote check --gate`, or `go build`, `go vet` and `go test` |
 | `commit_names_item` | A `git commit` command names the item id |
 

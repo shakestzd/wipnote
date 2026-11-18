@@ -81,10 +81,20 @@ func TestPromptABBehavioursImplementationFirst(t *testing.T) {
 	}
 }
 
-func TestPromptABBehavioursTestsWrittenButNeverRunBeforeImpl(t *testing.T) {
-	got := runBehaviours(t, edit("/w/x_test.go"), edit("/w/x.go"), bash("go test ./..."))
-	if got["test_first"] {
-		t.Error("test_first = true although no test run came before the implementation")
+// Whether the test failed is not visible in the record. Order of writes is.
+func TestPromptABBehavioursOrderOfWritesDecides(t *testing.T) {
+	if !runBehaviours(t, edit("/w/x_test.go"), edit("/w/x.go"))["test_first"] {
+		t.Error("test_first = false for a test written before the implementation")
+	}
+}
+
+// Workers often batch steps into one shell command. Position in it decides.
+func TestPromptABBehavioursOrderWithinOneCommand(t *testing.T) {
+	if !runBehaviours(t, bash("cat > x_test.go <<'EOF'\nt\nEOF\ncat >> x.go <<'EOF'\ni\nEOF"))["test_first"] {
+		t.Error("test_first = false when the test comes first inside one command")
+	}
+	if runBehaviours(t, bash("cat >> x.go <<'EOF'\ni\nEOF\ncat > x_test.go <<'EOF'\nt\nEOF"))["test_first"] {
+		t.Error("test_first = true when the implementation comes first inside one command")
 	}
 }
 
