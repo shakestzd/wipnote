@@ -142,3 +142,8 @@ trigger (noisy).
    and commit `88d2f51b4` as the canonical pattern.
 4. Anchor Bash command matching to the specific command shape, not substrings.
    Use `^\s*git\s+commit(\s|$|--|-[^a-z])`, not `LIKE '%commit%'`.
+
+## Failure Bar for New Guidance
+
+- Add a line to a skill, prompt or rule only if it names the work item where the agent failed without it (plan-2622b3f7, card A1). Otherwise leave it out.
+- Each skill and prompt has a byte limit in `port/pluginbuild/guidance_size_test.go`. A change that shrinks a file lowers its limit in the same commit.
