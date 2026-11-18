@@ -278,7 +278,7 @@ func TestRetiredModExempt(t *testing.T) {
 		"docs/design/delegate.md":          true,
 		"CLAUDE.md":                        true,
 		"CHANGELOG.md":                     true,
-		"plugin/skills/delegate/SKILL.md":  false,
+		"plugin/skills/skills/SKILL.md":    false,
 		"docs/guide.md":                    false,
 		"mods/wipnote-orchestra/README.md": false,
 	} {

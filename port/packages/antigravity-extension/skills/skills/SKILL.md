@@ -18,7 +18,6 @@ Always in the skill list: `execute`. Coder agents get the worker rules from the 
 | Run a plan or track: parallel dispatch to agents | `/wipnote:execute <id>` | `execute` |
 | Verify UI changes with screenshots | `/wipnote:ui-stills-verification` | `ui-stills-verification` |
 | Write a guard rule | `/wipnote:guard-authoring` | `guard-authoring` |
-| Run coding work in a lean `wipnote delegate spawn` worker inside Herdr, or delegate one codex exec, codex review, claude -p or ccx task call with `wipnote delegate run` (not on Antigravity) | `/wipnote:delegate` | `delegate` |
 | Report a wipnote issue upstream — *slash only* | `/wipnote:report-issue` | `report-issue` |
 | Write, convert or check text in ASD-STE100 Simplified Technical English (linter + dictionary lookup) | `/wipnote:simplified-technical-english` | `simplified-technical-english` |
 

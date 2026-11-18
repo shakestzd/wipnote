@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/shakestzd/wipnote/core/paths"
+	"github.com/shakestzd/wipnote/internal/delegate/codex"
 	"os"
 	"strings"
 )
@@ -61,6 +62,9 @@ func harnessFlags(ctx context.Context, o *SpawnOptions) error {
 	}
 	flags := modelEffortFlags(o)
 	o.Flags = append(flags, o.Extra...)
+	if o.Harness == HarnessCodex && o.Profile == ProfileReview {
+		o.Flags = append(o.Flags, "--sandbox", string(codex.ReadOnly))
+	}
 	if o.Harness == HarnessClaude && !o.Full {
 		if err := o.addLeanFlags(ctx); err != nil {
 			return err
@@ -113,7 +117,7 @@ func (o *SpawnOptions) addLeanFlags(ctx context.Context) error {
 	if !o.ProjectRules && !o.Container {
 		roots = []string{root, o.Cwd}
 	}
-	spec := LeanSpec{Home: home, UserRules: o.UserRules, RulesRoots: roots, Tools: o.Tools, Plugins: plugins,
+	spec := LeanSpec{Home: home, UserRules: o.UserRules, RulesRoots: roots, Tools: o.Tools, Disallowed: o.Disallowed, Plugins: plugins,
 		Deny: plan.Deny, Open: plan.Open, MCP: len(o.MCP) > 0, CacheTTL: o.CacheTTL}
 	o.Flags = append(o.Flags, LeanFlags(o.Extra, spec)...)
 	if len(plan.Servers) > 0 {

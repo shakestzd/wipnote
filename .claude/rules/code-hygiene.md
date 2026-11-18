@@ -1,6 +1,6 @@
 # Code Hygiene - Mandatory Quality Standards
 
-**CRITICAL: Always fix ALL errors with every commit, regardless of when they were introduced.**
+**CRITICAL: Fix every gate failure in the files you changed, whoever introduced it. Report any other failure and start no unrelated refactor.**
 
 ## Philosophy
 
@@ -10,12 +10,14 @@ Maintaining clean, error-free code is non-negotiable. Every commit should reduce
 
 1. **Fix All Errors Before Committing**
    - Run `go build`, `go vet`, and `go test` before every commit
-   - Fix ALL errors, even pre-existing ones from previous sessions
-   - Never commit with unresolved build errors, vet warnings, or test failures
+   - Fix failures in files you changed, even ones that were there before you started
+   - Report any other failure, and start no unrelated refactor
+   - Never commit with an unresolved failure in a file you changed
 
 2. **No "I'll Fix It Later" Mentality**
    - Errors compound over time
-   - Pre-existing errors are YOUR responsibility when you touch related code
+   - A failure in a file you changed is yours, whoever introduced it
+   - A failure elsewhere goes in your report, not in your diff
    - Clean as you go - leave code better than you found it
 
 3. **Deployment Blockers**
@@ -37,7 +39,7 @@ Maintaining clean, error-free code is non-negotiable. Every commit should reduce
 # Before every commit:
 go build ./... && go vet ./... && go test ./...
 
-# Only commit when ALL checks pass
+# Commit when the checks pass for the files you changed
 git commit -m "..."
 ```
 
