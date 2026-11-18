@@ -36,6 +36,6 @@ Run `wipnote prose check <file>` on a pull request body, issue or README before 
 
 - Never hand-edit `.wipnote/`; use the CLI. Plan YAML changes go through `wipnote plan rewrite-yaml`. A project with no `.wipnote/` folder keeps its store under `~/.wipnote/projects/`: get the path from `wipnote status`, do not assume it.
 - Never write or overwrite a project's AGENTS.md, CLAUDE.md or GEMINI.md; they belong to the user.
-- Run the quality gate before committing (`/wipnote:code-quality-skill` has the per-language commands).
+- Run the quality gate before committing (`wipnote check --gate` detects the language and runs it).
 
 `wipnote help --compact` prints the CLI.

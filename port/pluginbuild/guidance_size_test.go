@@ -14,25 +14,23 @@ import (
 // A slice that shrinks a skill lowers its limit in the same commit. A skill
 // with no entry here has no room to grow, so a new skill needs a row first.
 var skillByteLimits = map[string]int{
-	"agent-context":                6688,
-	"code-quality-skill":           3165,
 	"delegate":                     19939,
 	"execute":                      8588,
 	"guard-authoring":              4521,
 	"plan-critique":                4359,
 	"report-issue":                 2687,
 	"simplified-technical-english": 9022,
-	"skills":                       2340,
+	"skills":                       2131,
 	"ui-stills-verification":       7556,
 }
 
 // promptByteLimits caps each file under cmd/wipnote/prompts, same rule.
 var promptByteLimits = map[string]int{
-	"gemini-system.md":    4343,
+	"gemini-system.md":    4323,
 	"research-routing.md": 571,
-	"system-prompt.md":    4916,
+	"system-prompt.md":    4912,
 	"worker-rules.md":     3072,
-	"yolo-prompt.md":      5176,
+	"yolo-prompt.md":      5149,
 }
 
 // checkGuidanceSizes compares each guidance file under root with its limit and

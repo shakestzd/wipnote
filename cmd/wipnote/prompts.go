@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 
+	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/internal/delegate/session"
 )
 
@@ -21,4 +22,7 @@ var researchRoutingContent string
 //go:embed prompts/worker-rules.md
 var workerRulesContent string
 
-func init() { session.WorkerRules = workerRulesContent }
+func init() {
+	session.WorkerRules = workerRulesContent
+	hooks.WorkerRules = workerRulesContent
+}

@@ -18,7 +18,7 @@ tools:
 
 Fast, low-cost agent for fully specified edits: 1-2 files, no investigation, minutes of work. If the task turns out to need 3+ files or design choices, stop and report so the orchestrator can re-dispatch it to `feature-coder` (or `architect-coder` for 10+ files). Skip claiming a work item only when the task is read-only.
 
-The shared rules (attribution, test-first workflow, quality gate, finishing, when to stop) come from the `agent-context` skill: Claude Code preloads it, and other harnesses get it appended below.
+The shared rules (attribution, test-first workflow, quality gate, finishing, when to stop) come from the worker rules block: Claude Code adds it at start through the SubagentStart hook, and other harnesses get it appended below.
 
 ## Output
 

@@ -167,7 +167,7 @@ wipnote history feat-abc1234
 
 **Hooks & automation** — Event-driven hooks on SessionStart, PreToolUse, PostToolUse, and Stop. Enforce safety rules, capture telemetry, block dangerous operations, or trigger custom workflows automatically.
 
-**Skills & slash commands** — Reusable workflows as slash commands: `wipnote plan next`, `/wipnote:execute`, `/wipnote:code-quality-skill`, `/wipnote:ui-stills-verification`. Package complex multi-step procedures into single invocations.
+**Skills & slash commands** — Reusable workflows as slash commands: `wipnote plan next`, `/wipnote:execute`, `/wipnote:ui-stills-verification`. Package complex multi-step procedures into single invocations.
 
 **Quality gates** — Enforce software engineering discipline: build, lint, and test before every commit. Spec compliance scoring, code health metrics, and structured diff reviews.
 

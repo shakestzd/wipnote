@@ -15,30 +15,28 @@ import (
 // lose the shared rules (safety, attribution, quality gates) that the Claude
 // agents receive. A listed skill that does not exist fails the build.
 //
-// Two skills, agent-context and code-quality-skill, are replaced by the worker
-// rules block at workerRulesPath. An agent that lists either gets the block
-// once, in their place (feat-0d9b57bc: one 3 KB block replaces 10 KB of skill
-// text on every harness).
+// Every "-coder" agent also gets the worker rules block at workerRulesPath,
+// once (feat-0d9b57bc: one 3 KB block replaces 10 KB of skill text).
 func inlinePreloadedSkills(raw []byte, skillsDir, workerRulesPath string) ([]byte, error) {
 	fm, body, hasFM, err := parseAgentFrontmatter(raw)
 	if err != nil || !hasFM {
 		return raw, err
 	}
 	names := toStringSlice(fm["skills"])
-	if len(names) == 0 {
+	// Coder agents no longer list the two skills. Claude Code delivers the
+	// block through the SubagentStart hook, but Codex and Antigravity have no
+	// such hook, so the build inlines it for them (feat-0b0112a4).
+	agentName, _ := fm["name"].(string)
+	needRules := strings.HasSuffix(agentName, "-coder")
+	if len(names) == 0 && !needRules {
 		return raw, nil
 	}
 	fmRaw, _, _ := splitFrontmatter(raw)
 	var out bytes.Buffer
 	out.WriteString("---\n" + fmRaw + "\n---\n")
 	out.Write(bytes.TrimRight(body, "\n"))
-	needRules := false
 	for _, name := range names {
 		dir := strings.TrimPrefix(name, "wipnote:")
-		if replacedByWorkerRules[dir] {
-			needRules = true
-			continue
-		}
 		skill, err := os.ReadFile(filepath.Join(skillsDir, dir, "SKILL.md"))
 		if err != nil {
 			return nil, fmt.Errorf("preloaded skill %q: %w", name, err)
@@ -56,9 +54,6 @@ func inlinePreloadedSkills(raw []byte, skillsDir, workerRulesPath string) ([]byt
 	out.WriteString("\n")
 	return out.Bytes(), nil
 }
-
-// replacedByWorkerRules names the skills whose rules now live in the block.
-var replacedByWorkerRules = map[string]bool{"agent-context": true, "code-quality-skill": true}
 
 // workerRulesFile is the block's path under the repo root.
 func workerRulesFile(repoRoot string) string {

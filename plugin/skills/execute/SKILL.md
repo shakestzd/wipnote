@@ -123,7 +123,7 @@ Siblings (do NOT implement): {ID + title + status}
 {files owned by concurrent tasks}
 
 ## Protocol
-Follow the Implementation workflow in the `agent-context` skill (preloaded into coder agents; otherwise run `wipnote skill show agent-context`): failing tests first, then the gate from /wipnote:code-quality-skill.
+Follow the worker rules the SubagentStart hook gives a coder agent: failing tests first, then `wipnote check --gate`.
 Name {feature_id} in every commit subject or a `Refs: {feature_id}` trailer so
 `wipnote feature complete` links it automatically; otherwise run
 `wipnote feature link-commit {feature_id} <sha>`.
@@ -142,7 +142,7 @@ git merge --no-ff worktree-agent-XXXX -m "feat: merge {task title} ({feature_id}
 
 Conflicts in shared registration files are additive: keep every agent's lines. Conflicts in real logic mean a missed dependency: decide which change is right and add `addBlockedBy` for future runs.
 
-Run the project gate from `/wipnote:code-quality-skill` on the merged result and record it with `wipnote check --gate`. If it fails, find the breaking merge (`git log --oneline`), fix small breaks on main or `git revert` the merge and re-dispatch with a fix note. The gate must pass before dispatching blocked tasks.
+Run `wipnote check --gate` on the merged result. It detects the language, runs the gate and records the result. If it fails, find the breaking merge (`git log --oneline`), fix small breaks on main or `git revert` the merge and re-dispatch with a fix note. The gate must pass before dispatching blocked tasks.
 
 Per-wave checklist:
 
