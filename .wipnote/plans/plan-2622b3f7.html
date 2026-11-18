@@ -469,9 +469,112 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <a href="/" class="brand">wipnote</a>
     <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
   </div>
-  
+  <a href="#visual-overview" class="nav-link" data-spy="visual-overview" data-initial="V">Visual</a>
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
+  
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span>#1 Guardrails that keep guidance small</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 Before-and-after check for prompt changes</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 Worker-rules hook for subagents and delegate workers</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Trim the system prompt and quiet the hooks</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span>#5 Delegate guidance moves into the command</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-6" class="slice-nav-item" data-slice-nav="6">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="6"></span>
+        <span>#6 A plan next command replaces the plan skill</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-7" class="slice-nav-item" data-slice-nav="7">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="7"></span>
+        <span>#7 Plan critique emits ready critic briefs</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-8" class="slice-nav-item" data-slice-nav="8">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="8"></span>
+        <span>#8 Execute-preview does the dispatch maths</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-9" class="slice-nav-item" data-slice-nav="9">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="9"></span>
+        <span>#9 Evidence in review and the gate</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-10" class="slice-nav-item" data-slice-nav="10">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="10"></span>
+        <span>#10 Remove the unused skills and slash commands</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-11" class="slice-nav-item" data-slice-nav="11">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="11"></span>
+        <span>#11 Shrink this repo&#39;s CLAUDE.md to pointers</span>
+        
+        
+      </a>
+    </li>
+    
+  </ul>
   
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
   
@@ -488,7 +591,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">The owner chose 30 of the 31 changes on the adoption board (spk-deb261d8). This plan carries them out: guidance moves from skills and always-loaded prompt text into CLI output, one worker-rules hook and tests. Retro skill E4 is deferred.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-11-18</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 11 slices · Created 2026-11-18</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -505,16 +608,216 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </details>
 
 <!-- ZONE 0: Visual Overview (blocks-first headline — expanded, above dependency graph) -->
-
+<section class="visual-overview" id="visual-overview" data-zone="visual-overview">
+  <h2>Visual Overview</h2>
+  <div class="overview-group" data-block-kind="data-model">
+    <h3>Data Models</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-9-block-data-model-1" title="Jump to slice 9">
+          <span class="slice-num">#9</span>
+          <span class="overview-slice-title">Evidence in review and the gate</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-9-block-data-model-1" data-block-anchor="slice-9-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Evidence block</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>removed_tests</code></td><td><code>int</code></td><td>&mdash;</td></tr>
+      <tr><td><code>added_skips</code></td><td><code>int</code></td><td>&mdash;</td></tr>
+      <tr><td><code>config_edits</code></td><td><code>list of paths</code></td><td>&mdash;</td></tr>
+      <tr><td><code>added_lines</code></td><td><code>int</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  <div class="overview-group" data-block-kind="file-tree">
+    <h3>File Trees</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-1-block-file-tree-1" title="Jump to slice 1">
+          <span class="slice-num">#1</span>
+          <span class="overview-slice-title">Guardrails that keep guidance small</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-1-block-file-tree-1" data-block-anchor="slice-1-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">port/pluginbuild/guidance_size_test.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">port/pluginbuild/skill_catalog_test.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">.claude/rules/plugin-development.md</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  <div class="overview-group" data-block-kind="diagram">
+    <h3>Diagrams</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-2-block-diagram-1" title="Jump to slice 2">
+          <span class="slice-num">#2</span>
+          <span class="overview-slice-title">Before-and-after check for prompt changes</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-2-block-diagram-1" data-block-anchor="slice-2-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Check flow</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1064.8" height="48" viewBox="0 0 1064.8 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="150.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="81.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Pick two git refs</text><path class="diagram-edge" d="M156.4 24 L196.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="196.4" y="6" width="352" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="372.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Run each fixed task on both with delegate run</text><path class="diagram-edge" d="M548.4 24 L588.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="588.4" y="6" width="258.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="717.5999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Read actions from the run ledger</text><path class="diagram-edge" d="M846.8 24 L886.8 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="886.8" y="6" width="172" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="972.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Print the comparison</text></svg></div>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-3-block-diagram-1" title="Jump to slice 3">
+          <span class="slice-num">#3</span>
+          <span class="overview-slice-title">Worker-rules hook for subagents and delegate workers</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-3-block-diagram-1" data-block-anchor="slice-3-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">How the rules reach a worker</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1367.1999999999998" height="48" viewBox="0 0 1367.1999999999998 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="301.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="156.79999999999998" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">worker-rules.md embedded in the binary</text><path class="diagram-edge" d="M307.59999999999997 24 L347.59999999999997 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="347.59999999999997" y="6" width="323.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="509.19999999999993" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">SubagentStart hook adds it for a subagent</text><path class="diagram-edge" d="M670.8 24 L710.8 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="710.8" y="6" width="344.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="883.1999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">delegate spawn adds it to the brief preamble</text><path class="diagram-edge" d="M1055.6 24 L1095.6 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1095.6" y="6" width="265.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1228.3999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Worker reads one block under 2 KB</text></svg></div>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-5-block-diagram-1" title="Jump to slice 5">
+          <span class="slice-num">#5</span>
+          <span class="overview-slice-title">Delegate guidance moves into the command</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-5-block-diagram-1" data-block-anchor="slice-5-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Where each part of the skill goes</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="985.6" height="48" viewBox="0 0 985.6 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="200.79999999999998" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="106.39999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Steps to delegate --help</text><path class="diagram-edge" d="M206.79999999999998 24 L246.79999999999998 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="246.79999999999998" y="6" width="251.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="372.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Next-step hints to spawn output</text><path class="diagram-edge" d="M498 24 L538 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="538" y="6" width="280" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="678" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Profile tables to delegate profiles</text><path class="diagram-edge" d="M818 24 L858 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="858" y="6" width="121.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="918.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Skill deleted</text></svg></div>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-6-block-diagram-1" title="Jump to slice 6">
+          <span class="slice-num">#6</span>
+          <span class="overview-slice-title">A plan next command replaces the plan skill</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-6-block-diagram-1" data-block-anchor="slice-6-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Steps that plan next can name</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="890.4" height="48" viewBox="0 0 890.4 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="64" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="38" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Draft</text><path class="diagram-edge" d="M70 24 L110 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="110" y="6" width="85.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="152.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Validate</text><path class="diagram-edge" d="M195.6 24 L235.6 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="235.6" y="6" width="85.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="278.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Critique</text><path class="diagram-edge" d="M321.2 24 L361.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="361.2" y="6" width="71.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="396.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Review</text><path class="diagram-edge" d="M432.4 24 L472.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="472.4" y="6" width="92.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="518.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Decisions</text><path class="diagram-edge" d="M565.1999999999999 24 L605.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="605.2" y="6" width="78.39999999999999" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="644.4000000000001" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Promote</text><path class="diagram-edge" d="M683.6 24 L723.6 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="723.6" y="6" width="56.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="752" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Spec</text><path class="diagram-edge" d="M780.4 24 L820.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="820.4" y="6" width="64" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="852.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Close</text></svg></div>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-7-block-diagram-1" title="Jump to slice 7">
+          <span class="slice-num">#7</span>
+          <span class="overview-slice-title">Plan critique emits ready critic briefs</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-7-block-diagram-1" data-block-anchor="slice-7-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Critique flow</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1482.4" height="48" viewBox="0 0 1482.4 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="251.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="131.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">plan critique writes two briefs</text><path class="diagram-edge" d="M257.2 24 L297.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="297.2" y="6" width="416.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="505.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Two fresh reviewers read the plan and the listed files</text><path class="diagram-edge" d="M714 24 L754 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="754" y="6" width="323.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="915.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Findings recorded with a file or doc line</text><path class="diagram-edge" d="M1077.2 24 L1117.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1117.2" y="6" width="359.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1296.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Round two at most, accepted risks stay settled</text></svg></div>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-8-block-diagram-1" title="Jump to slice 8">
+          <span class="slice-num">#8</span>
+          <span class="overview-slice-title">Execute-preview does the dispatch maths</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-8-block-diagram-1" data-block-anchor="slice-8-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">What execute-preview computes</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1367.2" height="48" viewBox="0 0 1367.2 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="272.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="142.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Pending tasks with no open blocker</text><path class="diagram-edge" d="M278.8 24 L318.8 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="318.8" y="6" width="438.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="538" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Remove tasks that share a file with an earlier ready task</text><path class="diagram-edge" d="M757.2 24 L797.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="797.2" y="6" width="244" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="919.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Print one brief per ready task</text><path class="diagram-edge" d="M1041.2 24 L1081.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1081.2" y="6" width="280" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1221.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">List deferred tasks with the reason</text></svg></div>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  <div class="overview-group" data-block-kind="tabs">
+    <h3>Tabs</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-4-block-tabs-1" title="Jump to slice 4">
+          <span class="slice-num">#4</span>
+          <span class="overview-slice-title">Trim the system prompt and quiet the hooks</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-4-block-tabs-1" data-block-anchor="slice-4-block-tabs-1" data-block-kind="tabs"><div class="block block-tabs">
+  <div class="block-header"><span class="block-kind">tabs</span><span class="block-title">Verdicts for each line</span></div>
+  <div class="tabs">
+    <input class="tab-radio" type="radio" name="tabs-tfzuvz" id="tabs-tfzuvz-0" checked>
+    <input class="tab-radio" type="radio" name="tabs-tfzuvz" id="tabs-tfzuvz-1">
+    <input class="tab-radio" type="radio" name="tabs-tfzuvz" id="tabs-tfzuvz-2">
+    <div class="tab-labels">
+      <label class="tab-label" for="tabs-tfzuvz-0">Enforced</label>
+      <label class="tab-label" for="tabs-tfzuvz-1">Prose only</label>
+      <label class="tab-label" for="tabs-tfzuvz-2">Duplicate</label>
+      </div>
+    <div class="tab-panels">
+      <div class="tab-panel">A hook, test or command already checks it. Drop the line, or keep one short pointer.</div>
+      <div class="tab-panel">Nothing checks it. Keep it if a work item shows the failure. Otherwise drop it.</div>
+      <div class="tab-panel">The same rule sits in more than one file. Keep one copy.</div>
+      </div>
+  </div>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-10-block-tabs-1" title="Jump to slice 10">
+          <span class="slice-num">#10</span>
+          <span class="overview-slice-title">Remove the unused skills and slash commands</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-10-block-tabs-1" data-block-anchor="slice-10-block-tabs-1" data-block-kind="tabs"><div class="block block-tabs">
+  <div class="block-header"><span class="block-kind">tabs</span><span class="block-title">What happens to each</span></div>
+  <div class="tabs">
+    <input class="tab-radio" type="radio" name="tabs-v64iat" id="tabs-v64iat-0" checked>
+    <input class="tab-radio" type="radio" name="tabs-v64iat" id="tabs-v64iat-1">
+    <div class="tab-labels">
+      <label class="tab-label" for="tabs-v64iat-0">Fold into help</label>
+      <label class="tab-label" for="tabs-v64iat-1">Delete</label>
+      </div>
+    <div class="tab-panels">
+      <div class="tab-panel">guard-authoring, ui-stills-verification, report-issue, and the ci, init and plan-review commands.</div>
+      <div class="tab-panel">The skills index, the Simplified Technical English skill and the recommend command.</div>
+      </div>
+  </div>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-11-block-tabs-1" title="Jump to slice 11">
+          <span class="slice-num">#11</span>
+          <span class="overview-slice-title">Shrink this repo&#39;s CLAUDE.md to pointers</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-11-block-tabs-1" data-block-anchor="slice-11-block-tabs-1" data-block-kind="tabs"><div class="block block-tabs">
+  <div class="block-header"><span class="block-kind">tabs</span><span class="block-title">Where each section goes</span></div>
+  <div class="tabs">
+    <input class="tab-radio" type="radio" name="tabs-1lju335" id="tabs-1lju335-0" checked>
+    <input class="tab-radio" type="radio" name="tabs-1lju335" id="tabs-1lju335-1">
+    <input class="tab-radio" type="radio" name="tabs-1lju335" id="tabs-1lju335-2">
+    <div class="tab-labels">
+      <label class="tab-label" for="tabs-1lju335-0">Stays</label>
+      <label class="tab-label" for="tabs-1lju335-1">Path-scoped rules</label>
+      <label class="tab-label" for="tabs-1lju335-2">Docs</label>
+      </div>
+    <div class="tab-panels">
+      <div class="tab-panel">Build, quality gate, quick commands and pointers. About 40 lines.</div>
+      <div class="tab-panel">Plugin source layering, and worktrees with store commits.</div>
+      <div class="tab-panel">Launch modes, Codespaces, upstream monitoring and deploy.</div>
+      </div>
+  </div>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  
+</section>
 
 <!-- ZONE 1: Dependency Graph (drawn at render time — no script, no CDN) -->
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Guardrails that keep guidance small" data-status="pending" data-deps="" data-files="3"></div>
+    <div data-node="2" data-name="Before-and-after check for prompt changes" data-status="pending" data-deps="" data-files="3"></div>
+    <div data-node="3" data-name="Worker-rules hook for subagents and delegate workers" data-status="pending" data-deps="1,2" data-files="10"></div>
+    <div data-node="4" data-name="Trim the system prompt and quiet the hooks" data-status="pending" data-deps="3" data-files="7"></div>
+    <div data-node="5" data-name="Delegate guidance moves into the command" data-status="pending" data-deps="1,2" data-files="8"></div>
+    <div data-node="6" data-name="A plan next command replaces the plan skill" data-status="pending" data-deps="1,2" data-files="4"></div>
+    <div data-node="7" data-name="Plan critique emits ready critic briefs" data-status="pending" data-deps="5,6" data-files="4"></div>
+    <div data-node="8" data-name="Execute-preview does the dispatch maths" data-status="pending" data-deps="3,5" data-files="2"></div>
+    <div data-node="9" data-name="Evidence in review and the gate" data-status="pending" data-deps="" data-files="3"></div>
+    <div data-node="10" data-name="Remove the unused skills and slash commands" data-status="pending" data-deps="3,5,6,7,8" data-files="8"></div>
+    <div data-node="11" data-name="Shrink this repo&#39;s CLAUDE.md to pointers" data-status="pending" data-deps="4" data-files="3"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" class="dep-graph-static"></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1300.6" height="440" viewBox="0 0 1300.6 440" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M160.8 80 L156.8 108 L168.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M714.5 80 L590.8 108 L313.6 145.86" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M168.8 192 L156.8 220 L156.8 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M241.2 80 L317.6 108 L401.1 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M794 80 L749.8 108 L613.8 136.72" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M297.6 70.14 L574.8 108 L853.8 146.28" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M922.6 80 L1007 108 L995 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M448.4 192 L412.2 220 L665.4 256.73" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M979 192 L975 220 L886.6 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M217 192 L253.2 220 L372.9 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M488.6 192 L492.6 220 L492.6 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M256.3 192 L331.8 220 L331.8 276 L331.8 332 L490.4 362.48" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M613.8 179.25 L959 220 L959 276 L959 332 L756 365.85" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M987 192 L991 220 L991 276 L991 332 L756 367.78" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M798.2 304 L798.2 332 L710.7 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M492.6 304 L492.6 332 L557.9 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M156.8 304 L156.8 332 L156.8 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="32" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="164.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Guardrails that keep guidance…</text><text class="dep-node-meta" x="164.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="705.4000000000001" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="838.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Before-and-after check for pr…</text><text class="dep-node-meta" x="838.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="48" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="180.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Worker-rules hook for subagen…</text><text class="dep-node-meta" x="180.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">10 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Trim the system prompt and qu…</text><text class="dep-node-meta" x="156.8" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="355.40000000000003" y="136" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="484.6" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Delegate guidance moves into…</text><text class="dep-node-meta" x="484.6" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-6"><g id="graph-node-6" class="dep-node dep-node-pending"><rect class="dep-node-box" x="853.8" y="136" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="983" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#6 A plan next command replaces…</text><text class="dep-node-meta" x="983" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-7"><g id="graph-node-7" class="dep-node dep-node-pending"><rect class="dep-node-box" x="665.4000000000001" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="798.2" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#7 Plan critique emits ready cri…</text><text class="dep-node-meta" x="798.2" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-8"><g id="graph-node-8" class="dep-node dep-node-pending"><rect class="dep-node-box" x="359.8" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="492.6" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#8 Execute-preview does the disp…</text><text class="dep-node-meta" x="492.6" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-9"><g id="graph-node-9" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1011" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1143.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#9 Evidence in review and the ga…</text><text class="dep-node-meta" x="1143.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-10"><g id="graph-node-10" class="dep-node dep-node-pending"><rect class="dep-node-box" x="490.40000000000003" y="360" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="623.2" y="384" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#10 Remove the unused skills and…</text><text class="dep-node-meta" x="623.2" y="398" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-11"><g id="graph-node-11" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="360" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="384" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#11 Shrink this repo&#39;s CLAUDE.md…</text><text class="dep-node-meta" x="156.8" y="398" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -523,17 +826,32 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>Each rule an agent needs is printed by the command it already runs, or injected once by a hook when a worker starts.</li>
+<li data-markdown>The plugin ships no skill or slash command that the usage count showed nobody loads.</li>
+<li data-markdown>A test fails when a skill file or the system prompt passes a byte limit, so the cut holds.</li>
+<li data-markdown>Each prompt cut is checked with fixed tasks run against the old and the new text.</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>The owner alone edits CLAUDE.md, AGENTS.md and GEMINI.md. Slice 11 hands over a proposed text and does not write those files.</li>
+<li data-markdown>Generated trees under port/packages and plugin/hooks/hooks.json change only through wipnote plugin build-ports.</li>
+<li data-markdown>A skill is deleted only in the same slice that puts its useful lines into command output or help.</li>
+<li data-markdown>New guidance text names the work item where the failure was seen (card A1), or it is not added.</li>
+<li data-markdown>Codex and Antigravity get the same rules. A rule that only a Claude Code hook can deliver also appears in the command output.</li>
+<li data-markdown>Card E4 (retro skill) is out of scope until this plan is done.</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -542,7 +860,1562 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
+    <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 1: Guardrails that keep guidance small">
+    <span class="slice-num">#1</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Guardrails that keep guidance small</span>
+      <span class="slice-preview">Add a Go test that fails when a skill file or the system prompt passes a byte limit.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
     
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Add a Go test that fails when a skill file or the system prompt passes a byte limit. Add a test that every skill is in the catalog, and an advisory list of skills with no eval case. Add the failure-bar rule to the plugin development rule file. Cards A1, A3, E3.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Every later cut erodes without a limit. The limits start at the current sizes and each later slice lowers them.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>port/pluginbuild/skill_catalog_test.go, port/pluginbuild/guidance_size_test.go (new), .claude/rules/plugin-development.md</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>The size test fails when a skill or the system prompt grows past its recorded limit</li><li>The coverage test fails for a skill missing from the catalog</li><li>plugin-development.md states the failure bar in two lines</li><li>go build, go vet and go test pass</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Decisions:</strong> limits are a per-file table in the test, set to today&#39;s sizes. A slice that shrinks a file lowers its limit in the same commit. The eval-coverage list only prints, because 13 eval cases exist and most skills are deleted later in this plan.
+<strong>Rejected:</strong> one global limit, because the delegate skill is twice the next largest and would set the bar for all.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-1-block-file-tree-1" data-block-anchor="slice-1-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">port/pluginbuild/guidance_size_test.go (new)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">port/pluginbuild/skill_catalog_test.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">.claude/rules/plugin-development.md</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="port/pluginbuild">
+            <span class="test-chip">PORT/PLUGINBUILD &middot; 3</span>
+            <ul><li>TestGuidanceSize_SkillOverLimitFails, with a temp skill one byte over its limit.</li><li>TestGuidanceSize_RealTreeWithinLimits, against plugin/skills and cmd/wipnote/prompts/system-prompt.md.</li><li>TestSkillCatalog_EverySkillListed. Check first whether skill_catalog_test.go already covers it.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: Before-and-after check for prompt changes">
+    <span class="slice-num">#2</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Before-and-after check for prompt changes</span>
+      <span class="slice-preview">Write three to five fixed tasks and a script that runs each with wipnote delegate run against the old and the new guidance text, then prints…</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Write three to five fixed tasks and a script that runs each with wipnote delegate run against the old and the new guidance text, then prints what the agent did side by side. Card A4.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>No prompt change in wipnote has proof that behaviour held. Slices 3 to 8 each cut or move guidance and need this check.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>scripts/prompt-ab.sh (new), plugin/evals/, docs/design/prompt-ab.md (new)</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>One command runs the fixed tasks on two git refs and writes a comparison file</li><li>The procedure page says what counts as a regression</li><li>A dry run on main against main reports no difference in the checked behaviours</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Decisions:</strong> the check compares observable actions from the delegate run ledger, not the wording of replies. Tasks reuse plugin/evals cases where one fits.
+<strong>Risk:</strong> model runs vary. The page states that one differing run is a prompt to rerun, and two are a regression.
+<strong>Rejected:</strong> a judged score from a second model, because it adds cost and a second source of variance.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-2-block-diagram-1" data-block-anchor="slice-2-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Check flow</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1064.8" height="48" viewBox="0 0 1064.8 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="150.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="81.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Pick two git refs</text><path class="diagram-edge" d="M156.4 24 L196.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="196.4" y="6" width="352" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="372.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Run each fixed task on both with delegate run</text><path class="diagram-edge" d="M548.4 24 L588.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="588.4" y="6" width="258.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="717.5999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Read actions from the run ledger</text><path class="diagram-edge" d="M846.8 24 L886.8 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="886.8" y="6" width="172" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="972.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Print the comparison</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Run scripts/prompt-ab.sh main main and confirm the comparison reports the same checked behaviours for both.
+The checked behaviours are observable facts from the run ledger: work item started, failing test written first, gate run, commit names the item.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: Worker-rules hook for subagents and delegate workers">
+    <span class="slice-num">#3</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Worker-rules hook for subagents and delegate workers</span>
+      <span class="slice-preview">Inject one short rules block when a subagent or a delegate worker starts.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Inject one short rules block when a subagent or a delegate worker starts. It carries the sharper test-first rule, evidence at completion, the stuck rule, one rule for pre-existing errors, and the decision line. Remove the agent-context and code-quality-skill preloads and delete both skills. Cards F1, C1 to C5.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Delegate workers got no rules in 60 spawns. One block serves both paths and replaces about 10 KB of preloaded skill text.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>core/hooks/worker_rules.go (new), cmd/wipnote/prompts/worker-rules.md (new), cmd/wipnote/delegate_spawn.go, plugin/agents/patch-coder.md, plugin/agents/feature-coder.md, plugin/agents/architect-coder.md, plugin/agents/researcher.md, plugin/skills/agent-context/, plugin/skills/code-quality-skill/, .claude/rules/code-hygiene.md</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>A coder subagent and a delegate worker both receive the same rules block at start, shown by a test for each path</li><li>The block is under 2 KB and the size test from slice 1 has a limit for it</li><li>code-hygiene.md and the block state the same rule for pre-existing errors</li><li>No file refers to the deleted skills</li><li>The slice 2 check shows the coder behaviours held</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-3-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Decisions:</strong> one markdown source for the block, embedded in the binary. The SubagentStart hook injects it for subagents. delegate spawn adds it to the brief preamble, which also covers Codex workers. The gate commands are not listed in the block, because wipnote check --gate already runs go build, go vet and go test.
+<strong>Pre-existing errors (C4):</strong> fix gate failures in files you changed, and start no unrelated refactor. code-hygiene.md changes to match.
+<strong>Fallback:</strong> if SubagentStart cannot add context, the block ships as one small preloaded skill and the delegate path stays as designed.
+<strong>Rejected:</strong> putting the rules in the main system prompt, because sessions that never implement would pay for them.</p>
+</div>
+        <label for="slice-3-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-3-block-diagram-1" data-block-anchor="slice-3-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">How the rules reach a worker</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1367.1999999999998" height="48" viewBox="0 0 1367.1999999999998 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="301.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="156.79999999999998" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">worker-rules.md embedded in the binary</text><path class="diagram-edge" d="M307.59999999999997 24 L347.59999999999997 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="347.59999999999997" y="6" width="323.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="509.19999999999993" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">SubagentStart hook adds it for a subagent</text><path class="diagram-edge" d="M670.8 24 L710.8 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="710.8" y="6" width="344.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="883.1999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">delegate spawn adds it to the brief preamble</text><path class="diagram-edge" d="M1055.6 24 L1095.6 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1095.6" y="6" width="265.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1228.3999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Worker reads one block under 2 KB</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="core/hooks">
+            <span class="test-chip">CORE/HOOKS &middot; 1</span>
+            <ul><li>TestSubagentStart_InjectsWorkerRules, for a wipnote coder agent type.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="cmd/wipnote">
+            <span class="test-chip">CMD/WIPNOTE &middot; 1</span>
+            <ul><li>TestDelegateSpawn_BriefPreambleCarriesWorkerRules.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="port/pluginbuild">
+            <span class="test-chip">PORT/PLUGINBUILD &middot; 1</span>
+            <ul><li>agents carry no skills preload after build-ports.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 1</span>
+            <ul><li>Run the hook once and quote the real output in the work item.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1,2</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Trim the system prompt and quiet the hooks">
+    <span class="slice-num">#4</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Trim the system prompt and quiet the hooks</span>
+      <span class="slice-preview">Mark each line of the system prompt and the repo rules as enforced by a tool or prose only, then drop, soften or keep it.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Mark each line of the system prompt and the repo rules as enforced by a tool or prose only, then drop, soften or keep it. Add one sentence on asking only for decisions. Send the ACTIVE item line only when the active item changes. Cards A2, B3, B4.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The ACTIVE line repeats on every prompt. After about 50 prompts it costs more than the whole system prompt.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/prompts/system-prompt.md, core/hooks/user_prompt.go, core/hooks/lifecycle_injection.go, .claude/rules/code-hygiene.md, .claude/rules/debugging.md, .claude/rules/plugin-development.md, docs/design/guidance-audit.md (new)</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>The audit table lists every line with its verdict and the tool that enforces it</li><li>The Go gate command appears in one rule file, not five</li><li>A second prompt with the same active item gets no ACTIVE line, shown by a test</li><li>The system prompt is no longer than today and its size limit is lowered</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Decisions:</strong> the last ACTIVE item is kept per session in the session state the hook already writes. The B3 sentence cites the open-question records as its observed failure, as card A1 requires.
+<strong>Scope:</strong> CLAUDE.md is audited in the table and changed only in slice 11, by the owner.
+<strong>Rejected:</strong> dropping the ACTIVE line fully, because a resumed session needs it once.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-4-block-tabs-1" data-block-anchor="slice-4-block-tabs-1" data-block-kind="tabs"><div class="block block-tabs">
+  <div class="block-header"><span class="block-kind">tabs</span><span class="block-title">Verdicts for each line</span></div>
+  <div class="tabs">
+    <input class="tab-radio" type="radio" name="tabs-19vku33" id="tabs-19vku33-0" checked>
+    <input class="tab-radio" type="radio" name="tabs-19vku33" id="tabs-19vku33-1">
+    <input class="tab-radio" type="radio" name="tabs-19vku33" id="tabs-19vku33-2">
+    <div class="tab-labels">
+      <label class="tab-label" for="tabs-19vku33-0">Enforced</label>
+      <label class="tab-label" for="tabs-19vku33-1">Prose only</label>
+      <label class="tab-label" for="tabs-19vku33-2">Duplicate</label>
+      </div>
+    <div class="tab-panels">
+      <div class="tab-panel">A hook, test or command already checks it. Drop the line, or keep one short pointer.</div>
+      <div class="tab-panel">Nothing checks it. Keep it if a work item shows the failure. Otherwise drop it.</div>
+      <div class="tab-panel">The same rule sits in more than one file. Keep one copy.</div>
+      </div>
+  </div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="core/hooks">
+            <span class="test-chip">CORE/HOOKS &middot; 1</span>
+            <ul><li>TestUserPrompt_ActiveLineOnlyOnChange, two prompts with one item, then a third after the item changes.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="port/pluginbuild">
+            <span class="test-chip">PORT/PLUGINBUILD &middot; 1</span>
+            <ul><li>the size limit for system-prompt.md is lowered and passes.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 1</span>
+            <ul><li>Run the slice 2 check on the old and new prompt.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 3</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 5: Delegate guidance moves into the command">
+    <span class="slice-num">#5</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Delegate guidance moves into the command</span>
+      <span class="slice-preview">Put the delegate steps into wipnote delegate --help and the hints that spawn prints.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-5-approval" value="changes_requested" data-section="slice-5" data-action="approve" aria-label="Request changes for slice 5">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-5-approval" value="rejected" data-section="slice-5" data-action="approve" aria-label="Reject slice 5">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Put the delegate steps into wipnote delegate --help and the hints that spawn prints. Add a delegate profiles command for the profile tables, with a read-only review profile. Replace the two delegate paragraphs in the system prompt with one pointer. Delete the delegate skill. Cards F5, B1, D4. F5 replaces B2.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>delegate ran 83 times and its 19.9 KB skill was read in two transcripts.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/delegate_spawn.go, cmd/wipnote/delegate_run.go, cmd/wipnote/delegate_profiles.go (new), internal/delegate/oneshot/recipes.go, internal/delegate/oneshot/settings.go, cmd/wipnote/prompts/system-prompt.md, plugin/skills/delegate/, core/hooks/</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>delegate --help gives the spawn, send, wait, result, stop sequence in under 40 lines</li><li>delegate profiles lists each profile with its model, effort and tools</li><li>A worker on the review profile cannot edit or write files, shown by a test on its settings</li><li>The system prompt holds one delegate pointer line</li><li>The denial messages that named the skill name the help instead</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Decisions:</strong> spawn prints the next command to run (wait, then result, then stop) as a hint on stderr. The profile tables live in code and print from delegate profiles, so they cannot drift from the real settings. The review profile allows read and search tools and denies edit, write and shell writes.
+<strong>Rejected:</strong> card B2 (split the skill), replaced by F5 by the owner&#39;s choice of both.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-5-block-diagram-1" data-block-anchor="slice-5-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Where each part of the skill goes</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="985.6" height="48" viewBox="0 0 985.6 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="200.79999999999998" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="106.39999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Steps to delegate --help</text><path class="diagram-edge" d="M206.79999999999998 24 L246.79999999999998 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="246.79999999999998" y="6" width="251.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="372.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Next-step hints to spawn output</text><path class="diagram-edge" d="M498 24 L538 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="538" y="6" width="280" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="678" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Profile tables to delegate profiles</text><path class="diagram-edge" d="M818 24 L858 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="858" y="6" width="121.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="918.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Skill deleted</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="cmd/wipnote">
+            <span class="test-chip">CMD/WIPNOTE &middot; 2</span>
+            <ul><li>TestDelegateProfiles_ListsReview.</li><li>TestDelegateHelp_Under40Lines.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 2</span>
+            <ul><li>internal/delegate/oneshot: TestReviewProfile_NoWriteTools.</li><li>Search the tree for wipnote skill show delegate and confirm no result.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1,2</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 6: A plan next command replaces the plan skill">
+    <span class="slice-num">#6</span>
+    <span class="slice-title-col">
+      <span class="slice-name">A plan next command replaces the plan skill</span>
+      <span class="slice-preview">Add wipnote plan next .</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" aria-label="Approve slice 6">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-6-approval" value="changes_requested" data-section="slice-6" data-action="approve" aria-label="Request changes for slice 6">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-6-approval" value="rejected" data-section="slice-6" data-action="approve" aria-label="Reject slice 6">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Add wipnote plan next &lt;id&gt;. It prints the one next step for that plan and the rules for that step, including vertical slices and no plan for a change of one or two files. Move the reference files the command needs into its output. Delete the plan skill. Cards F2, D5.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Plan commands ran in seven transcripts and the skill was read in three. The step rules reach the agent only if the command prints them.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/plan_next.go (new), cmd/wipnote/plan_yaml_cmds.go, plugin/skills/plan/, plugin/commands/plan-review.md</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>plan next names the right step for a draft, a validated, a critiqued, a reviewed and a promoted plan, each shown by a test</li><li>plan next with no id prints the triage rule and the create command</li><li>Each step&#39;s output is under 40 lines</li><li>No file refers to the deleted skill</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-6-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Decisions:</strong> the step is derived from plan state (validation result, critique present, slice approvals, promotions), so the command needs no stored cursor. SPEC, ENRICH, EXAMPLES and INTERVIEW_RENDERING content prints only for the step that needs it. Existing hints that end other plan commands point to plan next.
+<strong>Rejected:</strong> a wizard that runs the steps itself, because each step needs the agent&#39;s judgement or the owner&#39;s decision.</p>
+</div>
+        <label for="slice-6-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-6-block-diagram-1" data-block-anchor="slice-6-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Steps that plan next can name</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="890.4" height="48" viewBox="0 0 890.4 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="64" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="38" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Draft</text><path class="diagram-edge" d="M70 24 L110 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="110" y="6" width="85.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="152.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Validate</text><path class="diagram-edge" d="M195.6 24 L235.6 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="235.6" y="6" width="85.6" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="278.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Critique</text><path class="diagram-edge" d="M321.2 24 L361.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="361.2" y="6" width="71.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="396.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Review</text><path class="diagram-edge" d="M432.4 24 L472.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="472.4" y="6" width="92.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="518.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Decisions</text><path class="diagram-edge" d="M565.1999999999999 24 L605.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="605.2" y="6" width="78.39999999999999" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="644.4000000000001" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Promote</text><path class="diagram-edge" d="M683.6 24 L723.6 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="723.6" y="6" width="56.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="752" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Spec</text><path class="diagram-edge" d="M780.4 24 L820.4 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="820.4" y="6" width="64" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="852.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Close</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="cmd/wipnote">
+            <span class="test-chip">CMD/WIPNOTE &middot; 2</span>
+            <ul><li>TestPlanNext_Draft, _Validated, _NeedsCritique, _NeedsReview, _NeedsDecisions, _Promoted.</li><li>TestPlanNext_OutputUnder40Lines for each step.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 1</span>
+            <ul><li>Author one small plan using only plan next and record the transcript in the work item.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1,2</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-6" data-comment-for="slice-6" placeholder="Comments on slice 6..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-7" data-slice="7" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 7: Plan critique emits ready critic briefs">
+    <span class="slice-num">#7</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Plan critique emits ready critic briefs</span>
+      <span class="slice-preview">Make wipnote plan critique  write a design brief and a feasibility brief.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-7">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" aria-label="Approve slice 7">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-7-approval" value="changes_requested" data-section="slice-7" data-action="approve" aria-label="Request changes for slice 7">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-7-approval" value="rejected" data-section="slice-7" data-action="approve" aria-label="Reject slice 7">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Make wipnote plan critique &lt;id&gt; write a design brief and a feasibility brief. Each holds the plan id and a reading list, with no drafting history. Record each critic as completed or not run. Cap critique at two rounds and keep accepted risks settled. Delete the plan-critique skill. Cards F3, D1, D2, D3.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The skill was never loaded while the command ran eight times. Today both critics may run in the author&#39;s context and share its blind spots.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/plan_critique.go, cmd/wipnote/plan_yaml_extras.go, plan/planyaml/, plugin/skills/plan-critique/</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>plan critique writes two brief files and prints the delegate command for each, on the review profile</li><li>The design brief asks for a paraphrase first and the feasibility brief lists the three added checks</li><li>A third round is refused with a message that names the open findings</li><li>An accepted risk is stored and a later critique does not raise it again</li><li>The plan records each critic as completed or not run</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-7-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Decisions:</strong> the briefs are files under the plan&#39;s run folder, built from the plan YAML and the files it names. The command prints the two delegate spawn lines and does not start workers itself. Round count and accepted risks are fields in the plan YAML critique section. A contested finding must cite a file or doc line, which the write path checks.
+<strong>Rejected:</strong> critics as subagents of the author, because a subagent inherits the caller&#39;s framing in its brief.</p>
+</div>
+        <label for="slice-7-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-7-block-diagram-1" data-block-anchor="slice-7-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Critique flow</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1482.4" height="48" viewBox="0 0 1482.4 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="251.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="131.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">plan critique writes two briefs</text><path class="diagram-edge" d="M257.2 24 L297.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="297.2" y="6" width="416.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="505.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Two fresh reviewers read the plan and the listed files</text><path class="diagram-edge" d="M714 24 L754 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="754" y="6" width="323.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="915.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Findings recorded with a file or doc line</text><path class="diagram-edge" d="M1077.2 24 L1117.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1117.2" y="6" width="359.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1296.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Round two at most, accepted risks stay settled</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="cmd/wipnote">
+            <span class="test-chip">CMD/WIPNOTE &middot; 2</span>
+            <ul><li>TestPlanCritique_WritesTwoBriefs_NoDraftHistory.</li><li>TestPlanCritique_ThirdRoundRefused.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="plan/planyaml">
+            <span class="test-chip">PLAN/PLANYAML &middot; 1</span>
+            <ul><li>TestCritique_AcceptedRiskStaysSettled, TestCritique_CriticStatusRecorded.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 5,6</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-7" data-comment-for="slice-7" placeholder="Comments on slice 7..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-8" data-slice="8" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 8: Execute-preview does the dispatch maths">
+    <span class="slice-num">#8</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Execute-preview does the dispatch maths</span>
+      <span class="slice-preview">Make execute-preview compute the ready set and the file overlap between ready tasks, and print a brief for each task.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-8">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-8-approval" value="approved" data-section="slice-8" data-action="approve" aria-label="Approve slice 8">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-8-approval" value="changes_requested" data-section="slice-8" data-action="approve" aria-label="Request changes for slice 8">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-8-approval" value="rejected" data-section="slice-8" data-action="approve" aria-label="Reject slice 8">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Make execute-preview compute the ready set and the file overlap between ready tasks, and print a brief for each task. Its output states the review rule: block only on a failing run or a user-visible bug. Delete the execute skill and its mention of a cleanup command that does not exist. Cards F4, D6.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The skill tells the agent to intersect wipnote trace output by hand. It was loaded twice in 17 days.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/execute_preview.go, plugin/skills/execute/</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>execute-preview lists the largest set of ready tasks with no shared file, shown by a test with overlapping slices</li><li>Each ready task has a brief with its item id, files, siblings and first command</li><li>The output names when code review is required and when it is skipped</li><li>No file refers to the deleted skill or to wipnote:cleanup</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-8-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Decisions:</strong> file sets come from each slice&#39;s files list, with wipnote trace as the fallback for a promoted feature that has commits. The overlap choice is greedy by slice number, which is stable and explainable. Briefs reuse wipnote context-pack. The existing JSON format keeps its fields and gains ready, deferred and briefs.
+<strong>Rejected:</strong> an exact maximum independent set, because plans have under 20 slices and a stable order matters more.</p>
+</div>
+        <label for="slice-8-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-8-block-diagram-1" data-block-anchor="slice-8-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">What execute-preview computes</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1367.2" height="48" viewBox="0 0 1367.2 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="272.8" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="142.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Pending tasks with no open blocker</text><path class="diagram-edge" d="M278.8 24 L318.8 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="318.8" y="6" width="438.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="538" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Remove tasks that share a file with an earlier ready task</text><path class="diagram-edge" d="M757.2 24 L797.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="797.2" y="6" width="244" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="919.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">Print one brief per ready task</text><path class="diagram-edge" d="M1041.2 24 L1081.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1081.2" y="6" width="280" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1221.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">List deferred tasks with the reason</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="cmd/wipnote">
+            <span class="test-chip">CMD/WIPNOTE &middot; 3</span>
+            <ul><li>TestExecutePreview_ReadySetExcludesBlocked.</li><li>TestExecutePreview_OverlapDefersConflictingTask.</li><li>TestExecutePreview_BriefPerTask.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 3,5</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-8" data-comment-for="slice-8" placeholder="Comments on slice 8..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-9" data-slice="9" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 9: Evidence in review and the gate">
+    <span class="slice-num">#9</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Evidence in review and the gate</span>
+      <span class="slice-preview">Count removed tests and added skips in the diff, and list edits to guard, CI and lint config.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-9">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-9-approval" value="approved" data-section="slice-9" data-action="approve" aria-label="Approve slice 9">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-9-approval" value="changes_requested" data-section="slice-9" data-action="approve" aria-label="Request changes for slice 9">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-9-approval" value="rejected" data-section="slice-9" data-action="approve" aria-label="Reject slice 9">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Count removed tests and added skips in the diff, and list edits to guard, CI and lint config. Print them in wipnote review and wipnote check --gate as evidence, not as a failure. Open the review with the item&#39;s why, done-when, last gate result, linked commits and total added lines. Cards E1, E2.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>An agent can turn a gate green by deleting a test. No check in review or check shows this today.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/review.go, cmd/wipnote/check.go, core/gateledger/</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>A diff that deletes a test function shows a removed-tests count of one in both commands</li><li>A diff that adds t.Skip shows an added-skips count of one</li><li>An edit to a CI workflow or lint config is listed by path</li><li>wipnote review opens with the five header fields for an item that has them</li><li>Neither command changes its exit code because of these lines</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Decisions:</strong> detection reads the unified diff. It covers Go test functions and t.Skip, JavaScript and TypeScript test and it calls with skip, and Python test functions with a skip marker. Other languages print nothing. The header reads fields the store already holds.
+<strong>Rejected:</strong> failing the gate on a removed test, because a correct refactor removes tests too.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-9-block-data-model-1" data-block-anchor="slice-9-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Evidence block</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>removed_tests</code></td><td><code>int</code></td><td>&mdash;</td></tr>
+      <tr><td><code>added_skips</code></td><td><code>int</code></td><td>&mdash;</td></tr>
+      <tr><td><code>config_edits</code></td><td><code>list of paths</code></td><td>&mdash;</td></tr>
+      <tr><td><code>added_lines</code></td><td><code>int</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="cmd/wipnote">
+            <span class="test-chip">CMD/WIPNOTE &middot; 3</span>
+            <ul><li>TestWeakenedTests_CountsRemovedGoTest, _CountsAddedSkip, _ListsConfigEdits.</li><li>TestReview_EvidenceHeader.</li><li>TestCheckGate_EvidenceDoesNotFail.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-9" data-comment-for="slice-9" placeholder="Comments on slice 9..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-10" data-slice="10" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 10: Remove the unused skills and slash commands">
+    <span class="slice-num">#10</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Remove the unused skills and slash commands</span>
+      <span class="slice-preview">Move the useful lines of guard-authoring, ui-stills-verification and report-issue into each command&#39;s help.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-10">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-10-approval" value="approved" data-section="slice-10" data-action="approve" aria-label="Approve slice 10">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-10-approval" value="changes_requested" data-section="slice-10" data-action="approve" aria-label="Request changes for slice 10">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-10-approval" value="rejected" data-section="slice-10" data-action="approve" aria-label="Reject slice 10">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Move the useful lines of guard-authoring, ui-stills-verification and report-issue into each command&#39;s help. Delete those three skills, the skills index, the Simplified Technical English skill and the recommend slash command. Fold the ci, init and plan-review slash commands into the CLI commands they wrap. Cards F6, F7.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>None was loaded by hand in 266 transcripts. The STE lookup works only on the owner&#39;s machine.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>plugin/skills/guard-authoring/, plugin/skills/ui-stills-verification/, plugin/skills/report-issue/, plugin/skills/skills/, plugin/skills/simplified-technical-english/, plugin/commands/, cmd/wipnote/, mods/</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>plugin/skills holds no skill that this plan lists for deletion</li><li>guard, ui stills and issue help each carry the lines an agent needs, under 40 lines each</li><li>No hook message, prompt, agent file, mod or doc refers to a deleted skill or command</li><li>build-ports output matches the source tree for all three targets</li><li>The feat-4151d2f0 prose check is merged before the STE skill is deleted</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-10-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Decisions:</strong> this slice runs last among the skill slices, so one search confirms no reference remains. The mods that open panes for ci and plan-review stay, and their docs name the CLI command. If a deleted skill still holds a file another tool reads, that file moves beside the command.
+<strong>Depends on:</strong> feat-4151d2f0 gives the CLI replacement for the STE lint.
+<strong>Rejected:</strong> keeping the skills index, because wipnote help --compact lists the commands.</p>
+</div>
+        <label for="slice-10-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-10-block-tabs-1" data-block-anchor="slice-10-block-tabs-1" data-block-kind="tabs"><div class="block block-tabs">
+  <div class="block-header"><span class="block-kind">tabs</span><span class="block-title">What happens to each</span></div>
+  <div class="tabs">
+    <input class="tab-radio" type="radio" name="tabs-1gk9ugl" id="tabs-1gk9ugl-0" checked>
+    <input class="tab-radio" type="radio" name="tabs-1gk9ugl" id="tabs-1gk9ugl-1">
+    <div class="tab-labels">
+      <label class="tab-label" for="tabs-1gk9ugl-0">Fold into help</label>
+      <label class="tab-label" for="tabs-1gk9ugl-1">Delete</label>
+      </div>
+    <div class="tab-panels">
+      <div class="tab-panel">guard-authoring, ui-stills-verification, report-issue, and the ci, init and plan-review commands.</div>
+      <div class="tab-panel">The skills index, the Simplified Technical English skill and the recommend command.</div>
+      </div>
+  </div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="port/pluginbuild">
+            <span class="test-chip">PORT/PLUGINBUILD &middot; 1</span>
+            <ul><li>the catalog and size tests pass with the smaller tree.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 2</span>
+            <ul><li>Search every tracked file for each deleted skill and command name and confirm no result outside the changelog.</li><li>Start one session on each of Claude Code and Codex and confirm the plugin loads with no missing-file error.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 3,5,6,7,8</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-10" data-comment-for="slice-10" placeholder="Comments on slice 10..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-11" data-slice="11" data-slice-name="" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 11: Shrink this repo&#39;s CLAUDE.md to pointers">
+    <span class="slice-num">#11</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Shrink this repo&#39;s CLAUDE.md to pointers</span>
+      <span class="slice-preview">Move the deploy, launch, Codespaces, plugin-source and upstream-monitoring sections of CLAUDE.md into path-scoped rule files and docs.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          <span class="badge badge-discuss badge-sm badge-complexity" title="Complexity: standard">Standard</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-11">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-11-approval" value="approved" data-section="slice-11" data-action="approve" aria-label="Approve slice 11">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-11-approval" value="changes_requested" data-section="slice-11" data-action="approve" aria-label="Request changes for slice 11">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-11-approval" value="rejected" data-section="slice-11" data-action="approve" aria-label="Reject slice 11">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Move the deploy, launch, Codespaces, plugin-source and upstream-monitoring sections of CLAUDE.md into path-scoped rule files and docs. Hand the owner a proposed CLAUDE.md of about 40 lines as a diff. The owner applies it. Card A5.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>All 221 lines load in every session in this repo.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>.claude/rules/, docs/, CLAUDE.md</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>Each moved section exists in a rule file or doc, and a path-scoped rule loads only for its paths</li><li>The proposed CLAUDE.md is about 40 lines and every pointer in it resolves</li><li>The owner has applied or rejected the diff. No agent wrote CLAUDE.md</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <div class="markdown-block serif-prose"><p><strong>Decisions:</strong> the agent writes the new rule files and docs and a proposed CLAUDE.md in the work item as a patch file. The owner applies the patch, because a hard rule bars agents from writing CLAUDE.md.
+<strong>Rejected:</strong> an exception to that hard rule for this one edit.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-11-block-tabs-1" data-block-anchor="slice-11-block-tabs-1" data-block-kind="tabs"><div class="block block-tabs">
+  <div class="block-header"><span class="block-kind">tabs</span><span class="block-title">Where each section goes</span></div>
+  <div class="tabs">
+    <input class="tab-radio" type="radio" name="tabs-x7s6y9" id="tabs-x7s6y9-0" checked>
+    <input class="tab-radio" type="radio" name="tabs-x7s6y9" id="tabs-x7s6y9-1">
+    <input class="tab-radio" type="radio" name="tabs-x7s6y9" id="tabs-x7s6y9-2">
+    <div class="tab-labels">
+      <label class="tab-label" for="tabs-x7s6y9-0">Stays</label>
+      <label class="tab-label" for="tabs-x7s6y9-1">Path-scoped rules</label>
+      <label class="tab-label" for="tabs-x7s6y9-2">Docs</label>
+      </div>
+    <div class="tab-panels">
+      <div class="tab-panel">Build, quality gate, quick commands and pointers. About 40 lines.</div>
+      <div class="tab-panel">Plugin source layering, and worktrees with store commits.</div>
+      <div class="tab-panel">Launch modes, Codespaces, upstream monitoring and deploy.</div>
+      </div>
+  </div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Check each pointer in the proposed file against the tree.
+Open one session in the repo after the owner applies it and confirm the build and gate commands are still followed.</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 4</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-11" data-comment-for="slice-11" placeholder="Comments on slice 11..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
@@ -569,8 +2442,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">12</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">12</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -662,7 +2535,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5","slice-6","slice-7","slice-8","slice-9","slice-10","slice-11"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
