@@ -7,7 +7,7 @@
 
 ### Workflow
 1. Start the item before you read files or write tests.
-2. Write one failing test for each acceptance criterion. Take expected values from the spec or a literal, never from the code under test. Run it and confirm it fails for the right reason.
+2. Write one failing test for each acceptance criterion. Take expected values from the spec or a literal, never from the code under test. Write the test file in its own tool call, before you create or edit any non-test file. Run it and confirm it fails for the right reason. A change with no failing test first is not done.
 3. Write the minimum code that passes. Add no code that no test covers.
 4. Run `wipnote check --gate --work-item <id>`. It detects the language, runs the gate, records the result and flags size and duplication. Fix failures in files you changed. Report any other failure and start no unrelated refactor.
 5. Commit with the item ID in the subject or in a `Refs: <id>` trailer.
