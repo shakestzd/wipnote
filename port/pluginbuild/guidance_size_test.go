@@ -18,7 +18,6 @@ var skillByteLimits = map[string]int{
 	"code-quality-skill":           3165,
 	"execute":                      8588,
 	"guard-authoring":              4521,
-	"plan-critique":                4359,
 	"report-issue":                 2687,
 	"simplified-technical-english": 9022,
 	"skills":                       2111,
