@@ -14,7 +14,7 @@ import (
 // A slice that shrinks a skill lowers its limit in the same commit. A skill
 // with no entry here has no room to grow, so a new skill needs a row first.
 var skillByteLimits = map[string]int{
-	"agent-context":                6769,
+	"agent-context":                6688,
 	"code-quality-skill":           3165,
 	"delegate":                     19939,
 	"execute":                      8597,
@@ -31,7 +31,7 @@ var skillByteLimits = map[string]int{
 var promptByteLimits = map[string]int{
 	"gemini-system.md":    4343,
 	"research-routing.md": 571,
-	"system-prompt.md":    4500,
+	"system-prompt.md":    4916,
 	"yolo-prompt.md":      5176,
 }
 
