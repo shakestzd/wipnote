@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 24
+    version: 27
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -168,7 +168,7 @@ slices:
         rejected:
             - 'keep the two skills: they reach subagents only and never delegate workers'
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Disposition of agent-context (6.8 KB):** work attribution and completion, the six-step workflow with C1 and C2, safety, and principles go in the block, shortened. Research routing stays in the researcher agent file. Persist-then-summarize goes in the block as one line. Writing style becomes one line that names wipnote prose check (feat-4151d2f0).
         **Disposition of code-quality-skill (3.2 KB):** the per-language gate commands are dropped from prose, because wipnote check --gate detects the language and runs them. The Go suite note (use scripts/go-test-streaming.sh) is repo-specific and stays in CLAUDE.md. Size and design review is printed by check --gate. Record-the-result is one line in the block.
@@ -186,6 +186,7 @@ slices:
             - body: Research routing in the researcher agent. The Go test-streaming note in CLAUDE.md.
               label: Stays elsewhere
     - id: ""
+      feature_id: feat-0b0112a4
       num: 4
       title: SubagentStart delivers the block, and the two preloaded skills go
       what: Extend the SubagentStart hook to add the worker-rules block as additional context for wipnote coder and researcher agents. Remove the skills preload from the agent files. Delete agent-context and code-quality-skill, their eval cases and every reference to them. Change code-hygiene.md to the one rule for pre-existing errors. Card F1 (second half), C3, C4.
@@ -236,6 +237,7 @@ slices:
           claim: SubagentStart returns hookSpecificOutput.additionalContext, added before the subagent's first prompt. core/hooks/harness_response.go:29 already maps it. subagent_start.go:17 returns Continue only today.
           accessed: "2026-11-18"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Decisions:** the edit site is core/hooks/subagent_start.go. The hook adds the block only for agent types that start with wipnote:. The evals for the two skills are deleted, because the slice 2 check now covers the same behaviours (item started, test first, gate run, completion).
         **CLAUDE.md:30** names the code-quality skill. Slice 12 removes that line in the owner's patch.
@@ -390,7 +392,7 @@ slices:
         rejected:
             - 'keep the skill and shorten it: usage shows agents run the commands and skip the skill'
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Decisions:** the step is derived from plan state (validation result, critique present, slice approvals, promotions), so the command needs no stored cursor. SPEC, ENRICH, EXAMPLES and INTERVIEW_RENDERING content prints only for the step that needs it. Existing hints that end other plan commands point to plan next.
         **Rejected:** a wizard that runs the steps itself, because each step needs the agent's judgement or the owner's decision.
@@ -829,11 +831,16 @@ feedback:
           updated_at: "2026-11-18T21:27:13Z"
         - section: slice-3
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-18T21:27:15Z"
-          updated_at: "2026-11-18T21:27:15Z"
+          updated_at: "2026-11-18T22:30:58Z"
         - section: slice-7
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-18T21:27:17Z"
-          updated_at: "2026-11-18T21:27:17Z"
+          updated_at: "2026-11-18T22:30:59Z"
+        - section: slice-4
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-18T22:31:01Z"
+          updated_at: "2026-11-18T22:31:01Z"
