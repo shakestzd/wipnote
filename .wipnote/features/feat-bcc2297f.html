@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>A plan next command replaces the plan skill</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-bcc2297f"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T21:27:17.834424"
+             data-updated="2026-11-18T22:30:55.286684" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>A plan next command replaces the plan skill</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../features/feat-9fd0cb31.html" data-relationship="blocked_by" data-since="2026-11-18T21:27:17.860384">feat-9fd0cb31</a></li>
+                    <li><a href="../features/feat-217fb5f2.html" data-relationship="blocked_by" data-since="2026-11-18T21:27:17.865305">feat-217fb5f2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="21802aaada38cf6de0ca1bfb4fcdcb896e7e224c.html" data-relationship="committed_in" data-since="2026-11-18T17:30:45">Merge pull request #365 from shakestzd/delegate/plan-next</a></li>
+                    <li><a href="df26a836d565150821f3476918ff4f523e46eb17.html" data-relationship="committed_in" data-since="2026-11-18T17:05:45">feat-bcc2297f: offer Promote only for slices whose dependencies are done</a></li>
+                    <li><a href="f5714af405b095d9cf253307b26167331d8f3dce.html" data-relationship="committed_in" data-since="2026-11-18T16:52:47">feat(plan): add plan next, delete the plan skill (feat-bcc2297f)</a></li>
+                    <li><a href="12a3214ce63b59f5d22af2015789f6cdbb7a7939.html" data-relationship="committed_in" data-since="2026-11-18T16:27:18">plan(plan-2622b3f7): promote slice-7 → feat-bcc2297f</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/78136f9c-40ec-4760-a019-a5c82867f37b.html" data-relationship="implemented_in" data-since="2026-11-18T21:28:05.034842">session 78136f9c-40ec-4760-a019-a5c82867f37b</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-18T21:27:17.842356">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-2622b3f7.html" data-relationship="planned_in" data-since="2026-11-18T21:27:17.854699">plan-2622b3f7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add wipnote plan next . It prints the one next step for that plan and the rules for that step, including vertical slices and no plan for a change of one or two files. Move the reference files the command needs into its output. Delete the plan skill. Cards F2, D5.
+Why
+Plan commands ran in seven transcripts and the skill was read in three. The step rules reach the agent only if the command prints them.
+Acceptance Criteria
+plan next names the right step for each of the eight states in the diagram, each shown by a test; plan next with no id prints the triage rule and the create command; Each step&#39;s output is under 40 lines; No tracked file outside CLAUDE.md and CHANGELOG.md names the plan skill; The slice 2 check shows the checked behaviours held</p>
+        </section>
+    </article>
+</body>
+</html>
