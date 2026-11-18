@@ -98,6 +98,27 @@ func TestPlanNext_Promote(t *testing.T) {
 	wantStep(t, nextOutput(t, dir, id), "Promote")
 }
 
+// A slice whose dependency is not done cannot be promoted, so it is not offered.
+func TestPlanNext_PromoteSkipsBlockedSlice(t *testing.T) {
+	dir, id := nextFixture(t, func(p *planyaml.PlanYAML) {
+		approvedSlice(p)
+		p.Slices[0].DecisionsNotes = "**Decisions:** fix the spelling in place."
+		p.Slices[0].FeatureID = "feat-aaaa1111"
+		p.Slices[0].ExecutionStatus = "promoted"
+		blocked := p.Slices[0]
+		blocked.Num = p.Slices[0].Num + 1
+		blocked.ID = ""
+		blocked.FeatureID = ""
+		blocked.ExecutionStatus = ""
+		blocked.Deps = []int{p.Slices[0].Num}
+		p.Slices = append(p.Slices, blocked)
+	})
+	out := nextOutput(t, dir, id)
+	if strings.HasPrefix(out, "Next step: Promote") {
+		t.Fatalf("a slice with an unfinished dependency was offered for promotion:\n%s", out)
+	}
+}
+
 func TestPlanNext_Spec(t *testing.T) {
 	dir, id := nextFixture(t, func(p *planyaml.PlanYAML) {
 		approvedSlice(p)

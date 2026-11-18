@@ -1,7 +1,7 @@
 package main
 
 // Step rules printed by `wipnote plan next`. Each text stays under 40 lines
-// with its header. They came from the plan skill (feat-bcc2297f). The vertical
+// with its header. They came from the retired planning skill (feat-bcc2297f). The vertical
 // slice and small-change rules are plan-2622b3f7 card D5.
 
 const planNextTriage = `No plan id given. Triage first.

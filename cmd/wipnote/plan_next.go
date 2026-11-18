@@ -88,7 +88,10 @@ func derivePlanNext(wipnoteDir string, plan *planyaml.PlanYAML) planNextState {
 	}); len(nums) > 0 {
 		return planNextState{Step: "Decisions", Nums: nums}
 	}
-	if nums := slicesWhere(plan, live); len(nums) > 0 {
+	// promote-slice refuses a slice whose deps are not done, so only a slice
+	// with every dep finished is offered. The rest wait under Spec or Close.
+	ready := func(s planyaml.PlanSlice) bool { return live(s) && depsFinished(plan, s) }
+	if nums := slicesWhere(plan, ready); len(nums) > 0 {
 		return planNextState{Step: "Promote", Nums: nums}
 	}
 	var noSpec []string
@@ -128,6 +131,18 @@ func sliceDecided(s planyaml.PlanSlice) bool {
 
 func sliceFinished(s planyaml.PlanSlice) bool {
 	return s.ExecutionStatus == "done" || s.ExecutionStatus == "superseded"
+}
+
+// depsFinished is true when every slice that s depends on is done or superseded.
+func depsFinished(plan *planyaml.PlanYAML, s planyaml.PlanSlice) bool {
+	for _, d := range s.Deps {
+		for _, o := range plan.Slices {
+			if o.Num == d && !sliceFinished(o) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func slicesWhere(plan *planyaml.PlanYAML, pred func(planyaml.PlanSlice) bool) []string {
