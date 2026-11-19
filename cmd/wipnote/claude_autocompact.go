@@ -100,7 +100,9 @@ func validAutoCompactTokens(s string) bool {
 		return false
 	}
 	n, err := strconv.Atoi(m[1])
-	if err != nil {
+	// Reject before scaling: a count above the maximum is invalid with any
+	// suffix, and scaling a huge one can wrap back into range (bug-58913cab).
+	if err != nil || n > autoCompactMaxTokens {
 		return false
 	}
 	switch m[2] {

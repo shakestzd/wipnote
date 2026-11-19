@@ -76,7 +76,10 @@ func TestAutoCompactAutoAndOffSuppress(t *testing.T) {
 }
 
 func TestAutoCompactInvalidFallsBackAndWarnsOnce(t *testing.T) {
-	for _, v := range []string{`"banana"`, `"50k"`, `"2m"`, `99999`, `1000001`, `true`, `""`} {
+	// The last three wrap an int64 back into the valid range when scaled by
+	// the suffix, so an unchecked multiply would accept them (bug-58913cab).
+	for _, v := range []string{`"banana"`, `"50k"`, `"2m"`, `99999`, `1000001`, `true`, `""`,
+		`"2305843009213694052k"`, `"18446744073710m"`, `"18446744073709852k"`} {
 		var warn bytes.Buffer
 		cfg := writeCfg(t, `{"launch":{"claude":{"autoCompactWindow":`+v+`}}}`)
 		got := withAutoCompact(nil, noEnv, cfg, &warn)
