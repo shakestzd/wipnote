@@ -167,3 +167,31 @@ func TestCheckGate_EvidenceDoesNotFail(t *testing.T) {
 		t.Errorf("gate evidence missing counts:\n%s", out)
 	}
 }
+
+// bug-9f3b580f: build, test-runner and lint config also weakens a gate, so
+// each of these names is listed, at the root and in a nested folder.
+func TestWeakenedTests_ConfigEditNames(t *testing.T) {
+	names := []string{
+		"pyproject.toml", "setup.cfg", "tox.ini", "pytest.ini", "package.json",
+		"Makefile", "GNUmakefile", "rules.mk", ".golangci.yml", ".golangci.yaml",
+		"ruff.toml", ".eslintrc", ".eslintrc.json", ".eslintrc.js", "eslint.config.js",
+		"eslint.config.mjs", "eslint.config.ts", "tsconfig.json", "tsconfig.build.json",
+		"jest.config.js", "jest.config.ts", "vitest.config.ts", "vitest.config.mjs",
+	}
+	for _, name := range names {
+		for _, p := range []string{name, "sub/dir/" + name} {
+			t.Run(p, func(t *testing.T) {
+				diff := "--- a/" + p + "\n+++ b/" + p + "\n@@ -1 +1 @@\n-a\n+b\n"
+				if got := parseEvidenceDiff(diff).ConfigEdits; !reflect.DeepEqual(got, []string{p}) {
+					t.Errorf("ConfigEdits = %v, want [%s]", got, p)
+				}
+			})
+		}
+	}
+	for _, p := range []string{"main.go", "Makefile.md", "package.json.bak", "docs/tsconfigs.txt", "notes.mkd"} {
+		diff := "--- a/" + p + "\n+++ b/" + p + "\n@@ -1 +1 @@\n-a\n+b\n"
+		if got := parseEvidenceDiff(diff).ConfigEdits; len(got) != 0 {
+			t.Errorf("%s listed as config: %v", p, got)
+		}
+	}
+}
