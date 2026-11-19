@@ -252,6 +252,9 @@ func DetectPlan(projectRoot, codeRoot, phase string) (Plan, error) {
 		return Plan{}, fmt.Errorf("resolve guard profile: %w", err)
 	}
 	if usedProfile {
+		// bug-9f3b580f: an approved profile lists its own commands, so the
+		// gate runs exactly those and adds no nested-module commands. The
+		// owner approved that list, and it may already cd into each module.
 		prof, _ := guardprofile.Load(projectRoot)
 		plan := Plan{
 			ProjectType:      paths.ProjectTypeUnknown,
@@ -281,20 +284,7 @@ func DetectPlan(projectRoot, codeRoot, phase string) (Plan, error) {
 	plan := Plan{ProjectType: projectType, ManifestDir: manifestDir, Manifest: filepath.Join(manifestDir, manifestName)}
 	switch projectType {
 	case paths.ProjectTypeGo:
-		// The `go test ... -short ./...` step covers the whole module, which
-		// includes the always-on durability contention fixture
-		// (DurabilityContentionFixtureTest in DurabilityContentionFixturePkg).
-		// That fixture is intentionally NOT skipped under -short, so a
-		// regression in the migrated hot hooks (plan-2390966a, feat-bbb80917)
-		// — e.g. reverting a hot write to a direct, lock-contending Exec —
-		// fails THIS gate. GoGateRunsDurabilityFixtureUnderShort + the
-		// gate_durability_test.go assertion guard that this command keeps both
-		// the -short flag and the module-wide ./... scope.
-		plan.Commands = []Command{
-			{Name: "go build", Args: []string{"go", "build", "-buildvcs=false", "./..."}},
-			{Name: "go vet", Args: []string{"go", "vet", "./..."}},
-			{Name: "go test", Args: []string{"go", "test", "-buildvcs=false", "-short", GoTestTimeoutArg, "./..."}},
-		}
+		plan.Commands = goGateCommands(codeRoot)
 	case paths.ProjectTypeNode:
 		plan.Commands, err = NodeGateCommands(plan.Manifest)
 		if err != nil {
