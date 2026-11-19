@@ -1,42 +1,54 @@
 package hooks
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-// activeAnnouncedFile holds the item id the UserPrompt hook last announced in
-// a session. claimSessionOnce is not reused: it keeps no value, and the line
-// must be sent again when the item changes (feat-61944b76).
-const activeAnnouncedFile = ".active-announced"
+// activeAnnouncedPrefix starts the name of each per-item marker file. The
+// marker for an item exists once the UserPrompt hook announced that item in
+// the session. The hook creates it with O_EXCL, so when two hook runs race
+// for one session exactly one wins and announces (bug-cb72df80).
+const activeAnnouncedPrefix = ".active-announced."
 
-func activeAnnouncedPath(projectDir, sessionID string) string {
-	return filepath.Join(sessionStateDir(projectDir, sessionID), activeAnnouncedFile)
+func activeMarkerPath(projectDir, sessionID, itemID string) string {
+	safe := strings.NewReplacer("/", "_", "\\", "_").Replace(itemID)
+	return filepath.Join(sessionStateDir(projectDir, sessionID), activeAnnouncedPrefix+safe)
 }
 
-// lastAnnouncedItem returns the last announced item id, or "" when none.
-func lastAnnouncedItem(projectDir, sessionID string) string {
-	data, err := os.ReadFile(activeAnnouncedPath(projectDir, sessionID))
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(data))
-}
-
-// rememberAnnouncedItem records the announced item. A write failure is
-// ignored: the worst case is the line is sent again.
-func rememberAnnouncedItem(projectDir, sessionID, featureID string) {
-	path := activeAnnouncedPath(projectDir, sessionID)
+// claimAnnouncedItem reports whether the caller won the right to announce the
+// item. It creates the item's marker exclusively. On a win it removes the
+// markers of other items, so switching back to an earlier item announces
+// again. A marker error other than "already exists" returns true: the worst
+// case is a repeated line, and the hook never fails a prompt.
+func claimAnnouncedItem(projectDir, sessionID, itemID string) bool {
+	path := activeMarkerPath(projectDir, sessionID, itemID)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return
+		return true
 	}
-	_ = os.WriteFile(path, []byte(featureID+"\n"), 0o644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		return !errors.Is(err, os.ErrExist)
+	}
+	_ = f.Close()
+	removeOtherMarkers(filepath.Dir(path), filepath.Base(path))
+	return true
 }
 
-// clearAnnouncedItem forgets the announced item. SessionStart calls it for
+func removeOtherMarkers(dir, keep string) {
+	matches, _ := filepath.Glob(filepath.Join(dir, activeAnnouncedPrefix+"*"))
+	for _, m := range matches {
+		if filepath.Base(m) != keep {
+			_ = os.Remove(m)
+		}
+	}
+}
+
+// clearAnnouncedItem forgets every announced item. SessionStart calls it for
 // every source (startup, resume, compact, clear) because each can drop the
 // earlier line from the model's context.
 func clearAnnouncedItem(projectDir, sessionID string) {
-	_ = os.Remove(activeAnnouncedPath(projectDir, sessionID))
+	removeOtherMarkers(sessionStateDir(projectDir, sessionID), "")
 }

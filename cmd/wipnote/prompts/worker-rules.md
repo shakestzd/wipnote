@@ -13,6 +13,11 @@
 5. Commit with the item ID in the subject or in a `Refs: <id>` trailer.
 6. Give a command and its real output for each done-when line. A claim with no output does not count.
 
+### Context and checks
+- Run `wipnote arch resolve --for <work-item-id>` once at start. Treat `UNVERIFIED:` cards as advisory and verify them in code.
+- For a change that renders in a browser, look at it before you report done. Tests alone do not show what a user sees.
+- Route research by where the answer lives: this repo's code by local search, external APIs and harness contracts by official docs first.
+
 ### Stuck
 - After a second failed fix for one problem, write down what both fixes assumed. Test that assumption before a third try.
 - If your last three tool calls returned nothing new, stop and report what you know. A partial honest report beats a run cut off.

@@ -53,10 +53,8 @@
   },
 
   "assetSources": {
-    "_comment": "Relative to repo root. Assets are copied verbatim into each target's outDir. Markdown-based formats (commands, agents, skills) are identical across Claude and Codex.",
-    "commands": "plugin/commands",
+    "_comment": "Relative to repo root. Assets are copied verbatim into each target's outDir. Agents are Markdown, identical across Claude and Codex.",
     "agents": "plugin/agents",
-    "skills": "plugin/skills",
     "templates": "plugin/templates",
     "static": "plugin/static",
     "config": "plugin/config",

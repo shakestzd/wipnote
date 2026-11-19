@@ -11,9 +11,7 @@ import (
 // staged, trigger a port-drift verification. They map to the asset source
 // directories that the port generator reads from repoRoot.
 var generatorInputDirs = []string{
-	"plugin/commands",
 	"plugin/agents",
-	"plugin/skills",
 	"plugin/templates",
 	"plugin/static",
 	"plugin/config",

@@ -129,7 +129,11 @@ func TestLiveGeneratedPortsCarryNoSkillsOrCommands(t *testing.T) {
 		filepath.Join(antigravityOut, "skills"),
 		filepath.Join(antigravityOut, "commands"),
 	} {
-		if files := skillFilesUnder(dir); len(files) > 0 {
+		files, err := skillFilesUnder(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(files) > 0 {
 			t.Errorf("%s should hold no file, found %v", dir, files)
 		}
 	}
