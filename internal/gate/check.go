@@ -252,9 +252,9 @@ func DetectPlan(projectRoot, codeRoot, phase string) (Plan, error) {
 		return Plan{}, fmt.Errorf("resolve guard profile: %w", err)
 	}
 	if usedProfile {
-		// bug-9f3b580f: an approved profile lists its own commands, so the
-		// gate runs exactly those and adds no nested-module commands. The
-		// owner approved that list, and it may already cd into each module.
+		// bug-9f3b580f: the approved commands run as written. Then the gate
+		// adds build, vet and test for each nested Go module no guard names,
+		// because a root-only profile left those modules unchecked.
 		prof, _ := guardprofile.Load(projectRoot)
 		plan := Plan{
 			ProjectType:      paths.ProjectTypeUnknown,
@@ -274,6 +274,7 @@ func DetectPlan(projectRoot, codeRoot, phase string) (Plan, error) {
 			})
 			plan.GuardNames = append(plan.GuardNames, g.Name)
 		}
+		plan.Commands = append(plan.Commands, nestedModuleCommands(codeRoot, guards)...)
 		return plan, nil
 	}
 

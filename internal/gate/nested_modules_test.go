@@ -96,3 +96,74 @@ func TestRunSession_NestedModuleFailureFailsGate(t *testing.T) {
 		t.Errorf("summary %q does not name the failed module", res.OutputSummary)
 	}
 }
+
+// writeProfile approves a guard profile whose quality guards are cmds.
+func writeProfile(t *testing.T, root string, cmds map[string]string, order []string) {
+	t.Helper()
+	prof := &guardprofile.Profile{Guards: map[string][]guardprofile.Guard{}}
+	yaml := "guards:\n  quality:\n"
+	for _, n := range order {
+		prof.Guards[guardprofile.PhaseQuality] = append(prof.Guards[guardprofile.PhaseQuality], guardprofile.Guard{Name: n, Cmd: cmds[n]})
+		yaml += "    - name: " + n + "\n      cmd: " + cmds[n] + "\n"
+	}
+	yaml += "approved:\n  signature: " + guardprofile.Signature(prof) + "\n"
+	writeNestedFile(t, root, ".wipnote/guard-profile.yaml", yaml)
+}
+
+// bug-9f3b580f: a profile with root-only commands still gets the nested
+// modules, named like "go build (core)". The profile commands run first.
+func TestDetectPlan_Profile_AddsUnnamedNestedModules(t *testing.T) {
+	root := setupGateTestProject(t)
+	writeNestedFile(t, root, "core/go.mod", "module example.com/core\n\ngo 1.24\n")
+	writeNestedFile(t, root, "plan/go.mod", "module example.com/plan\n\ngo 1.24\n")
+	writeProfile(t, root, map[string]string{"build": "go build ./...", "test": "cd plan && go test ./..."}, []string{"build", "test"})
+	plan, err := DetectPlan(root, root, guardprofile.PhaseQuality)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, c := range plan.Commands {
+		names = append(names, c.Name)
+	}
+	want := "build,test,go build (core),go vet (core),go test (core)"
+	if strings.Join(names, ",") != want {
+		t.Errorf("names = %v, want %s (plan is named by the profile, so no duplicate)", names, want)
+	}
+	if len(plan.GuardNames) != 2 {
+		t.Errorf("GuardNames = %v, want only the 2 profile guards", plan.GuardNames)
+	}
+}
+
+// Each way to name a folder counts: cd, -C, and a guard cwd.
+func TestDetectPlan_Profile_NamedModulesGetNoDuplicate(t *testing.T) {
+	root := setupGateTestProject(t)
+	writeNestedFile(t, root, "core/go.mod", "module example.com/core\n\ngo 1.24\n")
+	writeNestedFile(t, root, "plan/go.mod", "module example.com/plan\n\ngo 1.24\n")
+	writeProfile(t, root, map[string]string{"a": "cd core && go test ./...", "b": "go vet -C plan ./..."}, []string{"a", "b"})
+	plan, err := DetectPlan(root, root, guardprofile.PhaseQuality)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Commands) != 2 {
+		t.Errorf("got %d commands, want 2: %+v", len(plan.Commands), plan.Commands)
+	}
+}
+
+// A broken nested module fails a gate whose profile names only the root.
+func TestRunSession_ProfileRootOnly_NestedFailureFailsGate(t *testing.T) {
+	if testing.Short() {
+		t.Skip("runs real Go gate commands")
+	}
+	root := setupGateTestProject(t)
+	writeNestedFile(t, root, "bad/go.mod", "module example.com/bad\n\ngo 1.24\n")
+	writeNestedFile(t, root, "bad/bad.go", "package bad\n\nfunc F() int { return \"x\" }\n")
+	writeProfile(t, root, map[string]string{"build": "go build ./..."}, []string{"build"})
+	var out, errb bytes.Buffer
+	res, err := RunSession(RunOptions{ProjectRoot: root, SessionID: "sess-prof", Source: "check", Phase: guardprofile.PhaseQuality, Harness: "codex", Stdout: &out, Stderr: &errb})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Passed || !strings.Contains(res.OutputSummary, "go build (bad) failed") {
+		t.Errorf("passed=%v summary=%q", res.Passed, res.OutputSummary)
+	}
+}

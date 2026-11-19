@@ -3,9 +3,12 @@ package gate
 import (
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/shakestzd/wipnote/core/guardprofile"
 )
 
 // skippedModuleDirs never hold a module the gate checks: vendored or
@@ -79,4 +82,42 @@ func goGateCommands(codeRoot string) []Command {
 		cmds = append(cmds, goModuleCommands(filepath.ToSlash(rel), m)...)
 	}
 	return cmds
+}
+
+// nestedModuleCommands are the Go commands for each module below codeRoot that
+// no profile guard names (bug-9f3b580f: a root-only profile left nested
+// modules unchecked). A guard names a module when its cwd is the folder or its
+// command has the folder after `cd ` or `-C `.
+func nestedModuleCommands(codeRoot string, guards []guardprofile.Guard) []Command {
+	named := map[string]bool{}
+	for _, g := range guards {
+		if c := cleanModulePath(g.Cwd); c != "" {
+			named[c] = true
+		}
+		fields := strings.Fields(g.Cmd)
+		for i := 0; i+1 < len(fields); i++ {
+			if fields[i] == "cd" || fields[i] == "-C" {
+				named[cleanModulePath(fields[i+1])] = true
+			}
+		}
+	}
+	var cmds []Command
+	for _, m := range FindGoModules(codeRoot) {
+		rel, err := filepath.Rel(codeRoot, m)
+		if err != nil || rel == "." || named[filepath.ToSlash(rel)] {
+			continue
+		}
+		cmds = append(cmds, goModuleCommands(filepath.ToSlash(rel), m)...)
+	}
+	return cmds
+}
+
+// cleanModulePath turns a shell word into a slash path: quotes, a trailing
+// `;`, `&&` or `/`, and a leading `./` are dropped.
+func cleanModulePath(w string) string {
+	w = strings.Trim(w, `"';&|`)
+	if w == "" {
+		return ""
+	}
+	return strings.TrimPrefix(path.Clean(filepath.ToSlash(w)), "./")
 }
