@@ -11,7 +11,7 @@ paths:
 **Source of truth:**
 
 - `packages/plugin-core/manifest.json` — plugin metadata, per-target output paths, hook event matrix (Claude, Codex, Antigravity)
-- `plugin/{commands,agents,skills,templates,static,config}/` — shared markdown/static assets (copied verbatim into every target)
+- `plugin/{agents,templates,static,config,output-styles}/` — shared markdown/static assets (copied verbatim into every target). The plugin ships no `commands/` or `skills/` folder since plan-2622b3f7; the manifest still accepts both.
 - `cmd/` and `internal/` — Go CLI and hook handlers
 
 **Generated — DO NOT hand-edit (regenerate via `wipnote plugin build-ports`):**
@@ -20,7 +20,6 @@ paths:
 - `plugin/hooks/hooks.json`
 - everything under `port/packages/codex-marketplace/`
 - everything under `port/packages/antigravity-extension/`
-- everything under `.claude/` (auto-synced from `plugin/`)
 
 See `packages/plugin-core/README.md` for new-command / new-hook / new-target recipes.
 
@@ -28,7 +27,7 @@ See `packages/plugin-core/README.md` for new-command / new-hook / new-target rec
 
 ## Workflow
 
-1. Edit shared source: `packages/plugin-core/manifest.json`, `plugin/{commands,agents,skills,…}/`, `cmd/`, or `internal/`
+1. Edit shared source: `packages/plugin-core/manifest.json`, `plugin/{agents,templates,…}/`, `cmd/`, or `internal/`
 2. Regenerate target trees: `wipnote plugin build-ports`
 3. Run the gate in `code-hygiene.md`
 4. Build: `wipnote build`
