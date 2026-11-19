@@ -4,10 +4,10 @@ meta:
     title: Move agent guidance into CLI output and hooks
     description: 'The owner chose 30 of the 31 changes on the adoption board (spk-deb261d8). This plan carries them out: guidance moves from skills and always-loaded prompt text into CLI output, one worker-rules hook and tests. Retro skill E4 is deferred.'
     created_at: "2026-11-18"
-    status: draft
+    status: completed
     priority: medium
     schema_version: v4
-    version: 39
+    version: 41
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -667,7 +667,7 @@ slices:
           claim: A rule file under .claude/rules is scoped with a paths frontmatter field, and loads when matching files are read. Verified by the feasibility critic; .claude/rules/debugging.md:2 uses it.
           accessed: "2026-11-18"
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Decisions:** the agent writes the new rule files and docs and a proposed CLAUDE.md in the work item as a patch file. The owner applies the patch, because a hard rule bars agents from writing CLAUDE.md.
         **Rejected:** an exception to that hard rule for this one edit.
@@ -883,6 +883,6 @@ feedback:
           updated_at: "2026-11-19T01:34:57Z"
         - section: slice-12
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-19T01:35:01Z"
-          updated_at: "2026-11-19T01:35:01Z"
+          updated_at: "2026-11-19T01:53:19Z"
