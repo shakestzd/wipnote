@@ -93,6 +93,9 @@ func claudeDirArgs(info Info) []string {
 // with delegate reply, which writes the task's result file that wait and result read.
 // Writing the file by hand stays the fallback for a worker without the command.
 func Preamble(info Info, mailDir string) string {
+	if info.Setup.Profile == ProfileReview {
+		return reviewPreamble(info)
+	}
 	result := filepath.Join(mailDir, "outbox", info.Task+"-result.json")
 	question := filepath.Join(mailDir, "outbox", info.Task+"-q1.json")
 	return fmt.Sprintf(`You are the wipnote delegate worker %q (run %s, work item %s).
@@ -112,4 +115,19 @@ write a temporary file in the same folder first, then rename it to that name.
 ---
 
 `, info.Name, info.Run, info.WorkItem, info.Task, info.Task, info.Task, result, question)
+}
+
+// reviewPreamble is the preamble of a review worker (bug-9f3b580f). It has no
+// shell and no write tool, so it never runs delegate reply: its Stop hook
+// saves the final message of the turn as the task's result.
+func reviewPreamble(info Info) string {
+	return fmt.Sprintf(`You are the wipnote delegate worker %q (run %s, work item %s).
+You are read-only: you have no shell and no tool that writes a file.
+When you finish the task below, end your turn with your full answer as your final message; it is saved as your result.
+Do not add a second summary after it: the caller reads only that message.
+Read only what the task needs: search first, then read the ranges you need, not whole files.
+
+---
+
+`, info.Name, info.Run, info.WorkItem)
 }

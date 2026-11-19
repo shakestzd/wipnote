@@ -60,6 +60,9 @@ func harnessFlags(ctx context.Context, o *SpawnOptions) error {
 			return err
 		}
 	}
+	if err := checkReviewExtra(*o); err != nil {
+		return err
+	}
 	flags := modelEffortFlags(o)
 	o.Flags = append(flags, o.Extra...)
 	if o.Harness == HarnessCodex && o.Profile == ProfileReview {

@@ -40,6 +40,7 @@ Usage in hooks.json:
 			// The bare-delegation redirect needs delegate run's argv
 			// classifier, which core cannot import (plan-28b4a7f6 slice 9).
 			hooks.DelegateRedirect = detect.RedirectAt
+			hooks.DelegateStopReply = saveReviewResult
 		},
 	}
 	cmd.PersistentFlags().StringVar(&hookHarnessOverride, "harness", "",
