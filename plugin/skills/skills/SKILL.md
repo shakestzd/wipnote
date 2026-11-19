@@ -10,12 +10,11 @@ Most wipnote skills are hidden from the model's skill list to save context. They
 - **The person** types its slash command.
 - **You** run `wipnote skill show <dir>` and follow what it prints. It works on every harness. A skill's linked files open the same way: `wipnote skill show <dir> <file>`. For a skill marked *slash only*, ask the person to run the command instead.
 
-Always in the skill list: `execute`. Coder agents get the worker rules from the SubagentStart hook, not from a skill.
+Always in the skill list: `skills`. Coder agents get the worker rules from the SubagentStart hook, not from a skill.
 
 | Need | Slash command | `<dir>` |
 |---|---|---|
 | Critique a drafted plan (the Critique step of `wipnote plan next`) — *slash only* | `/wipnote:plan-critique <plan-id>` | `plan-critique` |
-| Run a plan or track: parallel dispatch to agents | `/wipnote:execute <id>` | `execute` |
 | Verify UI changes with screenshots | `/wipnote:ui-stills-verification` | `ui-stills-verification` |
 | Write a guard rule | `/wipnote:guard-authoring` | `guard-authoring` |
 | Report a wipnote issue upstream — *slash only* | `/wipnote:report-issue` | `report-issue` |

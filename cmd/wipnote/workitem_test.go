@@ -1288,7 +1288,7 @@ func TestRunWiSetStatus_ConcurrentAgents(t *testing.T) {
 // Claude Code does per docs) must be able to run feature start on a feature the
 // orchestrator created in the same session without any error.
 //
-// Regression test for bug-50c7eed0: "Execute skill sub-agent attribution guard
+// Regression test for bug-50c7eed0: "Sub-agent attribution guard
 // blocks legitimate claims to features created by orchestrator."
 func TestSubagentCanStartFeatureCreatedByDifferentAgent(t *testing.T) {
 	// test-session-subagent-claim — session-shaped id required by the canonical session ledger.

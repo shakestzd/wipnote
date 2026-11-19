@@ -127,7 +127,7 @@ wipnote plan promote-slice plan-3a88d8a9 1
 # → prints feat-7a3c1f0b
 ```
 
-`promote-slice` creates a `feat-XXX` work item, wires it to the track and plan via typed edges, and checks dependency readiness. The feature immediately enters the execute skill's dependency-driven dispatch loop — no manual sequencing required. Dep-blocked slices wait in the `blocked` bucket until their dependencies complete.
+`promote-slice` creates a `feat-XXX` work item, wires it to the track and plan via typed edges, and checks dependency readiness. The feature immediately enters the `wipnote execute-preview` dependency-driven dispatch — no manual sequencing required. Dep-blocked slices wait in the `blocked` bucket until their dependencies complete.
 
 This incremental model means you can start executing approved slices while the rest of the plan is still under review. The plan doesn't need to be fully finalized to make progress. When all slices are done, rejected, or superseded, you close the plan with `wipnote plan set-status <id> completed`.
 

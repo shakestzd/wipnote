@@ -50,7 +50,7 @@ Recommend:
 2. **Bottlenecks first.** If it lists bottlenecks (stale items, overloaded tracks), propose resuming, unblocking or closing them before new work.
 3. **Check the top items.** For each pair, ask: does one block the other? Do they touch the same files or modules (`wipnote trace <id>` lists an item's files)? If you cannot tell, say so rather than guessing.
 4. **Propose one next action:**
-   - 2+ independent items with no file overlap: `/wipnote:execute` for parallel dispatch.
+   - 2+ independent items with no file overlap: `wipnote execute-preview <track-id>` for parallel dispatch.
    - Dependent items: name the critical path and a sequential order, blocker first.
    - Work that needs design first: `wipnote plan next`.
    - A single item: delegate by size to `patch-coder` (small, tightly scoped), `feature-coder` (ordinary feature) or `architect-coder` (cross-cutting design).

@@ -239,8 +239,8 @@ func removeStr(slice []string, target string) []string {
 // planNextCommands returns the agentic dispatch commands for a finalized plan.
 // Both planFinalizeHandler (API) and printFinalizeYAMLSummary (CLI) use this
 // so the format string is defined in exactly one place.
-func planNextCommands(planID, trackID string) (nextCommand, yoloCommand string) {
-	nextCommand = fmt.Sprintf("/wipnote:execute %s", planID)
+func planNextCommands(_, trackID string) (nextCommand, yoloCommand string) {
+	nextCommand = fmt.Sprintf("wipnote execute-preview %s", trackID)
 	yoloCommand = fmt.Sprintf("wipnote yolo --track %s", trackID)
 	return
 }
