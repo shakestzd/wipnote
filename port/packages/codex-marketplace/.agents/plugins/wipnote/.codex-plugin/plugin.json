@@ -20,7 +20,6 @@
     "git-based",
     "offline-first"
   ],
-  "skills": "./skills/",
   "hooks": "./hooks.json",
   "mcpServers": "./.mcp.json",
   "interface": {

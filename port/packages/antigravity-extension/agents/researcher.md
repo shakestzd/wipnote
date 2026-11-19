@@ -77,8 +77,8 @@ Form a hypothesis from evidence, then test it with one targeted change. Implemen
 
 ## Mode 3: Visual QA
 
-After UI changes, before marking done. **Default method: stills via `shot-scraper`** — load
-the `ui-stills-verification` skill (if it is not in your skill list, run `wipnote skill show ui-stills-verification`) and follow it. It is headless, needs no
+After UI changes, before marking done. **Default method: stills via `shot-scraper`** — follow
+the steps below. Set up once with `uv tool install shot-scraper && shot-scraper install`. It is headless, needs no
 extension or browser session, and is the method to use whenever `mcp__claude-in-chrome__computer`
 is unavailable (which is the common case for dispatched subagents and every non-Claude harness).
 Use the Chrome MCP only when it is actually available and the task needs live interaction that
@@ -97,6 +97,8 @@ Use the Chrome MCP only when it is actually available and the task needs live in
 7. **Report** with severity ratings, one judgement per image written after the read-back.
 
 Severity: **CRITICAL** (broken/data missing), **MAJOR** (significant layout/usability issue), **MINOR** (polish), **OK**.
+
+A single frame cannot tell "not loaded yet" from "never renders": sample the DOM on a timer with `shot-scraper javascript`. If a probe says "absent", suspect the probe first.
 
 Never capture real user data into a saved still — use a sample profile or seeded fixtures.
 

@@ -95,8 +95,8 @@ func TestCodexPluginTreeUnderPluginsSubdir(t *testing.T) {
 	if plug.Name == "" || plug.Version == "" {
 		t.Errorf("plugin.json missing name/version: %+v", plug)
 	}
-	if plug.Skills != "./skills/" {
-		t.Errorf("plugin.json skills = %q, want ./skills/", plug.Skills)
+	if plug.Skills != "" {
+		t.Errorf("plugin.json skills = %q, want none: no skills ship", plug.Skills)
 	}
 	if plug.Hooks != "./hooks.json" {
 		t.Errorf("plugin.json hooks = %q, want ./hooks.json", plug.Hooks)
