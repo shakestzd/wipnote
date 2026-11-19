@@ -224,7 +224,7 @@ func (c ClaudeConfig) ProfileTable() []ProfileRow {
 			row.Tools = withoutNames(unionNames(leanTools, p.Tools), p.Disallowed)
 		}
 		if n == ProfileReview {
-			row.Note = "read-only: no Bash, Edit, Write or NotebookEdit; --tools, --allowedTools, --disallowedTools and permission flags are refused; a Codex worker gets --sandbox read-only and refuses --sandbox"
+			row.Note = "read-only: no Bash, Edit, Write or NotebookEdit; --tools, --allowedTools, --disallowedTools and permission flags are refused; the final message is saved as the result; a Codex worker gets --sandbox read-only and refuses --sandbox"
 		}
 		rows = append(rows, row)
 	}
