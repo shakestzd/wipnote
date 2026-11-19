@@ -15,10 +15,9 @@ import (
 // with no entry here has no room to grow, so a new skill needs a row first.
 var skillByteLimits = map[string]int{
 	"guard-authoring":              4521,
-	"plan-critique":                4359,
 	"report-issue":                 2687,
 	"simplified-technical-english": 9022,
-	"skills":                       1810,
+	"skills":                       1652,
 	"ui-stills-verification":       7556,
 }
 
@@ -26,7 +25,7 @@ var skillByteLimits = map[string]int{
 var promptByteLimits = map[string]int{
 	"gemini-system.md":    4323,
 	"research-routing.md": 571,
-	"system-prompt.md":    4912,
+	"system-prompt.md":    3500,
 	"worker-rules.md":     3072,
 	"yolo-prompt.md":      5149,
 }

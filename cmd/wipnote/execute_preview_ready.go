@@ -33,7 +33,7 @@ type taskBrief struct {
 }
 
 // reviewRule states when code review is required. The rule replaces the
-// "review is mandatory" step of the deleted execute skill (feat-d06e3fb2).
+// "review is mandatory" step of the retired dispatch guidance (feat-d06e3fb2).
 const reviewRule = "Code review is required once, on the track branch, before it merges, when any task changed code.\n" +
 	"Code review is skipped when the tasks changed only docs, plans or generated files.\n" +
 	"Reviewers block only on a failing run or a user-visible bug. Report every other finding and do not block on it."

@@ -63,7 +63,8 @@ Then run: wipnote plan next <plan-id>
 `
 
 const planNextCritique = `The plan has 3+ slices or a complex slice, so it needs a critique before review.
-Ask the owner to run /wipnote:plan-critique <plan-id>. It runs the design and feasibility critics in their own context.
+Run wipnote plan critique <plan-id>. It writes a design brief and a feasibility brief and prints a delegate spawn line for each. Run both lines. Each critic reads the plan in its own context.
+Record the findings with wipnote plan set-critique-yaml <plan-id>. Critique stops after two rounds.
 Resolve every danger finding.
 If a finding changes a slice's design, re-author its block, re-derive the prose, and validate again.
 Then run: wipnote plan next <plan-id>

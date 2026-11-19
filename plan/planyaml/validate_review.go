@@ -124,6 +124,7 @@ func validateCritique(plan *PlanYAML) []string {
 				errs = append(errs, fmt.Sprintf("critique.risks[%d].severity %q is invalid", i, r.Severity))
 			}
 		}
+		errs = append(errs, validateCritiqueRounds(c)...)
 	}
 	return errs
 }
