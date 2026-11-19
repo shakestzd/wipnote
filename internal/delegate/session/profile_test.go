@@ -1,6 +1,7 @@
 package session
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -24,7 +25,7 @@ func TestReviewProfile_NoWriteTools(t *testing.T) {
 		t.Fatal(err)
 	}
 	tools := strings.Split(flagValue(o.Flags, "--tools"), ",")
-	for _, banned := range []string{"Edit", "Write", "NotebookEdit"} {
+	for _, banned := range []string{"Bash", "Edit", "Write", "NotebookEdit"} {
 		for _, got := range tools {
 			if got == banned {
 				t.Errorf("--tools %v still has %s", tools, banned)
@@ -34,7 +35,7 @@ func TestReviewProfile_NoWriteTools(t *testing.T) {
 	if len(tools) == 0 || tools[0] == "" {
 		t.Fatalf("review worker has no tools at all: %v", o.Flags)
 	}
-	if got, want := flagValue(o.Flags, "--disallowedTools"), "Edit,Write,NotebookEdit"; got != want {
+	if got, want := flagValue(o.Flags, "--disallowedTools"), "Bash,Edit,Write,NotebookEdit"; got != want {
 		t.Errorf("--disallowedTools = %q, want %q", got, want)
 	}
 }
@@ -64,5 +65,32 @@ func TestProfileTable_ListsBuiltIns(t *testing.T) {
 		if r.Name == "review" && (r.Model != "sonnet" || r.Effort != "medium") {
 			t.Errorf("review row = %+v", r)
 		}
+	}
+}
+
+// bug-9f3b580f: a review worker must not hold a shell or take a flag that
+// widens its tools, because Bash can write any file.
+func TestReviewProfile_RefusesWideningFlags(t *testing.T) {
+	claude := [][]string{
+		{"--tools", "Bash,Read"}, {"--tools=Bash"}, {"--allowedTools", "Bash"},
+		{"--disallowedTools", "Edit"}, {"--permission-mode", "bypassPermissions"},
+		{"--dangerously-skip-permissions"},
+	}
+	for _, extra := range claude {
+		o := SpawnOptions{Harness: HarnessClaude, Profile: "review", Extra: extra}
+		if err := harnessFlags(ctxBG, &o); !errors.Is(err, ErrBadSetup) || !strings.Contains(err.Error(), "review") {
+			t.Errorf("claude %q: err = %v, want ErrBadSetup naming review", extra, err)
+		}
+	}
+	for _, extra := range [][]string{{"--sandbox", "danger-full-access"}, {"-s", "workspace-write"}, {"--sandbox=workspace-write"}} {
+		o := SpawnOptions{Harness: HarnessCodex, Profile: "review", Extra: extra}
+		if err := harnessFlags(ctxBG, &o); !errors.Is(err, ErrBadSetup) || !strings.Contains(err.Error(), "review") {
+			t.Errorf("codex %q: err = %v, want ErrBadSetup naming review", extra, err)
+		}
+	}
+	// Other profiles still take these flags.
+	o := SpawnOptions{Harness: HarnessClaude, Profile: "standard", Extra: []string{"--tools", "Bash"}}
+	if err := harnessFlags(ctxBG, &o); err != nil {
+		t.Errorf("standard profile refused --tools: %v", err)
 	}
 }

@@ -29,9 +29,10 @@ type Profile struct {
 	Disallowed []string `json:"disallowedTools,omitempty"`
 }
 
-// ProfileReview is the read-only profile (feat-8f910039): a Claude worker has
-// no edit, write or notebook tool, and a Codex worker runs in the read-only
-// sandbox. It is for reviews, where a worker that edits hides what it found.
+// ProfileReview is the read-only profile (feat-8f910039, bug-9f3b580f): a Claude
+// worker has no tool that writes a file (no Bash, Edit, Write or NotebookEdit),
+// and a Codex worker runs in the read-only sandbox. Bash is out because a shell
+// can write any file. It is for reviews, where a worker that edits hides what it found.
 const ProfileReview = "review"
 
 // builtinProfiles are the profiles every install has. full is special: it
@@ -40,7 +41,7 @@ var builtinProfiles = map[string]Profile{
 	"simple":      {Model: "haiku", Effort: "low"},
 	"standard":    {Model: "sonnet", Effort: "medium"},
 	"deep":        {Model: "opus", Effort: "high", ProjectRules: true},
-	ProfileReview: {Model: "sonnet", Effort: "medium", Disallowed: []string{"Edit", "Write", "NotebookEdit"}},
+	ProfileReview: {Model: "sonnet", Effort: "medium", Disallowed: []string{"Bash", "Edit", "Write", "NotebookEdit"}},
 	ProfileFull:   {},
 }
 
@@ -223,9 +224,32 @@ func (c ClaudeConfig) ProfileTable() []ProfileRow {
 			row.Tools = withoutNames(unionNames(leanTools, p.Tools), p.Disallowed)
 		}
 		if n == ProfileReview {
-			row.Note = "read-only: no Edit, Write or NotebookEdit; a Codex worker gets --sandbox read-only"
+			row.Note = "read-only: no Bash, Edit, Write or NotebookEdit; --tools, --allowedTools, --disallowedTools and permission flags are refused; a Codex worker gets --sandbox read-only and refuses --sandbox"
 		}
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+// reviewWideningFlags are passthrough flags that change what a Claude worker
+// may do. The review profile refuses them (bug-9f3b580f) because each one can
+// give back a tool that writes files.
+var reviewWideningFlags = map[string][]string{
+	HarnessClaude: {"--tools", "--allowedTools", "--allowed-tools", "--disallowedTools", "--disallowed-tools",
+		"--permission-mode", "--dangerously-skip-permissions", "--allow-dangerously-skip-permissions"},
+	HarnessCodex: {"--sandbox", "-s", "--full-auto", "--dangerously-bypass-approvals-and-sandbox"},
+}
+
+// checkReviewExtra refuses a flag after -- that would widen the review
+// profile's read-only setup.
+func checkReviewExtra(o SpawnOptions) error {
+	if o.Profile != ProfileReview {
+		return nil
+	}
+	for _, f := range reviewWideningFlags[o.Harness] {
+		if hasFlag(o.Extra, f) {
+			return fmt.Errorf("%w: %s is refused on the review profile, which is read-only; use another profile or drop the flag", ErrBadSetup, f)
+		}
+	}
+	return nil
 }
