@@ -10,20 +10,42 @@
 <body>
     <article id="feat-0c976595"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-25T14:56:32.968794"
-             data-updated="2026-10-29T09:01:06.537653" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
+             data-updated="2026-11-08T03:02:46.659011" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Phase B: verify harness hooks on the owner&#39;s Mac</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="c9c239439c180bec64553d66f9680fd9d4cd47a9.html" data-relationship="committed_in" data-since="2026-10-29T05:41:40">Merge pull request #305 from shakestzd/sync/phase-b-records</a></li>
+                    <li><a href="892020cabe7c769a028057809532a00ae7d7601f.html" data-relationship="committed_in" data-since="2026-10-29T04:57:51">fix(delegate): Phase B D8 reads the input line, not a 48;2 background as dim (bug-ec114e74)</a></li>
+                    <li><a href="aec86865f7dc0f65839ef3fec55b88f1649e996f.html" data-relationship="committed_in" data-since="2026-10-26T19:15:53">Merge pull request #274 from shakestzd/delegate/d3</a></li>
+                    <li><a href="e78b3015b92ead1471513ed309854741251c27a8.html" data-relationship="committed_in" data-since="2026-10-26T08:58:55">docs(delegate): record Phase B run 9 (container): B8 passes, B7 fails across the bind mount, B6 blocked by container login; probe counts lines per writer (feat-0c976595)</a></li>
+                    <li><a href="a92ff38bd225d5fee4c67cc7415dc6dbb9fd460f.html" data-relationship="committed_in" data-since="2026-10-26T08:01:54">docs(delegate): slice 10 trust dialog follow-up matches the plan&#39;s no-auto-accept non-goal (feat-0c976595)</a></li>
+                    <li><a href="6a18115f7107016c0ad94d09516a3a87c93b86a2.html" data-relationship="committed_in" data-since="2026-10-26T08:01:11">docs(delegate): record Phase B runs 7-8, findings and follow-ups; full Observed text in the raw log (feat-0c976595)</a></li>
+                    <li><a href="5777e18f4d378484a1883a9985306f0232555ce4.html" data-relationship="committed_in" data-since="2026-10-26T07:34:33">fix(delegate): Phase B B2 reads orch&#39;s existing mailboxes instead of spawning a worker (feat-0c976595)</a></li>
+                    <li><a href="709c57e23c5227143fc21d16b9e7f676b8478d10.html" data-relationship="committed_in" data-since="2026-10-26T06:35:37">docs(delegate): record Phase B run 6: B3a/B3b pass with real harness tags; B2 hit orch&#39;s cap (feat-0c976595)</a></li>
+                    <li><a href="9e825a28bcc05484a1129dfdab360deba3e7e45f.html" data-relationship="committed_in" data-since="2026-10-26T05:47:19">fix(delegate): Phase B matches ledger rows on session id, any harness; record run 5 (feat-0c976595)</a></li>
+                    <li><a href="1fa53835bd22d198cf0a7b61c8239ba36b7dc32c.html" data-relationship="committed_in" data-since="2026-10-26T05:18:43">fix(delegate): Phase B logs inherited env and all ledger rows on FAIL; record run 4 (feat-0c976595)</a></li>
+                    <li><a href="0f137ac873fd0d41c0887f03f27ca2530ab0f30d.html" data-relationship="committed_in" data-since="2026-10-26T03:58:16">fix(delegate): Phase B accepts trust dialogs by label with arrows only (feat-0c976595)</a></li>
+                    <li><a href="cfca9e1b1767bf233f00a80e1bf735b04e197230.html" data-relationship="committed_in" data-since="2026-10-26T03:15:24">docs(delegate): record Phase B run 2 and the trust-dialog finding (feat-0c976595)</a></li>
+                    <li><a href="b93da23fb2c1e4539cf5ef3ceb9c5e90f085f789.html" data-relationship="committed_in" data-since="2026-10-26T03:15:08">fix(delegate): Phase B selects Yes on trust dialogs and inits herdr for every pane check (feat-0c976595)</a></li>
+                    <li><a href="ea0a48f4fbd709a3fd13f4444f0fe11653e38f98.html" data-relationship="committed_in" data-since="2026-10-26T02:54:25">fix(delegate): Phase B answers orch&#39;s trust dialog, dumps screens on FAIL; record run 1 (feat-0c976595)</a></li>
+                    <li><a href="21647bfe1f794364c018e6f167acc4d555c03483.html" data-relationship="committed_in" data-since="2026-10-26T00:35:31">fix(delegate): redact macOS /var/folders temp paths in Phase B output (feat-0c976595)</a></li>
+                    <li><a href="29521f261577f9d1fcb56bca57a998dacba75772.html" data-relationship="committed_in" data-since="2026-10-26T00:13:04">feat-0c976595: add delegate Phase B check script and design page</a></li>
+                    <li><a href="dfbe0ff44d55776582ddae81f38c58814b7016c4.html" data-relationship="committed_in" data-since="2026-10-26T00:11:47">wipnote: start feat-0c976595</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -47,9 +69,9 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-feat-0c976595-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Verify herdr calls slice 6 (feat-39bc46a1) could not confirm: tab close &lt;tab&gt;; pane split &lt;pane-id&gt; (positional target); pane layout --pane reply shape; pane read --source recent-unwrapped --lines N; agent rename &lt;target&gt; &lt;name&gt;; pane rename &lt;pane&gt; &lt;title&gt;; gone-pane error code (pane_not_found vs not_found); pane close &lt;pane&gt;. Run TestHerdr_LiveTabRoundTrip with HERDR_ENV=1.</li>
+                <li data-completed="true" data-step-id="step-feat-0c976595-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Verify herdr calls slice 6 (feat-39bc46a1) could not confirm: tab close &lt;tab&gt;; pane split &lt;pane-id&gt; (positional target); pane layout --pane reply shape; pane read --source recent-unwrapped --lines N; agent rename &lt;target&gt; &lt;name&gt;; pane rename &lt;pane&gt; &lt;title&gt;; gone-pane error code (pane_not_found vs not_found); pane close &lt;pane&gt;. Run TestHerdr_LiveTabRoundTrip with HERDR_ENV=1.</li>
                 <li data-completed="true" data-step-id="step-feat-0c976595-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ D8 check: herdr pane read --format ansi keeps the dim/grey SGR codes of Claude Code and Codex suggestions; a typed draft shows default colour</li>
-                <li data-completed="false" data-step-id="step-feat-0c976595-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Codex parity probes (spk-87139e0e, docs/design/delegate-interactive-parity.md last section): exec vs TUI result, token counts, exit code, plugin load in both modes</li>
+                <li data-completed="true" data-step-id="step-feat-0c976595-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Codex parity probes (spk-87139e0e, docs/design/delegate-interactive-parity.md last section): exec vs TUI result, token counts, exit code, plugin load in both modes</li>
                 <li data-completed="true" data-step-id="step-feat-0c976595-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Write scripts/delegate-phase-b.sh (bash 3.2 safe, --self-test, --only, --no-model, --no-interactive) and docs/design/delegate-phase-b.md; self-test passes in the container</li>
                 <li data-completed="true" data-step-id="step-feat-0c976595-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ B9 and D8 results (runs 10-15, devcontainer in herdr 0.9.5, Claude Code 2.1.312, codex-cli 0.165.0): run 15 B9 PASS (send-text 2 then send-keys enter picks AskUserQuestion option 2), D8a PASS, D8b PASS. herdr pane read --format ansi keeps SGR 2 on the grey input-box text of both TUIs and a typed draft reads default, so the D8b answer for slice 26 is yes. Probe bugs fixed under bug-ec114e74 (PR 304, branch fix/phase-b-probe); results in docs/design/delegate-phase-b.md on that branch.</li>
             </ol>
