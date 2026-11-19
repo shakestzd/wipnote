@@ -57,6 +57,8 @@ func planDispatch(wipnoteDir string, p *executePreview) {
 	slices := sliceFiles(wipnoteDir, p.Features)
 	owner := map[string]string{} // file -> ready item that holds it
 	files := map[string][]string{}
+	root := filepath.Dir(wipnoteDir)
+	candidates := countCandidates(p.Features, status, asked)
 	for _, f := range p.Features {
 		if f.Status != models.StatusTodo {
 			continue
@@ -69,6 +71,12 @@ func planDispatch(wipnoteDir string, p *executePreview) {
 		if len(fs) == 0 {
 			fs = tracedFiles(wipnoteDir, f.ID)
 		}
+		fs = normalizePaths(fs, root)
+		// No known file: only a lone candidate is safe, nothing else can collide.
+		if len(fs) == 0 && candidates > 1 {
+			p.Deferred = append(p.Deferred, deferredTask{f.ID, f.Title, "files unknown"})
+			continue
+		}
 		if holder, file := firstOverlap(fs, owner); holder != "" {
 			p.Deferred = append(p.Deferred, deferredTask{f.ID, f.Title,
 				fmt.Sprintf("shares %s with %s, which runs first", file, holder)})
@@ -80,11 +88,47 @@ func planDispatch(wipnoteDir string, p *executePreview) {
 		files[f.ID] = fs
 		p.Ready = append(p.Ready, f.ID)
 	}
+	addBriefs(p, files)
+}
+
+// addBriefs adds a brief for each ready task, in feature order.
+func addBriefs(p *executePreview, files map[string][]string) {
 	for _, f := range p.Features {
 		if _, ok := files[f.ID]; ok {
 			p.Briefs = append(p.Briefs, buildBrief(f, files[f.ID], p))
 		}
 	}
+}
+
+// countCandidates counts the todo features that no blocker or question holds.
+func countCandidates(feats []*models.Node, status map[string]models.NodeStatus, asked map[string]string) int {
+	n := 0
+	for _, f := range feats {
+		if f.Status == models.StatusTodo && holdReason(f, status, asked) == "" {
+			n++
+		}
+	}
+	return n
+}
+
+// normalizePaths makes spellings of one file equal: slash form, no leading
+// "./", and relative to the repo root when the path is absolute under it.
+func normalizePaths(files []string, root string) []string {
+	out := make([]string, 0, len(files))
+	for _, f := range files {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		if filepath.IsAbs(f) {
+			if rel, err := filepath.Rel(root, f); err == nil && !strings.HasPrefix(rel, "..") {
+				f = rel
+			}
+		}
+		f = strings.TrimPrefix(filepath.ToSlash(filepath.Clean(f)), "./")
+		out = append(out, f)
+	}
+	return out
 }
 
 // holdReason returns why a todo feature cannot start, or "" when it can.

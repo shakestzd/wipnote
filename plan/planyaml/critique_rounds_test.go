@@ -116,3 +116,14 @@ func TestCritique_ContestedFindingNeedsCitation(t *testing.T) {
 		t.Errorf("uncontested finding refused: %v", errs)
 	}
 }
+
+func TestValidateCritique_EmptyStatusRefusedOnWriteOnly(t *testing.T) {
+	c := &PlanCritique{ReviewedAt: "2026-11-18", Critics: []CriticSection{{Title: "Design critic"}}}
+	errs := ValidateCritique(c)
+	if len(errs) != 1 || !strings.Contains(errs[0], "Design critic") {
+		t.Errorf("ValidateCritique errs = %v, want one naming Design critic", errs)
+	}
+	if errs := validateCritique(&PlanYAML{Critique: c}); len(errs) != 0 {
+		t.Errorf("read-side validation errs = %v, want none for a stored empty status", errs)
+	}
+}

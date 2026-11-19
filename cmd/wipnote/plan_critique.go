@@ -134,6 +134,7 @@ func runPlanCritiqueRevise(wipnoteDir, planID string, sliceNum int, what, why, t
 		return fmt.Errorf("autocommit critique revise: %w", err)
 	}
 
+	adviseSliceProse(plan, sliceNum)
 	fmt.Printf("Slice %d revised in place for %s\n", sliceNum, planID)
 	return nil
 }

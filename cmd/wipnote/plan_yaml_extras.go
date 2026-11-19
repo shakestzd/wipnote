@@ -268,6 +268,10 @@ func setCritiqueYAML(wipnoteDir, planID, dataStr string) error {
 	if errs := planyaml.ValidateCritique(&critique); len(errs) > 0 {
 		return fmt.Errorf("critique refused:\n  %s", strings.Join(errs, "\n  "))
 	}
+	// The round cap holds here too, under the lock and before the write.
+	if err := planyaml.CheckCritiqueRound(plan.Critique); err != nil {
+		return err
+	}
 	critique.Round = 1
 	if plan.Critique != nil {
 		critique.Round = plan.Critique.Round + 1
