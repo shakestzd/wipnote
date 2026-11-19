@@ -18,7 +18,8 @@ Usage: scripts/prompt-ab.sh --old REF (--new REF | --plant-no-tdd) [flags]
   --out DIR         work and result folder (default: a new temp folder)
   --model NAME      claude model (default sonnet)
   --dry-run         print the plan and run nothing
-Exit: 0 no regression flagged, 1 a regression flagged, 2 bad usage or failure.
+Exit: 0 no regression flagged, 1 a regression flagged, 2 bad usage, a failed run
+or a wrong result count. A failed run exits 2 even when the comparison is clean.
 USAGE
 }
 
@@ -46,16 +47,36 @@ ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)" || exit 2
 EVALS="$ROOT/plugin/evals/prompt-ab"
 PY="$EVALS/prompt_ab.py"
 [ -n "$OUT" ] || OUT="$(mktemp -d "${TMPDIR:-/tmp}/prompt-ab.XXXXXX")"
-mkdir -p "$OUT" || exit 2
-OUT="$(cd "$OUT" && pwd)"
+
+# resolve_path prints an absolute path with symlinks resolved, for a path that
+# may not exist yet. It resolves the nearest existing parent and appends the rest.
+resolve_path() {
+  local p="$1" rest=""
+  case "$p" in /*) ;; *) p="$PWD/$p" ;; esac
+  while [ ! -d "$p" ]; do rest="/$(basename "$p")$rest"; p="$(dirname "$p")"; done
+  echo "$(cd -P "$p" && pwd -P)$rest"
+}
+
+# A result folder inside the source checkout would put worktrees and build
+# output into the caller's own tree, so the script refuses it (bug-fcaea540).
+OUT="$(resolve_path "$OUT")"
+ROOT_REAL="$(cd -P "$ROOT" && pwd -P)"
+case "$OUT/" in
+  "$ROOT_REAL"/*) echo "--out $OUT is inside the source checkout $ROOT_REAL; choose a folder outside it" >&2; exit 2 ;;
+esac
+[ "$DRY" = 1 ] || mkdir -p "$OUT" || exit 2
 
 # Remove the two build worktrees on any exit. Earlier runs left them behind and
 # they piled up in `git worktree list`. Results and the comparison file stay.
+# A worktree that will not go is named on stderr, and prune clears stale entries.
 cleanup_worktrees() {
-  local wt
+  local wt err
   for wt in "$OUT/wt-old" "$OUT/wt-new"; do
-    [ -d "$wt" ] && git -C "$ROOT" worktree remove --force "$wt" >/dev/null 2>&1
+    [ -d "$wt" ] || continue
+    err="$(git -C "$ROOT" worktree remove --force "$wt" 2>&1)" ||
+      echo "warning: could not remove worktree $wt: $err" >&2
   done
+  [ "$DRY" = 1 ] || git -C "$ROOT" worktree prune >/dev/null 2>&1
   return 0
 }
 trap cleanup_worktrees EXIT
@@ -156,6 +177,9 @@ main() {
   if [ "$SIDES" != "old,new" ]; then echo "one side only: no comparison written"; exit "$rc"; fi
   python3 "$PY" compare --results "$OUT/results" --old-ref "$OLD" --new-ref "$NEW" --runs "$RUNS" --out "$OUT/comparison.md"
   local crc=$?
+  # A failed run is exit 2 whatever the comparator said. A regression is 1 only
+  # when every run finished (bug-fcaea540: failed runs used to pass the check).
+  [ "$rc" = 0 ] || exit 2
   exit "$crc"
 }
 main

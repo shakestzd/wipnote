@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -21,12 +22,23 @@ func needPython(t *testing.T) {
 	}
 }
 
-// tu builds one assistant transcript line holding one tool_use.
-func tu(name string, input map[string]any) string {
-	b, _ := json.Marshal(map[string]any{"type": "assistant", "message": map[string]any{
-		"content": []any{map[string]any{"type": "tool_use", "name": name, "input": input}}}})
-	return string(b)
+// toolSeq numbers the tool_use ids the helpers hand out.
+var toolSeq int
+
+// tuResult builds an assistant tool_use line and the user tool_result line that
+// answers it. The result carries the error flag and body the test gives.
+func tuResult(name string, input map[string]any, isErr bool, body string) string {
+	toolSeq++
+	id := "toolu_" + strconv.Itoa(toolSeq)
+	use, _ := json.Marshal(map[string]any{"type": "assistant", "message": map[string]any{
+		"content": []any{map[string]any{"type": "tool_use", "id": id, "name": name, "input": input}}}})
+	res, _ := json.Marshal(map[string]any{"type": "user", "message": map[string]any{
+		"content": []any{map[string]any{"type": "tool_result", "tool_use_id": id, "content": body, "is_error": isErr}}}})
+	return string(use) + "\n" + string(res)
 }
+
+// tu builds a tool call whose result is a success.
+func tu(name string, input map[string]any) string { return tuResult(name, input, false, "ok") }
 
 func bash(cmd string) string { return tu("Bash", map[string]any{"command": cmd}) }
 func edit(path string) string {
@@ -214,5 +226,97 @@ func TestPromptABBehavioursWipnoteCheckGate(t *testing.T) {
 	}
 	if runBehaviours(t, bash("go test ./..."))["gate"] {
 		t.Error("gate = true for go test alone")
+	}
+}
+
+// A command that failed does not count as a held behaviour, whatever it tried.
+func TestPromptABBehavioursReadResults(t *testing.T) {
+	failed := func(cmd string) string {
+		return tuResult("Bash", map[string]any{"command": cmd}, true, "Exit code 1")
+	}
+	gate := func(lines ...string) bool { return runBehaviours(t, lines...)["gate"] }
+	if gate(bash("go build ./..."), bash("go vet ./..."), failed("go test ./...")) {
+		t.Error("gate = true although go test returned an error result")
+	}
+	if !gate(bash("go build ./..."), bash("go vet ./..."), bash("go test ./...")) {
+		t.Error("gate = false for three successful gate commands")
+	}
+	if runBehaviours(t, failed("wipnote feature start feat-aaaa1111"))["started"] {
+		t.Error("started = true for a start command that failed")
+	}
+	if runBehaviours(t, failed(`git commit -m "feat-aaaa1111: x"`))["commit_names_item"] {
+		t.Error("commit_names_item = true for a commit that failed")
+	}
+	if runBehaviours(t, tuResult("Write", map[string]any{"file_path": "/w/x_test.go"}, true, "denied"), edit("/w/x.go"))["test_first"] {
+		t.Error("test_first = true although the test file write failed")
+	}
+}
+
+// The stream records the exit status in the result body for a failed shell command.
+func TestPromptABBehavioursExitStatusInBody(t *testing.T) {
+	bad := tuResult("Bash", map[string]any{"command": "go test ./..."}, false, "Exit code 2\nFAIL")
+	got := runBehaviours(t, bash("go build ./..."), bash("go vet ./..."), bad)
+	if got["gate"] {
+		t.Error("gate = true although the result body records exit code 2")
+	}
+}
+
+// A command that masks a failure is not a gate run.
+func TestPromptABBehavioursMaskedFailure(t *testing.T) {
+	for _, mask := range []string{"go test ./... || true", "go test ./... || :", "go test ./... ||true"} {
+		got := runBehaviours(t, bash("go build ./... && go vet ./..."), bash(mask))
+		if got["gate"] {
+			t.Errorf("gate = true for %q", mask)
+		}
+	}
+}
+
+// A tool call with no result in the log did not finish, so it does not count.
+func TestPromptABBehavioursMissingResult(t *testing.T) {
+	use := tu("Bash", map[string]any{"command": "wipnote feature start feat-aaaa1111"})
+	if runBehaviours(t, strings.SplitN(use, "\n", 2)[0])["started"] {
+		t.Error("started = true for a tool call with no result")
+	}
+}
+
+// runCompareDirs runs compare over a prepared results folder.
+func runCompareDirs(t *testing.T, dir string) (string, int) {
+	t.Helper()
+	needPython(t)
+	cmd := exec.Command("python3", promptABPy, "compare", "--results", dir,
+		"--old-ref", "main", "--new-ref", "x", "--runs", "3", "--out", filepath.Join(dir, "c.md"))
+	out, err := cmd.CombinedOutput()
+	code := 0
+	if ee, ok := err.(*exec.ExitError); ok {
+		code = ee.ExitCode()
+	}
+	return string(out), code
+}
+
+// With one old run missing, 2 of 3 against 0 of 3 must not pass as "no regression".
+func TestPromptABCompareRequiresRunCount(t *testing.T) {
+	dir := t.TempDir()
+	writeResults(t, dir, "old", 3, "test_first")
+	writeResults(t, dir, "new", 0, "test_first")
+	if err := os.Remove(filepath.Join(dir, "old", "add-func", "run3.json")); err != nil {
+		t.Fatal(err)
+	}
+	out, code := runCompareDirs(t, dir)
+	if code != 2 {
+		t.Errorf("exit = %d, want 2\n%s", code, out)
+	}
+	for _, want := range []string{"add-func", "old", "2 of 3"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	dir = t.TempDir()
+	writeResults(t, dir, "old", 3, "test_first")
+	writeResults(t, dir, "new", 3, "test_first")
+	if err := os.WriteFile(filepath.Join(dir, "new", "add-func", "run4.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, code = runCompareDirs(t, dir); code != 2 {
+		t.Errorf("exit with four new results = %d, want 2", code)
 	}
 }

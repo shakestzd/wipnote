@@ -16,8 +16,35 @@ import sys
 BEHAVIOURS = ["started", "test_first", "gate", "commit_names_item"]
 
 
+EXIT_CODE = re.compile(r"^\s*Exit code (\d+)", re.M)
+# A trailing `|| true`, `|| :` or `|| exit 0` hides the exit status of a command.
+MASKED = re.compile(r"\|\|\s*(?:true|:|exit\s+0)\s*(?:$|[;&)\n])")
+
+
+def result_text(content):
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(p.get("text", "") for p in content if isinstance(p, dict))
+    return ""
+
+
+def result_ok(name, res):
+    """True when the paired result shows success. The stream log records an
+    error flag, and for a failed shell command an "Exit code N" line in the
+    body. It records no exit status for a successful command."""
+    if res is None or res.get("is_error"):
+        return False
+    if name == "Bash":
+        m = EXIT_CODE.search(result_text(res.get("content")))
+        return not (m and int(m.group(1)) != 0)
+    return True
+
+
 def tool_calls(path):
-    """Yield (tool name, input dict) in transcript order."""
+    """Yield (tool name, input dict) in transcript order for calls whose paired
+    tool_result shows success. Pairing is by tool_use id."""
+    uses, results = [], {}
     with open(path, encoding="utf-8") as fh:
         for line in fh:
             try:
@@ -25,11 +52,18 @@ def tool_calls(path):
             except ValueError:
                 continue
             content = (rec.get("message") or {}).get("content")
-            if rec.get("type") != "assistant" or not isinstance(content, list):
+            if not isinstance(content, list):
                 continue
             for part in content:
-                if isinstance(part, dict) and part.get("type") == "tool_use":
-                    yield part.get("name", ""), part.get("input") or {}
+                if not isinstance(part, dict):
+                    continue
+                if rec.get("type") == "assistant" and part.get("type") == "tool_use":
+                    uses.append((part.get("id", ""), part.get("name", ""), part.get("input") or {}))
+                elif rec.get("type") == "user" and part.get("type") == "tool_result":
+                    results[part.get("tool_use_id", "")] = part
+    for uid, name, inp in uses:
+        if uid and result_ok(name, results.get(uid)):
+            yield name, inp
 
 
 def is_test_file(p):
@@ -64,9 +98,10 @@ def behaviours(path, item):
         cmd = inp.get("command", "")
         if re.search(r"wipnote\s+(feature|bug|spike)\s+start\s+" + re.escape(item), cmd):
             seen["start"] = True
+        masked = bool(MASKED.search(cmd))
         for k in ("build", "vet", "test"):
-            seen[k] |= bool(re.search(r"\bgo\s+" + k + r"\b", cmd))
-        seen["gate_cmd"] |= bool(re.search(r"\bwipnote\s+check\b.*--gate", cmd))
+            seen[k] |= not masked and bool(re.search(r"\bgo\s+" + k + r"\b", cmd))
+        seen["gate_cmd"] |= not masked and bool(re.search(r"\bwipnote\s+check\b.*--gate", cmd))
         if re.search(r"\bgit\s+commit\b", cmd) and item in cmd:
             seen["commit"] = True
     return {
@@ -94,8 +129,24 @@ def load_side(results, side):
     return out
 
 
+def short_counts(old, new, runs):
+    """Return a message for each task and side that lacks exactly `runs` results."""
+    msgs = []
+    for task in sorted(set(old) | set(new)):
+        for side, data in (("old", old), ("new", new)):
+            got = len(data.get(task, []))
+            if got != runs:
+                msgs.append(f"task {task} side {side}: {got} of {runs} results")
+    return msgs
+
+
 def compare(args):
     old, new = load_side(args.results, "old"), load_side(args.results, "new")
+    bad_counts = short_counts(old, new, args.runs)
+    if bad_counts:
+        for m in bad_counts:
+            print(m, file=sys.stderr)
+        return 2
     lines = ["# Prompt before-and-after comparison", "",
              f"Old ref: `{args.old_ref}`. New ref: `{args.new_ref}`. Runs per task per ref: {args.runs}.", "",
              "| task | behaviour | old | new | verdict |", "|---|---|---|---|---|"]
