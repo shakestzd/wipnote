@@ -29,3 +29,5 @@ Sentences hold 25 words or fewer and steps 20 or fewer. Use active voice, no sem
 - Never write a project's AGENTS.md, CLAUDE.md or GEMINI.md.
 
 `wipnote help --compact` prints the CLI.
+
+For multi-step work use TaskCreate and TaskUpdate: the task hooks mirror the task list onto the active item.

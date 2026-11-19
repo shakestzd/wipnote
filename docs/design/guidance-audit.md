@@ -16,7 +16,7 @@ Verdicts: **Enforced** means a hook, test or command checks it. **Prose only** m
 | 8 | - Name the item in every commit subject or a `Refs: <id>` trailer, ... | Prose only | none; commit trailers are read by lineage | Keep. Observed in lineage gaps (plan-2622b3f7). |
 | 9 | - A code comment that cites an item id must also state the reason i... | Prose only | `wipnote prose check`; slice 6 style gate | Keep, example cut to one. |
 | 10 | - When the work is done: `wipnote check --gate --work-item <id>`, t... | Enforced | `wipnote check --gate`, `feature complete` refusal | Keep one line. |
-| 11 | - The `TaskCreated`/`TaskCompleted` hooks mirror your task list ont... | Enforced | TaskCreated/TaskCompleted hooks (core/hooks/task_tracking.go) | Dropped. The hook acts without the line. |
+| 11 | - The `TaskCreated`/`TaskCompleted` hooks mirror your task list ont... | Prose only | The hooks mirror tasks, but nothing makes the agent use TaskCreate | Restored as one line (bug-cb72df80). |
 | 13 | ## Delegate when it helps | Prose only | none | Merged into the one Delegate paragraph. |
 | 15 | Do small, clear changes yourself. Use subagents when the work is pa... | Prose only | none | Merged into the one Delegate paragraph. |
 | 17 | Inside herdr or the Herdr app, hand coding work to a `wipnote deleg... | Enforced | `wipnote delegate` help and spawn hints; denial of bare `codex exec`, `claude -p`, `ccx task` (slice 6) | Two paragraphs replaced by one pointer to `wipnote delegate --help`. |

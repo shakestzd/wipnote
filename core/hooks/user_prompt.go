@@ -67,12 +67,10 @@ func activeLineIfChanged(projectDir, sessionID, featureID string) string {
 	if featureID == "" {
 		return ""
 	}
-	if lastAnnouncedItem(projectDir, sessionID) == featureID {
+	if !claimAnnouncedItem(projectDir, sessionID, featureID) {
 		return ""
 	}
-	hint := buildActiveItemOneLiner(projectDir, featureID)
-	rememberAnnouncedItem(projectDir, sessionID, featureID)
-	return hint
+	return buildActiveItemOneLiner(projectDir, featureID)
 }
 
 // buildActiveItemOneLiner returns a terse "ACTIVE: <id> — <title>" string when

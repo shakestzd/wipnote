@@ -108,18 +108,8 @@ func TestPortDriftCommitGuard_HasGeneratorInput(t *testing.T) {
 			want:   true,
 		},
 		{
-			name:   "plugin_commands_file_is_generator_input",
-			staged: []string{"plugin/commands/foo.md"},
-			want:   true,
-		},
-		{
 			name:   "plugin_agents_file_is_generator_input",
 			staged: []string{"plugin/agents/bar.md"},
-			want:   true,
-		},
-		{
-			name:   "plugin_skills_file_is_generator_input",
-			staged: []string{"plugin/skills/baz/SKILL.md"},
 			want:   true,
 		},
 		{

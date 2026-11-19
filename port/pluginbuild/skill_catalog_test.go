@@ -1,28 +1,36 @@
 package pluginbuild
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-// skillFilesUnder returns every file below dir, or nil when dir is absent.
-func skillFilesUnder(dir string) []string {
+// skillFilesUnder returns every file below dir. An absent dir is the one
+// expected absence and gives no files. Any other walk error is returned.
+func skillFilesUnder(dir string) ([]string, error) {
 	var files []string
-	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if p == dir && errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
+		if !d.IsDir() {
 			files = append(files, p)
 		}
 		return nil
 	})
-	return files
+	return files, err
 }
 
 func TestSkillFilesUnder_FindsFiles(t *testing.T) {
 	root := t.TempDir()
-	if got := skillFilesUnder(filepath.Join(root, "missing")); len(got) != 0 {
-		t.Fatalf("a missing folder holds no files, got %v", got)
+	if got, err := skillFilesUnder(filepath.Join(root, "missing")); err != nil || len(got) != 0 {
+		t.Fatalf("a missing folder holds no files and no error, got %v, %v", got, err)
 	}
 	p := filepath.Join(root, "a", "SKILL.md")
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
@@ -31,8 +39,19 @@ func TestSkillFilesUnder_FindsFiles(t *testing.T) {
 	if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := skillFilesUnder(root); len(got) != 1 || got[0] != p {
-		t.Fatalf("want [%s], got %v", p, got)
+	if got, err := skillFilesUnder(root); err != nil || len(got) != 1 || got[0] != p {
+		t.Fatalf("want [%s], got %v, %v", p, got, err)
+	}
+}
+
+func TestSkillFilesUnder_ReportsReadError(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "f"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// A file where a folder is expected fails with ENOTDIR, not absence.
+	if _, err := skillFilesUnder(filepath.Join(root, "f", "sub")); err == nil {
+		t.Fatal("a non-absence read error must be returned")
 	}
 }
 
@@ -46,7 +65,11 @@ func TestNoSkillOrCommandSource(t *testing.T) {
 	}
 	root := filepath.Dir(filepath.Dir(filepath.Dir(manifestPath)))
 	for _, dir := range []string{"skills", "commands"} {
-		for _, f := range skillFilesUnder(filepath.Join(root, "plugin", dir)) {
+		files, err := skillFilesUnder(filepath.Join(root, "plugin", dir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range files {
 			t.Errorf("plugin/%s should hold no file, found %s", dir, f)
 		}
 	}

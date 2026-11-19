@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -23,24 +24,39 @@ var promptByteLimits = map[string]int{
 // skill ships (feat-9796e97f).
 func checkGuidanceSizes(root string, prompts map[string]int) []string {
 	var out []string
-	for _, f := range skillFilesUnder(filepath.Join(root, "plugin", "skills")) {
+	skills, err := skillFilesUnder(filepath.Join(root, "plugin", "skills"))
+	if err != nil {
+		out = append(out, fmt.Sprintf("cannot read plugin/skills: %v", err))
+	}
+	for _, f := range skills {
 		out = append(out, fmt.Sprintf("%s is a skill file, but no skill ships", f))
 	}
 	promptsDir := filepath.Join(root, "cmd", "wipnote", "prompts")
-	files, _ := os.ReadDir(promptsDir)
+	files, err := os.ReadDir(promptsDir)
+	if err != nil {
+		return append(out, fmt.Sprintf("cannot read %s: %v", promptsDir, err))
+	}
+	seen := map[string]bool{}
 	for _, f := range files {
 		if f.IsDir() {
 			continue
 		}
+		seen[f.Name()] = true
 		out = append(out, checkOne(filepath.Join(promptsDir, f.Name()), f.Name(), prompts)...)
 	}
+	for name := range prompts {
+		if !seen[name] {
+			out = append(out, fmt.Sprintf("%s is named in the limit table but is absent from %s", name, promptsDir))
+		}
+	}
+	sort.Strings(out)
 	return out
 }
 
 func checkOne(path, key string, limits map[string]int) []string {
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil
+		return []string{fmt.Sprintf("cannot stat %s: %v", path, err)}
 	}
 	limit, ok := limits[key]
 	if !ok {
@@ -65,6 +81,9 @@ func writeSized(t *testing.T, path string, n int) {
 func TestGuidanceSize_SkillFileFails(t *testing.T) {
 	root := t.TempDir()
 	writeSized(t, filepath.Join(root, "plugin", "skills", "demo", "SKILL.md"), 10)
+	if err := os.MkdirAll(filepath.Join(root, "cmd", "wipnote", "prompts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	got := checkGuidanceSizes(root, nil)
 	if len(got) != 1 || !strings.Contains(got[0], "no skill ships") {
 		t.Fatalf("a skill file must fail, got %v", got)
@@ -97,5 +116,41 @@ func TestGuidanceSize_RealTreeWithinLimits(t *testing.T) {
 	root := filepath.Dir(filepath.Dir(filepath.Dir(manifestPath)))
 	for _, msg := range checkGuidanceSizes(root, promptByteLimits) {
 		t.Error(msg)
+	}
+}
+
+func TestGuidanceSize_MissingPromptsDirFails(t *testing.T) {
+	got := checkGuidanceSizes(t.TempDir(), map[string]int{})
+	if len(got) != 1 || !strings.Contains(got[0], "cannot read") {
+		t.Fatalf("a missing prompts folder must fail, got %v", got)
+	}
+}
+
+func TestGuidanceSize_NamedPromptMissingFails(t *testing.T) {
+	root := t.TempDir()
+	writeSized(t, filepath.Join(root, "cmd", "wipnote", "prompts", "a.md"), 1)
+	got := checkGuidanceSizes(root, map[string]int{"a.md": 5, "gone.md": 5})
+	if len(got) != 1 || !strings.Contains(got[0], "gone.md") {
+		t.Fatalf("a named prompt that is absent must fail, got %v", got)
+	}
+}
+
+func TestPromptRules_WorkerAndSystemLines(t *testing.T) {
+	root, _ := liveRoot(t)
+	read := func(n string) string {
+		b, err := os.ReadFile(filepath.Join(root, "cmd", "wipnote", "prompts", n))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	w := read("worker-rules.md")
+	for _, want := range []string{"wipnote arch resolve --for", "browser", "where the answer lives"} {
+		if !strings.Contains(w, want) {
+			t.Errorf("worker-rules.md lacks %q", want)
+		}
+	}
+	if s := read("system-prompt.md"); !strings.Contains(s, "TaskCreate") {
+		t.Error("system-prompt.md lacks the TaskCreate line")
 	}
 }
