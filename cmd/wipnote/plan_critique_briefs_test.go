@@ -152,3 +152,34 @@ func readFile(t *testing.T, path string) string {
 	}
 	return string(b)
 }
+
+func TestSetCritique_ThirdWriteRefusedRoundStaysTwo(t *testing.T) {
+	dir, id := briefPlan(t)
+	data := `{"reviewed_at":"2026-11-18","critics":[{"title":"Design","status":"completed","sections":[{"heading":"Scope","items":[{"badge":"D1","kind":"danger","text":"Slice 2 has no done-when line"}]}]}]}`
+	for i := 0; i < 2; i++ {
+		if err := setCritiqueYAML(dir, id, data); err != nil {
+			t.Fatalf("write %d: %v", i+1, err)
+		}
+	}
+	err := setCritiqueYAML(dir, id, data)
+	if err == nil || !strings.Contains(err.Error(), "capped at 2 rounds") {
+		t.Fatalf("third write error = %v, want the cap message", err)
+	}
+	plan, _ := planyaml.Load(filepath.Join(dir, "plans", id+".yaml"))
+	if plan.Critique == nil || plan.Critique.Round != 2 {
+		t.Errorf("stored round = %+v, want 2", plan.Critique)
+	}
+}
+
+func TestSetCritique_EmptyCriticStatusRefusedNamingCritic(t *testing.T) {
+	dir, id := briefPlan(t)
+	data := `{"reviewed_at":"2026-11-18","critics":[{"title":"Feasibility critic","status":"","sections":[]}]}`
+	err := setCritiqueYAML(dir, id, data)
+	if err == nil || !strings.Contains(err.Error(), "Feasibility critic") || !strings.Contains(err.Error(), "status") {
+		t.Fatalf("error = %v, want a refusal naming Feasibility critic and status", err)
+	}
+	plan, _ := planyaml.Load(filepath.Join(dir, "plans", id+".yaml"))
+	if plan.Critique != nil {
+		t.Errorf("critique stored despite refusal: %+v", plan.Critique)
+	}
+}

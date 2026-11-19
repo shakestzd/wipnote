@@ -14,8 +14,17 @@ var pathLineRe = regexp.MustCompile(`^[^\s:]+:[0-9]+(-[0-9]+)?$`)
 
 // ValidateCritique reports every problem in a critique section. It is the
 // check set-critique-yaml runs before it stores a critique.
+//
+// A critic entry also needs a status here. Stored plans written before that
+// rule may hold an empty status, so Validate on read still accepts one.
 func ValidateCritique(c *PlanCritique) []string {
-	return validateCritique(&PlanYAML{Critique: c})
+	errs := validateCritique(&PlanYAML{Critique: c})
+	for i, cr := range c.Critics {
+		if cr.Status == "" {
+			errs = append(errs, fmt.Sprintf("critique.critics[%d] (%s) needs a status: use completed or not_run", i, cr.Title))
+		}
+	}
+	return errs
 }
 
 // validateCritiqueRounds checks the critic status values and the citation on

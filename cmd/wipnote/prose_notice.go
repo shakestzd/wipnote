@@ -65,15 +65,35 @@ func planSliceProse(plan *planyaml.PlanYAML) []proseItem {
 	if plan == nil {
 		return nil
 	}
-	for i, s := range plan.Slices {
-		p := fmt.Sprintf("slices[%d]", i)
-		items = append(items,
-			proseItem{path: p + ".what", text: s.What},
-			proseItem{path: p + ".why", text: s.Why},
-			proseItem{path: p + ".tests", text: s.Tests})
-		for j, d := range s.DoneWhen {
-			items = append(items, proseItem{path: fmt.Sprintf("%s.done_when[%d]", p, j), text: d})
-		}
+	for i := range plan.Slices {
+		items = append(items, oneSliceProse(plan, i)...)
 	}
 	return items
+}
+
+// oneSliceProse lists the prose items of the slice at index i.
+func oneSliceProse(plan *planyaml.PlanYAML, i int) []proseItem {
+	s := plan.Slices[i]
+	p := fmt.Sprintf("slices[%d]", i)
+	items := []proseItem{
+		{path: p + ".what", text: s.What},
+		{path: p + ".why", text: s.Why},
+		{path: p + ".tests", text: s.Tests},
+	}
+	for j, d := range s.DoneWhen {
+		items = append(items, proseItem{path: fmt.Sprintf("%s.done_when[%d]", p, j), text: d})
+	}
+	return items
+}
+
+// adviseSliceProse prints prose notes for the slice with the given number.
+// Plan write commands call it after a save, so a changed slice gets the same
+// stderr advice that validate-yaml gives (bug-c4885c55: two write points had none).
+func adviseSliceProse(plan *planyaml.PlanYAML, sliceNum int) {
+	for i := range plan.Slices {
+		if plan.Slices[i].Num == sliceNum {
+			adviseProse(oneSliceProse(plan, i)...)
+			return
+		}
+	}
 }
