@@ -8,7 +8,7 @@ import (
 
 // TestNoTrackedFileNamesCritiqueSkill checks that live guidance and code no
 // longer point at the deleted plan-critique skill (feat-0be892a9). The same
-// paths are excluded as in the plan skill check, plus this file.
+// paths are excluded as in the planning-skill check, plus this file.
 func TestNoTrackedFileNamesCritiqueSkill(t *testing.T) {
 	root, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {

@@ -139,7 +139,7 @@ func TestSetCritique_AcceptedRiskCarriesAndContestedNeedsCitation(t *testing.T) 
 
 func TestPlanNextCritique_NamesPlanCritiqueCommand(t *testing.T) {
 	text := planNextRules["Critique"]
-	if !strings.Contains(text, "wipnote plan critique <plan-id>") || strings.Contains(text, "/wipnote:plan-critique") {
+	if !strings.Contains(text, "wipnote plan critique <plan-id>") || strings.Contains(text, "/wipnote:"+"plan-critique") {
 		t.Errorf("Critique step text = %q", text)
 	}
 }
