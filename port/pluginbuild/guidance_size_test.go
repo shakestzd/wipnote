@@ -27,7 +27,7 @@ var skillByteLimits = map[string]int{
 var promptByteLimits = map[string]int{
 	"gemini-system.md":    4323,
 	"research-routing.md": 571,
-	"system-prompt.md":    4912,
+	"system-prompt.md":    3500,
 	"worker-rules.md":     3072,
 	"yolo-prompt.md":      5149,
 }

@@ -2,36 +2,13 @@
 
 **CRITICAL: Fix every gate failure in the files you changed, whoever introduced it. Report any other failure and start no unrelated refactor.**
 
-## Philosophy
-
-Maintaining clean, error-free code is non-negotiable. Every commit should reduce technical debt, not accumulate it.
-
 ## Rules
 
-1. **Fix All Errors Before Committing**
-   - Run `go build`, `go vet`, and `go test` before every commit
-   - Fix failures in files you changed, even ones that were there before you started
-   - Report any other failure, and start no unrelated refactor
-   - Never commit with an unresolved failure in a file you changed
-
-2. **No "I'll Fix It Later" Mentality**
-   - Errors compound over time
-   - A failure in a file you changed is yours, whoever introduced it
-   - A failure elsewhere goes in your report, not in your diff
-   - Clean as you go - leave code better than you found it
-
-3. **Deployment Blockers**
-   - The `deploy-all.sh` script blocks on:
-     - Go build errors
-     - Go vet warnings
-     - Test failures
-   - This is intentional - maintain quality gates
-
-4. **Why This Matters**
-   - **Prevents Error Accumulation** - Small issues don't become large problems
-   - **Better Code Hygiene** - Clean code is easier to maintain
-   - **Faster Development** - No time wasted debugging old errors
-   - **Professional Standards** - Production-grade code quality
+- Run `go build`, `go vet` and `go test` before every commit. The command is under Workflow.
+- Fix failures in files you changed, even ones that were there before you started.
+- Report any other failure and start no unrelated refactor.
+- Never commit with an unresolved failure in a file you changed.
+- `deploy-all.sh` blocks on build errors, vet warnings and test failures.
 
 ## Workflow
 
@@ -42,8 +19,6 @@ go build ./... && go vet ./... && go test ./...
 # Commit when the checks pass for the files you changed
 git commit -m "..."
 ```
-
-**Remember: Fixing errors immediately is faster than letting them accumulate.**
 
 ## Module Size & Complexity Standards
 

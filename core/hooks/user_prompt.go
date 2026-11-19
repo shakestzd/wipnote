@@ -42,7 +42,7 @@ func UserPrompt(event *CloudEvent) (*HookResult, error) {
 	// classifier that added delegation directives on every prompt was retired:
 	// the launcher system prompt already states the delegation rules once.
 	result := &HookResult{}
-	if hint := buildActiveItemOneLiner(projectDir, featureID); hint != "" {
+	if hint := activeLineIfChanged(projectDir, sessionID, featureID); hint != "" {
 		result.AdditionalContext = hint
 	} else {
 		result.Continue = true
@@ -58,6 +58,21 @@ func UserPrompt(event *CloudEvent) (*HookResult, error) {
 		result.HookSpecificOutput = &HookSpecificOutput{SessionTitle: title}
 	}
 	return result, nil
+}
+
+// activeLineIfChanged returns the ACTIVE line only when the item differs from
+// the last one announced in this session. The line repeated on every prompt
+// and after about 50 prompts cost more than the system prompt (feat-61944b76).
+func activeLineIfChanged(projectDir, sessionID, featureID string) string {
+	if featureID == "" {
+		return ""
+	}
+	if lastAnnouncedItem(projectDir, sessionID) == featureID {
+		return ""
+	}
+	hint := buildActiveItemOneLiner(projectDir, featureID)
+	rememberAnnouncedItem(projectDir, sessionID, featureID)
+	return hint
 }
 
 // buildActiveItemOneLiner returns a terse "ACTIVE: <id> — <title>" string when

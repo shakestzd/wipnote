@@ -49,6 +49,17 @@ PY="$EVALS/prompt_ab.py"
 mkdir -p "$OUT" || exit 2
 OUT="$(cd "$OUT" && pwd)"
 
+# Remove the two build worktrees on any exit. Earlier runs left them behind and
+# they piled up in `git worktree list`. Results and the comparison file stay.
+cleanup_worktrees() {
+  local wt
+  for wt in "$OUT/wt-old" "$OUT/wt-new"; do
+    [ -d "$wt" ] && git -C "$ROOT" worktree remove --force "$wt" >/dev/null 2>&1
+  done
+  return 0
+}
+trap cleanup_worktrees EXIT
+
 tasks() {
   local d
   for d in "$EVALS"/tasks/*/; do
@@ -145,7 +156,6 @@ main() {
   if [ "$SIDES" != "old,new" ]; then echo "one side only: no comparison written"; exit "$rc"; fi
   python3 "$PY" compare --results "$OUT/results" --old-ref "$OLD" --new-ref "$NEW" --runs "$RUNS" --out "$OUT/comparison.md"
   local crc=$?
-  echo "worktrees left in $OUT/wt-old and $OUT/wt-new: remove with git worktree remove"
   exit "$crc"
 }
 main
