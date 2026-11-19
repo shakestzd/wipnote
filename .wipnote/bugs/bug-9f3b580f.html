@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Review profile is writable and the gate skips nested Go modules</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-9f3b580f"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-11-19T03:52:26.878797"
+             data-updated="2026-11-19T05:08:35.520544" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Review profile is writable and the gate skips nested Go modules</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="b839bfd44af6fcdf48b8d4d04754bdc951197edf.html" data-relationship="committed_in" data-since="2026-11-19T00:06:52">Merge pull request #377 from shakestzd/delegate/fix-review-gate</a></li>
+                    <li><a href="2ea479df7fa109f3733648086bec71ea237e8d1a.html" data-relationship="committed_in" data-since="2026-11-18T23:40:13">bug-9f3b580f: save a review worker&#39;s final message as its result</a></li>
+                    <li><a href="aebfeb1b976961d686bd38bff6f562b9e032c360.html" data-relationship="committed_in" data-since="2026-11-18T23:33:38">bug-9f3b580f: gate also runs nested Go modules a guard profile does not name</a></li>
+                    <li><a href="7c74945d598c02c420181ce753428af924f17d99.html" data-relationship="committed_in" data-since="2026-11-18T23:02:04">bug-9f3b580f: list more build and lint config in gate evidence</a></li>
+                    <li><a href="6d4541c0a273bd7306d88e833c05ad233124c91e.html" data-relationship="committed_in" data-since="2026-11-18T23:00:33">bug-9f3b580f: run the Go gate in every module</a></li>
+                    <li><a href="c2615b7253284131be9d18c9b1710896a79db200.html" data-relationship="committed_in" data-since="2026-11-18T22:57:20">bug-9f3b580f: make the review profile read-only for Claude workers</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/6ca38b5d-fd19-4412-95ac-32bda71b208c.html" data-relationship="implemented_in" data-since="2026-11-19T03:54:11.650709">session 6ca38b5d-fd19-4412-95ac-32bda71b208c</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-19T03:52:26.904359">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>A Claude review worker keeps Bash and passthrough flags replace the profile limits. check --gate runs only the root module. Config-edit evidence misses common config files.
+Why
+Codex adversarial review (spk-c2d1a1b3) found these claims of plan-2622b3f7 do not hold.
+Acceptance Criteria
+A review worker has no write-capable tool and passthrough cannot widen it. The gate fails when a nested module fails to build. Config evidence lists pyproject.toml, package.json, tox.ini and Makefiles.</p>
+        </section>
+    </article>
+</body>
+</html>
