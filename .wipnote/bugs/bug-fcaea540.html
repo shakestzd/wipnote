@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Prompt before-and-after check passes when runs fail</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-fcaea540"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-11-19T03:52:27.679382"
+             data-updated="2026-11-19T05:08:29.332333" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Prompt before-and-after check passes when runs fail</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="bf01bf970bfac94dde287e132c6332a623442ba3.html" data-relationship="committed_in" data-since="2026-11-19T00:06:40">Merge pull request #376 from shakestzd/delegate/fix-prompt-ab</a></li>
+                    <li><a href="d343820b7cf9c395869e9ac8502890e050f875c8.html" data-relationship="committed_in" data-since="2026-11-18T23:29:57">bug-fcaea540: make the prompt before-and-after check fail on bad runs</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/6e3242d4-6456-4fc0-b6f4-691b4f531711.html" data-relationship="implemented_in" data-since="2026-11-19T03:54:32.967272">session 6e3242d4-6456-4fc0-b6f4-691b4f531711</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-19T03:52:27.695166">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>prompt-ab.sh exits with the comparator code after failed runs. The analyzer does not check run counts and reads attempted commands only. The script accepts an output folder inside the checkout.
+Why
+Codex adversarial review (spk-c2d1a1b3) found these claims of plan-2622b3f7 do not hold.
+Acceptance Criteria
+A failed or missing run forces exit 2. The analyzer rejects a wrong run count. A held behaviour needs a successful result. An output path inside the checkout is refused.</p>
+        </section>
+    </article>
+</body>
+</html>
