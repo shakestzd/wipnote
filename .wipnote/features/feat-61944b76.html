@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Trim the system prompt and quiet the hooks</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-61944b76"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T23:31:01.349474"
+             data-updated="2026-11-19T00:49:02.930916" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Trim the system prompt and quiet the hooks</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../features/feat-0b0112a4.html" data-relationship="blocked_by" data-since="2026-11-18T23:31:01.399762">feat-0b0112a4</a></li>
+                    <li><a href="../features/feat-8f910039.html" data-relationship="blocked_by" data-since="2026-11-18T23:31:01.405111">feat-8f910039</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="c97a9da56a120d39109579e68c75b38b1b7c1586.html" data-relationship="committed_in" data-since="2026-11-18T19:48:54">Merge pull request #368 from shakestzd/delegate/prompt-trim</a></li>
+                    <li><a href="f2b11b42debe4855829dd5330cd1cded7393e7e4.html" data-relationship="committed_in" data-since="2026-11-18T19:27:42">feat-61944b76: drop an unsupported claim from the prompt, clean up check worktrees</a></li>
+                    <li><a href="ade4f3713021cd509468cc4588336f216506840b.html" data-relationship="committed_in" data-since="2026-11-18T18:59:20">feat-61944b76: trim system prompt, send ACTIVE line only on change</a></li>
+                    <li><a href="c88f1987a89218b250ebbc650484e813bb43fd42.html" data-relationship="committed_in" data-since="2026-11-18T18:31:01">plan(plan-2622b3f7): promote slice-5 → feat-61944b76</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9a086d6f-bd59-4261-99a6-58d11cd5474f.html" data-relationship="implemented_in" data-since="2026-11-18T23:31:49.60986">session 9a086d6f-bd59-4261-99a6-58d11cd5474f</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-18T23:31:01.356065">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-2622b3f7.html" data-relationship="planned_in" data-since="2026-11-18T23:31:01.393469">plan-2622b3f7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Mark each system prompt and repo rule line as enforced or prose only, then drop, soften or keep it. Replace the two delegate paragraphs with one pointer. Add one sentence on asking only for decisions. Send the ACTIVE line only on an item change or a session start. Cards A2, B1, B3, B4.
+Why
+The ACTIVE line repeats on every prompt. After about 50 prompts it costs more than the whole system prompt.
+Acceptance Criteria
+The audit table lists every line of the system prompt and of each file in .claude/rules with its verdict and the tool that enforces it. CLAUDE.md lines are listed for slice 12; The Go gate command appears in one rule file; A second prompt with the same active item gets no ACTIVE line. The first prompt after a session start, resume, compact or clear gets it. A test covers each case; system-prompt.md is at most 3,500 bytes, down from 4,500, and its size limit is set to that; The slice 2 check shows the checked behaviours held</p>
+        </section>
+    </article>
+</body>
+</html>
