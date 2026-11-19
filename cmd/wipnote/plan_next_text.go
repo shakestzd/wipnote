@@ -109,7 +109,7 @@ Report in 2 or 3 lines: what changed, where the spec went, the next step.
 Then run: wipnote plan next <plan-id>
 `
 
-const planNextClose = `Specs are in place. Run the slices with /wipnote:execute <feature-id>.
+const planNextClose = `Specs are in place. Run the slices with wipnote execute-preview <track-id>.
 Slices still open are listed above. When every slice is done:
   wipnote plan set-status <plan-id> completed
 `

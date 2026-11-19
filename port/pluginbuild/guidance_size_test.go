@@ -14,11 +14,10 @@ import (
 // A slice that shrinks a skill lowers its limit in the same commit. A skill
 // with no entry here has no room to grow, so a new skill needs a row first.
 var skillByteLimits = map[string]int{
-	"execute":                      8588,
 	"guard-authoring":              4521,
 	"report-issue":                 2687,
 	"simplified-technical-english": 9022,
-	"skills":                       1902,
+	"skills":                       1652,
 	"ui-stills-verification":       7556,
 }
 
