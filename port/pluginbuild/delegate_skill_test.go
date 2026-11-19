@@ -57,8 +57,4 @@ func TestBuildPorts_NoDelegateSkillAnywhere(t *testing.T) {
 			t.Errorf("the deleted delegate guide is still at %s (stat err %v)", dir, err)
 		}
 	}
-	// Other skills still ship.
-	if _, err := os.Stat(filepath.Join(emitted["claude"], "skills", "skills", "SKILL.md")); err != nil {
-		t.Errorf("claude tree lost an unrelated skill: %v", err)
-	}
 }

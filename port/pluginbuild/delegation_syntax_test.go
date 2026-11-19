@@ -23,18 +23,12 @@ func TestGeneratedNonClaudeOutputsAvoidClaudeDelegationSyntax(t *testing.T) {
 		t.Fatalf("emit antigravity: %v", err)
 	}
 	activeRoots := []string{
-		filepath.Join(codexOut, ".agents", "plugins", "wipnote", "commands"),
-		filepath.Join(codexOut, ".agents", "plugins", "wipnote", "skills"),
-		filepath.Join(antigravityOut, "commands"),
-		filepath.Join(antigravityOut, "skills"),
 		filepath.Join(antigravityOut, "agents"),
 	}
 	for _, root := range activeRoots {
 		assertNoClaudeDelegationSyntax(t, root)
 	}
 	knownRoles := codexKnownAgentRoles(manifest, repoRoot)
-	assertNoGeminiColonAgentIDs(t, filepath.Join(antigravityOut, "commands"), knownRoles)
-	assertNoGeminiColonAgentIDs(t, filepath.Join(antigravityOut, "skills"), knownRoles)
 	assertNoGeminiColonAgentIDs(t, filepath.Join(antigravityOut, "agents"), knownRoles)
 }
 

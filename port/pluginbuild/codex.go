@@ -83,7 +83,7 @@ func (c codexAdapter) Emit(m *Manifest, repoRoot, outDir string) error {
 	}
 
 	// Write per-plugin files under plugins/wipnote/.
-	if err := writeCodexManifest(m, filepath.Join(pluginDir, target.ManifestPath)); err != nil {
+	if err := writeCodexManifest(m, pluginDir, filepath.Join(pluginDir, target.ManifestPath)); err != nil {
 		return err
 	}
 	if err := writeCodexHooks(m, filepath.Join(pluginDir, target.HooksPath)); err != nil {
@@ -199,7 +199,13 @@ type codexInterfaceJSON struct {
 	Category         string `json:"category,omitempty"`
 }
 
-func writeCodexManifest(m *Manifest, path string) error {
+func writeCodexManifest(m *Manifest, pluginDir, path string) error {
+	// Name the skills folder only when it was emitted: with no skills left in
+	// the source tree, a "./skills/" entry would point at nothing (feat-9796e97f).
+	skills := ""
+	if info, err := os.Stat(filepath.Join(pluginDir, "skills")); err == nil && info.IsDir() {
+		skills = "./skills/"
+	}
 	return writeJSON(path, codexPluginJSON{
 		Name:        m.Name,
 		Version:     m.Version,
@@ -213,7 +219,7 @@ func writeCodexManifest(m *Manifest, path string) error {
 		Repository: m.Repository,
 		License:    m.License,
 		Keywords:   m.Keywords,
-		Skills:     "./skills/",
+		Skills:     skills,
 		Hooks:      "./hooks.json",
 		MCPServers: "./.mcp.json",
 		Interface: codexInterfaceJSON{

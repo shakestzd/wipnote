@@ -112,6 +112,11 @@ func versionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
+		Long: "Print version information.\n\n" +
+			"To report a wipnote bug, file it with 'gh issue create --repo shakestzd/wipnote'.\n" +
+			"Include this version, the OS (uname -s -r), the harness version, and the repro,\n" +
+			"expected and actual behavior with error text. Scan the draft for keys, tokens,\n" +
+			"passwords and home paths before you submit, and show the user the final draft.",
 		Run: func(_ *cobra.Command, _ []string) {
 			fmt.Printf("wipnote %s (go)\n", version)
 			if latest, newer, _ := versionpkg.CheckForUpdate(version); newer {

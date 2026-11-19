@@ -22,7 +22,12 @@ func ciStatusCmd() *cobra.Command {
 		Long: "Read a pull request's checks through gh and summarise them. The argument is a PR\n" +
 			"number or a head branch; with none, the current branch's PR, else your newest open PR.\n" +
 			"--work-item <id> picks the newest PR whose title or head branch names that id.\n" +
-			"A missing or signed-out gh, or any failed gh read, reports not-available and exits 0.",
+			"A missing or signed-out gh, or any failed gh read, reports not-available and exits 0.\n\n" +
+			"Report in this order: failed checks with links (cancelled counts as failed), review\n" +
+			"blockers, conflicts ('computing' is not a conflict), a red base branch (so a PR's own\n" +
+			"failure is not mistaken for a broken base), then stale worktrees with their reasons.\n" +
+			"Report stale worktrees only: never remove a worktree or branch. In Claude Code with\n" +
+			"the wipnote mods loaded, /ci-pane follows the same data live beside the chat.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if workItem != "" {

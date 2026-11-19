@@ -280,7 +280,8 @@ func guardInitCmd() *cobra.Command {
 		Short: "Propose, approve, and commit a project guard profile",
 		Long: "Inspect project manifests, CI configs, and Makefile targets, propose a " +
 			"phase-grouped guard profile, and on approval sign and commit " +
-			".wipnote/guard-profile.yaml. Re-runnable: use it to re-approve after drift.",
+			".wipnote/guard-profile.yaml. Re-runnable: use it to re-approve after drift.\n\n" +
+			guardInitHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectRoot, err := resolveProjectRoot()
 			if err != nil || projectRoot == "" {
@@ -291,3 +292,30 @@ func guardInitCmd() *cobra.Command {
 		},
 	}
 }
+
+// guardInitHelp carries the guard-profile rules that the removed
+// removed guard skill held (feat-9796e97f). Full reference:
+// docs/guard-profiles.md.
+const guardInitHelp = `Profile shape (edit it, then re-run this command):
+  guards:
+    quality:     # run by 'wipnote check --gate'
+      - name: go-test        # required
+        cmd: go test ./...   # required, non-empty
+        cwd: backend         # optional, repo-root-relative
+        applies_when:        # optional
+          paths: ["backend/**/*.go"]
+    completion:  # work-item completion gate
+    yolo:        # per-commit gate in yolo sessions
+  approved: {signature, by, at}   # written by wipnote, never by hand
+
+applies_when.paths gates a guard on whether matching files EXIST in the
+repo, not on which files a commit changed. Globs use forward slashes:
+** crosses '/', * does not. One cwd per toolchain suits a monorepo.
+
+A profile counts only when approved.signature matches the sha256 of the
+guard content. A missing profile, empty signature, edit after approval,
+unknown phase key or empty cmd falls back to autodetection with no error.
+Field order does not matter. Any changed field needs re-approval.
+
+After every edit: run this command, then 'wipnote check --gate'. The output
+must name your guards, not autodetected go build, go vet and go test.`

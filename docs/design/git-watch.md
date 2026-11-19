@@ -13,7 +13,7 @@ Three front ends share it:
 
 - `wipnote ci status [pr|branch] [--work-item <id>] [--json]` prints one snapshot.
 - `wipnote ci watch [pr|branch]` polls in the foreground until the PR settles.
-- `/wipnote:ci` (`plugin/commands/ci.md`) tells the agent to run the two commands.
+- `wipnote ci status --help` tells the agent how to summarise, and `ci watch --help` gives the exit codes.
   It ships to Claude Code, Codex and Antigravity.
 
 In Claude Code, the `mods/wipnote-ci` pane (`/ci-pane`) polls `wipnote ci status --json`.

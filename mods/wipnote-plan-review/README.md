@@ -1,6 +1,6 @@
 # wipnote-plan-review (mod)
 
-A Claude Code mod that keeps a wipnote plan's review state in a pane beside the chat. It replaces the dashboard's plan review: the review itself happens in the conversation (`/wipnote:plan-review`), and the pane shows where every slice stands while it does.
+A Claude Code mod that keeps a wipnote plan's review state in a pane beside the chat. It replaces the dashboard's plan review: the review itself happens in the conversation (`wipnote plan slices --help` gives the steps), and the pane shows where every slice stands while it does.
 
 ```
 Review pane

@@ -17,7 +17,7 @@ import (
 // on the target cobra command. Prevents recurrence of bug-7ca3638b (skill
 // prescribing `--format json` that trackShowCmd did not register).
 //
-// Scope: plugin/skills/**/*.md, plugin/commands/**/*.md, plugin/agents/**/*.md.
+// Scope: plugin/agents/**/*.md, plus any skill or command folder that exists.
 //
 // Allowlist: flags listed in allowedShellFlags are skipped — these belong to
 // piped-to tools (grep, jq, etc.) rather than the wipnote CLI.
@@ -133,8 +133,7 @@ func TestPlanningSkillsRequireResearchProvenance(t *testing.T) {
 func TestSharedPluginPromptsAvoidClaudeOnlyBoilerplate(t *testing.T) {
 	root := repoRootForTest(t)
 	pluginRoots := []string{
-		filepath.Join(root, "plugin", "commands"),
-		filepath.Join(root, "plugin", "skills"),
+		filepath.Join(root, "plugin", "agents"),
 	}
 	forbidden := []string{
 		"## Instructions for Claude",

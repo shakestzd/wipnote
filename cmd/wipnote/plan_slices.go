@@ -36,7 +36,16 @@ func planSlicesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "slices <plan-id>",
 		Short: "Print a plan's slices and their approval state as JSON",
-		Args:  cobra.ExactArgs(1),
+		Long: "Print a plan's slices and their approval state as JSON. Where the wipnote-plan-review\n" +
+			"mod is loaded it also opens the review pane beside the chat.\n\n" +
+			"To review a plan with the user, read the cards in .wipnote/plans/<plan-id>.yaml. For each\n" +
+			"slice not yet decided, show its title, complexity, effort, risk, what, done_when,\n" +
+			"decisions_notes and open questions, then ask for approve, changes or reject. Record each\n" +
+			"answer as it comes: 'plan approve-slice <plan-id> <num>', 'plan reject-slice <plan-id>\n" +
+			"<num>' (add --changes-requested to request changes). After a changes request, revise the\n" +
+			"slice, run 'plan validate-yaml <plan-id>' and ask again. When every slice has a decision,\n" +
+			"run 'plan next <plan-id>', or 'plan finalize-yaml <plan-id>' to promote all approved slices.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			wipnoteDir, err := findWipnoteDir()
 			if err != nil {

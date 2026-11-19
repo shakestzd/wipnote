@@ -66,7 +66,6 @@ func queryCommands() []cliinternal.GroupedCommand {
 		sessionCmd(),
 		sessionsCmd(),
 		analyticsCmd(),
-		skillCmd(),
 		recommendCmd(),
 		relevantCmd(),
 		newHistoryCmd(),
