@@ -122,3 +122,35 @@ func TestSubagentStop_MissingTraceIsNonFatal(t *testing.T) {
 		t.Fatalf("SubagentStop (missing trace) should not error: %v", err)
 	}
 }
+
+func startWithType(t *testing.T, agentType string) *HookResult {
+	t.Helper()
+	_, projectDir := setupLifecycleDB(t)
+	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
+	t.Setenv("WIPNOTE_SESSION_ID", "parent-rules")
+	old := WorkerRules
+	WorkerRules = "## Worker rules\n\nRule one.\n"
+	t.Cleanup(func() { WorkerRules = old })
+	res, err := SubagentStart(&CloudEvent{
+		SessionID: "parent-rules", CWD: projectDir, AgentID: "sub-rules", AgentType: agentType,
+	})
+	if err != nil {
+		t.Fatalf("SubagentStart: %v", err)
+	}
+	return res
+}
+
+func TestSubagentStart_InjectsWorkerRules_ForWipnoteAgent(t *testing.T) {
+	res := startWithType(t, "wipnote:feature-coder")
+	if !strings.Contains(res.AdditionalContext, "## Worker rules") || !strings.Contains(res.AdditionalContext, "Rule one.") {
+		t.Errorf("AdditionalContext = %q, want the worker rules block", res.AdditionalContext)
+	}
+}
+
+func TestSubagentStart_SkipsOtherAgents(t *testing.T) {
+	for _, typ := range []string{"other-plugin:coder", "general-purpose", "Explore"} {
+		if res := startWithType(t, typ); res.AdditionalContext != "" {
+			t.Errorf("%s got additional context %q, want none", typ, res.AdditionalContext)
+		}
+	}
+}

@@ -66,6 +66,7 @@ func SessionStart(event *CloudEvent, projectDir string) (*HookResult, error) {
 	}, handlerStart, "handler complete")
 
 	wireSessionFamily(projectDir, sessionID, s.AgentAssigned)
+	clearAnnouncedItem(projectDir, sessionID)
 	return sessionStartResultForSource(event.Source, projectDir, sessionID), nil
 }
 

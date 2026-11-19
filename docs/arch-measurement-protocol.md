@@ -71,7 +71,7 @@ EOF
 ## How to Run the Comparison
 
 1. **With arch cards (new):** Dispatch a serve-area task to a coder subagent. The
-   `wipnote:agent-context` skill instructs the agent to run `wipnote arch resolve --for
+   worker rules block (from the SubagentStart hook) instructs the agent to run `wipnote arch resolve --for
    <work-item-id>` at start; matched cards land in context automatically. Record the subagent
    session ID from `wipnote wip show` or the TaskCreate log. Run the script above.
 

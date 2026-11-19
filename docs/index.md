@@ -68,7 +68,7 @@ Event-driven hooks on SessionStart, PreToolUse, PostToolUse, and Stop. Enforce s
 <div class="hg-card" markdown>
 <span class="hg-card__title">Skills &amp; slash commands</span>
 
-Reusable workflows as slash commands: `wipnote plan next`, `/wipnote:execute`, `/wipnote:code-quality-skill`, `/wipnote:ui-stills-verification`. Package complex multi-step procedures into single invocations that agents and humans can both use.
+Reusable workflows as slash commands: `wipnote plan next`, `/wipnote:execute`, `/wipnote:ui-stills-verification`. Package complex multi-step procedures into single invocations that agents and humans can both use.
 </div>
 
 <div class="hg-card" markdown>

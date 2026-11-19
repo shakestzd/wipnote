@@ -22,7 +22,7 @@ const (
 )
 
 // defaultRelevantLimit bounds the default result set so `wipnote relevant`
-// stays agent-context-friendly (GH#151). Unbounded output is opt-in via
+// stays agent-friendly (GH#151). Unbounded output is opt-in via
 // --limit 0.
 const defaultRelevantLimit = 15
 
@@ -91,8 +91,7 @@ Query auto-detection:
 Reads directly from .wipnote/*.html via ripgrep + git log.
 SQLite is not consulted.
 
-Output is bounded by default (top-ranked matches only) to stay agent-context
-friendly. Pass --limit 0 to opt in to an unbounded dump.
+Output is bounded by default (top-ranked matches only) to stay agent-friendly. Pass --limit 0 to opt in to an unbounded dump.
 
 Examples:
   wipnote relevant cmd/wipnote/relevant.go

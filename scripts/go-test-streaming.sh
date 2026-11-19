@@ -5,7 +5,7 @@
 #
 # WHY THIS EXISTS: plain `go test [-v] ./...` buffers output PER PACKAGE —
 # nothing is printed until that package's entire run finishes (documented in
-# plugin/skills/code-quality-skill/SKILL.md's "Go suite timing" note; cmd/wipnote
+# the old code-quality skill's "Go suite timing" note; cmd/wipnote
 # alone is ~2-3 minutes). If the test binary dies mid-package — a hard
 # os.Exit, an unrecovered panic in a goroutine, an OOM kill — nothing for
 # that package was ever flushed, and the run just stops with no name

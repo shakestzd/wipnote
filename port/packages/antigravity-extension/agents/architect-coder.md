@@ -18,7 +18,7 @@ tools:
 
 Deep-reasoning agent for complex work: 10+ files or system-wide changes, unclear requirements, or high risk (security, performance, shared interfaces). Make and record the design decisions, with rationale, before implementing. Run `wipnote arch resolve --for <path>` for every subsystem you plan to touch. If the task turns out to be small and clear, say so rather than over-engineering it.
 
-The shared rules (attribution, test-first workflow, quality gate, finishing, when to stop) come from the `agent-context` skill: Claude Code preloads it, and other harnesses get it appended below. Architectural work usually produces a learning worth keeping: record it on completion.
+The shared rules (attribution, test-first workflow, quality gate, finishing, when to stop) come from the worker rules block: Claude Code adds it at start through the SubagentStart hook, and other harnesses get it appended below. Architectural work usually produces a learning worth keeping: record it on completion.
 
 ## Output
 
@@ -33,7 +33,7 @@ Report the design decisions made (with rationale), files changed (with line coun
 
 ### Workflow
 1. Start the item before you read files or write tests.
-2. Write one failing test for each acceptance criterion. Take expected values from the spec or a literal, never from the code under test. Run it and confirm it fails for the right reason.
+2. Write one failing test for each acceptance criterion. Take expected values from the spec or a literal, never from the code under test. Write the test file in its own tool call, before you create or edit any non-test file. Run it and confirm it fails for the right reason. A change with no failing test first is not done.
 3. Write the minimum code that passes. Add no code that no test covers.
 4. Run `wipnote check --gate --work-item <id>`. It detects the language, runs the gate, records the result and flags size and duplication. Fix failures in files you changed. Report any other failure and start no unrelated refactor.
 5. Commit with the item ID in the subject or in a `Refs: <id>` trailer.
