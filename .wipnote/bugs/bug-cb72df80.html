@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Guidance lost rules and names deleted skill folders</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-cb72df80"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-11-19T03:52:29.082116"
+             data-updated="2026-11-19T05:08:24.439548" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Guidance lost rules and names deleted skill folders</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="ba4881349e6cb48e4fb37023b3acd62789de024e.html" data-relationship="committed_in" data-since="2026-11-19T00:06:31">Merge pull request #375 from shakestzd/delegate/fix-guidance</a></li>
+                    <li><a href="ed1fdfb20bc10a086e0d0b9354c08149941f9d8e.html" data-relationship="committed_in" data-since="2026-11-18T23:23:31">bug-cb72df80: restore guidance lines, drop deleted folders, fix size tests and ACTIVE claim</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/b7c8039c-154e-4e3c-8fae-8d22c7cd7c1c.html" data-relationship="implemented_in" data-since="2026-11-19T03:55:48.272151">session b7c8039c-154e-4e3c-8fae-8d22c7cd7c1c</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-19T03:52:29.099137">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Worker rules lost arch resolve, visual check and research routing. The system prompt lost the task-list line. The drift guard, manifest and plugin-core README name deleted folders. Size tests ignore read errors. The ACTIVE marker write is not atomic.
+Why
+Codex adversarial review (spk-c2d1a1b3) found these claims of plan-2622b3f7 do not hold.
+Acceptance Criteria
+Worker rules and system prompt carry the rules inside their byte limits. No live file names plugin/skills or plugin/commands as a source. Size tests fail on a read error. Two racing marker writes announce once.</p>
+        </section>
+    </article>
+</body>
+</html>
