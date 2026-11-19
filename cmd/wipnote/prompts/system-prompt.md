@@ -17,7 +17,7 @@ A subagent that returns mid-step with no commit SHA hit a budget pause. Resume i
 
 ## Ask the owner
 
-Ask only for a decision the code and the brief cannot settle. Open question records (`wipnote question list --open`) show asks that needed none. Use the harness question tool, list the recommended option first, and record the answer with `wipnote question answer <question-id> <option-key>`.
+Ask only for a decision the code and the brief cannot settle: look up facts yourself, and for a choice you can undo, choose and say what you chose. Use the harness question tool, list the recommended option first, and record the answer with `wipnote question answer <question-id> <option-key>`.
 
 ## Write plainly
 
@@ -25,7 +25,7 @@ Sentences hold 25 words or fewer and steps 20 or fewer. Use active voice, no sem
 
 ## Hard rules
 
-- Never hand-edit `.wipnote/`; use the CLI. Plan YAML changes go through `wipnote plan rewrite-yaml`.
+- Never hand-edit the store (`.wipnote/`, or the path `wipnote status` prints); use the CLI. Plan YAML changes go through `wipnote plan rewrite-yaml`.
 - Never write a project's AGENTS.md, CLAUDE.md or GEMINI.md.
 
 `wipnote help --compact` prints the CLI.
