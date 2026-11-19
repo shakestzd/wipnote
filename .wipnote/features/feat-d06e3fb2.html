@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Execute-preview does the dispatch maths</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-d06e3fb2"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T23:31:05.088685"
+             data-updated="2026-11-19T01:04:20.907876" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Execute-preview does the dispatch maths</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../features/feat-0b0112a4.html" data-relationship="blocked_by" data-since="2026-11-18T23:31:05.12625">feat-0b0112a4</a></li>
+                    <li><a href="../features/feat-8f910039.html" data-relationship="blocked_by" data-since="2026-11-18T23:31:05.132229">feat-8f910039</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="00b87f9e77c78bdb3c4fc356c4d1d278c5aafe84.html" data-relationship="committed_in" data-since="2026-11-18T20:04:01">Merge pull request #370 from shakestzd/delegate/execute-preview</a></li>
+                    <li><a href="35af4993dc580e1c5e9e709d49cab4208fcae7b3.html" data-relationship="committed_in" data-since="2026-11-18T20:01:11">feat-d06e3fb2: merge main and reword a comment the reference test flagged</a></li>
+                    <li><a href="f84c2b4e582cb44f490783d3b7726ed2a59566b9.html" data-relationship="committed_in" data-since="2026-11-18T19:03:49">feat-d06e3fb2: execute-preview computes the ready set, overlap and briefs</a></li>
+                    <li><a href="9ec722f7ca638e3796c5e2ee24be54391db17e24.html" data-relationship="committed_in" data-since="2026-11-18T18:31:05">plan(plan-2622b3f7): promote slice-9 → feat-d06e3fb2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/67fe833f-74f4-4de5-b334-ac6598de9a9e.html" data-relationship="implemented_in" data-since="2026-11-18T23:33:06.80692">session 67fe833f-74f4-4de5-b334-ac6598de9a9e</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-18T23:31:05.096794">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-2622b3f7.html" data-relationship="planned_in" data-since="2026-11-18T23:31:05.116198">plan-2622b3f7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Make execute-preview compute the ready set and the file overlap between ready tasks, and print a brief for each task. Its output states the review rule: block only on a failing run or a user-visible bug. Delete the execute skill and its mention of a cleanup command that does not exist. Cards F4, D6.
+Why
+The skill tells the agent to intersect wipnote trace output by hand. It was loaded twice in 17 days.
+Acceptance Criteria
+execute-preview lists the ready tasks that share no file, shown by a test with overlapping slices; Each ready task has a brief with its item id, files, siblings and first command; The output names when code review is required and when it is skipped; No tracked file outside CLAUDE.md and CHANGELOG.md names the execute skill or wipnote:cleanup; The slice 2 check shows the checked behaviours held</p>
+        </section>
+    </article>
+</body>
+</html>
