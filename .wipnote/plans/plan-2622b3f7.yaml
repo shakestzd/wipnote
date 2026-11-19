@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 33
+    version: 37
 design:
     problem: wipnote ships 11 skills (about 79 KB) and four slash commands. In 266 Claude Code transcripts for this project (1 to 18 November 2026) nobody typed a wipnote skill by hand except /wipnote:execute, twice. Agents ran the CLI 83 times for delegate and 34 times for plan authoring, and read the matching skills in two and three transcripts. Coder subagents get agent-context preloaded (117 spawns), and delegate workers (60 spawns) get no rules at all. So the guidance costs tokens where it loads and does not reach the agent where the work happens.
     goals:
@@ -287,7 +287,7 @@ slices:
       comment: ""
       research_waiver: Edits to wipnote's own prompt, rules and hook. The sources are cited in design.research.
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Decisions:** the hook stores the last item it announced in a per-session marker. The SessionStart handler clears the marker for every start source (startup, resume, compact, clear), so the line is sent again after any event that can drop it from context. The implementer reuses the once-per-session helper in lifecycle_injection.go if it fits, and names it in the work item before coding.
         **B3:** the sentence cites the open-question records as its observed failure, as card A1 requires.
@@ -454,7 +454,7 @@ slices:
         rejected:
             - 'keep the skill: it was never loaded while the command ran eight times'
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Decisions:** the briefs are files in the plan's run folder, built from the plan YAML and the files it names. The command prints the two delegate spawn lines and starts no worker itself.
         **Schema:** three optional fields are added to the critique section in plan/planyaml/schema.go: round (int), accepted_risks (list of text plus reason), and status (completed or not_run) on each critic. They are optional, so schema_version stays v4.
@@ -508,7 +508,7 @@ slices:
         rejected:
             - 'a graph library: plans have under 20 slices and the ready set is one pass over deps'
       approval_status: approved
-      execution_status: promoted
+      execution_status: done
       decisions_notes: |-
         **Decisions:** the new logic goes in execute_preview_ready.go, because execute_preview.go is 338 lines and the file trigger is 500. File sets come from each slice's files list, with wipnote trace as the fallback for a promoted feature that has commits. The overlap choice is greedy by slice number, which is stable and explainable. Briefs call renderContextPack (context_pack.go:161). The JSON format keeps its fields and gains ready, deferred and briefs. The overlap eval case is replaced by the Go test. The other two execute evals are deleted with the skill.
         **Rejected:** an exact maximum independent set, because plans have under 20 slices and a stable order matters more.
@@ -575,6 +575,7 @@ slices:
             - name: added_lines
               type: int
     - id: ""
+      feature_id: feat-9796e97f
       num: 11
       title: Remove the unused skills and slash commands
       what: Move the useful lines of guard-authoring, ui-stills-verification and report-issue into each command's help. Delete those three skills, the skills index, the Simplified Technical English skill and the recommend slash command. Fold the ci, init and plan-review slash commands into the CLI commands they wrap. Cards F6, F7.
@@ -622,6 +623,7 @@ slices:
       comment: ""
       research_waiver: Deletes wipnote's own unused files. The usage count in design.problem is the evidence.
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Decisions:** this slice runs last among the skill slices, so one search confirms no reference remains. With every skill gone, wipnote skill show has nothing to print and is removed. The mods that open panes for ci and plan-review stay, and their docs name the CLI command. The STE lint scripts and tests are deleted with the skill, and wipnote prose check replaces the lint.
         **Writing style:** the STE-lite rule lives as one line in the worker-rules block (slice 3) and in the system prompt section that feat-4151d2f0 adds.
@@ -859,16 +861,21 @@ feedback:
           updated_at: "2026-11-18T23:22:19Z"
         - section: slice-8
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-18T23:28:19Z"
-          updated_at: "2026-11-18T23:28:19Z"
+          updated_at: "2026-11-19T00:56:12Z"
         - section: slice-5
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-18T23:31:01Z"
-          updated_at: "2026-11-18T23:31:01Z"
+          updated_at: "2026-11-19T00:49:03Z"
         - section: slice-9
           action: set_execution_status
-          value: promoted
+          value: done
           created_at: "2026-11-18T23:31:05Z"
-          updated_at: "2026-11-18T23:31:05Z"
+          updated_at: "2026-11-19T01:04:25Z"
+        - section: slice-11
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-11-19T01:04:28Z"
+          updated_at: "2026-11-19T01:04:28Z"
