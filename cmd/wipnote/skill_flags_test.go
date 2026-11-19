@@ -91,18 +91,10 @@ func TestSkillFlagsValidator_PassesGoodFixture(t *testing.T) {
 }
 
 func TestPlanningSkillsAvoidClaudeOnlyCriticRunners(t *testing.T) {
-	root := repoRootForTest(t)
-	paths := []string{
-		filepath.Join(root, "plugin", "skills", "plan-critique", "SKILL.md"),
-	}
-	texts := map[string]string{}
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
-		}
-		rel, _ := filepath.Rel(root, path)
-		texts[rel] = string(data)
+	texts := map[string]string{
+		"design brief":       designBriefHead + findingsFormat,
+		"feasibility brief":  feasibilityBriefHead + feasibilityChecks + findingsFormat,
+		"plan critique help": planCritiqueLong,
 	}
 	// The old plan guidance now prints from `wipnote plan next` (feat-bcc2297f).
 	for step, text := range planNextRules {
@@ -118,7 +110,6 @@ func TestPlanningSkillsAvoidClaudeOnlyCriticRunners(t *testing.T) {
 }
 
 func TestPlanningSkillsRequireResearchProvenance(t *testing.T) {
-	root := repoRootForTest(t)
 	// The Draft step of `wipnote plan next` carries the research rules that
 	// the old planning guidance held (feat-bcc2297f).
 	for _, want := range []string{"Research live", "v4 gate", "research_waiver", "adopt_vs_build"} {
@@ -126,24 +117,15 @@ func TestPlanningSkillsRequireResearchProvenance(t *testing.T) {
 			t.Fatalf("plan next Draft step missing research marker %q", want)
 		}
 	}
-	checks := map[string][]string{
-		filepath.Join(root, "plugin", "skills", "plan-critique", "SKILL.md"): {
-			"Verify external claims via web search / web fetch",
-			"Runtime verification requirements for backend claims",
-			"unverified",
-		},
-	}
-	for path, wants := range checks {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
-		}
-		content := string(data)
-		for _, want := range wants {
-			if !strings.Contains(content, want) {
-				rel, _ := filepath.Rel(root, path)
-				t.Fatalf("%s missing research provenance marker %q", rel, want)
-			}
+	// The critic rules of the deleted plan-critique skill live in the
+	// feasibility brief (feat-0be892a9).
+	for _, want := range []string{
+		"verify library behaviour",
+		"Backend claims",
+		"unverified",
+	} {
+		if !strings.Contains(feasibilityChecks, want) {
+			t.Fatalf("feasibility brief missing research provenance marker %q", want)
 		}
 	}
 }

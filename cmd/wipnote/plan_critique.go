@@ -27,6 +27,10 @@ type critiqueOutput struct {
 	SliceCount        int             `json:"slice_count"`
 	CritiqueWarranted bool            `json:"critique_warranted"`
 	Slices            []critiqueSlice `json:"slices,omitempty"`
+	// Briefs and Spawn are set for YAML plans: the two critic brief files
+	// and the delegate spawn line for each.
+	Briefs *critiqueBriefs `json:"briefs,omitempty"`
+	Spawn  []string        `json:"spawn,omitempty"`
 }
 
 type critiqueSlice struct {
@@ -38,15 +42,9 @@ type critiqueSlice struct {
 func planCritiqueCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "critique <plan-id>",
-		Short: "Extract plan content for AI review",
-		Long: `Read a plan and output structured JSON for AI critique.
-
-Complexity-gated: plans with fewer than 3 slices output
-critique_warranted=false.
-
-Example:
-  wipnote plan critique plan-a1b2c3d4`,
-		Args: cobra.ExactArgs(1),
+		Short: "Write critic briefs for a plan and print the spawn lines",
+		Long:  planCritiqueLong,
+		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
@@ -164,7 +162,7 @@ func reviseSliceInPlace(plan *planyaml.PlanYAML, sliceNum int, what, why, tests 
 }
 
 func runPlanCritique(wipnoteDir, planID string) error {
-	out, err := extractCritiqueData(wipnoteDir, planID)
+	out, err := runPlanCritiqueBriefs(wipnoteDir, planID)
 	if err != nil {
 		return err
 	}

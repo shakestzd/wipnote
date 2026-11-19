@@ -1,6 +1,6 @@
 ---
 name: skills
-description: "Lists every wipnote skill, including those hidden from the skill list (plan critique, UI checks, guard profiles, issue reports), and how to load each one. Use to find the right wipnote workflow before starting one."
+description: "Lists every wipnote skill, including those hidden from the skill list (UI checks, guard profiles, issue reports), and how to load each one. Use to find the right wipnote workflow before starting one."
 ---
 
 # wipnote skills
@@ -14,7 +14,6 @@ Always in the skill list: `execute`. Coder agents get the worker rules from the 
 
 | Need | Slash command | `<dir>` |
 |---|---|---|
-| Critique a drafted plan (the Critique step of `wipnote plan next`) — *slash only* | `/wipnote:plan-critique <plan-id>` | `plan-critique` |
 | Run a plan or track: parallel dispatch to agents | `/wipnote:execute <id>` | `execute` |
 | Verify UI changes with screenshots | `/wipnote:ui-stills-verification` | `ui-stills-verification` |
 | Write a guard rule | `/wipnote:guard-authoring` | `guard-authoring` |
