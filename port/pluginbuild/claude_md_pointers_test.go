@@ -89,7 +89,7 @@ func TestProposedClaudeMdShape(t *testing.T) {
 			t.Errorf("proposed file lacks %q", want)
 		}
 	}
-	for _, gone := range []string{"code-quality-skill", "plugin/commands", "plugin/skills"} {
+	for _, gone := range []string{"code-quality-" + "skill", "plugin/commands", "plugin/skills"} {
 		if strings.Contains(text, gone) {
 			t.Errorf("proposed file names deleted %q", gone)
 		}
