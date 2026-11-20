@@ -479,7 +479,8 @@ function onRefs(on: On) {
     if (!segments.some(s => s.kind === 'refs')) return next(e)
     const els = $.ui.resolve(e)
     const [all, asked] = await Promise.all([read($, refs), read($, cardQuestions)])
-    return drawAssistant(els, segments, all, asked)
+    // Text between the cards goes to the plugins beneath, so their fences still draw.
+    return drawAssistant(els, segments, all, asked, text => next({ ...e, props: { ...e.props, text } }))
   })
 }
 

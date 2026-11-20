@@ -24,8 +24,10 @@ The launcher also passes `--plugin-dir <mods>`. That folder holds wipnote's Clau
 - `wipnote-orchestra`: the band under the prompt.
 - `wipnote-plan-review`: a plan's slices and their approval state in a side pane.
 - `wipnote-ci`: a pull request's CI in a side pane.
-- `wipnote-visuals`: a receipt line under each turn, and side-by-side compare blocks.
+- `wipnote-visuals`: a receipt line under each turn.
 - `wipnote-questions`: the in-tree mod beside the others.
+
+The mods draw `wipnote-ref` work-item cards and the receipt only. Steps, options and callouts in a reply are lulawrite blocks: see "Reply visuals" in `docs/INSTALL.md`.
 
 Claude Code loads every child of that folder. `WIPNOTE_NO_MODS=1` skips them. `WIPNOTE_MODS_DIR=<path>` loads another folder.
 

@@ -16,6 +16,8 @@
 // Pure: register.tsx owns the atoms, the hooks and every `$` call; this file turns data into
 // argv, ids, entries and trees.
 
+import type { RenderChildren } from 'claude-code'
+
 import type { Card, CardEntry, FailKind } from '../types'
 import type { Elements } from './register'
 import { changedRefs, classifyExit, failureText, needsFetch, parseCard, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from './refs'
@@ -116,25 +118,32 @@ function drawCard({ Box, Text }: Elements, id: string, entry: CardEntry | undefi
   )
 }
 
-/** An assistant message with wipnote-ref fences: its text as it is, each ref as a card. */
-export function drawAssistant(
+/**
+ * An assistant message with wipnote-ref fences: each ref as a card, and each
+ * stretch of text between them drawn by `drawText`.
+ *
+ * `drawText` hands the text to the plugins beneath and then the engine, so a
+ * fence another plugin draws (a lulawrite block) still reaches that plugin. A
+ * plain Markdown element here would take the whole reply over and show the
+ * other plugin's fence raw (feat-fd3637f9).
+ */
+export async function drawAssistant(
   els: Elements,
   segments: readonly Segment[],
   all: Record<string, CardEntry | undefined>,
   asked: Record<string, readonly string[] | undefined>,
+  drawText: (text: string) => RenderChildren | Promise<RenderChildren>,
 ) {
-  const { Box, Markdown } = els
-  return (
-    <Box flexDirection="column">
-      {segments.map((s, i) =>
-        s.kind === 'text' ? (
-          <Markdown key={`t${i}`} text={s.text} />
-        ) : (
-          <Box key={`r${i}`} flexDirection="column">
-            {s.ids.map(id => drawCard(els, id, all[id], asked[id] ?? []))}
-          </Box>
-        ),
-      )}
-    </Box>
+  const { Box } = els
+  const parts = await Promise.all(
+    segments.map((s, i) => {
+      if (s.kind === 'text') return s.text.trim() === '' ? null : drawText(s.text)
+      return (
+        <Box key={`r${i}`} flexDirection="column">
+          {s.ids.map(id => drawCard(els, id, all[id], asked[id] ?? []))}
+        </Box>
+      )
+    }),
   )
+  return <Box flexDirection="column">{parts}</Box>
 }

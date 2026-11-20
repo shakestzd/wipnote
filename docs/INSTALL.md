@@ -36,6 +36,18 @@ wipnote claude --init     # registers the marketplace and installs the plugin
 wipnote claude            # launch Claude Code with wipnote context
 ```
 
+### Reply visuals: install lulawrite
+
+wipnote draws work-item cards, the turn receipt and the writing score. It draws no other block in a reply. Steps, options and callouts come from the lulawrite plugin, which checks and draws them. Install it once, inside Claude Code:
+
+```
+/plugin marketplace add shakestzd/luladoc
+/plugin install lulawrite@luladoc
+/lulawrite-install
+```
+
+Then select the `lulawrite:Precise` output style with `/config`. Claude Code runs one output style at a time. Precise carries the plain-writing rules of wipnote's own `Plain English` style and adds the block rules, so use Precise when lulawrite is installed.
+
 ### Dev mode (dogfooding from source)
 
 ```bash
