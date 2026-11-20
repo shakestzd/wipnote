@@ -19,7 +19,7 @@ var skippedModuleDirs = map[string]bool{
 }
 
 // FindGoModules returns the folder of every go.mod under root, root first
-// when it has one, the rest sorted. Hidden folders and skippedModuleDirs are
+// when it has one, the rest sorted. A nested module with no Go file is left out. Hidden folders and skippedModuleDirs are
 // not entered (bug-9f3b580f: the gate checked one module and missed the rest).
 func FindGoModules(root string) []string {
 	var dirs []string
@@ -33,13 +33,42 @@ func FindGoModules(root string) []string {
 				return filepath.SkipDir
 			}
 			if _, statErr := os.Stat(filepath.Join(path, "go.mod")); statErr == nil {
-				dirs = append(dirs, path)
+				// A nested module with no Go file has no package: `go vet` and
+				// `go test` exit 1 there with "no packages", which failed the
+				// gate on fixture modules that hold only templates (bug-7d02822c).
+				if path == root || hasGoFile(path) {
+					dirs = append(dirs, path)
+				}
 			}
 		}
 		return nil
 	})
 	sort.Strings(dirs) // a parent folder sorts before its children
 	return dirs
+}
+
+// hasGoFile reports whether dir holds a .go file outside the folders the gate
+// never enters.
+func hasGoFile(dir string) bool {
+	found := false
+	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if path != dir && (skippedModuleDirs[name] || strings.HasPrefix(name, ".")) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), ".go") {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
 }
 
 // goModuleCommands is the Go build, vet and test run for one module. rel is

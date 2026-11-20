@@ -27,6 +27,7 @@ func TestDetectPlan_GoNestedModules_RunsEveryModule(t *testing.T) {
 	root := setupGateTestProject(t)
 	for _, m := range []string{"core", "plan"} {
 		writeNestedFile(t, root, m+"/go.mod", "module example.com/"+m+"\n\ngo 1.24\n")
+		writeNestedFile(t, root, m+"/m.go", "package "+m+"\n")
 	}
 	for _, skip := range []string{"vendor/x", "node_modules/x", ".claude/x", ".gotmp-exec/x", "testdata/x", ".hidden/x", "core/testdata/y"} {
 		writeNestedFile(t, root, skip+"/go.mod", "module example.com/skipped\n\ngo 1.24\n")
@@ -115,7 +116,9 @@ func writeProfile(t *testing.T, root string, cmds map[string]string, order []str
 func TestDetectPlan_Profile_AddsUnnamedNestedModules(t *testing.T) {
 	root := setupGateTestProject(t)
 	writeNestedFile(t, root, "core/go.mod", "module example.com/core\n\ngo 1.24\n")
+	writeNestedFile(t, root, "core/m.go", "package core\n")
 	writeNestedFile(t, root, "plan/go.mod", "module example.com/plan\n\ngo 1.24\n")
+	writeNestedFile(t, root, "plan/m.go", "package plan\n")
 	writeProfile(t, root, map[string]string{"build": "go build ./...", "test": "cd plan && go test ./..."}, []string{"build", "test"})
 	plan, err := DetectPlan(root, root, guardprofile.PhaseQuality)
 	if err != nil {
@@ -138,7 +141,9 @@ func TestDetectPlan_Profile_AddsUnnamedNestedModules(t *testing.T) {
 func TestDetectPlan_Profile_NamedModulesGetNoDuplicate(t *testing.T) {
 	root := setupGateTestProject(t)
 	writeNestedFile(t, root, "core/go.mod", "module example.com/core\n\ngo 1.24\n")
+	writeNestedFile(t, root, "core/m.go", "package core\n")
 	writeNestedFile(t, root, "plan/go.mod", "module example.com/plan\n\ngo 1.24\n")
+	writeNestedFile(t, root, "plan/m.go", "package plan\n")
 	writeProfile(t, root, map[string]string{"a": "cd core && go test ./...", "b": "go vet -C plan ./..."}, []string{"a", "b"})
 	plan, err := DetectPlan(root, root, guardprofile.PhaseQuality)
 	if err != nil {
@@ -165,5 +170,28 @@ func TestRunSession_ProfileRootOnly_NestedFailureFailsGate(t *testing.T) {
 	}
 	if res.Passed || !strings.Contains(res.OutputSummary, "go build (bad) failed") {
 		t.Errorf("passed=%v summary=%q", res.Passed, res.OutputSummary)
+	}
+}
+
+// bug-7d02822c: a nested module with no Go file has no package, so `go vet`
+// and `go test` exit 1 there. The gate leaves such a module out.
+func TestFindGoModules_SkipsNestedModuleWithNoGoFile(t *testing.T) {
+	root := setupGateTestProject(t)
+	writeNestedFile(t, root, "real/go.mod", "module example.com/real\n\ngo 1.24\n")
+	writeNestedFile(t, root, "real/sub/x.go", "package sub\n")
+	writeNestedFile(t, root, "evals/fixture/go.mod", "module example.com/fixture\n\ngo 1.24\n")
+	writeNestedFile(t, root, "evals/fixture/text.go.fixture", "package text\n")
+	writeNestedFile(t, root, "onlytestdata/go.mod", "module example.com/onlytestdata\n\ngo 1.24\n")
+	writeNestedFile(t, root, "onlytestdata/testdata/x.go", "package x\n")
+	var got []string
+	for _, m := range FindGoModules(root) {
+		rel, err := filepath.Rel(root, m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, filepath.ToSlash(rel))
+	}
+	if want := []string{".", "real"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("FindGoModules = %v, want %v", got, want)
 	}
 }
