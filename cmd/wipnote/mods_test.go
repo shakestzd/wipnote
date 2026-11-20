@@ -134,29 +134,24 @@ func TestModsSystemPromptJoinsEachModsRule(t *testing.T) {
 }
 
 // The repository's mods carry the rules their prompt.compose hooks used to send.
+// wipnote-visuals sends none: reply blocks are lulawrite's, so a rule asking
+// for wip:* fences would ask for blocks nothing draws (feat-fd3637f9).
 func TestRepoModsCarryTheirRules(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := modsSystemPrompt(filepath.Join(root, "mods"))
-	for _, want := range []string{"wip:compare", "wipnote-ref"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("mods rules lack %q:\n%s", want, got)
+	if !strings.Contains(got, "wipnote-ref") {
+		t.Errorf("mods rules lack wipnote-ref:\n%s", got)
+	}
+	for _, gone := range []string{"wip:compare", "wip:steps", "wip:callout"} {
+		if strings.Contains(got, gone) {
+			t.Errorf("mods rules still ask for %s", gone)
 		}
 	}
-	// The visuals rule asks for compare only, in under 100 tokens (chars / 4).
-	visuals, err := os.ReadFile(filepath.Join(root, "mods", "wipnote-visuals", modsPromptFile))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n := len(visuals) / 4; n >= 100 {
-		t.Errorf("visuals rule is ~%d tokens, want under 100", n)
-	}
-	for _, gone := range []string{"wip:steps", "wip:callout"} {
-		if strings.Contains(string(visuals), gone) {
-			t.Errorf("visuals rule still asks for %s", gone)
-		}
+	if _, err := os.Stat(filepath.Join(root, "mods", "wipnote-visuals", modsPromptFile)); !os.IsNotExist(err) {
+		t.Errorf("wipnote-visuals still ships a %s (err=%v)", modsPromptFile, err)
 	}
 }
 

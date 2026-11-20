@@ -1,37 +1,5 @@
 import { expect, test } from 'claude-code/testing'
 
-const msg = (text: string, surface: 'terminal' | 'desktop') =>
-  ({ plugin: 'wipnote-visuals', component: 'AssistantMessage', surface, props: { text, isFirstOfReply: true } }) as never
-
-const STEPS = 'Plan\n```wip:steps\nx Scaffold\n> Parse\nRender\n```'
-const COMPARE = '```wip:compare\n# Redis*\n+ fast\n- extra service\n# SQLite\n+ simple\n```'
-const CALLOUT = '```wip:callout\nwarning: this deletes data\n```'
-
-for (const surface of ['terminal', 'desktop'] as const) {
-  test(`steps draw numbered with markers on ${surface}`, async $ => {
-    const ui = await $.ui.mount(msg(STEPS, surface))
-    expect(await ui.find({ type: 'Text', text: /1\. / })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /Parse/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /→/ })).toBeDefined()
-    await ui.unmount()
-  })
-
-  test(`compare draws a column per option on ${surface}`, async $ => {
-    const ui = await $.ui.mount(msg(COMPARE, surface))
-    expect(await ui.find({ type: 'Text', text: /Redis.*recommended/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /SQLite/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /extra service/ })).toBeDefined()
-    await ui.unmount()
-  })
-
-  test(`callout draws its kind and text on ${surface}`, async $ => {
-    const ui = await $.ui.mount(msg(CALLOUT, surface))
-    expect(await ui.find({ type: 'Text', text: /Warning/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /deletes data/ })).toBeDefined()
-    await ui.unmount()
-  })
-}
-
 const OK = { result: { stdout: 'ok', stderr: '', interrupted: false } }
 const done = (answer: string, isAborted = false) =>
   ({ turnId: 't1', answer, durationMs: 65_000, isAborted, reason: isAborted ? 'aborted' : 'answer', usage: null }) as never
@@ -115,16 +83,29 @@ test('/plainspeak: a tell adds one context line to the next prompt, once; clean,
   expect(await submit()).toEqual([])
 })
 
-test('/visuals: on, off, receipt on|off change state; no argument reports; anything else is usage and changes nothing (finding 8)', async ($, on) => {
+test('/visuals: receipt on|off changes state; no argument reports; anything else is usage and changes nothing (finding 8)', async ($, on) => {
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
   await $.session.start({ cwd: '/tmp', surface: null, isInteractive: true })
-  expect((await $.command.run({ command: 'visuals', args: '' } as never)).text).toBe('Visuals: on. Receipt: on.')
-  const bogus = await $.command.run({ command: 'visuals', args: 'bogus' } as never)
-  expect(bogus.text).toMatch(/^Usage: \/visuals on\|off\|receipt on\|receipt off/)
+  expect((await $.command.run({ command: 'visuals', args: '' } as never)).text).toBe('Receipt: on.')
+  // The blocks half of the command is gone: lulawrite draws replies now.
+  for (const args of ['bogus', 'on', 'off', 'receipt on now']) {
+    expect((await $.command.run({ command: 'visuals', args } as never)).text).toMatch(/^Usage: \/visuals receipt on\|off/)
+  }
   expect((await $.command.run({ command: 'visuals', args: 'receipt' } as never)).text).toBe('Receipt: on.')
-  await $.command.run({ command: 'visuals', args: 'off' } as never)
-  expect((await $.command.run({ command: 'visuals', args: '' } as never)).text).toBe('Visuals: off. Receipt: on.')
-  await $.command.run({ command: 'visuals', args: 'on' } as never)
-  expect((await $.command.run({ command: 'visuals', args: '' } as never)).text).toBe('Visuals: on. Receipt: on.')
+  await $.command.run({ command: 'visuals', args: 'receipt off' } as never)
+  expect((await $.command.run({ command: 'visuals', args: '' } as never)).text).toBe('Receipt: off.')
+})
+
+test('a reply with an old wip:* fence or a lulawrite fence is left to the plugins beneath', async ($, on) => {
+  const seen: string[] = []
+  on('ui.render', { component: 'AssistantMessage' }, ($$, e) => {
+    seen.push(e.props.text)
+    const { Text } = $$.ui.resolve(e)
+    return <Text>beneath</Text>
+  })
+  const text = 'Pick one.\n```wip:compare\n# A*\n+ x\n```\n```lulawrite\n{"callout":{"tone":"note","text":"n"}}\n```'
+  const ui = await $.ui.mount({ plugin: 'wipnote-visuals', component: 'AssistantMessage', surface: 'terminal', props: { text, isFirstOfReply: true } } as never)
+  expect(seen).toEqual([text])
+  await ui.unmount()
 })
