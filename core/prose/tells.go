@@ -5,7 +5,9 @@ import (
 	"strings"
 )
 
-// The vocab and filler patterns are ported from mods/wipnote-visuals/hooks/lint.ts.
+// The vocab and filler patterns are ported from the lint.ts writing check, which
+// now lives in the lulawrite plugin (it moved there from the retired
+// wipnote-visuals mod, feat-cb4243a8).
 var (
 	vocabRe = regexp.MustCompile(`(?i)\b(?:delve|delves|delving|pivotal|testament|tapestry|underscore|underscores|underscoring|showcase|showcases|showcasing|vibrant|crucial|fostering|intricate|intricacies|enduring|garner|garners|garnering|resonate|resonates|resonating|invaluable|ignited|igniting|embark|embarks|embarking|realm|beacon|honing|cutting-edge|seamless|holistic|esteemed|renowned|passion|passionate|empower|empowers|empowering|transformative|comprehensive understanding|requisite skills|high-impact|make a difference in people['’]s lives|perfect blend|well-equipped|uniquely positioned|game-changer)\b` +
 		`|(?:the |a |an )?(?:competitive|educational|academic|professional|digital|technological|regulatory|political|economic|healthcare|corporate|research|media|cultural)\s+landscape\b` +

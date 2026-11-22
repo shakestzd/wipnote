@@ -134,8 +134,8 @@ func TestModsSystemPromptJoinsEachModsRule(t *testing.T) {
 }
 
 // The repository's mods carry the rules their prompt.compose hooks used to send.
-// wipnote-visuals sends none: reply blocks are lulawrite's, so a rule asking
-// for wip:* fences would ask for blocks nothing draws (feat-fd3637f9).
+// No mod asks for wip:* fences: reply blocks are lulawrite's, so such a rule
+// would ask for blocks nothing draws (feat-fd3637f9).
 func TestRepoModsCarryTheirRules(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
@@ -149,9 +149,6 @@ func TestRepoModsCarryTheirRules(t *testing.T) {
 		if strings.Contains(got, gone) {
 			t.Errorf("mods rules still ask for %s", gone)
 		}
-	}
-	if _, err := os.Stat(filepath.Join(root, "mods", "wipnote-visuals", modsPromptFile)); !os.IsNotExist(err) {
-		t.Errorf("wipnote-visuals still ships a %s (err=%v)", modsPromptFile, err)
 	}
 }
 

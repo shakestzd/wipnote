@@ -38,7 +38,7 @@ wipnote claude            # launch Claude Code with wipnote context
 
 ### Reply visuals: install lulawrite
 
-wipnote draws work-item cards, the turn receipt and the writing score. It draws no other block in a reply. Steps, options and callouts come from the lulawrite plugin, which checks and draws them. Install it once, inside Claude Code:
+wipnote draws work-item cards. It draws no other block in a reply. Steps, options and callouts come from the lulawrite plugin, which checks and draws them. lulawrite also writes the turn receipt and the writing score (`/receipt on|off`, `/plainspeak strict|80|off`). Install it once, inside Claude Code:
 
 ```
 /plugin marketplace add shakestzd/luladoc

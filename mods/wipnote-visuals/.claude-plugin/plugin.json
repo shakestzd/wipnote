@@ -1,6 +1,0 @@
-{
-  "name": "wipnote-visuals",
-  "version": "0.3.0",
-  "description": "Puts a receipt line under each turn (files edited, tests and builds with exit status, commits) and, with /plainspeak, a writing score. It draws nothing inside a reply: steps, options and callouts are lulawrite blocks.",
-  "types": "./types/index.d.ts"
-}
