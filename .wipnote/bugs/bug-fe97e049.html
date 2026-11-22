@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Local settings deny the lulawrite chart tool</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-fe97e049"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-22T18:22:06.540308"
+             data-updated="2026-11-22T18:22:29.687086" data-agent-assigned="claude-code" data-track-id="trk-1db7bf72" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="chore" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Local settings deny the lulawrite chart tool</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-22T18:22:18.084868">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-1db7bf72.html" data-relationship="part_of" data-since="2026-11-22T18:22:06.558219">trk-1db7bf72</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The gitignored per-user file .claude/settings.local.json lists mcp__lulawrite__chart in permissions.deny, so sessions in this project get no lulawrite chart tool. The owner asked to remove the entry.
+Why
+The Precise output style tells the model to answer comparisons with the chart tool, and the tool is absent.
+Acceptance Criteria
+permissions.deny in .claude/settings.local.json no longer contains mcp__lulawrite__chart and the file is valid JSON.</p>
+        </section>
+    </article>
+</body>
+</html>
