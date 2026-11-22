@@ -38,6 +38,10 @@ type projectFile struct {
 	// OriginLauncher for a launcher that made one on its own. Walking up from a
 	// non-git folder honours only explicit stores. Absent reads as a launcher's.
 	Origin string `json:"origin,omitempty"`
+	// MovedFrom is where a moved store lived in each checkout, relative to the
+	// checkout's top (".wipnote", or "sub/.wipnote" for a nested store). A later
+	// launch untracks that path on branches that still hold it.
+	MovedFrom string `json:"moved_from,omitempty"`
 }
 
 // Store origins recorded in project.json.
@@ -185,6 +189,10 @@ func isExplicitStore(owner string) bool {
 // those of $HOME or the filesystem root, which would take in every folder below.
 // The app home keys no store at all.
 func ownerAt(dir string, start bool) string {
+	// A moved store outranks the folder it left, which may still be on disk.
+	if shadow := ShadowRootFor(dir); !inAppHome(dir) && IsMovedStore(shadow) && validStoreOwner(shadow) {
+		return shadow
+	}
 	if hasStoreAt(dir) {
 		return dir
 	}

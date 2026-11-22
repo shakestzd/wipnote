@@ -135,10 +135,10 @@ func TestStoreMove_Refusals(t *testing.T) {
 
 // A launcher moves an in-repo store out of the project's git with no command
 // from the owner: one commit that holds only the store, and nothing after it.
-func TestAutoMoveLauncherStore(t *testing.T) {
+func TestAutoMoveStore(t *testing.T) {
 	p := inRepoStoreProject(t)
 	var out bytes.Buffer
-	autoMoveLauncherStore(&out)
+	autoMoveStore(&out, true)
 	root := paths.ShadowRootFor(p.code)
 	if !paths.IsMovedStore(root) || paths.StoreOwnerFor(p.code) != root {
 		t.Fatalf("the launch did not move the store:\n%s", out.String())
@@ -156,7 +156,7 @@ func TestAutoMoveLauncherStore(t *testing.T) {
 
 	// A second launch finds nothing to do and says nothing.
 	out.Reset()
-	autoMoveLauncherStore(&out)
+	autoMoveStore(&out, true)
 	if out.Len() != 0 || extGit(t, p.code, "rev-parse", "HEAD") != head {
 		t.Errorf("a second launch acted again:\n%s", out.String())
 	}
@@ -167,7 +167,7 @@ func TestAutoMoveLauncherStore(t *testing.T) {
 	extGit(t, p.code, "worktree", "add", "-q", "-b", "old", wt, "HEAD~1")
 	t.Chdir(wt)
 	out.Reset()
-	autoMoveLauncherStore(&out)
+	autoMoveStore(&out, true)
 	if tracked := extGit(t, wt, "ls-files", "--", ".wipnote"); tracked != "" {
 		t.Errorf("the linked worktree still tracks the store:\n%s\n%s", tracked, out.String())
 	}
@@ -178,13 +178,13 @@ func TestAutoMoveLauncherStore(t *testing.T) {
 
 // A commit made on a detached HEAD would be lost, so the launch moves the
 // store and leaves the index alone until a branch is checked out.
-func TestAutoMoveLauncherStore_BusyCheckoutKeepsTheIndex(t *testing.T) {
+func TestAutoMoveStore_BusyCheckoutKeepsTheIndex(t *testing.T) {
 	p := inRepoStoreProject(t)
 	extGit(t, p.code, "stash", "-q")
 	extGit(t, p.code, "checkout", "-q", "--detach")
 	head := extGit(t, p.code, "rev-parse", "HEAD")
 	var out bytes.Buffer
-	autoMoveLauncherStore(&out)
+	autoMoveStore(&out, true)
 	if !paths.IsMovedStore(paths.ShadowRootFor(p.code)) {
 		t.Fatalf("the store was not moved:\n%s", out.String())
 	}
@@ -194,13 +194,109 @@ func TestAutoMoveLauncherStore_BusyCheckoutKeepsTheIndex(t *testing.T) {
 }
 
 // A project with an app store already, or with no store, is left alone.
-func TestAutoMoveLauncherStore_NothingToMove(t *testing.T) {
+func TestAutoMoveStore_NothingToMove(t *testing.T) {
 	p := newExternalProject(t)
 	var out bytes.Buffer
-	autoMoveLauncherStore(&out)
+	autoMoveStore(&out, true)
 	p.store(t)
-	autoMoveLauncherStore(&out)
+	autoMoveStore(&out, true)
 	if out.Len() != 0 {
 		t.Errorf("a launch with nothing to move printed:\n%s", out.String())
+	}
+}
+
+// A store below the repo's root moves too, and the commit removes that path.
+func TestAutoMoveStore_NestedStore(t *testing.T) {
+	p := newExternalProject(t)
+	for _, k := range []string{"GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME"} {
+		t.Setenv(k, "t")
+	}
+	for _, k := range []string{"GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL"} {
+		t.Setenv(k, "t@example.invalid")
+	}
+	if err := os.MkdirAll(filepath.Join(p.code, "sub", ".wipnote", "features"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p.write(t, "sub/.wipnote/features/feat-22222222.html", "<article id=\"feat-22222222\"></article>\n")
+	extGit(t, p.code, "add", "-f", "sub/.wipnote")
+	extGit(t, p.code, "commit", "-q", "-m", "nested store")
+	sub := filepath.Join(p.code, "sub")
+	t.Chdir(sub)
+	var out bytes.Buffer
+	autoMoveStore(&out, true)
+	root := paths.ShadowRootFor(p.code)
+	if !paths.IsMovedStore(root) || paths.StoreOwnerFor(sub) != root || paths.MovedFrom(root) != filepath.Join("sub", ".wipnote") {
+		t.Fatalf("the nested store was not moved:\n%s", out.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, ".wipnote", "features", "feat-22222222.html")); err != nil {
+		t.Errorf("the record was not copied: %v", err)
+	}
+	if tracked := extGit(t, p.code, "ls-files", "--", "sub/.wipnote"); tracked != "" {
+		t.Errorf("the nested store is still tracked:\n%s", tracked)
+	}
+	if _, err := os.Stat(filepath.Join(sub, ".wipnote")); err == nil {
+		t.Error("the nested folder was not deleted")
+	}
+	if got := extGit(t, p.code, "show", "--name-only", "--format=", "HEAD"); got != "sub/.wipnote/features/feat-22222222.html" {
+		t.Errorf("the untrack commit holds %q", got)
+	}
+}
+
+// Outside a repo the old folder is deleted once the app store holds its
+// records, and folders below it use the moved store.
+func TestAutoMoveStore_NonGitFolder(t *testing.T) {
+	p := newExternalProject(t)
+	old := filepath.Join(p.parent, ".wipnote")
+	if err := os.WriteFile(filepath.Join(old, "features", "feat-33333333.html"), []byte("<article id=\"feat-33333333\"></article>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	child := filepath.Join(p.parent, "notes")
+	if err := os.MkdirAll(child, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(child)
+	var out bytes.Buffer
+	autoMoveStore(&out, false) // an ordinary command copies and leaves the folder
+	root := paths.ShadowRootFor(p.parent)
+	if !paths.IsMovedStore(root) || paths.StoreOwnerFor(child) != root {
+		t.Fatalf("the store was not moved, or the old folder still wins:\n%s", out.String())
+	}
+	if _, err := os.Stat(old); err != nil {
+		t.Fatal("an ordinary command deleted the old folder")
+	}
+	autoMoveStore(&out, true) // a launcher deletes it
+	if _, err := os.Stat(old); err == nil {
+		t.Errorf("the old folder is still there:\n%s", out.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, ".wipnote", "features", "feat-33333333.html")); err != nil {
+		t.Errorf("the record is not in the app store: %v", err)
+	}
+	if paths.StoreOwnerFor(child) != root {
+		t.Error("the folder below lost its store")
+	}
+}
+
+// Any ordinary command moves the store on first use and changes nothing in
+// the project. A command told which project to use moves nothing.
+func TestStoreMove_OnAnyCommand(t *testing.T) {
+	p := inRepoStoreProject(t)
+	head := extGit(t, p.code, "rev-parse", "HEAD")
+	status := extGit(t, p.code, "status", "--porcelain")
+	t.Setenv("WIPNOTE_PROJECT_DIR", p.code)
+	if _, err := runCLI(t, "status"); err != nil {
+		t.Fatal(err)
+	}
+	if paths.IsMovedStore(paths.ShadowRootFor(p.code)) {
+		t.Fatal("a command with an explicit project moved the store")
+	}
+	t.Setenv("WIPNOTE_PROJECT_DIR", "")
+	if _, err := runCLI(t, "status"); err != nil {
+		t.Fatal(err)
+	}
+	if !paths.IsMovedStore(paths.ShadowRootFor(p.code)) {
+		t.Fatal("`wipnote status` did not move the store")
+	}
+	if extGit(t, p.code, "rev-parse", "HEAD") != head || extGit(t, p.code, "status", "--porcelain") != status {
+		t.Error("an ordinary command changed the project")
 	}
 }

@@ -40,12 +40,21 @@ func movedStoreOver(dir string) string {
 	return ""
 }
 
-// MoveStoreToExternal makes the shadow root for the project at dir and marks it
-// OriginMoved. seed fills the new .wipnote/ before the first store commit. A
-// store an earlier move made is returned as it is. A shadow root from any
-// other origin is refused: it may hold records the copy would hide.
-func MoveStoreToExternal(dir string, seed func(storeDir string) error) (string, error) {
-	root, created, err := CreateExternalStore(dir, OriginMoved, seed)
+// MovedFrom is where the moved store at owner lived in each checkout, relative
+// to the checkout's top. It is ".wipnote" unless the store was nested.
+func MovedFrom(owner string) string {
+	if pf, ok := readProjectFile(owner); ok && pf.MovedFrom != "" {
+		return filepath.FromSlash(pf.MovedFrom)
+	}
+	return ".wipnote"
+}
+
+// MoveStoreToExternal makes the shadow root for dir's project as a moved store
+// and returns it. movedFrom is the old store folder relative to the checkout's
+// top. seed copies the old store's files in. A shadow root that another origin
+// made is refused: its records are not the project's in-repo ones.
+func MoveStoreToExternal(dir, movedFrom string, seed func(storeDir string) error) (string, error) {
+	root, created, err := createExternalStore(dir, projectFile{Origin: OriginMoved, MovedFrom: filepath.ToSlash(movedFrom)}, seed)
 	if err != nil {
 		return "", err
 	}

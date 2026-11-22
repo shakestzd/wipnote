@@ -22,6 +22,12 @@ const storeWriteTimeout = 5 * time.Minute
 // complete and concurrent launchers end up sharing one. Nothing in the app home
 // ~/.wipnote may key a store.
 func CreateExternalStore(dir, origin string, seed func(storeDir string) error) (root string, created bool, err error) {
+	return createExternalStore(dir, projectFile{Origin: origin}, seed)
+}
+
+// createExternalStore is CreateExternalStore with the project file's optional
+// fields given by the caller. It sets Kind and CodeRoot itself.
+func createExternalStore(dir string, pf projectFile, seed func(storeDir string) error) (root string, created bool, err error) {
 	key := realDir(dir)
 	if s, ok := scopeOf(dir); ok {
 		key = s.MainRoot
@@ -44,7 +50,8 @@ func CreateExternalStore(dir, origin string, seed func(storeDir string) error) (
 		return "", false, err
 	}
 	defer os.RemoveAll(tmp) //nolint:errcheck // nothing is left after the rename
-	if err := buildShadowRoot(tmp, projectFile{Kind: externalStoreKind, CodeRoot: key, Origin: origin}, seed); err != nil {
+	pf.Kind, pf.CodeRoot = externalStoreKind, key
+	if err := buildShadowRoot(tmp, pf, seed); err != nil {
 		return "", false, err
 	}
 	if err := os.Rename(tmp, root); err != nil {

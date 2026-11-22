@@ -35,8 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `wipnote store move` moves an in-tree `.wipnote/` store to the app store under `~/.wipnote/projects/`. After the move wipnote commits to the store's own repository and no longer to the project's branches. A moved store wins over a folder that an old commit puts back. `--untrack` removes the folder from the project's git index in one commit and deletes it (feat-e383e3d0, #159).
+- wipnote moves an in-tree store on its own (feat-b153fe64). Any command copies the store to the app store the first time it runs in such a project, and changes nothing in the project. `wipnote claude`, `codex`, `antigravity` and `yolo` also commit the removal of `.wipnote/` and delete the folder. That commit touches only the store path and runs no hook. A launch skips it on a detached HEAD or during a merge or rebase. Stores below a repo's root and stores in folders outside git move too.
 - `delegate` skill (preview) for `wipnote delegate run`: one codex exec, codex review, claude -p or ccx task call, with its result on the run page and a row in `.wipnote/delegations-ledger.html`. It ships to Claude Code and Codex, not to Antigravity. Interactive delegate commands (spawn, send, wait, stop and others) come in Release 2. Until Release 2 there are two one-shot paths: `wipnote delegate run` and the codex-herdr-pane mod, which stays installed (feat-cea63bd1)
 - `wipnote upgrade` / `wipnote update` — self-update CLI from GitHub releases with atomic binary replacement and self-test (feat-d16a24ac)
+
+### Removed
+- `wipnote init --in-repo`. The app store is the only place wipnote keeps a project's store (feat-b153fe64).
 
 ### Documented
 - Standalone `install.sh` one-liner is now documented in README and docs/index.md. The installer itself already existed but was not advertised.

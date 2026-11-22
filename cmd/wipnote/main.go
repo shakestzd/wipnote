@@ -192,10 +192,12 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	if launcherMayCreateStore(cmd) {
-		autoMoveLauncherStore(os.Stderr)
+		autoMoveStore(os.Stderr, true)
 		if err := ensureLauncherStore(); err != nil {
 			return err
 		}
+	} else if storeMoveOnAnyCommand(cmd) {
+		autoMoveStore(os.Stderr, false)
 	}
 	// Degrade gracefully: commands must not fail because session
 	// registration is unavailable.

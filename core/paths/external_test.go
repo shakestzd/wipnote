@@ -490,7 +490,7 @@ func TestResolve_SymlinkedCwdKeepsItsSpelling(t *testing.T) {
 func TestResolve_MovedStoreWinsOverInRepoStore(t *testing.T) {
 	base := externalEnv(t)
 	repo := newRepo(t, filepath.Join(base, "repo"))
-	root, err := paths.MoveStoreToExternal(repo, nil)
+	root, err := paths.MoveStoreToExternal(repo, ".wipnote", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -509,7 +509,7 @@ func TestResolve_MovedStoreWinsOverInRepoStore(t *testing.T) {
 	if owner, code := paths.Roots(repo); owner != root || code != repo {
 		t.Errorf("Roots = %s, %s; want %s, %s", owner, code, root, repo)
 	}
-	if again, err := paths.MoveStoreToExternal(repo, nil); err != nil || again != root {
+	if again, err := paths.MoveStoreToExternal(repo, ".wipnote", nil); err != nil || again != root {
 		t.Errorf("a second move = %s, %v; want %s", again, err, root)
 	}
 }
@@ -517,7 +517,7 @@ func TestResolve_MovedStoreWinsOverInRepoStore(t *testing.T) {
 func TestMoveStoreToExternal_RefusesAnotherOriginsStore(t *testing.T) {
 	repo := newRepo(t, filepath.Join(externalEnv(t), "repo"))
 	createStore(t, repo)
-	if _, err := paths.MoveStoreToExternal(repo, nil); err == nil {
+	if _, err := paths.MoveStoreToExternal(repo, ".wipnote", nil); err == nil {
 		t.Fatal("moved over a store that `wipnote init` made")
 	}
 }
