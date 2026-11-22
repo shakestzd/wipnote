@@ -1,4 +1,3 @@
-// parallel agent A was here
 // agent_init provides shared context to subagents via CLI pull.
 package main
 
@@ -66,9 +65,8 @@ NEVER:
 - Edit files in ` + "`.wipnote/`" + ` directory
 - Create new files in ` + "`.wipnote/`" + `
 - Modify ` + "`.wipnote/*.html`" + ` files
-- Write to ` + "`.wipnote/*.db`" + ` or any database files
 - Delete or rename ` + "`.wipnote/`" + ` files
-- Read ` + "`.wipnote/`" + ` files directly (` + "`cat`" + `, ` + "`grep`" + `, ` + "`sqlite3`" + `)
+- Read ` + "`.wipnote/`" + ` files directly (` + "`cat`" + `, ` + "`grep`" + `)
 
 The .wipnote directory is managed by the CLI and hooks.
 
@@ -81,7 +79,6 @@ wipnote find "<query>"      # Search work items
 
 # INCORRECT — never do this
 cat .wipnote/features/feat-xxx.html
-sqlite3 .wipnote/wipnote.db "SELECT ..."
 grep -r topic .wipnote/
 ` + "```" + `
 `
@@ -104,7 +101,7 @@ func qualityGatesSection() string {
 // flag (or the standard fallback chain) and delegates to
 // paths.DetectProjectType for the actual marker scan. Kept as a thin
 // wrapper so the cobra-flag dependency stays in cmd/ and the reusable
-// detection lives in internal/paths/ alongside ResolveProjectDir.
+// detection lives in core/paths/ alongside ResolveProjectDir.
 func detectProjectType() paths.ProjectType {
 	root, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
 		ExplicitDir: projectDirFlag,

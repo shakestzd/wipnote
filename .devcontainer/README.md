@@ -7,7 +7,7 @@ any host-side Claude/Codex configuration.
 ## Scope
 
 This devcontainer is not a user environment — it is specifically for
-editing `cmd/`, `internal/`, and `plugin/` source files, running the Go
+editing `cmd/`, `core/`, `plan/`, `port/`, `observe/`, `internal/`, `mods/`, and `plugin/` source files, running the Go
 test suite, and exercising the CLI against the repository's tracked
 dogfood `.wipnote/` state.
 
@@ -25,7 +25,7 @@ work across other projects. The two are fully independent.
 | Codex CLI | `npm install -g @openai/codex` |
 | GitHub Copilot CLI | `npm install -g @github/copilot` |
 | Roborev CLI | `.devcontainer/post-create.sh` via official `roborev.io` installer |
-| `wipnote` binary | Built from repo source via `plugin/build.sh` |
+| `wipnote` binary | Bootstrapped via `go build`, then `wipnote build` |
 | `bwrap`, `tmux`, `rg`, `fd`, `jq`, `sqlite3`, `shellcheck`, `direnv`, `zsh` | Dockerfile apt install |
 | `uv` | `.devcontainer/post-create.sh` via Astral installer |
 | MkDocs + Material + pymdown extensions | `.devcontainer/post-create.sh` via `uv tool install` |
@@ -38,9 +38,9 @@ work across other projects. The two are fully independent.
 1. Open the repository in VS Code.
 2. Run `Dev Containers: Reopen in Container`.
 3. Wait for `.devcontainer/post-create.sh` to finish. It installs the
-   agent CLIs, docs/shell helper tools, runs `./plugin/build.sh`
-   so `wipnote` lands on PATH, and runs `go build` + `go vet` as quality
-   gates.
+   agent CLIs and shell helper tools, bootstraps `wipnote` into
+   `~/.local/bin/wipnote` with `go build` + `wipnote build`, and runs
+   `go build ./...` + `go vet ./...` as quality gates.
 
 The devcontainer pins DNS to Cloudflare and Google via `runArgs` because
 Docker Desktop's internal DNS proxy can intermittently return `EAI_AGAIN`
@@ -89,16 +89,17 @@ items and are intentionally visible inside the devcontainer. They are
 tracked in Git so closing or resuming wipnote work has the same context
 inside and outside the container.
 
-Runtime files under `.wipnote/` remain untracked and ignored: SQLite
-indexes, session telemetry, logs, locks, and temporary collector state.
-CLI credentials and user-level agent config are isolated in named Docker
-volumes under `$HOME`; no host auth files are mounted into the container.
+Runtime files under `.wipnote/` remain untracked and ignored: session
+telemetry, logs, locks, and temporary collector state (SQLite queries run
+against a process-local in-memory projection, with no database file written
+to disk). CLI credentials and user-level agent config are isolated in named
+Docker volumes under `$HOME`; no host auth files are mounted into the container.
 
 ## Development Workflow
 
 ```bash
-# Edit cmd/, internal/, or plugin/ files in VS Code.
-# Rebuild the binary after any change:
+# Edit cmd/, core/, plan/, port/, observe/, internal/, mods/, or plugin/ files in VS Code.
+# Rebuild the binary and refresh bundled trees after any change:
 wipnote build
 
 # Run the full test suite on demand:

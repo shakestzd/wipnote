@@ -5,13 +5,13 @@
 #   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh
 #
 # With a specific version:
-#   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh -s -- --version 0.35.0
+#   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh -s -- --version 0.95.0
 #
 # With a custom install directory:
 #   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh -s -- --install-dir /usr/local/bin
 #
-# Options:
-#   --version <ver>      Install a specific version (e.g. 0.35.0)
+# Options (also configurable via WIPNOTE_VERSION, WIPNOTE_BIN_DIR, WIPNOTE_SHARE_DIR):
+#   --version <ver>      Install a specific version (e.g. 0.95.0)
 #   --install-dir <dir>  Install to a custom directory (default: ~/.local/bin)
 #
 # Design:
@@ -24,11 +24,10 @@
 set -e
 
 REPO="shakestzd/wipnote"
-DEFAULT_INSTALL_DIR="${HOME}/.local/bin"
+DEFAULT_INSTALL_DIR="${WIPNOTE_BIN_DIR:-${HOME}/.local/bin}"
 BINARY_NAME="wipnote"
-# Plugin tree from the release tarball is laid out under this directory.
-# Phase B will flip `wipnote claude` to load from here via --plugin-dir.
-DEFAULT_DATA_DIR="${HOME}/.local/share/wipnote"
+# Bundled plugin and mods trees from the release tarball are laid out here.
+DEFAULT_DATA_DIR="${WIPNOTE_SHARE_DIR:-${HOME}/.local/share/wipnote}"
 
 # ---------------------------------------------------------------------------
 # Logging helpers
@@ -59,16 +58,21 @@ Usage:
   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh
 
 Options:
-  --version <ver>      Install a specific version (e.g. 0.38.0)
+  --version <ver>      Install a specific version (e.g. 0.95.0)
   --install-dir <dir>  Install to a custom directory (default: ~/.local/bin)
   --help               Show this help message
+
+Environment variables (overridden by flags above):
+  WIPNOTE_VERSION      Version to install (default: latest)
+  WIPNOTE_BIN_DIR      Install directory for the binary (default: ~/.local/bin)
+  WIPNOTE_SHARE_DIR    Install directory for bundled plugin/mods trees (default: ~/.local/share/wipnote)
 
 Examples:
   # Install latest version
   sh install.sh
 
   # Install specific version
-  sh install.sh --version 0.38.0
+  sh install.sh --version 0.95.0
 
   # Custom install directory
   sh install.sh --install-dir /usr/local/bin
@@ -79,7 +83,11 @@ EOF
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
-VERSION=""
+VERSION="${WIPNOTE_VERSION:-}"
+if [ "${VERSION}" = "latest" ]; then
+    VERSION=""
+fi
+VERSION="${VERSION#v}"
 INSTALL_DIR="${DEFAULT_INSTALL_DIR}"
 
 while [ $# -gt 0 ]; do

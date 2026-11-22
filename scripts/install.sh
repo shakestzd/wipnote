@@ -3,7 +3,7 @@
 # Usage: curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | bash
 #
 # Environment variables:
-#   WIPNOTE_VERSION    Version to install (default: latest). Example: 0.60.1
+#   WIPNOTE_VERSION    Version to install (default: latest). Example: 0.95.0
 #   WIPNOTE_BIN_DIR    Directory to install the binary (default: $HOME/.local/bin)
 #   WIPNOTE_SHARE_DIR  Directory to install plugin trees (default: $HOME/.local/share/wipnote)
 #
@@ -12,7 +12,7 @@
 #     curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | bash
 #
 #   Pin to a specific version:
-#     curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_VERSION=0.60.1 bash
+#     curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_VERSION=0.95.0 bash
 #
 #   Custom install directory:
 #     curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_BIN_DIR=$HOME/bin bash
@@ -31,12 +31,12 @@ wipnote installer
 
 USAGE
   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | bash
-  curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_VERSION=0.60.1 bash
+  curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_VERSION=0.95.0 bash
   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_BIN_DIR=$HOME/bin bash
 
 ENVIRONMENT VARIABLES
   WIPNOTE_VERSION    Version to install. Defaults to "latest" (resolves from GitHub API).
-                     Set to a specific semver tag without the leading "v", e.g. "0.60.1".
+                     Set to a specific semver tag without the leading "v", e.g. "0.95.0".
   WIPNOTE_BIN_DIR    Directory to install the binary. Defaults to "$HOME/.local/bin".
   WIPNOTE_SHARE_DIR  Directory to install plugin trees (plugin/, codex-marketplace/,
                      antigravity-extension/, mods/). Defaults to "$HOME/.local/share/wipnote".
@@ -51,8 +51,8 @@ EXAMPLES
   # Install latest
   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | bash
 
-  # Pin to 0.60.1
-  curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_VERSION=0.60.1 bash
+  # Pin to 0.95.0
+  curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_VERSION=0.95.0 bash
 
   # Install into ~/bin
   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_BIN_DIR=$HOME/bin bash
@@ -187,6 +187,8 @@ tar -xzf "${TMPDIR_INSTALL}/${TARBALL}" -C "${TMPDIR_INSTALL}"
 mkdir -p "${WIPNOTE_BIN_DIR}"
 mv "${TMPDIR_INSTALL}/wipnote" "${WIPNOTE_BIN_DIR}/wipnote"
 chmod +x "${WIPNOTE_BIN_DIR}/wipnote"
+ln -sfn "${WIPNOTE_BIN_DIR}/wipnote" "${WIPNOTE_BIN_DIR}/wn"
+info "Created alias → ${WIPNOTE_BIN_DIR}/wn"
 
 # ---------------------------------------------------------------------------
 # Install bundled plugin trees

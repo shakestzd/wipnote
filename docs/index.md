@@ -20,8 +20,8 @@ Local-first causal lineage and observability for AI-assisted development.
 </p>
 
 <p class="hg-hero__solution">
-Work items, session tracking, custom agents, hooks, slash commands, quality gates,
-and Claude Code mods for live status &mdash; managed by a single Go binary, stored as HTML files in your repo.
+Work items, session tracking, custom agents, hooks, cross-harness delegation, quality gates,
+and Claude Code mods for live status &mdash; managed by a single Go binary, stored as HTML files.
 No external infrastructure required.
 </p>
 
@@ -66,33 +66,33 @@ Event-driven hooks on SessionStart, PreToolUse, PostToolUse, and Stop. Enforce s
 </div>
 
 <div class="hg-card" markdown>
-<span class="hg-card__title">Skills &amp; slash commands</span>
+<span class="hg-card__title">Workflows &amp; delegation</span>
 
-Reusable workflows as slash commands: `wipnote plan next`, `wipnote execute-preview`. Package complex multi-step procedures into single invocations that agents and humans can both use.
+Structured workflows built directly into the CLI: `wipnote plan next`, `wipnote execute-preview`, `wipnote delegate` for cross-harness workers, and `wipnote recap`.
 </div>
 
 <div class="hg-card" markdown>
 <span class="hg-card__title">Quality gates</span>
 
-Enforce software engineering discipline: build, lint, and test before every commit. Spec compliance scoring, code health metrics, and structured diff reviews built into the CLI.
+Enforce software engineering discipline: build, lint, and test before every commit (`wipnote check --gate`). Spec compliance scoring, code health metrics, prose checks, and structured diff reviews built into the CLI.
 </div>
 
 <div class="hg-card" markdown>
 <span class="hg-card__title">Claude Code mods</span>
 
-An orchestration band under the prompt shows work items, tracks and subagents as they run, and a side pane tracks a plan's slices and their approval state during review.
+Five bundled mods run alongside the plugin: `wipnote-orchestra` (live orchestration band and work-item cards), `wipnote-plan-review` (slice review pane), `wipnote-ci` (live PR CI pane), `wipnote-visuals` (turn receipt and writing check), and `wipnote-questions` (open owner questions).
 </div>
 
 <div class="hg-card" markdown>
-<span class="hg-card__title">Multi-agent coordination</span>
+<span class="hg-card__title">Multi-harness attribution</span>
 
-Claude Code, Codex, Antigravity, and GitHub Copilot all read from and write to the same work items. Orchestration patterns control which agent handles which task.
+Claude Code, Codex CLI, and Antigravity all read from and write to the same work items via the CLI, with hooks and OTel telemetry attributing every session and edit.
 </div>
 
 <div class="hg-card" markdown>
 <span class="hg-card__title">Plans &amp; specifications</span>
 
-CRISPI plans break initiatives into trackable steps. Feature specs define acceptance criteria. Agents execute against the plan and report progress.
+CRISPI plans break initiatives into reviewable slices. Feature specs define acceptance criteria. Agents execute against the plan and report progress.
 </div>
 
 </div>
@@ -103,26 +103,26 @@ CRISPI plans break initiatives into trackable steps. Feature specs define accept
 
 <section class="hg-section" markdown>
 
-<h2 class="hg-section__title">Everything is a file in your repo</h2>
+<h2 class="hg-section__title">Everything is a plain HTML file</h2>
 
 <div class="hg-cards hg-cards--3col hg-cards--arch" markdown>
 
 <div class="hg-card hg-card--arch" markdown>
 <code class="hg-card__label">.wipnote/*.html</code>
 
-**HTML files** &mdash; Work items are the source of truth. Human-readable. Git-diffable. No proprietary format.
+**HTML files** &mdash; Work items and ledgers are the single source of truth. App-owned by default under `~/.wipnote/projects/` (`--in-repo` stores `.wipnote/` in your repo). Human-readable and git-diffable.
 </div>
 
 <div class="hg-card hg-card--arch" markdown>
-<code class="hg-card__label">.wipnote/wipnote.db</code>
+<code class="hg-card__label">SQLite (in-memory)</code>
 
-**SQLite index** &mdash; A derived read index for fast queries. Gitignored. Rebuilt from HTML anytime.
+**Ephemeral query projection** &mdash; Built in memory inside each command from canonical HTML and discarded on exit. No `.wipnote/wipnote.db` file on disk.
 </div>
 
 <div class="hg-card hg-card--arch" markdown>
 <code class="hg-card__label">wipnote</code>
 
-**Go binary** &mdash; One CLI that does everything: create work items, manage sessions, trace lineage, run hooks.
+**Go binary** &mdash; One CLI that does everything: create work items, manage sessions, delegate work, trace lineage, run hooks, and launch harnesses.
 </div>
 
 </div>
@@ -136,7 +136,7 @@ CRISPI plans break initiatives into trackable steps. Feature specs define accept
 <h2 class="hg-section__title">Quick start</h2>
 
 ```bash
-# Initialize in your repo
+# Initialize store (~/.wipnote/projects/ by default; --in-repo for .wipnote/ in repo)
 wipnote init
 
 # Create a track and feature
@@ -165,12 +165,12 @@ curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/inst
 
 Supported platforms: `darwin_amd64`, `darwin_arm64`, `linux_amd64`, `linux_arm64`.
 
-The installer places the `wipnote` binary in `~/.local/bin/` and the bundled plugin trees (`plugin/`, `codex-marketplace/`, `antigravity-extension/`) in `~/.local/share/wipnote/`. Both locations can be customized via environment variables.
+The installer places the `wipnote` binary in `~/.local/bin/` and the bundled trees (`plugin/`, `codex-marketplace/`, `antigravity-extension/`, `mods/`) in `~/.local/share/wipnote/`. Both locations can be customized via environment variables.
 
 **Pinned to a specific version:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_VERSION=0.60.1 bash
+curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | WIPNOTE_VERSION=0.95.0 bash
 ```
 
 **Custom install directory:**
@@ -188,20 +188,20 @@ wipnote upgrade
 ### Verify
 
 ```bash
-wipnote version    # should print 0.60.1 (or later)
+wipnote version    # should print 0.95.0 (or later)
 ```
 
 <details>
 <summary>What does this script do? / Manual install</summary>
 
-The `install.sh` script:
+The `scripts/install.sh` script:
 
 1. Detects your OS (`uname -s`: `darwin` or `linux`) and architecture (`uname -m`: `x86_64`→`amd64`, `arm64`/`aarch64`→`arm64`). Errors clearly on unsupported combinations.
 2. Resolves the version — from `WIPNOTE_VERSION` env var, or fetches the latest tag from `https://api.github.com/repos/shakestzd/wipnote/releases/latest`.
 3. Downloads `wipnote_${VERSION}_${OS}_${ARCH}.tar.gz` and `wipnote_${VERSION}_checksums.txt` to a temp dir (cleaned up via `trap … EXIT`).
 4. Verifies the sha256 checksum via `sha256sum` (Linux) or `shasum -a 256` (macOS). Hard-fails on mismatch; prints a clear warning if neither tool is available and skips (does NOT silently bypass).
 5. Extracts the tarball, `mkdir -p`s the binary dir (`WIPNOTE_BIN_DIR`, default `$HOME/.local/bin`), moves the binary, `chmod +x`.
-6. Installs the bundled plugin trees (`plugin/`, `codex-marketplace/`, `antigravity-extension/`) to the share dir (`WIPNOTE_SHARE_DIR`, default `$HOME/.local/share/wipnote/`).
+6. Installs the bundled trees (`plugin/`, `codex-marketplace/`, `antigravity-extension/`, `mods/`) to the share dir (`WIPNOTE_SHARE_DIR`, default `$HOME/.local/share/wipnote/`).
 7. On macOS: removes the quarantine attribute (`xattr -d com.apple.quarantine`) to avoid Gatekeeper blocking.
 8. Checks whether the binary dir is on your `PATH`. If not, prints instructions — it does NOT mutate your shell rc files.
 9. Prints `==> Installed wipnote vX.Y.Z` and runs `wipnote version`.
@@ -209,7 +209,7 @@ The `install.sh` script:
 **Manual install equivalent:**
 
 ```bash
-VERSION=0.60.1
+VERSION=0.95.0
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
 TMPD=$(mktemp -d)
@@ -224,16 +224,16 @@ tar -xzf "$TMPD/wipnote.tar.gz" -C "$TMPD"
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/wipnote"
 mv "$TMPD/wipnote" "$HOME/.local/bin/wipnote"
 chmod +x "$HOME/.local/bin/wipnote"
-# Install bundled plugin trees
-for tree in plugin codex-marketplace antigravity-extension; do
-  [[ -d "$TMPD/$tree" ]] && mv "$TMPD/$tree" "$HOME/.local/share/wipnote/$tree"
+# Install bundled trees
+for tree in plugin codex-marketplace antigravity-extension mods; do
+  [[ -d "$TMPD/$tree" ]] && rm -rf "$HOME/.local/share/wipnote/$tree" && mv "$TMPD/$tree" "$HOME/.local/share/wipnote/$tree"
 done
 xattr -d com.apple.quarantine "$HOME/.local/bin/wipnote" 2>/dev/null || true  # macOS only
 rm -rf "$TMPD"
 wipnote version
 ```
 
-For other platforms (e.g. Windows), build from source:
+For other platforms (e.g. Windows), build from source (requires Go 1.25+):
 
 ```bash
 git clone https://github.com/shakestzd/wipnote && cd wipnote && go build -o ~/.local/bin/wipnote ./cmd/wipnote

@@ -67,9 +67,9 @@ func MaybeShowOtelNotice(projectDir string) {
 		"    tool calls, prompts, costs, token usage, and latencies.",
 		"",
 		"  A per-session OTLP collector is started automatically.",
-		"  Data stays 100% local, stored in .wipnote/wipnote.db.",
+		"  Data stays 100% local under your .wipnote/ store.",
 		"",
-		"  Powers: activity feed · per-turn cost badges · span timeline",
+		"  Powers: session telemetry · cost attribution · causal lineage",
 		"  Opt out: set WIPNOTE_OTEL_ENABLED=0 before launching.",
 		"",
 	}, "\n")

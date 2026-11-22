@@ -1,6 +1,6 @@
 {
   "$schema": "./manifest.schema.json",
-  "_comment": "Single source of truth for the wipnote CLI companion plugin. Both the Claude Code plugin (plugin/) and the Codex CLI marketplace (port/packages/codex-marketplace/) are generated from this file by `wipnote plugin build-ports`. Assets (commands, agents, skills, templates, static, config) are sourced from plugin/ verbatim — same markdown format works for both Claude and Codex.",
+  "_comment": "Single source of truth for the wipnote CLI companion plugin. Claude Code (plugin/), Codex CLI (port/packages/codex-marketplace/), and Antigravity (port/packages/antigravity-extension/) are all generated from this file by `wipnote plugin build-ports`. Shared assets (agents, templates, static, config, output-styles) are sourced from plugin/ — no commands/ or skills/ ship from the plugin.",
 
   "name": "wipnote",
   "version": "0.95.0",

@@ -6,56 +6,37 @@ paths:
 
 # Version Synchronization Rules
 
-**CRITICAL: Plugin version and GitHub Release version MUST always match.**
+**CRITICAL: Plugin manifest version and GitHub Release version MUST always match.**
 
 ## Why This Matters
 
-The Go binary is distributed via GitHub Releases. The plugin bootstrap script downloads the binary version matching `plugin.json`. If versions diverge, users get the wrong binary.
+The Go binary and bundled plugin trees are distributed together via GitHub Releases, and bootstrap/upgrade scripts resolve release assets from the manifest version. If versions diverge, installs and upgrades fail or pull mismatched assets.
 
 ## Version Files (Must All Match)
 
 ```
-plugin/.claude-plugin/plugin.json:                "version": "X.Y.Z"
+packages/plugin-core/manifest.json:      "version": "X.Y.Z"  (source of truth)
+plugin/.claude-plugin/plugin.json:       "version": "X.Y.Z"  (generated via wipnote plugin build-ports)
+.claude-plugin/marketplace.json:         "version": "X.Y.Z"  (updated by scripts/deploy-all.sh)
 ```
 
-## For Claude: Always Check Version
+## Checking Versions
 
 ```bash
-# Check local plugin version
-grep '"version"' plugin/.claude-plugin/plugin.json
+# Cross-check plugin.json, manifest.json, and latest GitHub Release
+./scripts/verify-versions.sh
 
-# Check latest GitHub Release
-gh release view --json tagName -q .tagName 2>/dev/null || echo "No releases"
+# Quiet mode (prints only on mismatch)
+./scripts/verify-versions.sh --quiet
 ```
 
 ## Publishing Requirements
 
-**Before running `./scripts/deploy-all.sh VERSION`:**
-
-1. Verify all version files match target version
-2. Run: `./scripts/verify-versions.sh X.Y.Z`
-3. Confirm all files were updated
-
-**The publishing script will:**
-- FAIL if versions are inconsistent
-- Automatically sync all version files
-
-## Version Update Workflow
-
-When deploying new version:
-
-```bash
-# 1. Update version files
-# 2. Run verification
-./scripts/verify-versions.sh 1.0.0
-
-# 3. Deploy
-./scripts/deploy-all.sh 1.0.0 --no-confirm
-```
+Use `./scripts/deploy-all.sh X.Y.Z --no-confirm` (or `/deploy X.Y.Z`) rather than bumping version files by hand. The deploy script updates all three files, runs `wipnote plugin build-ports`, and tags the release.
 
 ## For AI Agents
 
-**DIRECTIVE**: When discussing version numbers:
-1. Check plugin.json for the current version
-2. Verify version files are consistent
-3. Recommend running `./scripts/verify-versions.sh` before deployment
+**DIRECTIVE**: When discussing or bumping version numbers:
+1. Check `packages/plugin-core/manifest.json` and `plugin/.claude-plugin/plugin.json` for the current version
+2. Verify all surfaces agree with `./scripts/verify-versions.sh`
+3. Use `./scripts/deploy-all.sh X.Y.Z --no-confirm` for releases

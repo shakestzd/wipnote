@@ -70,7 +70,7 @@ Gemini-CLI convention it descends from — see `mapGeminiAgentModel` in
 ## Hooks — thin wrappers
 
 Every hook resolves to `wipnote hook <handler>`. Business logic lives in the
-Go CLI (`internal/hooks/`); the plugin manifests only declare which events route
+Go CLI (`core/hooks/`); the plugin manifests only declare which events route
 to which handler and on which target. Events whose `targets` list omits a given
 target are not emitted to that target's hooks file.
 
@@ -135,7 +135,7 @@ Three places, always in this order:
    Optional keys: `matcher` (e.g. `"ExitPlanMode"`), `timeout` (seconds),
    `command` (escape hatch for shell-only hooks; bypasses `handler`).
 
-2. **Go handler** (`internal/hooks/my_new_event.go`) — implement the handler with
+2. **Go handler** (`core/hooks/my_new_event.go`) — implement the handler with
    the signature matching the wiring you'll use:
 
    ```go
@@ -188,7 +188,7 @@ extension conventions).
 
    ```json
    "mytool": {
-     "outDir": "packages/mytool-extension",
+     "outDir": "port/packages/mytool-extension",
      "manifestPath": "mytool-extension.json",
      "hooksPath": "hooks/hooks.json",
      "contextFile": "MYTOOL.md",
@@ -243,7 +243,7 @@ extension conventions).
 
 **Go runtime layer**
 
-4. **Harness registry** — create `internal/harness/registry_<name>.go`
+4. **Harness registry** — create `core/harness/registry_<name>.go`
    registering a `HarnessConfig` via `init()`:
 
    - `ID` — DB-canonical identifier written to `agent_events.harness`; must
@@ -267,7 +267,7 @@ extension conventions).
    - `OtelEnv` — func returning OTel env vars to inject at launch time; must
      be non-nil for every harness except Claude.
 
-5. **OTel adapter** — add `internal/otel/adapter/<name>.go` implementing
+5. **OTel adapter** — add `observe/otel/adapter/<name>.go` implementing
    `otel.Adapter`. The `Identify()` method reads
    `harness.Get(<id>).ServiceNames`; session ID resolution reads
    `harness.Get(<id>).SessionAttr`. Do NOT hardcode service names or attribute

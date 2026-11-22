@@ -1,19 +1,21 @@
 # CLI Reference
 
-All commands are invoked as `wipnote <command>`. Run `wipnote help --compact` for a quick summary, or `wipnote <command> --help` for detailed usage on any command.
+All commands are invoked as `wipnote <command>`. Run `wipnote help --compact` for a compact summary, `wipnote --help` for all top-level commands, or `wipnote <command> --help` for detailed usage on any command.
 
 ---
 
 ## Work Items
 
-Commands for managing the core work item types. All four types share the same lifecycle subcommands.
+Commands for managing core work items, architectural memory cards, and owner questions. Features, bugs, spikes, and tracks share the same lifecycle subcommands.
 
 | Command | Description |
 |---------|-------------|
-| `feature [create\|show\|start\|complete\|list\|add-step\|delete]` | Feature work items |
-| `bug [create\|show\|start\|complete\|list\|add-step\|delete]` | Bug tracking |
-| `spike [create\|show\|start\|complete\|list\|add-step\|delete]` | Time-boxed investigation spikes |
-| `track [create\|show\|start\|complete\|list\|add-step\|delete]` | Multi-feature tracks (initiatives) |
+| `feature [create\|show\|start\|complete\|list\|add-step\|complete-step\|link-commit\|move\|related\|reopen\|research\|reset\|set-description\|update\|delete]` | Feature work items |
+| `bug [create\|show\|start\|complete\|list\|add-step\|complete-step\|link-commit\|move\|reopen\|research\|reset\|set-description\|update\|delete]` | Bug tracking |
+| `spike [create\|show\|start\|complete\|list\|add-step\|complete-step\|link-commit\|move\|reopen\|research\|reset\|set-description\|update\|delete]` | Time-boxed investigation spikes |
+| `track [create\|show\|start\|complete\|list\|add-step\|complete-step\|pr\|set-description\|status\|update\|delete]` | Multi-feature tracks (initiatives) |
+| `arch [add\|bootstrap\|deprecate\|edit\|list\|repair\|resolve\|show\|validate\|verify]` | Architectural memory cards |
+| `question [add\|answer\|assume\|list]` | Owner questions stored on features, bugs, and spikes |
 
 ### Common subcommands
 
@@ -28,42 +30,59 @@ Commands for managing the core work item types. All four types share the same li
 | `delete` | `wipnote feature delete <id>` | Delete a work item |
 
 !!! note "Required flags"
-    `feature create` and `bug create` require `--track <trk-id>` and `--description "..."`.
+    `feature create` and `bug create` require `--track <trk-id>` and `--description "..."` (pass `--why "..."` and `--done-when "..."` as well; missing values warn).
 
 !!! note "`completion_base` (config key)"
     `complete` needs a linked commit on the default branch. `.wipnote/config.json` key `completion_base` (env `WIPNOTE_COMPLETION_BASE` wins) sets which one: `upstream` (origin default only), `local` (local `main`/`master` or upstream; for projects that merge locally and never push), or `auto` (default: upstream, plus local `main`/`master` while it is ahead of upstream). Unknown values warn and use `auto`.
 
 ---
 
-## Search & Status
+## Query, Lineage & Status
 
-Quick commands for finding work items and checking project state.
+Commands for searching work items, tracing causal lineage, and checking project state.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `find` | `wipnote find <query>` | Search work items by title or ID |
-| `wip` | `wipnote wip` | Show all in-progress work items |
-| `status` | `wipnote status` | Quick project status summary |
-| `snapshot` | `wipnote snapshot [--summary]` | Full project overview with counts and details |
+| `lineage` | `wipnote lineage <id\|sha\|path>` | Walk the unified causal chain (forward + backward edges) for a work item, session, commit, or file |
+| `trace` | `wipnote trace <id\|sha\|path>` | Reverse-trace a commit, file, or feature to its related work items and sessions |
+| `history` | `wipnote history <id>` | Show the git commit history for a work-item HTML file |
+| `blame` | `wipnote blame <path>` | Reverse-lookup which features and tracks touched a file |
+| `code-areas` | `wipnote code-areas` | Aggregate file-to-track attribution across the codebase |
+| `context-pack` | `wipnote context-pack <id>` | Emit a markdown briefing for a dispatched agent picking up a work item |
+| `execute-preview` | `wipnote execute-preview <trk-id>` | Compute the ready set, file overlap, and per-task briefs for a track |
+| `find` | `wipnote find <query>` | Query work items with filters |
+| `relevant` | `wipnote relevant <path\|sha\|keyword>` | Find work items related to a file path, git SHA, or keyword |
+| `search` | `wipnote search <pattern>` | AST-aware structural code search via `ast-grep` |
+| `recap` | `wipnote recap [list\|show\|delete]` | Generate a grounded HTML recap artifact for a work item, git range, or session |
+| `recommend` | `wipnote recommend` | Consolidated project health, WIP, bottlenecks, and recommendations |
+| `snapshot` | `wipnote snapshot [--summary]` | Quick project overview with counts and details |
+| `status` | `wipnote status [--all]` | Project status summary (`--all`: every registered project) |
+| `wip` | `wipnote wip [show\|reset]` | Show or reset WIP limits and in-progress items |
+| `who` | `wipnote who` | Show current session identity and claim attribution |
+| `mcp` | `wipnote mcp` | Run the read-only wipnote MCP server on stdio |
 
 ---
 
 ## Planning
 
-Commands for creating, reviewing, and executing structured CRISPI plans.
+Commands for creating, critiquing, reviewing, and executing structured CRISPI plans.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
 | `plan create` | `wipnote plan create "Title" --track <trk-id>` | Create a new plan |
 | `plan create-yaml` | `wipnote plan create-yaml "Title" --track <trk-id>` | Create a v2 YAML plan file |
 | `plan show` | `wipnote plan show <id>` | Display plan details |
-| `plan start` | `wipnote plan start <id>` | Mark plan as in-progress |
-| `plan complete` | `wipnote plan complete <id>` | Mark plan as done |
-| `plan list` | `wipnote plan list` | List all plans |
-| `plan list-yaml` | `wipnote plan list-yaml` | List all YAML plans sorted by created_at |
+| `plan start` / `complete` | `wipnote plan start <id>` | Transition plan lifecycle |
+| `plan list` / `list-yaml` | `wipnote plan list-yaml` | List plans (`list-yaml` sorts YAML plans by `created_at`) |
 | `plan generate` | `wipnote plan generate <trk-id>` | Generate a CRISPI YAML plan for a track |
 | `plan rewrite-yaml` | `wipnote plan rewrite-yaml <id> --file <path>` | Validated atomic update of plan YAML |
 | `plan validate-yaml` | `wipnote plan validate-yaml <id>` | Validate a YAML plan's schema |
+| `plan next` | `wipnote plan next <id>` | Inspect the next actionable step or slice in a plan |
+| `plan slices` | `wipnote plan slices <id>` | Inspect slice status and review workflow steps |
+| `plan critique` | `wipnote plan critique <id>` | Run or manage plan critique passes |
+| `plan blocks` | `wipnote plan blocks` | Print the live visual block catalog for plans |
+| `plan elicit-decisions` | `wipnote plan elicit-decisions <plan-id> <num>` | Elicit scope/decisions/context for a slice |
+| `plan project-instructions` | `wipnote plan project-instructions <plan-id>` | Export plan context for Claude project instructions |
 
 ### v2 Slice Lifecycle
 
@@ -81,16 +100,22 @@ Commands for per-slice review and incremental promotion (v2 plans only).
 
 ## Specifications & Quality
 
-Commands for feature specs, test generation, code review, and quality enforcement.
+Commands for feature specs, test generation, code review, CI health, and quality enforcement.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `spec` | `wipnote spec [generate\|show] <feature-id>` | Generate or view feature specifications |
+| `spec` | `wipnote spec [create\|generate\|show\|list\|start\|complete\|delete] <feature-id>` | Manage and generate feature specifications |
 | `tdd` | `wipnote tdd <feature-id>` | Generate test stubs from spec acceptance criteria |
 | `review` | `wipnote review` | Structured diff summary against base branch |
-| `compliance` | `wipnote compliance <feature-id>` | Score implementation against spec |
-| `check` | `wipnote check` | Run automated quality gate checks |
+| `compliance` | `wipnote compliance [auto] <feature-id>` | Score implementation against spec |
+| `check` | `wipnote check [--gate\|accepted-advisory\|cross-project\|dups\|host-paths\|incomplete\|orphans]` | Run automated quality gates and consistency checks |
+| `ci` | `wipnote ci [init\|status\|watch]` | Pull request CI, review, and branch health |
+| `doctor` | `wipnote doctor [--project-thread]` | Check a Claude project thread or local wipnote background processes |
+| `guard` | `wipnote guard [init]` | Manage the project guard profile (`.wipnote/guard-profile.yaml`) |
 | `health` | `wipnote health` | Code health metrics (module sizes, function lengths) |
+| `prose` | `wipnote prose [check\|rules]` | Check text against plain-writing rules |
+| `reconcile` | `wipnote reconcile` | Reconcile session-exit drift (uncommitted artifacts, port drift, orphans) |
+| `research` | `wipnote research start <id>` | Research-first gate: start a research spike for a work item |
 
 ---
 
@@ -100,8 +125,9 @@ Commands for session management, analytics, and work item relationships.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `session list` | `wipnote session list` | List recorded sessions |
-| `session show` | `wipnote session show <id>` | Display session details and tool calls |
+| `session` | `wipnote session [list\|show\|start\|end\|ledger\|archive\|prune\|restore]` | Manage and inspect recorded sessions |
+| `sessions resumable` | `wipnote sessions resumable` | List resumable prior sessions |
+| `report` | `wipnote report` | Timeline of a session's activity |
 | `analytics summary` | `wipnote analytics summary` | Work analytics overview |
 | `analytics velocity` | `wipnote analytics velocity` | Development velocity insights |
 | `link add` | `wipnote link add <from-id> <to-id> --type <type>` | Create a typed edge between work items |
@@ -112,31 +138,48 @@ Commands for session management, analytics, and work item relationships.
 
 ## Data Management
 
-Commands for data import, export, and index maintenance.
+Commands for store initialization, import/export, maintenance, and corpus verification.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `batch apply` | `wipnote batch apply <file.yaml>` | Apply bulk work item operations from YAML |
-| `batch export` | `wipnote batch export` | Export work items to YAML |
-| `ingest` | `wipnote ingest` | Ingest Claude Code session transcripts (JSONL) |
-| `backfill` | `wipnote backfill [feature-files\|tool-calls-feature]` | Rebuild derived tables |
-| `reindex` | `wipnote reindex` | Sync HTML work items to SQLite index |
+| `init` | `wipnote init [--in-repo]` | Create a project's wipnote store (app-owned under `~/.wipnote/projects/` by default; `--in-repo` creates `.wipnote/` in the repo) |
+| `archive` | `wipnote archive` | Compact old DONE work items into HTML table-ledger artifacts |
+| `batch apply` / `export` | `wipnote batch apply <file.yaml>` | Bulk apply or export work items via YAML |
+| `cache stats` / `prune` | `wipnote cache [stats\|prune]` | Report and reclaim leftover on-disk SQLite caches from older versions |
+| `claims` | `wipnote claims [list\|who\|reconcile\|archive]` | Query and maintain the durable claim-episode ledger |
+| `clean` / `cleanup` | `wipnote clean` / `wipnote cleanup orphan-sessions` | Clean stale artifacts while respecting HTML-canonical invariants |
+| `commit-queue` | `wipnote commit-queue [status\|flush\|dead-letter]` | Serialized outbox for wipnote artifact commits |
+| `ingest` | `wipnote ingest [gemini]` | Ingest Claude Code JSONL transcripts (or historical Gemini CLI transcripts) |
+| `migrate` / `migrate-tracks` | `wipnote migrate [arch-cards\|normalize-paths\|restore-paths]` | One-shot data migrations and track attribution backfill |
+| `prune` | `wipnote prune` | Rotate oversized logs and archive ingested session NDJSON |
+| `registry` | `wipnote registry [prune]` | Manage the cross-project registry |
+| `reindex` | `wipnote reindex [--verbose]` | Reparse every canonical `.wipnote/` artifact into an ephemeral in-memory SQLite projection to verify integrity and report counts (writes no DB file to disk) |
+| `stale` | `wipnote stale` | List or mark open work items with no recent updates |
+| `sync` | `wipnote sync` | Batch-commit dirty `.wipnote/` files in one commit |
 
 ---
 
-## Development & Operations
+## Harnesses, Delegation & Operations
 
-Commands for autonomous development, building, agent configuration, and maintenance.
+Commands for launching harnesses, delegating across harnesses, building, and maintenance.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `claude` | `wipnote claude [--dev] [--continue\|--resume <session-id>]` | Launch Claude Code with wipnote plugin; `--resume <id>` resumes a specific prior session |
+| `claude` | `wipnote claude [--dev] [--init] [--tmux] [--continue\|--resume <session-id>]` | Launch Claude Code with bundled plugin and mods |
+| `dev` | `wipnote dev [--tmux] [--continue\|--resume <session-id>]` | Shortcut for `wipnote claude --dev` |
+| `codex` | `wipnote codex [--init] [--dev] [--continue\|--resume <session-id>]` | Launch Codex CLI with bundled marketplace and agents |
+| `antigravity` | `wipnote antigravity [--init] [--dev] [--tmux] [--continue\|--resume <id>]` | Launch Antigravity with bundled extension |
 | `yolo` | `wipnote yolo --feature <id> [--track <id>] [--resume <session-id>]` | Autonomous dev mode with engineering guardrails |
-| `build` | `wipnote build` | Build Go binary (dev workflow) |
+| `delegate` | `wipnote delegate [run\|spawn\|send\|wait\|result\|questions\|inbox\|list\|tree\|view\|stop\|doctor\|profiles\|import-orch]` | Delegate one-shot or interactive work to Codex/Claude workers and record runs in `.wipnote/delegations-ledger.html` |
+| `run` / `sh` | `wipnote run -- <cmd>` / `wipnote sh <cmd>` | Run a command recorded on the work item, or with verbose output compression |
+| `build` | `wipnote build` | Rebuild the `wipnote` binary into `~/.local/bin/wipnote` and refresh bundled share trees |
+| `plugin` | `wipnote plugin build-ports [--target claude\|codex\|antigravity]` | Regenerate plugin port trees from `packages/plugin-core/manifest.json` |
+| `harness` | `wipnote harness list` | Inspect registered harness configurations |
+| `shell-alias` | `wipnote shell-alias [--short --install\|--uninstall]` | Print or install shell aliases for wipnote launchers |
 | `agent-init` | `wipnote agent-init` | Output shared agent context (safety, attribution, quality gates) |
-| `statusline` | `wipnote statusline --session <id>` / `--cache` | Print the active work item (icon + title, with track progress) as one line. For Claude Code, use the native `/statusline` and point it at `wipnote statusline`, e.g. `wipnote statusline --session "$(jq -r .session_id)"` (or the session-independent `wipnote statusline --cache`) |
+| `statusline` | `wipnote statusline --session <id>` / `--cache` | Print the active work item (icon + title, with track progress) as one line for native `/statusline` |
 | `worktree` | `wipnote worktree list [--json]` / `wipnote worktree clean [--yes] [--json]` | List the repo's worktrees with dirty and merged state (including squash merges); `clean` dry-runs by default and with `--yes` removes clean, merged worktrees and their local branches |
-| `upgrade` / `update` | `wipnote upgrade [--check] [--version 0.54.9]` | Self-update CLI from GitHub releases |
+| `upgrade` / `update` | `wipnote upgrade [--check] [--version 0.95.0]` | Self-update CLI from GitHub releases |
 
 !!! note "`launch.claude.autoCompactWindow` (config key)"
     `wipnote claude`, `yolo`, `dev` and `delegate spawn` Claude workers pass `--autocompact 300k` to Claude Code. Claude Code compacts 1M-context models at about 967K by default, and cost per turn grows with context. Set `launch.claude.autoCompactWindow` in `~/.wipnote/config.json` to another size (`"400k"` or `400000`, from 100k to 1M), or to `"auto"` or `"off"` to add no flag. An invalid value warns once and uses `300k`. wipnote adds nothing when you pass `--autocompact` yourself or set `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, `DISABLE_AUTO_COMPACT` or `DISABLE_COMPACT`. Codex and Antigravity launches are unchanged.
@@ -152,6 +195,7 @@ Commands for autonomous development, building, agent configuration, and maintena
 | Spike | `spk-` | Time-boxed investigations |
 | Track | `trk-` | Initiatives grouping related work |
 | Plan | `plan-` | CRISPI implementation plans |
+
 ---
 
 ## Deployment Profiles
