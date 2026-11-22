@@ -9,9 +9,9 @@ import (
 	"testing"
 )
 
-// The proposed CLAUDE.md and its patch are slice 12 of plan-2622b3f7
-// (feat-6f99bc47). Agents may not write CLAUDE.md, so the owner applies the
-// patch. These tests keep the proposal honest until then.
+// The proposed CLAUDE.md is slice 12 of plan-2622b3f7 (feat-6f99bc47). The
+// owner applied it, so the patch file is gone. These tests keep the pointers in
+// the proposal resolving.
 
 // newRuleFiles are the path-scoped rules that slice 12 adds.
 var newRuleFiles = []string{
@@ -119,17 +119,6 @@ func TestMovedDocsExist(t *testing.T) {
 		if len(strings.TrimSpace(readRepoFile(t, root, d))) < 200 {
 			t.Errorf("%s is nearly empty", d)
 		}
-	}
-}
-
-func TestClaudeMdPatchApplies(t *testing.T) {
-	root := repoRootForTest(t)
-	if readRepoFile(t, root, "CLAUDE.md") == readRepoFile(t, root, "docs/design/claude-md-proposed.md") {
-		t.Skip("the owner already applied the patch")
-	}
-	cmd := exec.Command("git", "-C", root, "apply", "--check", "docs/design/claude-md.patch")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Errorf("git apply --check failed: %v\n%s", err, out)
 	}
 }
 
