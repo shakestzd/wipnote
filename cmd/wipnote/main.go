@@ -192,6 +192,7 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	if launcherMayCreateStore(cmd) {
+		autoMoveLauncherStore(os.Stderr)
 		if err := ensureLauncherStore(); err != nil {
 			return err
 		}

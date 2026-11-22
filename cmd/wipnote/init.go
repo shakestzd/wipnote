@@ -10,7 +10,6 @@ import (
 )
 
 func initCmd() *cobra.Command {
-	var inRepo bool
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Create this project's wipnote store",
@@ -18,18 +17,13 @@ func initCmd() *cobra.Command {
 nothing added to the project folder. A git repo's store is keyed by its main
 checkout, so linked worktrees share it; any other folder's by the folder.
 
-A project that already has a store keeps it, in-repo stores included.
-
-With --in-repo, creates a .wipnote/ directory in the current folder instead.
-Safe to run on an existing project: only missing pieces are created.`,
+A project that already has a store keeps it. A store kept inside the project's
+own repo by an older wipnote is moved out by the launchers and by
+` + "`wipnote store move`" + `.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if inRepo {
-				return runInitInRepo()
-			}
 			return runInit()
 		},
 	}
-	cmd.Flags().BoolVar(&inRepo, "in-repo", false, "create .wipnote/ in the current folder instead of under ~/.wipnote/projects")
 	return cmd
 }
 
@@ -51,49 +45,6 @@ func runInit() error {
 	if _, err := ensureExternalStore(cwd, paths.OriginInit); err != nil {
 		return fmt.Errorf("create store: %w", err)
 	}
-	return nil
-}
-
-// runInitInRepo makes .wipnote/ in the current folder. $HOME and the app home are
-// refused, and so is a project an app-owned store already serves.
-func runInitInRepo() error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
-	}
-	if paths.IsReservedDir(cwd) {
-		return fmt.Errorf("--in-repo cannot be used in your home folder or in wipnote's own home (%s); run plain `wipnote init`", paths.DataDir())
-	}
-	// An in-repo .wipnote/ would win over the project's app-owned store and hide
-	// every item in it.
-	if owner := paths.StoreOwnerFor(cwd); paths.IsExternalStore(owner) {
-		return fmt.Errorf("this project's store is already at %s; an in-repo .wipnote/ would hide it, so --in-repo is refused", filepath.Join(owner, ".wipnote"))
-	}
-
-	graphDir := filepath.Join(cwd, ".wipnote")
-
-	if err := createSubdirs(graphDir); err != nil {
-		return err
-	}
-
-	if err := writeStylesCSS(graphDir); err != nil {
-		return err
-	}
-
-	// GH#172: an over-broad repo-level .gitignore rule silently defeats
-	// every artifact commit; say so now rather than at the first stuck gate.
-	warnIfRepoGitignoreIgnoresWipnote(os.Stderr, cwd)
-
-	fmt.Printf("Initialized wipnote in %s\n", graphDir)
-	fmt.Println()
-	fmt.Println("  .wipnote/features/")
-	fmt.Println("  .wipnote/bugs/")
-	fmt.Println("  .wipnote/spikes/")
-	fmt.Println("  .wipnote/tracks/")
-	fmt.Println("  .wipnote/sessions/")
-	fmt.Println("  .wipnote/styles.css")
-	fmt.Println()
-	fmt.Println("Run 'wipnote status' to verify.")
 	return nil
 }
 

@@ -253,64 +253,6 @@ func TestInit_DefaultMakesAppOwnedStore(t *testing.T) {
 	}
 }
 
-func TestInit_InRepoFlagStaysInRepoAndWins(t *testing.T) {
-	p := newExternalProject(t)
-	if _, err := runCLI(t, "init", "--in-repo"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(p.code, ".wipnote", "features")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(paths.ProjectsDir()); err == nil {
-		t.Fatal("--in-repo made a projects folder")
-	}
-	// A later plain init keeps the in-repo store and makes nothing.
-	if _, err := runCLI(t, "init"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(paths.ProjectsDir()); err == nil {
-		t.Fatal("plain init made a store beside an in-repo one")
-	}
-}
-
-// Finding 2: --in-repo refuses a project an app-owned store serves, naming it,
-// from the main checkout and from a linked worktree.
-func TestInit_InRepoRefusedWhenAppOwnedStoreServes(t *testing.T) {
-	p := newExternalProject(t)
-	if _, err := runCLI(t, "init"); err != nil {
-		t.Fatal(err)
-	}
-	root := paths.ExternalStoreFor(p.code)
-	wt := filepath.Join(p.base, "wt")
-	extGit(t, p.code, "worktree", "add", "-q", "-b", "w", wt)
-	for _, dir := range []string{p.code, wt} {
-		t.Chdir(dir)
-		_, err := runCLI(t, "init", "--in-repo")
-		if err == nil || !strings.Contains(err.Error(), root) {
-			t.Fatalf("from %s: --in-repo = %v, want a refusal naming %s", dir, err, root)
-		}
-		if _, serr := os.Stat(filepath.Join(dir, ".wipnote")); serr == nil {
-			t.Fatalf("from %s: .wipnote created", dir)
-		}
-	}
-}
-
-// Finding 5: --in-repo is refused in the app home.
-func TestInit_InRepoRefusedInAppHome(t *testing.T) {
-	newExternalProject(t)
-	app := paths.DataDir()
-	if err := os.MkdirAll(app, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Chdir(app)
-	if _, err := runCLI(t, "init", "--in-repo"); err == nil {
-		t.Fatal("--in-repo made a project of ~/.wipnote")
-	}
-	if _, err := os.Stat(filepath.Join(app, ".wipnote")); err == nil {
-		t.Fatal("~/.wipnote/.wipnote created")
-	}
-}
-
 // Finding 4: a launcher's store in a non-git folder is made explicit by init.
 func TestInit_MarksLauncherStoreExplicit(t *testing.T) {
 	p := newExternalProject(t)
@@ -375,18 +317,6 @@ func TestInit_NonGitHonoursRealParentStore(t *testing.T) {
 	}
 	if got := paths.StoreOwnerFor(child); got != p.parent {
 		t.Fatalf("owner = %s", got)
-	}
-}
-
-func TestInit_InRepoRefusedAtHome(t *testing.T) {
-	p := newExternalProject(t)
-	home := filepath.Join(p.base, "home")
-	t.Chdir(home)
-	if _, err := runCLI(t, "init", "--in-repo"); err == nil {
-		t.Fatal("--in-repo made a project of ~/.wipnote")
-	}
-	if _, err := os.Stat(filepath.Join(home, ".wipnote", "features")); err == nil {
-		t.Fatal("store folders written into ~/.wipnote")
 	}
 }
 
@@ -759,5 +689,17 @@ func TestIsStorePath(t *testing.T) {
 		if got := isStorePath(hg, path); got != want {
 			t.Errorf("isStorePath(%q) = %v", path, got)
 		}
+	}
+}
+
+// The app store is the only mode: init can no longer put a store in the
+// project's own repo (feat-b153fe64).
+func TestInit_InRepoFlagIsGone(t *testing.T) {
+	p := newExternalProject(t)
+	if _, err := runCLI(t, "init", "--in-repo"); err == nil {
+		t.Fatal("init still accepts --in-repo")
+	}
+	if _, err := os.Stat(filepath.Join(p.code, ".wipnote")); err == nil {
+		t.Fatal("init --in-repo made .wipnote/ in the project")
 	}
 }

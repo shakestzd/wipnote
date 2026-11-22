@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -129,5 +130,77 @@ func TestStoreMove_Refusals(t *testing.T) {
 	p.store(t)
 	if out, err := runCLI(t, "store", "move"); err == nil || !strings.Contains(err.Error(), "already in the app store") {
 		t.Fatalf("app store: err=%v\n%s", err, out)
+	}
+}
+
+// A launcher moves an in-repo store out of the project's git with no command
+// from the owner: one commit that holds only the store, and nothing after it.
+func TestAutoMoveLauncherStore(t *testing.T) {
+	p := inRepoStoreProject(t)
+	var out bytes.Buffer
+	autoMoveLauncherStore(&out)
+	root := paths.ShadowRootFor(p.code)
+	if !paths.IsMovedStore(root) || paths.StoreOwnerFor(p.code) != root {
+		t.Fatalf("the launch did not move the store:\n%s", out.String())
+	}
+	if tracked := extGit(t, p.code, "ls-files", "--", ".wipnote"); tracked != "" {
+		t.Errorf("store files are still tracked:\n%s", tracked)
+	}
+	if _, err := os.Stat(filepath.Join(p.code, ".wipnote")); err == nil {
+		t.Error("the in-repo folder was not deleted")
+	}
+	if staged := extGit(t, p.code, "diff", "--cached", "--name-only"); staged != "other.go" {
+		t.Errorf("the unrelated staged change did not survive: %q", staged)
+	}
+	head := extGit(t, p.code, "rev-parse", "HEAD")
+
+	// A second launch finds nothing to do and says nothing.
+	out.Reset()
+	autoMoveLauncherStore(&out)
+	if out.Len() != 0 || extGit(t, p.code, "rev-parse", "HEAD") != head {
+		t.Errorf("a second launch acted again:\n%s", out.String())
+	}
+
+	// Another branch still tracks the folder. A launch there untracks it too,
+	// from a linked worktree as well as from the main checkout.
+	wt := filepath.Join(p.base, "wt")
+	extGit(t, p.code, "worktree", "add", "-q", "-b", "old", wt, "HEAD~1")
+	t.Chdir(wt)
+	out.Reset()
+	autoMoveLauncherStore(&out)
+	if tracked := extGit(t, wt, "ls-files", "--", ".wipnote"); tracked != "" {
+		t.Errorf("the linked worktree still tracks the store:\n%s\n%s", tracked, out.String())
+	}
+	if paths.StoreOwnerFor(wt) != root {
+		t.Errorf("the linked worktree does not use the moved store")
+	}
+}
+
+// A commit made on a detached HEAD would be lost, so the launch moves the
+// store and leaves the index alone until a branch is checked out.
+func TestAutoMoveLauncherStore_BusyCheckoutKeepsTheIndex(t *testing.T) {
+	p := inRepoStoreProject(t)
+	extGit(t, p.code, "stash", "-q")
+	extGit(t, p.code, "checkout", "-q", "--detach")
+	head := extGit(t, p.code, "rev-parse", "HEAD")
+	var out bytes.Buffer
+	autoMoveLauncherStore(&out)
+	if !paths.IsMovedStore(paths.ShadowRootFor(p.code)) {
+		t.Fatalf("the store was not moved:\n%s", out.String())
+	}
+	if extGit(t, p.code, "rev-parse", "HEAD") != head || !strings.Contains(out.String(), "HEAD is detached") {
+		t.Errorf("a detached checkout got a commit, or no notice:\n%s", out.String())
+	}
+}
+
+// A project with an app store already, or with no store, is left alone.
+func TestAutoMoveLauncherStore_NothingToMove(t *testing.T) {
+	p := newExternalProject(t)
+	var out bytes.Buffer
+	autoMoveLauncherStore(&out)
+	p.store(t)
+	autoMoveLauncherStore(&out)
+	if out.Len() != 0 {
+		t.Errorf("a launch with nothing to move printed:\n%s", out.String())
 	}
 }

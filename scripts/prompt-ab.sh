@@ -146,7 +146,7 @@ run_one() { # side task n
   # Fixture sources end in .fixture so no Go tool in this repo scans them.
   for f in "$proj"/*.go.fixture; do mv "$f" "${f%.fixture}"; done
   (cd "$proj" && git init -q && git add -A && git -c user.name=ab -c user.email=ab@example.invalid commit -qm init) || return 1
-  item="$(cd "$proj" && cenv wipnote init --in-repo >/dev/null 2>&1; cenv wipnote feature create "ab $task" --standalone "prompt-ab fixture" --done-when "task done" 2>&1 | grep -o 'feat-[0-9a-f]*' | head -1)"
+  item="$(cd "$proj" && cenv wipnote init >/dev/null 2>&1; cenv wipnote feature create "ab $task" --standalone "prompt-ab fixture" --done-when "task done" 2>&1 | grep -o 'feat-[0-9a-f]*' | head -1)"
   [ -n "$item" ] || { echo "no work item for $side/$task/$n" >&2; return 1; }
   (cd "$proj" && cenv wipnote feature start "$item" >/dev/null 2>&1 && cenv wipnote delegate run --no-pane --work-item "$item" -- \
     claude -p "Work item: $item. Task: $(cat "$EVALS/tasks/$task/task.md") Name $item in every commit subject. Commit your work when done." \

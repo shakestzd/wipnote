@@ -133,7 +133,7 @@ After installing the CLI and at least one AI tool integration:
 
 ```bash
 cd /your/project
-wipnote init              # creates the store under ~/.wipnote/projects/ (--in-repo: .wipnote/ in the project)
+wipnote init              # creates the store under ~/.wipnote/projects/
 ```
 
 ---

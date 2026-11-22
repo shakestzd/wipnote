@@ -369,7 +369,7 @@ func Roots(dir string) (owner, code string) {
 
 // StoreCreationAllowed reports whether code that needs .wipnote/ under
 // projectDir may make it. $HOME's belongs to the application, and inside a repo
-// only `wipnote init --in-repo` may; elsewhere the old create-on-demand stands
+// nothing may (`wipnote init --in-repo` is gone, feat-b153fe64); elsewhere the old create-on-demand stands
 // for the low-level helpers, which the CLI no longer reaches without a store.
 func StoreCreationAllowed(projectDir string) bool {
 	if IsReservedDir(projectDir) {
@@ -396,7 +396,7 @@ func MainRepoRoot(dir string) string {
 // app home, a passive caller that never makes stores, or a store that could not
 // be made. Commands must not make .wipnote/ on first write, or fall back to a
 // .wipnote above the repo; projects get their app-owned store instead.
-var ErrNoStore = errors.New("no wipnote store for this project: run `wipnote claude` or `wipnote init` to create one (it is kept under ~/.wipnote/projects, with nothing added here), or `wipnote init --in-repo` to keep it in this folder")
+var ErrNoStore = errors.New("no wipnote store for this project: run `wipnote claude` or `wipnote init` to create one (it is kept under ~/.wipnote/projects, with nothing added here)")
 
 // gitOutput runs git in dir, with the variables that would redirect it to
 // another repo removed (a git hook sets them for its own repo).
