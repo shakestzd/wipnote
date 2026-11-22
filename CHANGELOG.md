@@ -5,6 +5,53 @@ All notable changes to wipnote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Aligned `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `docs/index.md`, `docs/INSTALL.md`, `docs/reference/cli.md`, `.devcontainer/README.md`, `.github/BRANCH_PROTECTION.md`, `mkdocs.yml`, and `.claude/` documentation with the current in-memory SQLite projection architecture, bundled `--plugin-dir` + `mods/` launchers, and multi-module Go layout.
+- Aligned `install.sh` and `scripts/install.sh` (consistent `WIPNOTE_*` env var support, `wn` symlink, and `0.95.0` examples) and removed stale `.wipnote/wipnote.db` mentions from `wipnote agent-init` and the first-launch OTel notice.
+- Removed stale pre-built `site/` output, legacy Python `examples/`, and dead Python-era / pre-rename leftovers (`.claude-plugin/plugin.json`, `.claude/projects/` htmlgraph memory file, `.claude/config/`, `.codex`, `.pre-commit-config.yaml`, `pytest.ini`, `docker-compose.yml`, `wipnote-aliases.sh`, `wipnote-deploy.toml`, `PRD.md`, `_build/esbuild-darwin-arm64`, `memory/MEMORY.md`, `benchmarks/`, `prototypes/`, `src/js/wipnote.js`, `templates/`, `tests/`, `ui-review/`, `.gotmp-exec/`).
+
+## [0.95.0] - 2026-11-19
+
+### Changed
+- Reply block visuals (steps, options, callouts) moved to the optional `lulawrite` plugin; `wipnote-visuals` and `wipnote-orchestra` draw only `wipnote-ref` work-item cards, the turn receipt line, and the writing check (`feat-fd3637f9`).
+
+### Fixed
+- Quality gate skips nested Go modules that contain no Go source files (`bug-7d02822c`).
+
+## [0.94.0] - 2026-11-18
+
+### Added
+- `wipnote plan next` and `wipnote execute-preview` CLI commands (`feat-bcc2297f`, `feat-d06e3fb2`).
+- `wipnote prose check` and `wipnote prose rules` plain-writing checks (`feat-4151d2f0`).
+- `wipnote check --gate` and `wipnote review` surface removed tests, added skips, and config edits, and run the Go gate across every module (`feat-a1daeef8`, `bug-9f3b580f`).
+- Prompt guidance size guardrails (`port/pluginbuild/guidance_size_test.go`) and `SubagentStart` worker-rules delivery (`feat-9fd0cb31`, `feat-0b0112a4`, `feat-0d9b57bc`).
+
+### Changed
+- Removed shipped plugin skills and slash commands (`plugin/skills/`, `plugin/commands/`); workflows now live in CLI commands and hook-delivered rules (`feat-9796e97f`, `feat-0be892a9`, `feat-8f910039`).
+- Slimmed `CLAUDE.md` to pointers backed by path-scoped `.claude/rules/` and `docs/guides/` (`feat-6f99bc47`).
+
+## [0.93.0] - 2026-11-12
+
+### Added
+- `wipnote worktree list` and `wipnote worktree clean` (`feat-742f6838`).
+- Default `--autocompact 300k` flag on Claude Code launches, configurable via `launch.claude.autoCompactWindow` (`feat-3fcabee6`).
+
+## [0.92.0] - 2026-11-08
+
+### Added
+- `PreCompact` and `PostCompact` hooks plus `SessionStart` compact resume brief to preserve active work-item state across compaction (`feat-9bc8e611`).
+- Worker session naming (`<parent> › <worker>`) and automatic naming for item-less sessions (`feat-52d2792b`, `feat-00e8112d`).
+
+## [0.91.4] - 2026-11-04
+
+### Added
+- `wipnote delegate run --progress` streaming progress for one-shot runs.
+
+### Fixed
+- OTel collector startup/watchdog logging, shared collector port handling, and serialized `wipnote run` tee output (`0.91.1`–`0.91.3`).
+
 ## [0.85.0] - 2026-10-29
 
 ### Added
@@ -22,27 +69,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `delegate` skill now covers every verb and the claim rules: the worker co-claims its item, there is one live worker per item, and you stop the worker before you complete the item. It ships to Claude Code and Codex, not to Antigravity.
 - A bare `codex exec`, `codex review`, `claude -p` or `ccx task` in the Bash tool is denied with the `wipnote delegate run` form to use. A plain `ccx task` is offered the `--container` form only when the project has a devcontainer.
 - A one-time notice at `wipnote claude` launch tells a user who set options for the removed mod which `delegate` settings in `~/.wipnote/config.json` they map to. wipnote does not move them.
+- `wipnote upgrade` / `wipnote update` — self-update CLI from GitHub releases with atomic binary replacement and self-test (feat-d16a24ac).
 
 ### Fixed
 - `wipnote delegate wait` no longer exits 0 when the worker is gone or blocked: `gone` exits 3 and `blocked` exits 4. `done` and the other settled outcomes still exit 0, a timeout still exits 124, and the JSON is unchanged (bug-da9bde6f).
+- `bootstrap.sh` standalone install resolves version via `$WIPNOTE_VERSION` or GitHub API when no `plugin.json` is present (bug-b08a2ec9).
 
 ### Removed
 - The `codex-herdr-pane` mod. `wipnote delegate run` does its job, `wipnote delegate view` replaces its viewer, and the wipnote-orchestra band replaces its Claude Code pane.
 
 ### Known limits
 - Chained delegations skip the ledger until v2. A delegation in a pipe, after `;` or `&&`, fed on stdin or behind `dev exec` runs as typed and gets no ledger row.
-
-## [Unreleased]
-
-### Added
-- `delegate` skill (preview) for `wipnote delegate run`: one codex exec, codex review, claude -p or ccx task call, with its result on the run page and a row in `.wipnote/delegations-ledger.html`. It ships to Claude Code and Codex, not to Antigravity. Interactive delegate commands (spawn, send, wait, stop and others) come in Release 2. Until Release 2 there are two one-shot paths: `wipnote delegate run` and the codex-herdr-pane mod, which stays installed (feat-cea63bd1)
-- `wipnote upgrade` / `wipnote update` — self-update CLI from GitHub releases with atomic binary replacement and self-test (feat-d16a24ac)
-
-### Documented
-- Standalone `install.sh` one-liner is now documented in README and docs/index.md. The installer itself already existed but was not advertised.
-
-### Fixed
-- `bootstrap.sh` standalone install — now resolves version via `$WIPNOTE_VERSION` env var or GitHub API when no `plugin.json` is present (bug-b08a2ec9)
 
 ## [0.13.9] - 2025-12-30
 

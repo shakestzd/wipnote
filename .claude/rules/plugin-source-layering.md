@@ -13,7 +13,7 @@ wipnote ships one plugin to Claude Code, Codex CLI and Antigravity from a single
 |-------|------------------|-------|
 | `packages/plugin-core/manifest.json` | Plugin metadata, per-target output paths, hook event matrix | YES |
 | `plugin/agents/`, `plugin/templates/`, `plugin/static/`, `plugin/config/`, `plugin/output-styles/` | Shared assets, copied verbatim into every target tree | YES |
-| `cmd/`, `internal/` | Go CLI and hook handlers (each hook is a thin wrapper over `wipnote hook <handler>`) | YES |
+| `cmd/`, `core/hooks/`, `internal/` | Go CLI and hook handlers (each hook is a thin wrapper over `wipnote hook <handler>`) | YES |
 | `plugin/.claude-plugin/plugin.json`, `plugin/hooks/hooks.json` | Generated Claude Code files | NO, regenerate |
 | `port/packages/codex-marketplace/` | Generated Codex CLI tree | NO, regenerate |
 | `port/packages/antigravity-extension/` | Generated Antigravity tree | NO, regenerate |

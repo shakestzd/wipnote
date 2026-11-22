@@ -75,9 +75,9 @@ wipnote already installed and skip it.
 
 Add the wipnote plugin marketplace (the wipnote GitHub repository, whose
 `.claude-plugin/marketplace.json` lists the `wipnote` plugin) and enable the
-`wipnote` plugin. The plugin brings wipnote's hooks, agents, skills and slash
-commands into every new thread. A plugin enabled in the repository's
-`.claude/settings.json` does not count: threads do not read it.
+`wipnote` plugin. The plugin brings wipnote's hooks and agents into every new
+thread. A plugin enabled in the repository's `.claude/settings.json` does not
+count: threads do not read it.
 
 Start a new thread after adding the plugin: a running thread does not pick it up.
 

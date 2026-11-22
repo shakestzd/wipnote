@@ -12,7 +12,7 @@ paths:
 
 - `packages/plugin-core/manifest.json` — plugin metadata, per-target output paths, hook event matrix (Claude, Codex, Antigravity)
 - `plugin/{agents,templates,static,config,output-styles}/` — shared markdown/static assets (copied verbatim into every target). The plugin ships no `commands/` or `skills/` folder since plan-2622b3f7; the manifest still accepts both.
-- `cmd/` and `internal/` — Go CLI and hook handlers
+- `cmd/`, `core/hooks/`, and `internal/` — Go CLI and hook handlers
 
 **Generated — DO NOT hand-edit (regenerate via `wipnote plugin build-ports`):**
 
@@ -124,7 +124,7 @@ trigger (noisy).
 2. Session state is fine for *attribution* and *telemetry*, not for *gates*. Gates must
    be reproducible across session restarts; telemetry just needs to be eventually consistent.
 3. When blocking a commit, first check the staged diff. Short-circuit to allow when no
-   relevant files are staged — see `hasStagedUIFiles()` in `internal/hooks/yolo_guard.go`
+   relevant files are staged — see `hasStagedUIFiles()` in `core/hooks/yolo_guard.go`
    and commit `88d2f51b4` as the canonical pattern.
 4. Anchor Bash command matching to the specific command shape, not substrings.
    Use `^\s*git\s+commit(\s|$|--|-[^a-z])`, not `LIKE '%commit%'`.

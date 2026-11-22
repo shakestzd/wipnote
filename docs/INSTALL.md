@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Go 1.21+ (for building from source)
+- Go 1.25+ (for building from source; see `go.mod`)
 - Git
 
 ---
@@ -10,13 +10,18 @@
 ## Install the CLI
 
 ```bash
-# Universal installer (recommended)
+# Universal installer (recommended — installs binary + bundled plugin trees & mods)
+curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/scripts/install.sh | bash
+
+# POSIX sh alternative (supports --version, --install-dir, optional cosign verification)
 curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh
 
 # Or build from source
 git clone https://github.com/shakestzd/wipnote.git
 cd wipnote && go build -o ~/.local/bin/wipnote ./cmd/wipnote/
 ```
+
+The release tarball installs the `wipnote` binary in `~/.local/bin/` and the bundled trees (`plugin/`, `codex-marketplace/`, `antigravity-extension/`, `mods/`) in `~/.local/share/wipnote/`.
 
 ### Upgrading
 
@@ -29,12 +34,14 @@ wipnote upgrade --check    # check without installing
 
 ## Claude Code Integration
 
-Install the wipnote plugin from the Claude Code marketplace:
+The Claude Code plugin and companion mods are bundled in the release tarball — there is no separate `claude plugin install` step. `wipnote claude` passes the bundled `plugin/` and `mods/` trees to Claude Code via `--plugin-dir` automatically:
 
 ```bash
-wipnote claude --init     # registers the marketplace and installs the plugin
-wipnote claude            # launch Claude Code with wipnote context
+wipnote claude            # launch Claude Code with bundled plugin and mods
+wipnote claude --init     # launch in init mode pinned to the current directory
 ```
+
+See `docs/guides/launching.md` for tree resolution order, `WIPNOTE_NO_MODS=1`, and shell aliases (`wipnote shell-alias`).
 
 ### Reply visuals: install lulawrite
 
@@ -122,7 +129,7 @@ wipnote codex --resume <session-id>  # codex resume <id>
 ### Dev mode
 
 ```bash
-wipnote codex --dev       # registers packages/codex-marketplace/ locally and launches Codex
+wipnote codex --dev       # registers port/packages/codex-marketplace/ locally and launches Codex
 ```
 
 ---

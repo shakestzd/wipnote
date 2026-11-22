@@ -3,10 +3,13 @@ site_description: Local-first causal lineage and observability for AI-assisted d
 site_url: https://shakestzd.github.io/wipnote/
 repo_url: https://github.com/shakestzd/wipnote
 repo_name: shakestzd/wipnote
-copyright: Copyright &copy; 2025 TZDLabs
+copyright: Copyright &copy; 2026 TZDLabs
 
 exclude_docs: |
   archive/
+  artifacts/
+  design/
+  reference/orch/
   architecture-review-2026-06-12.md
   internal-plan-system-analysis.md
   codex-interoperability-review.md
@@ -91,5 +94,14 @@ extra:
 
 nav:
   - Home: index.md
+  - Install: INSTALL.md
+  - Guides:
+      - Launching Harnesses: guides/launching.md
+      - Guard Profiles: guard-profiles.md
+      - Claude Project Threads: guides/claude-projects.md
+      - Codespaces & tmux: guides/codespaces.md
+  - CLI Reference:
+      - Overview: reference/cli.md
+      - Blame: cli/blame.md
+      - Migrate Tracks: cli/migrate-tracks.md
   - Blog: blog/index.md
-  - CLI Reference: reference/cli.md

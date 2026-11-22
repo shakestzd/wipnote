@@ -116,42 +116,15 @@ CODEX.md
 !.wipnote/**/*.yml
 !.wipnote/**/*.css
 
-# Legacy HtmlGraph derived/runtime artifacts may still exist in old checkouts.
-.htmlgraph/*.db*
-.htmlgraph/.db/
-.htmlgraph/*.sqlite*
-.htmlgraph/archive-index/
-.htmlgraph/events/
-.htmlgraph/sessions/
-.htmlgraph/logs/
-.htmlgraph/**/*.jsonl
-.htmlgraph/**/*.log
-.htmlgraph/**/*.lock
-.htmlgraph/.active-session
-.htmlgraph/.launch-mode
-.htmlgraph/.session-warning-state.json
-.htmlgraph/parent-activity.json
-.htmlgraph/.error-spikes.json
-.htmlgraph/active-auto-spikes.json
-.htmlgraph/drift-queue.json
-.htmlgraph/.otlp-port
-.htmlgraph/.serve.lock
-.htmlgraph/cigs/
-.htmlgraph/insights/
-.htmlgraph/metrics/
-.htmlgraph/orchestrator-mode.json
-.htmlgraph/.htmlgraph/
-!.htmlgraph/**/*.html
-!.htmlgraph/**/*.yaml
-!.htmlgraph/**/*.yml
-!.htmlgraph/**/*.css
+# Legacy pre-rename directory (ignored in case old local checkouts still have one)
+.htmlgraph/
 
 .env
 
 # MkDocs build output
 site/
 
-# pdoc generated documentation
+# Generated docs
 docs/api-pdoc/
 docs/api/*.html
 docs/api/*.js
@@ -180,11 +153,6 @@ _build/
 archive/
 packages/go-plugin/hooks/bin/
 hooks/bin/
-plugin/hooks/bin/htmlgraph
-/htmlgraph
-
-# Notebook files copied at build time from prototypes/ (do not commit)
-internal/notebook/files/
 dist/
 _build/tailwind-*
 chrome/*.zip

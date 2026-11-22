@@ -32,7 +32,8 @@ Gemini CLI session data — the ingest/classification read path (`core/ingest/ge
 
 All three trees are **generated** from the same source of truth at
 `packages/plugin-core/manifest.json` by `wipnote plugin build-ports`. Shared
-markdown assets (commands, agents, skills, templates) live in `plugin/…/`.
+assets (agents, templates, static, config, output-styles) live in `plugin/…/`
+(the plugin ships no `commands/` or `skills/` directories).
 Codex agent markdown is translated into custom-agent TOML during generation, then
 `wipnote codex` mirrors those TOML files into the user-level `~/.codex/agents`
 lookup directory when launching (Codex discovers roles there natively). See `packages/plugin-core/README.md` for
