@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Research: How can wipnote tell a worktree branch is merged upstream, including squash-merged pull requests, without pushing?</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-0ada4a1e"
+             data-type="spike"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-17T06:54:56.612005"
+             data-updated="2026-11-17T06:54:57.383719" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-spike-subtype="technical" data-research_for="feat-742f6838" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Merged = ancestor of the default branch&#39;s upstream, OR merge-tree tree equals default tree, OR (gh available) a merged PR whose headRefOid equals the branch tip. gh is optional; offline the first two rules apply.&#34;,&#34;exists&#34;:&#34;core/worktree/cleanup.go InspectCleanupState marks HasUniqueCommits via ancestry only; RemoveManagedWorktree and SnapshotPreservedWorktree exist; core/worktree/delegate.go RemoveIfClean; no user-facing worktree command&#34;,&#34;findings&#34;:&#34;Tested on git 2.55: git cherry reports &#39;+&#39; for every commit of a two-commit branch after a squash merge, so it misses squash merges. merge-tree --write-tree of default and branch equals the default tree after a squash merge, and differs once the branch gains a commit, so it detects squash merges offline and catches later work. gh pr list --state merged returned PR 356 with headRefOid fe21f86bc matching the branch tip; matching headRefOid prevents removing a branch that gained commits after merge.&#34;,&#34;options&#34;:[&#34;git merge-base --is-ancestor (ancestry)&#34;,&#34;git cherry (per-commit patch-id)&#34;,&#34;git merge-tree --write-tree \u003cdefault\u003e \u003cbranch\u003e tree equals \u003cdefault\u003e^{tree}&#34;,&#34;gh pr list --head \u003cbranch\u003e --state merged, headRefOid == branch tip&#34;],&#34;queries&#34;:[&#34;wipnote relevant worktree&#34;,&#34;grep -ri worktree core cmd internal&#34;],&#34;question&#34;:&#34;How can wipnote tell a worktree branch is merged upstream, including squash-merged pull requests, without pushing?&#34;,&#34;rejected&#34;:[{&#34;option&#34;:&#34;git cherry&#34;,&#34;reason&#34;:&#34;misses multi-commit squash merges&#34;}],&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-17&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://git-scm.com/docs/git-merge-tree&#34;},{&#34;retrieved&#34;:&#34;2026-11-17&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://git-scm.com/docs/git-cherry&#34;},{&#34;retrieved&#34;:&#34;2026-11-17&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://cli.github.com/manual/gh_pr_list&#34;}]}}">
+
+        <header>
+            <h1>Research: How can wipnote tell a worktree branch is merged upstream, including squash-merged pull requests, without pushing?</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="spawned_from">
+                <h3>Spawned From:</h3>
+                <ul>
+                    <li><a href="../features/feat-742f6838.html" data-relationship="spawned_from" data-since="2026-11-17T06:54:56.62405">wipnote worktree list and clean: manage leftover worktrees in shared repos</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Research spike for feat-742f6838. Record with `wipnote spike research add spk-0ada4a1e`:
+question; sources (--primary/--secondary, retrieved date); findings;
+exists (`wipnote relevant &lt;topic&gt;` + code search, or &#34;none found&#34; with --query);
+options; chosen; rejected (&#34;&lt;option&gt;: &lt;reason&gt;&#34;); gaps (failed sources, unverified claims).
+Completing this spike attaches the record to feat-742f6838.</p>
+        </section>
+    </article>
+</body>
+</html>

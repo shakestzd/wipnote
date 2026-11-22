@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Guardrails that keep guidance small</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-9fd0cb31"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T20:07:00.949361"
+             data-updated="2026-11-18T21:26:38.862646" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Guardrails that keep guidance small</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="3bb502ce81307e5725d4b4bc31603fa177bfc3fc.html" data-relationship="committed_in" data-since="2026-11-18T16:26:21">Merge pull request #361 from shakestzd/delegate/guidance-guardrails</a></li>
+                    <li><a href="2bdc57fd7de8d09062878f9164727b7101da0242.html" data-relationship="committed_in" data-since="2026-11-18T16:23:26">feat-9fd0cb31: set size limits after the prose check merge</a></li>
+                    <li><a href="af600ed8cfef5a690c0ded615962d8a8373c1ccc.html" data-relationship="committed_in" data-since="2026-11-18T15:29:54">feat-9fd0cb31: guardrails that keep guidance small</a></li>
+                    <li><a href="6c192129a94d3b11c52bef590f04725d6b876082.html" data-relationship="committed_in" data-since="2026-11-18T15:07:01">plan(plan-2622b3f7): promote slice-1 → feat-9fd0cb31</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/d4ee0140-416f-4b3c-9400-5c3a3f2f66ee.html" data-relationship="implemented_in" data-since="2026-11-18T20:16:51.233337">session d4ee0140-416f-4b3c-9400-5c3a3f2f66ee</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-18T20:07:00.95459">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-2622b3f7.html" data-relationship="planned_in" data-since="2026-11-18T20:07:00.969311">plan-2622b3f7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add a Go test that fails when a skill file or a prompt under cmd/wipnote/prompts passes a byte limit. Make the catalog test also fail on a row for a skill that no longer exists. Print the skills with no eval case. Add the failure-bar rule to the plugin development rule file. Cards A1, A3, E3.
+Why
+Every later cut erodes without a limit. The limits start at the current sizes and each later slice lowers them.
+Acceptance Criteria
+The size test fails when a skill or a prompt grows past its recorded limit; The catalog test fails for a stale row as well as for a missing one; plugin-development.md states the failure bar in two lines; go build, go vet and go test pass</p>
+        </section>
+    </article>
+</body>
+</html>

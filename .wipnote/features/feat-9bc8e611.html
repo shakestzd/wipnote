@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Compaction continuity: resume brief, PreCompact steer, SessionStart compact re-inject</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-9bc8e611"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-17T04:14:38.095701"
+             data-updated="2026-11-17T04:53:18.4983" data-agent-assigned="claude-code" data-track-id="trk-1db7bf72" data-created-by-cli-version="0.91.4" data-change_kind="capability" data-created_in_session="b8f1586f-9837-4064-ae45-b163a279ee9d" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Hooks and resume brief&#34;,&#34;exists&#34;:&#34;A one-line ACTIVE item hint on UserPromptSubmit, wipnote context-pack, and the continue-launch handoff; no PreCompact or PostCompact handler and no SessionStart compact branch&#34;,&#34;findings&#34;:&#34;PreCompact stdout steers the Claude Code summary but cannot add model context; SessionStart with source=compact is the only documented re-injection point and also works on Codex; hook-added context is summarised away; PostCompact is side effects only. Other harnesses (Codex, Pi, OpenCode, Cline) converge on a summary of goal, decisions, done, next steps and files. Full notes: spk-3a590262.&#34;,&#34;gaps&#34;:[&#34;Codex PreCompact and PostCompact payloads not observed at runtime&#34;,&#34;No live end-to-end compaction run in Claude Code&#34;],&#34;options&#34;:[&#34;Hooks and resume brief&#34;,&#34;Hooks plus agent-written progress notes&#34;,&#34;Hooks, notes and shared handoff artefact&#34;],&#34;question&#34;:&#34;Which hook points let a plugin keep work-item state across context compaction in Claude Code and Codex?&#34;,&#34;rejected&#34;:[{&#34;option&#34;:&#34;Hooks plus agent-written progress notes&#34;,&#34;reason&#34;:&#34;deferred by the owner; adds a prompt rule agents must follow&#34;},{&#34;option&#34;:&#34;Hooks, notes and shared handoff artefact&#34;,&#34;reason&#34;:&#34;deferred by the owner; largest change&#34;}],&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/hooks&#34;},{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/context-window&#34;},{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://learn.chatgpt.com/docs/hooks&#34;},{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;secondary&#34;,&#34;url&#34;:&#34;https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents&#34;},{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;secondary&#34;,&#34;url&#34;:&#34;https://manus.im/blog/Context-Engineering-for-AI-Agents-Lessons-from-Building-Manus&#34;}]}}">
+
+        <header>
+            <h1>Compaction continuity: resume brief, PreCompact steer, SessionStart compact re-inject</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="42f67444d3c2b8ecfade11cfc5fd7e678f1a43f9.html" data-relationship="committed_in" data-since="2026-11-16T23:44:09">feat-9bc8e611: keep work item state across compaction (resume brief, PreCompact/PostCompact hooks, SessionStart compact)</a></li>
+                    <li><a href="b44640caabf0136ba72c0d790e550b28cdd679b1.html" data-relationship="committed_in" data-since="2026-11-16T23:53:04">Merge pull request #351 from shakestzd/delegate/compaction-hooks</a></li>
+                    <li><a href="bb0b8fda9e7584b870776abb5ef92c2005d1da4a.html" data-relationship="committed_in" data-since="2026-11-16T23:44:34">wipnote: start feat-9bc8e611</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9e47cff6-f47b-4bbf-ad59-a89736261de9.html" data-relationship="implemented_in" data-since="2026-11-17T04:15:23.848281">session 9e47cff6-f47b-4bbf-ad59-a89736261de9</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-1db7bf72.html" data-relationship="part_of" data-since="2026-11-17T04:14:38.111906">trk-1db7bf72</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Verify PreCompact/PostCompact payload fields against official hooks docs</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Resume brief builder</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ PreCompact handler</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ SessionStart compact branch</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ PostCompact record</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Manifest and regenerate ports</li>
+                <li data-completed="true" data-step-id="step-feat-9bc8e611-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Tests</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>wipnote has no compaction handling. Add (1) a short resume brief built from the active work item (id, why, done-when, steps and state, open questions, files touched, linked commits, next step), (2) a PreCompact hook handler for Claude and Codex that snapshots the brief to the session folder and prints summary instructions naming the active item, (3) SessionStart with source=compact injecting the brief in place of the generic startup guidance, (4) a PostCompact handler storing compact_summary on the session record. Research: spk-3a590262.
+Why
+After compaction an agent keeps only the one-line ACTIVE item hint; steps, questions and next action depend on the harness summary, and hook-added context is summarised away.
+Acceptance Criteria
+With an active item, a PreCompact payload yields summary instructions naming the item and writes a snapshot; a SessionStart payload with source=compact returns the brief under 8000 chars; no active item yields today&#39;s behaviour; manifest registers the events and build-ports output is regenerated; go build, vet and tests pass.</p>
+        </section>
+    </article>
+</body>
+</html>

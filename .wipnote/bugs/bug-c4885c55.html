@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Plan commands accept states the plan claims to refuse</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-c4885c55"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-11-19T03:52:28.364738"
+             data-updated="2026-11-19T05:08:18.111932" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Plan commands accept states the plan claims to refuse</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="220d7ad6fd9340a094f3d04c0676253b0a1eed5a.html" data-relationship="committed_in" data-since="2026-11-19T00:02:53">Merge pull request #374 from shakestzd/delegate/fix-plan-cmds</a></li>
+                    <li><a href="d91df4ded4200a9616babe839156c7d6f9cb0a21.html" data-relationship="committed_in" data-since="2026-11-18T23:23:13">fix(plan): execute-preview unknown files, critique round cap, critic status, prose notes (bug-c4885c55)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/ae4322da-55f7-4bba-be40-6caec6677cf3.html" data-relationship="implemented_in" data-since="2026-11-19T03:54:40.586491">session ae4322da-55f7-4bba-be40-6caec6677cf3</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-19T03:52:28.379917">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>execute-preview marks tasks with unknown files ready and compares raw paths. set-critique-yaml skips the round cap. A critic status may be empty. Prose notes skip add-slice-yaml and critique revise.
+Why
+Codex adversarial review (spk-c2d1a1b3) found these claims of plan-2622b3f7 do not hold.
+Acceptance Criteria
+Unknown-file tasks are deferred with a reason and paths are cleaned before comparison. A third set-critique-yaml is refused. A new critic entry with no status is refused. Prose notes print on add-slice-yaml and critique revise.</p>
+        </section>
+    </article>
+</body>
+</html>

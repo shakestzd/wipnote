@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Launcher default: pass --autocompact 300k to Claude Code, configurable</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-3fcabee6"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-17T05:29:38.184372"
+             data-updated="2026-11-17T05:47:25.78898" data-agent-assigned="claude-code" data-track-id="trk-1db7bf72" data-created-by-cli-version="0.92.0" data-change_kind="capability" data-created_in_session="b8f1586f-9837-4064-ae45-b163a279ee9d" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;--autocompact 300k flag from the launcher&#34;,&#34;exists&#34;:&#34;No auto-compact setting anywhere in the launcher; launcher already injects flags and env for Claude&#34;,&#34;findings&#34;:&#34;Default trigger is about 967K on 1M models; cache-read cost scales linearly with context; local 60-day data: compaction lands at 78K-108K and turns above 300K carry 75 percent of input-side tokens; Codex and Goose cap near 225K-245K; no accuracy data above 256K. The env var CLAUDE_CODE_AUTO_COMPACT_WINDOW outranks the flag, setting and /autocompact, so the launcher should use the --autocompact flag. Full notes: spk-b5de17ec.&#34;,&#34;gaps&#34;:[&#34;No accuracy measurement above 256K; 300K is a pick inside a 250K-400K range&#34;,&#34;Precedence of the --autocompact flag against a user&#39;s autoCompactWindow setting not verified&#34;],&#34;options&#34;:[&#34;--autocompact 300k flag from the launcher&#34;,&#34;CLAUDE_CODE_AUTO_COMPACT_WINDOW env var&#34;,&#34;leave harness default&#34;],&#34;question&#34;:&#34;What auto-compact window should wipnote set by default for Claude Code, and by which mechanism?&#34;,&#34;rejected&#34;:[{&#34;option&#34;:&#34;CLAUDE_CODE_AUTO_COMPACT_WINDOW env var&#34;,&#34;reason&#34;:&#34;outranks the user&#39;s own /autocompact and settings&#34;},{&#34;option&#34;:&#34;leave harness default&#34;,&#34;reason&#34;:&#34;compacts at about 967K&#34;}],&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-17&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/model-config&#34;},{&#34;retrieved&#34;:&#34;2026-11-17&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/env-vars&#34;},{&#34;retrieved&#34;:&#34;2026-11-17&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://platform.claude.com/docs/en/about-claude/pricing&#34;},{&#34;retrieved&#34;:&#34;2026-11-17&#34;,&#34;type&#34;:&#34;secondary&#34;,&#34;url&#34;:&#34;https://arxiv.org/html/2602.07962v1&#34;}]}}">
+
+        <header>
+            <h1>Launcher default: pass --autocompact 300k to Claude Code, configurable</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="30ee71ebb6feb056a46ede5993797ddd80bf980f.html" data-relationship="committed_in" data-since="2026-11-17T00:35:38">feat-3fcabee6: launcher passes --autocompact 300k to Claude Code by default</a></li>
+                    <li><a href="1a34c7b631bef151fa4ca2f1412ab10f729b9be6.html" data-relationship="committed_in" data-since="2026-11-17T00:47:22">Merge pull request #357 from shakestzd/delegate/autocompact-default</a></li>
+                    <li><a href="0aaee1f7b420e53e70140cb5cd2b5b5a2d1c30fb.html" data-relationship="committed_in" data-since="2026-11-17T00:36:07">wipnote: start feat-3fcabee6</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/ddb4f9d5-5d57-4d6b-a378-70016137357a.html" data-relationship="implemented_in" data-since="2026-11-17T05:30:21.148872">session ddb4f9d5-5d57-4d6b-a378-70016137357a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-1db7bf72.html" data-relationship="part_of" data-since="2026-11-17T05:29:38.199328">trk-1db7bf72</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>wipnote claude (and yolo, dev, delegate spawn workers that go through the same launch path) passes --autocompact 300k to Claude Code by default. A config key sets another value or turns it off. The launcher adds nothing when the user already passed --autocompact, or when CLAUDE_CODE_AUTO_COMPACT_WINDOW or DISABLE_AUTO_COMPACT is set. Codex is unchanged. Research: spk-b5de17ec.
+Why
+Claude Code compacts 1M-context models at about 967K by default; local data shows 75 percent of input-side tokens were sent above 300K and compaction lands near 100K, so 300K cuts cost per turn while leaving about 200K of working room.
+Acceptance Criteria
+Launch argv contains --autocompact 300k by default; the config key changes or disables it; a user-supplied --autocompact or the two env vars suppress it; tests cover each case; build, vet and tests pass.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>delegate stop reads terminal escape codes and wipnote notices as a draft and leaves finished panes open (#344)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-440acb23"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-11-17T03:57:21.01997"
+             data-updated="2026-11-17T05:07:12.460184" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>delegate stop reads terminal escape codes and wipnote notices as a draft and leaves finished panes open (#344)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="cb0b7ac7dbf67946d2686f17a4d21630f8452a4b.html" data-relationship="committed_in" data-since="2026-11-17T00:02:25">Merge pull request #352 from shakestzd/fix/stop-draft-escapes</a></li>
+                    <li><a href="053603d7dd5081335a3ab0273681c7677841dad4.html" data-relationship="committed_in" data-since="2026-11-16T23:49:45">fix(delegate): stop closes finished panes despite escape codes, wipnote notices and the exit menu (bug-440acb23)</a></li>
+                    <li><a href="8894984f09e63dc1151d6265fbb2d4dd48d677dd.html" data-relationship="committed_in" data-since="2026-11-16T23:05:01">wipnote: start bug-440acb23</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-17T03:58:08.557868">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-11-17T03:57:21.03651">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The input-line draft test only strips SGR colour codes. OSC title and Herdr state sequences, and wipnote&#39;s own collector warning, stay in the text, so delegate stop and send see a draft where nobody typed one. A failed styled read also blocks stop for a worker whose run is already done.
+Why
+Finished worker panes stay open, fill the six-worker cap and block new spawns until a person closes them by hand (GitHub #344).
+Acceptance Criteria
+ParseInput drops OSC, DCS and other non-SGR escape sequences and wipnote&#39;s own notice lines before the draft test; a done worker whose input line holds only those is stopped and its pane closed; tests cover each case from #344.</p>
+        </section>
+    </article>
+</body>
+</html>

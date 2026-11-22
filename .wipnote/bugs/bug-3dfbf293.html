@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote-orchestra hooks module fails to load: $ passed to helpers imported from other files (#350)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-3dfbf293"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-11-17T03:57:21.300997"
+             data-updated="2026-11-17T05:07:27.566716" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>wipnote-orchestra hooks module fails to load: $ passed to helpers imported from other files (#350)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="7ebe7a655c3de1533ffdd8e4940510e041ecc694.html" data-relationship="committed_in" data-since="2026-11-17T00:02:59">Merge pull request #353 from shakestzd/fix/orchestra-dollar</a></li>
+                    <li><a href="c6c7133bf8536b725d6f3574f858ec991d971cb2.html" data-relationship="committed_in" data-since="2026-11-16T23:06:32">fix(orchestra): keep $ calls in register.tsx so the loader accepts the module (bug-3dfbf293)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/023f5426-e8c5-450b-91d3-243abf0781e0.html" data-relationship="implemented_in" data-since="2026-11-17T03:58:04.426641">session 023f5426-e8c5-450b-91d3-243abf0781e0</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-11-17T03:57:21.316147">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>register.tsx passes $ to wipnoteJSON, storeCard, hydrate, refreshChanged, refreshAfterTurn (./refcards), reconcileAgents, noteAgentCall, endAgentCall (./agents) and findProject, readRuns (./runs). Keep every $ call in register.tsx; make the imported helpers pure (take data, return argv or parsed results).
+Why
+Claude Code&#39;s hooks loader (seen on 2.1.292) refuses a module that passes $ across an import, so the orchestra band, ref cards and question refresh do not run (GitHub #350).
+Acceptance Criteria
+No file under mods/wipnote-orchestra/hooks other than register.tsx takes or uses $; a test fails if an imported helper receives $; claude plugin validate and tsc pass; the mod&#39;s tests pass.</p>
+        </section>
+    </article>
+</body>
+</html>

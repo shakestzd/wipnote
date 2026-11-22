@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Research: How does Claude Code show and match session names in /resume, and what name should a delegated worker get so its parent is visible?</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-b32b954a"
+             data-type="spike"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-17T04:10:54.862819"
+             data-updated="2026-11-17T04:11:02.742509" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-spike-subtype="technical" data-research_for="feat-52d2792b" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Breadcrumb session name. Parent label = the caller&#39;s work item id when its name starts with one, else its name cut short, else its short session id; nested workers keep the parent&#39;s chain. Worker NAME, mailbox and herdr names are unchanged.&#34;,&#34;exists&#34;:&#34;BootArgv (internal/delegate/session/boot.go) passes --name \u003cworker NAME\u003e to Claude workers, so /resume lists them as standalone sessions (agent-name entries such as fix-ttl, pr-place-1). The launcher names top-level sessions \u003citem-id\u003e-\u003cslug\u003e or wipnote-\u003cdate\u003e (cmd/wipnote/claude_session_name.go). Info.Caller holds the caller&#39;s session id. Resumed workers get --resume and no --name.&#34;,&#34;options&#34;:[&#34;Breadcrumb in the Claude session name: &#39;\u003cparent label\u003e › \u003cworker\u003e&#39;; the /resume picker shows the name on each row and its search matches substrings, so typing the parent id lists its workers&#34;,&#34;Keep names; add a wipnote resume picker that groups workers under parents (more work, outside Claude&#39;s own /resume)&#34;,&#34;Use --fork-session from the parent (wrong semantics: copies the parent&#39;s transcript into each worker)&#34;],&#34;question&#34;:&#34;How does Claude Code show and match session names in /resume, and what name should a delegated worker get so its parent is visible?&#34;,&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/sessions&#34;},{&#34;retrieved&#34;:&#34;2026-11-16&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/cli-reference&#34;}]}}">
+
+        <header>
+            <h1>Research: How does Claude Code show and match session names in /resume, and what name should a delegated worker get so its parent is visible?</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="spawned_from">
+                <h3>Spawned From:</h3>
+                <ul>
+                    <li><a href="../features/feat-52d2792b.html" data-relationship="spawned_from" data-since="2026-11-17T04:10:54.876144">Name delegated worker sessions with a breadcrumb of their parent session so /resume shows the hierarchy</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Research spike for feat-52d2792b. Record with `wipnote spike research add spk-b32b954a`:
+question; sources (--primary/--secondary, retrieved date); findings;
+exists (`wipnote relevant &lt;topic&gt;` + code search, or &#34;none found&#34; with --query);
+options; chosen; rejected (&#34;&lt;option&gt;: &lt;reason&gt;&#34;); gaps (failed sources, unverified claims).
+Completing this spike attaches the record to feat-52d2792b.</p>
+        </section>
+    </article>
+</body>
+</html>

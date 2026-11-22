@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Remove the unused skills and slash commands</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-9796e97f"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-19T01:04:28.150075"
+             data-updated="2026-11-19T01:34:54.470974" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Remove the unused skills and slash commands</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../features/feat-0b0112a4.html" data-relationship="blocked_by" data-since="2026-11-19T01:04:28.205203">feat-0b0112a4</a></li>
+                    <li><a href="../features/feat-61944b76.html" data-relationship="blocked_by" data-since="2026-11-19T01:04:28.210132">feat-61944b76</a></li>
+                    <li><a href="../features/feat-8f910039.html" data-relationship="blocked_by" data-since="2026-11-19T01:04:28.215174">feat-8f910039</a></li>
+                    <li><a href="../features/feat-bcc2297f.html" data-relationship="blocked_by" data-since="2026-11-19T01:04:28.220177">feat-bcc2297f</a></li>
+                    <li><a href="../features/feat-0be892a9.html" data-relationship="blocked_by" data-since="2026-11-19T01:04:28.225117">feat-0be892a9</a></li>
+                    <li><a href="../features/feat-d06e3fb2.html" data-relationship="blocked_by" data-since="2026-11-19T01:04:28.230105">feat-d06e3fb2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="9dd345b5b09c479bcb32e58361e79cb6fbbade47.html" data-relationship="committed_in" data-since="2026-11-18T20:34:32">Merge pull request #371 from shakestzd/delegate/remove-unused-skills</a></li>
+                    <li><a href="db3af8dc75b9da10a5fb92d2b689eda5cf65a7bf.html" data-relationship="committed_in" data-since="2026-11-18T20:25:59">feat-9796e97f: remove the last skills and slash commands</a></li>
+                    <li><a href="1fefd56666ba31830d772860003d4016f7b60efa.html" data-relationship="committed_in" data-since="2026-11-18T20:04:28">plan(plan-2622b3f7): promote slice-11 → feat-9796e97f</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/de1f0bce-14f4-499e-bea8-036c9096680d.html" data-relationship="implemented_in" data-since="2026-11-19T01:04:49.805597">session de1f0bce-14f4-499e-bea8-036c9096680d</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-19T01:04:28.158133">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-2622b3f7.html" data-relationship="planned_in" data-since="2026-11-19T01:04:28.197634">plan-2622b3f7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Move the useful lines of guard-authoring, ui-stills-verification and report-issue into each command&#39;s help. Delete those three skills, the skills index, the Simplified Technical English skill and the recommend slash command. Fold the ci, init and plan-review slash commands into the CLI commands they wrap. Cards F6, F7.
+Why
+None was loaded by hand in 266 transcripts. The STE lookup works only on the owner&#39;s machine.
+Acceptance Criteria
+plugin/skills and plugin/commands hold no file, and wipnote skill show is removed with them; guard, ui stills and issue help each carry the lines an agent needs, under 40 lines each; No hook message, prompt, agent file, mod or doc outside CLAUDE.md and CHANGELOG.md names a deleted skill or command; build-ports output matches the source tree for all three targets, and a test loads each built plugin manifest with no missing file; feat-4151d2f0 is merged before the Simplified Technical English skill is deleted; The size test asserts the final tree: no skill files, and each prompt within its lowered limit</p>
+        </section>
+    </article>
+</body>
+</html>

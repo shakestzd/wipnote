@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Prose check in the CLI for documents wipnote writes</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-4151d2f0"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T19:08:33.590872"
+             data-updated="2026-11-18T21:26:37.570792" data-agent-assigned="claude-code" data-track-id="trk-41158a40" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="capability" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;Go prose checker in the CLI, run at each write point, rules stated once in the system prompt&#34;,&#34;exists&#34;:&#34;plugin/output-styles/plain-english.md (Claude Code chat replies only); mods/wipnote-visuals/hooks/lint.ts (TypeScript regex lint of chat replies, Claude Code only); plugin/skills/agent-context Writing style paragraph (coder subagents only); plugin/skills/simplified-technical-english/scripts/ste_lint.py (Python, inside a skill that 266 transcripts never loaded); planyaml.ValidateProseAdvisories (word caps on plan slices, non-blocking)&#34;,&#34;findings&#34;:&#34;The skill checks prose when the document is built: named rules (sentence-length 25 words, steps 20, step-verb, semicolon, ing-word, perfect-tense, active-voice, noun-cluster, decision-question), refusals list every problem with its path, prose notes do not block. Its process rules: every sentence comes from the user, the branch or the code; document what was given; say what was not checked; post only when asked. wipnote has no check on work-item text, plan prose or pull request bodies, and none on Codex or Antigravity.&#34;,&#34;gaps&#34;:[&#34;The owner&#39;s writing.md reference (skills/build-an-artifact/references/writing.md) was not read; rule names come from the SKILL.md text alone&#34;,&#34;Rules that need part-of-speech tagging (ing-word, noun-cluster, active-voice) can only be heuristics&#34;],&#34;options&#34;:[&#34;Go prose checker in the CLI, run at each write point, rules stated once in the system prompt&#34;,&#34;Ship the skill as a new wipnote skill&#34;,&#34;Extend the TypeScript mod lint&#34;],&#34;question&#34;:&#34;How should wipnote apply the owner&#39;s write-dev-documents writing rules to all text it writes?&#34;,&#34;rejected&#34;:[{&#34;option&#34;:&#34;Ship the skill as a new wipnote skill&#34;,&#34;reason&#34;:&#34;usage count shows agents do not load wipnote skills, and its doc.ts build belongs to another repository&#34;},{&#34;option&#34;:&#34;Extend the TypeScript mod lint&#34;,&#34;reason&#34;:&#34;it runs on Claude Code chat replies only&#34;}],&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-11-18&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/skills&#34;}]}}">
+
+        <header>
+            <h1>Prose check in the CLI for documents wipnote writes</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="3e379ee39c39c7c10c9bc84d8dd3170c73c81649.html" data-relationship="committed_in" data-since="2026-11-18T16:22:57">Merge pull request #360 from shakestzd/delegate/prose-check</a></li>
+                    <li><a href="b60e871d6edf1005173fe7e7d428633bac9e4194.html" data-relationship="committed_in" data-since="2026-11-18T15:16:00">feat-4151d2f0: apply step-verb to numbered steps only</a></li>
+                    <li><a href="9c53dcbee81ffe958b97046c204d711723b1109e.html" data-relationship="committed_in" data-since="2026-11-18T15:15:02">feat-4151d2f0: list prose in the compact help</a></li>
+                    <li><a href="572a8534a8158067c16d934a0c8470b02db9abfe.html" data-relationship="committed_in" data-since="2026-11-18T14:26:59">feat-4151d2f0: add prose check package, command and write-point notes</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-18T19:08:42.644991">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                    <li><a href="../sessions/d18d5834-74d7-44d8-a0b9-3828a24b0e4e.html" data-relationship="implemented_in" data-since="2026-11-18T19:09:28.332183">session d18d5834-74d7-44d8-a0b9-3828a24b0e4e</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-41158a40.html" data-relationship="part_of" data-since="2026-11-18T19:08:33.608955">trk-41158a40</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add a Go prose checker with named rules and run it where wipnote takes document text: work-item text, plan slices, pull request bodies, and a standalone prose check command. Notes do not block. State the writing rules once in the injected system prompt so every harness gets them.
+Why
+The writing rules reach only Claude Code chat replies and coder subagents today. Work-item text, plan slices and pull request bodies get no check on any harness. The owner&#39;s write-dev-documents skill checks prose at the point where the document is built, and wipnote should do the same.
+Acceptance Criteria
+wipnote prose check prints rule-named notes for a file or stdin, the same notes print on work-item and plan writes without blocking them, the system prompt states the rules, and go build, go vet and go test pass.</p>
+        </section>
+    </article>
+</body>
+</html>

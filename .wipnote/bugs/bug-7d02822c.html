@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Gate fails on a Go module that holds no Go files</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-7d02822c"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-20T04:28:37.320499"
+             data-updated="2026-11-20T13:27:03.792198" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.60.21-101-gd7f8ca82d" data-change_kind="bugfix" data-created_in_session="9f779398-7075-492a-84d8-dd0084878788" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Gate fails on a Go module that holds no Go files</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="89ea4864224c948574cc576b0745187fea207186.html" data-relationship="committed_in" data-since="2026-11-20T08:09:31">fix(gate): skip a nested Go module that holds no Go file (bug-7d02822c)</a></li>
+                    <li><a href="ed4c76ffd9776d95a0415cd9aba5b6360d158997.html" data-relationship="committed_in" data-since="2026-11-19T23:32:35">wipnote: start bug-7d02822c</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/9f779398-7075-492a-84d8-dd0084878788.html" data-relationship="implemented_in" data-since="2026-11-20T04:28:40.33375">session 9f779398-7075-492a-84d8-dd0084878788</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-20T04:28:37.33857">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>wipnote check --gate runs go vet and go test in every folder with a go.mod. The three eval fixture modules under plugin/evals/prompt-ab hold only .go.fixture files, so go vet and go test exit 1 with &#39;no packages&#39; and the gate fails with no failing test shown.</p>
+        </section>
+    </article>
+</body>
+</html>

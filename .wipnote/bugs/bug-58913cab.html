@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>launch.claude.autoCompactWindow: huge suffixed value overflows and passes validation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-58913cab"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-19T04:58:25.348245"
+             data-updated="2026-11-19T05:32:23.144232" data-agent-assigned="claude-code" data-track-id="trk-1db7bf72" data-created-by-cli-version="0.93.0" data-change_kind="bugfix" data-created_in_session="b8f1586f-9837-4064-ae45-b163a279ee9d" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>launch.claude.autoCompactWindow: huge suffixed value overflows and passes validation</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="9d558d6e67b55880aa9f6bc1b61201636d35e9f4.html" data-relationship="committed_in" data-since="2026-11-19T00:12:43">fix(bug-58913cab): reject oversized autoCompactWindow before scaling</a></li>
+                    <li><a href="2f2e2f41674dc33017843ddca0d34ee157d0da0d.html" data-relationship="committed_in" data-since="2026-11-19T00:31:57">Merge pull request #378 from shakestzd/fix/autocompact-overflow</a></li>
+                    <li><a href="16691a66b9bfd6724115b784d1e447220bbf214b.html" data-relationship="committed_in" data-since="2026-11-19T00:12:44">wipnote: start bug-58913cab</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/b8f1586f-9837-4064-ae45-b163a279ee9d.html" data-relationship="implemented_in" data-since="2026-11-19T04:59:26.213522">session b8f1586f-9837-4064-ae45-b163a279ee9d</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-1db7bf72.html" data-relationship="part_of" data-since="2026-11-19T04:58:25.398033">trk-1db7bf72</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>validAutoCompactTokens multiplies the parsed count by 1000 or 1000000 without an overflow check. A value such as 2305843009213694052k wraps into the 100k-1M range, so wipnote forwards the original string and Claude Code rejects it, failing the launch instead of warning and falling back to 300k. Found by the post-merge review of PR #357 (spk-2c9b7e7d).</p>
+        </section>
+    </article>
+</body>
+</html>

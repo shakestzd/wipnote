@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Evidence in review and the gate</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-a1daeef8"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T20:07:15.784566"
+             data-updated="2026-11-18T21:26:40.753935" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Evidence in review and the gate</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="6f9e88237c6a3a2d32e14c58435d9e2e324f1e5a.html" data-relationship="committed_in" data-since="2026-11-18T16:22:49">Merge pull request #362 from shakestzd/delegate/review-evidence</a></li>
+                    <li><a href="635297f555cab2cf27c5a518e1c33410538a74ea.html" data-relationship="committed_in" data-since="2026-11-18T15:28:57">feat-a1daeef8: show removed tests, added skips and config edits in review and check --gate</a></li>
+                    <li><a href="59bec56bb3ed3fa1aa81d2eb2d851a884547c401.html" data-relationship="committed_in" data-since="2026-11-18T15:07:15">plan(plan-2622b3f7): promote slice-10 → feat-a1daeef8</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/387ebb2f-53b5-40c7-b39c-774386f822e5.html" data-relationship="implemented_in" data-since="2026-11-18T20:16:59.193074">session 387ebb2f-53b5-40c7-b39c-774386f822e5</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-18T20:07:15.790393">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-2622b3f7.html" data-relationship="planned_in" data-since="2026-11-18T20:07:15.801735">plan-2622b3f7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Count removed tests and added skips in the diff, and list edits to guard, CI and lint config. Print them in wipnote review and wipnote check --gate as evidence, not as a failure. Open the review with the item&#39;s why, done-when, last gate result, linked commits and total added lines. Cards E1, E2.
+Why
+An agent can turn a gate green by deleting a test. No check in review or check shows this today.
+Acceptance Criteria
+A diff that deletes a test function shows a removed-tests count of one in both commands; A diff that adds t.Skip shows an added-skips count of one; An edit to a CI workflow or lint config is listed by path; wipnote review opens with the five header fields for an item that has them; Neither command changes its exit code because of these lines</p>
+        </section>
+    </article>
+</body>
+</html>

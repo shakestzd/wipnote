@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Delegate guidance moves into the command</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-8f910039"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-11-18T22:31:03.556078"
+             data-updated="2026-11-18T23:22:18.130415" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>Delegate guidance moves into the command</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../features/feat-9fd0cb31.html" data-relationship="blocked_by" data-since="2026-11-18T22:31:03.580497">feat-9fd0cb31</a></li>
+                    <li><a href="../features/feat-217fb5f2.html" data-relationship="blocked_by" data-since="2026-11-18T22:31:03.585418">feat-217fb5f2</a></li>
+                    <li><a href="../features/feat-0d9b57bc.html" data-relationship="blocked_by" data-since="2026-11-18T22:31:03.59045">feat-0d9b57bc</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="151165b677927ddb8bc99b55117fd8068511ca2f.html" data-relationship="committed_in" data-since="2026-11-18T18:22:13">Merge pull request #366 from shakestzd/delegate/delegate-help</a></li>
+                    <li><a href="0282f0b0cc865ccc37e970c187e7aaa347d79403.html" data-relationship="committed_in" data-since="2026-11-18T18:18:50">feat-8f910039: reword a comment that the reference test flagged</a></li>
+                    <li><a href="5806a1c1ae4caba13b1071960fac64ea7ff53567.html" data-relationship="committed_in" data-since="2026-11-18T18:00:59">feat(delegate): move delegate guidance into the command (feat-8f910039)</a></li>
+                    <li><a href="68fe26b34c7cbf1ec8529fa4c66922301e8a00b9.html" data-relationship="committed_in" data-since="2026-11-18T17:31:03">plan(plan-2622b3f7): promote slice-6 → feat-8f910039</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/6963dd8b-e06e-4735-9ce5-ed0cee0777ff.html" data-relationship="implemented_in" data-since="2026-11-18T22:31:56.368146">session 6963dd8b-e06e-4735-9ce5-ed0cee0777ff</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-11-18T22:31:03.561502">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="../plans/plan-2622b3f7.html" data-relationship="planned_in" data-since="2026-11-18T22:31:03.575722">plan-2622b3f7</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Put the delegate steps into wipnote delegate --help and the hints that spawn prints. Add a delegate profiles command that prints the profile table from code, with a new read-only review profile. Delete the delegate skill and repoint the denial messages and tests that name it. Cards F5, D4. F5 replaces B2.
+Why
+delegate ran 83 times and its 19.9 KB skill was read in two transcripts.
+Acceptance Criteria
+delegate --help gives the spawn, send, wait, result, stop sequence in under 40 lines; delegate profiles lists each profile with its model, effort and tools, read from internal/delegate/session; A worker on the review profile has no edit, write or notebook tool, shown by a test on its launch arguments; Denial messages and tests that named the skill name delegate --help; No tracked file outside CLAUDE.md and CHANGELOG.md names the delegate skill; The slice 2 check shows the checked behaviours held</p>
+        </section>
+    </article>
+</body>
+</html>
