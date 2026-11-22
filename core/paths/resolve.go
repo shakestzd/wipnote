@@ -57,7 +57,20 @@ type ProjectDirOptions struct {
 // store is not the source repo: paths.CodeRoot maps one to the other.
 // The only hard-error case is when ExplicitDir is set but no .wipnote
 // can be found there.  All other failures fall back gracefully.
+//
+// A store that `wipnote store move` made replaces the in-repo store whichever
+// step found it: an old commit can put that folder back in the code root.
 func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
+	dir, err := resolveProjectDir(opts)
+	if err == nil {
+		if moved := movedStoreOver(dir); moved != "" {
+			return moved, nil
+		}
+	}
+	return dir, err
+}
+
+func resolveProjectDir(opts ProjectDirOptions) (string, error) {
 	// 1. Explicit flag — highest priority, hard-fail on miss.
 	if opts.ExplicitDir != "" {
 		if validStoreOwner(opts.ExplicitDir) {

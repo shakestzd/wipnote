@@ -172,10 +172,11 @@ func hasStoreAt(dir string) bool {
 	return err == nil && !IsReservedDir(dir)
 }
 
-// isExplicitStore reports a shadow root made by `wipnote init`.
+// isExplicitStore reports a shadow root the owner asked for: made by `wipnote
+// init` or by `wipnote store move`.
 func isExplicitStore(owner string) bool {
 	pf, ok := readProjectFile(owner)
-	return ok && pf.Origin == OriginInit
+	return ok && (pf.Origin == OriginInit || pf.Origin == OriginMoved)
 }
 
 // ownerAt is the owner of the store at dir outside a git repo: its .wipnote, or
@@ -329,6 +330,9 @@ func StoreOwnerFor(dir string) string {
 		return ""
 	}
 	if s, ok := scopeOf(dir); ok {
+		if shadow := s.shadow(); IsMovedStore(shadow) {
+			return shadow // a moved store outranks a folder an old commit put back
+		}
 		if owner := s.inRepoStore(dir, 0); owner != "" {
 			return owner
 		}
@@ -336,6 +340,9 @@ func StoreOwnerFor(dir string) string {
 			return s.MainRoot
 		}
 		return s.shadow()
+	}
+	if moved := movedStoreOver(dir); moved != "" {
+		return moved
 	}
 	if owner := ownerAt(dir, true); owner != "" {
 		return owner
@@ -348,6 +355,9 @@ func StoreOwnerFor(dir string) string {
 func Roots(dir string) (owner, code string) {
 	if IsExternalStore(dir) {
 		return dir, CodeRoot(dir)
+	}
+	if moved := movedStoreOver(dir); moved != "" {
+		return moved, dir
 	}
 	if !hasStoreAt(dir) {
 		if shadow := ExternalStoreFor(dir); shadow != "" {
@@ -391,7 +401,13 @@ var ErrNoStore = errors.New("no wipnote store for this project: run `wipnote cla
 // gitOutput runs git in dir, with the variables that would redirect it to
 // another repo removed (a git hook sets them for its own repo).
 func gitOutput(dir string, args ...string) (string, error) {
-	cmd, cancel := boundedGit(dir, args...)
+	return gitOutputWithin(gitProbeTimeout, dir, args...)
+}
+
+// gitOutputWithin is gitOutput with its own time limit, for git commands that
+// write a whole store and so take longer than a probe.
+func gitOutputWithin(limit time.Duration, dir string, args ...string) (string, error) {
+	cmd, cancel := boundedGitWithin(limit, dir, args...)
 	defer cancel()
 	for _, kv := range os.Environ() {
 		name, _, _ := strings.Cut(kv, "=")
@@ -412,7 +428,11 @@ func gitOutput(dir string, args ...string) (string, error) {
 const gitProbeTimeout = 5 * time.Second
 
 func boundedGit(dir string, args ...string) (*exec.Cmd, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(context.Background(), gitProbeTimeout)
+	return boundedGitWithin(gitProbeTimeout, dir, args...)
+}
+
+func boundedGitWithin(limit time.Duration, dir string, args ...string) (*exec.Cmd, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
 	cmd.WaitDelay = time.Second // a git stuck in the kernel cannot hold us past the kill
 	return cmd, cancel

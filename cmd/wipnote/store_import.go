@@ -34,7 +34,7 @@ func storeCmd() *cobra.Command {
 	// Hidden: a one-off migration step, run on request, that should not cost a
 	// line of the compact help agents read. `wipnote store --help` still works.
 	cmd := &cobra.Command{Use: "store", Short: "Manage wipnote's app-owned project stores", Hidden: true}
-	cmd.AddCommand(storeImportHomeCmd())
+	cmd.AddCommand(storeImportHomeCmd(), storeMoveCmd())
 	return cmd
 }
 
@@ -128,12 +128,21 @@ func skipImportEntry(rel string, d fs.DirEntry) bool {
 	if !strings.Contains(rel, string(filepath.Separator)) && importHomeSkipTop[rel] {
 		return true
 	}
+	return skipRuntimeEntry(d)
+}
+
+// skipRuntimeEntry: runtime files a store rebuilds, and anything that is not a
+// plain file or folder (symlinks, sockets).
+func skipRuntimeEntry(d fs.DirEntry) bool {
+	if d.IsDir() {
+		return false
+	}
 	for _, s := range importHomeSkipSuffix {
-		if !d.IsDir() && strings.HasSuffix(d.Name(), s) {
+		if strings.HasSuffix(d.Name(), s) {
 			return true
 		}
 	}
-	return !d.IsDir() && !d.Type().IsRegular()
+	return !d.Type().IsRegular()
 }
 
 func printImportPlan(w io.Writer, items []importItem, dest string) error {

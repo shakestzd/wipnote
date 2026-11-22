@@ -6,9 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Making and marking app-owned stores. Layout and resolution are in external.go.
+
+// storeWriteTimeout bounds the git commands that stage and commit a whole store.
+const storeWriteTimeout = 5 * time.Minute
 
 // CreateExternalStore makes the shadow root for dir and returns it, with created
 // true when this call made it. It is keyed by dir's repo (the main root) or, when
@@ -81,10 +85,11 @@ func writeProjectFile(root string, pf projectFile) error {
 
 // MarkStoreExplicit records that the shadow root owner was asked for by `wipnote
 // init`, so walk-ups from folders below its code root honour it, and commits the
-// change to the store's repo. It reports whether anything changed.
+// change to the store's repo. It reports whether anything changed. A moved
+// store is already explicit and keeps its origin.
 func MarkStoreExplicit(owner string) (bool, error) {
 	pf, ok := readProjectFile(owner)
-	if !ok || pf.Origin == OriginInit {
+	if !ok || pf.Origin == OriginInit || pf.Origin == OriginMoved {
 		return false, nil
 	}
 	pf.Origin = OriginInit
@@ -116,9 +121,11 @@ func initStoreGit(root string) error {
 			return err
 		}
 	}
-	if _, err := gitOutput(root, "add", "-A"); err != nil {
+	// A store filled by `wipnote store move` holds thousands of files, and the
+	// probe limit killed its first `git add` (feat-e383e3d0).
+	if _, err := gitOutputWithin(storeWriteTimeout, root, "add", "-A"); err != nil {
 		return err
 	}
-	_, err := gitOutput(root, "commit", "--quiet", "--no-verify", "-m", "Create wipnote store")
+	_, err := gitOutputWithin(storeWriteTimeout, root, "commit", "--quiet", "--no-verify", "-m", "Create wipnote store")
 	return err
 }
