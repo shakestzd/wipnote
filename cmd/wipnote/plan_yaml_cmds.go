@@ -313,6 +313,7 @@ func runPlanAddSliceYAML(wipnoteDir, planID, title, what, why, files, doneWhen, 
 		return fmt.Errorf("autocommit add-slice: %w", err)
 	}
 
+	adviseSliceProse(plan, slice.Num)
 	fmt.Printf("Slice %d added\n", slice.Num)
 	return nil
 }

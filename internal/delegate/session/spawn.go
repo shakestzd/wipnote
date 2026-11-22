@@ -30,6 +30,7 @@ type SpawnOptions struct {
 	Name, Harness, WorkItem string
 	WorkTitle               string
 	CallerSession           string
+	CallerLabel             string // ParentLabel of the caller, for the Claude session name
 	CallerPane              herdr.PaneID
 	Brief                   string
 	Cwd                     string
@@ -64,11 +65,13 @@ type SpawnOptions struct {
 	// keeps ~/.claude/CLAUDE.md. Claude only (see applyProfile, LeanFlags).
 	Profile             string
 	Tools, MCP, Plugins []string
-	UserRules           bool
-	ProjectRules        bool         // keep the project CLAUDE.md and rules; off in simple and standard
-	CacheTTL            string       // "5m" (default) or "1h"; --cache-ttl beats the profile
-	Config              ClaudeConfig // delegate.claude from the user's config
-	mcpConfig           []byte       // the generated --mcp-config, written to the run folder
+	// Disallowed are built-in tools the profile removes (the review profile).
+	Disallowed   []string
+	UserRules    bool
+	ProjectRules bool         // keep the project CLAUDE.md and rules; off in simple and standard
+	CacheTTL     string       // "5m" (default) or "1h"; --cache-ttl beats the profile
+	Config       ClaudeConfig // delegate.claude from the user's config
+	mcpConfig    []byte       // the generated --mcp-config, written to the run folder
 
 	// Worktree gives the worker its own checkout on a new branch, cut from
 	// Base (HEAD when empty); wt is that checkout, or a resumed worker's.
@@ -287,7 +290,7 @@ func openRun(d Deps, o SpawnOptions) (Info, *runstore.RunFolder, error) {
 		return Info{}, nil, err
 	}
 	info := Info{
-		Run: row.ID, Name: o.Name, Harness: o.Harness, WorkItem: o.WorkItem, Caller: o.CallerSession,
+		Run: row.ID, Name: o.Name, Harness: o.Harness, WorkItem: o.WorkItem, Caller: o.CallerSession, CallerLabel: o.CallerLabel,
 		CallerPane: string(o.CallerPane), Cwd: o.Cwd, Place: placeOf(o), Created: d.now().Format(time.RFC3339),
 		ResumedFrom: o.ResumedFrom, ResumeSession: o.ResumeSession, Model: o.Model, Flags: o.Flags, Lean: o.Lean, Setup: o.setup(),
 	}

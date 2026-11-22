@@ -160,3 +160,20 @@ func TestSharedCollector_TwoLaunchesOneProcess(t *testing.T) {
 		t.Fatal("detaching must not kill the shared collector")
 	}
 }
+
+// /healthz must answer while the sink lock is held across a slow file open or
+// close; a probe that timed out behind it got a live collector replaced on a
+// new port (bug-fa4bb927).
+func TestSharedCollector_HealthDoesNotWaitOnSinkLock(t *testing.T) {
+	sinks := newSessionSinks(t.TempDir(), 1)
+	attached := newAttachSet(time.Now(), func(int) bool { return true })
+	srv := httptest.NewServer(buildSharedMux(sinks, attached))
+	defer srv.Close()
+
+	sinks.mu.Lock()
+	defer sinks.mu.Unlock()
+	port := srv.Listener.Addr().(*net.TCPAddr).Port
+	if _, err := collector.ProbeHealth(port, 500*time.Millisecond); err != nil {
+		t.Fatalf("health blocked on the sink lock: %v", err)
+	}
+}

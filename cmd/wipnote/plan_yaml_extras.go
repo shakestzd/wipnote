@@ -231,6 +231,13 @@ func runSetCritiqueYAML(planID, dataStr string) error {
 	if err != nil {
 		return err
 	}
+	return setCritiqueYAML(wipnoteDir, planID, dataStr)
+}
+
+// setCritiqueYAML stores a critique. It refuses a contested finding with no
+// citation or a bad critic status. It carries earlier accepted risks forward,
+// drops findings they settle, and counts the round (feat-0be892a9).
+func setCritiqueYAML(wipnoteDir, planID, dataStr string) error {
 	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 
 	// Hold the lock across the whole load→mutate→save window (defect 4,
@@ -258,6 +265,18 @@ func runSetCritiqueYAML(planID, dataStr string) error {
 	if err := json.Unmarshal(jsonBytes, &critique); err != nil {
 		return fmt.Errorf("parse critique JSON: %w", err)
 	}
+	if errs := planyaml.ValidateCritique(&critique); len(errs) > 0 {
+		return fmt.Errorf("critique refused:\n  %s", strings.Join(errs, "\n  "))
+	}
+	// The round cap holds here too, under the lock and before the write.
+	if err := planyaml.CheckCritiqueRound(plan.Critique); err != nil {
+		return err
+	}
+	critique.Round = 1
+	if plan.Critique != nil {
+		critique.Round = plan.Critique.Round + 1
+	}
+	planyaml.SettleCritique(plan.Critique, &critique)
 	plan.Critique = &critique
 	if err := planyaml.SaveLocked(planPath, plan); err != nil {
 		return fmt.Errorf("save plan: %w", err)
@@ -320,6 +339,7 @@ func runValidateYAML(planID string) error {
 	for _, a := range planyaml.ValidateProseAdvisories(plan) {
 		fmt.Fprintf(os.Stderr, "  ! prose advisory: %s\n", a)
 	}
+	adviseProse(planSliceProse(plan)...)
 	fmt.Printf("Plan valid: %d slices, %d questions\n", len(plan.Slices), len(plan.Questions))
 	return nil
 }

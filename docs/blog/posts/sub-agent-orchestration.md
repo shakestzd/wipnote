@@ -75,7 +75,7 @@ The `execute` skill takes this further. Given an approved CRISPI plan with depen
 5. Quality gates run after each merge
 6. Newly unblocked slices are dispatched in the next wave
 
-This is dependency-driven dispatch, not manual sequencing. You don't specify Wave 1 and Wave 2; the execute skill reads the dependency graph and figures out what can run in parallel.
+This is dependency-driven dispatch, not manual sequencing. You don't specify Wave 1 and Wave 2; `wipnote execute-preview` reads the dependency graph and figures out what can run in parallel.
 
 Conflict resolution for shared files (like import registrations or config files) is handled by instructing agents to use additive operations rather than replacing file contents.
 

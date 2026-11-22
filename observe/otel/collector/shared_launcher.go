@@ -17,12 +17,17 @@ import (
 
 // SharedCollectorOpts configures a SharedCollector.
 type SharedCollectorOpts struct {
-	// Stderr receives warning lines. Defaults to os.Stderr.
-	Stderr io.Writer
+	// Log receives the watchdog's warnings, which happen while the harness
+	// owns the terminal: a line written there lands inside its prompt
+	// (bug-fa4bb927). Nil appends to the project's otel-collector.log.
+	Log io.Writer
 	// SpawnFn starts a shared collector. Nil means DefaultSharedSpawnFn.
 	SpawnFn SharedSpawnFn
 	// WatchdogIntervalEnv names the env var overriding the watchdog interval.
 	WatchdogIntervalEnv string
+	// Harness is "claude" or "codex" when the launcher knows it; it picks the
+	// resume command in the moved-port warning. Empty names both.
+	Harness string
 }
 
 // SharedCollector implements Lifecycle on top of the project's shared
@@ -34,9 +39,6 @@ type SharedCollector struct {
 
 // NewSharedCollector returns a SharedCollector configured by opts.
 func NewSharedCollector(opts SharedCollectorOpts) *SharedCollector {
-	if opts.Stderr == nil {
-		opts.Stderr = os.Stderr
-	}
 	if opts.SpawnFn == nil {
 		opts.SpawnFn = DefaultSharedSpawnFn
 	}
@@ -57,9 +59,9 @@ func (c *SharedCollector) Spawn(binPath, sessionID, projectDir string) (int, fun
 	if err := postLauncher(rec.Port, AttachPath, launcher); err != nil {
 		return 0, nil, fmt.Errorf("attach to shared collector: %w", err)
 	}
-	WriteSharedCollectorPID(projectDir, sessionID, rec.PID, rec.Port)
+	w := &sharedWatch{c: c, binPath: binPath, sessionID: sessionID, projectDir: projectDir, rec: rec, exportPort: rec.Port}
+	w.writePID(rec)
 
-	w := &sharedWatch{c: c, binPath: binPath, sessionID: sessionID, projectDir: projectDir, rec: rec}
 	stop := w.start()
 	var once sync.Once
 	cleanup := func() {
@@ -80,6 +82,15 @@ type sharedWatch struct {
 	binPath, sessionID, projectDir string
 	mu                             sync.Mutex
 	rec                            SharedRecord
+	// exportPort is the port the harness was launched against; it never
+	// changes. warnedPort is the last moved-to port already reported.
+	exportPort, warnedPort int
+}
+
+// writePID records rec as the collector and keeps the launch-time export port.
+func (w *sharedWatch) writePID(rec SharedRecord) {
+	WriteSharedSessionPID(w.projectDir, w.sessionID, rec.PID, rec.Port,
+		SessionExport{Port: w.exportPort, Launcher: os.Getpid(), Harness: w.c.opts.Harness})
 }
 
 func (w *sharedWatch) current() SharedRecord {
@@ -115,20 +126,33 @@ func (w *sharedWatch) check() {
 	}
 	rec, err := EnsureShared(w.binPath, w.projectDir, w.c.opts.SpawnFn)
 	if err != nil {
-		fmt.Fprintf(w.c.opts.Stderr, "wipnote: warning: shared collector re-ensure failed: %v\n", err)
+		w.logf("shared collector re-ensure failed: %v", err)
 		return
 	}
 	if err := postLauncher(rec.Port, AttachPath, os.Getpid()); err != nil {
-		fmt.Fprintf(w.c.opts.Stderr, "wipnote: warning: shared collector re-attach failed: %v\n", err)
+		w.logf("shared collector re-attach failed: %v", err)
 		return
 	}
-	if rec.Port != cur.Port {
-		fmt.Fprintf(w.c.opts.Stderr, "wipnote: warning: shared collector moved to port %d; this session still exports to %d\n", rec.Port, cur.Port)
+	if rec.Port != w.exportPort && rec.Port != w.warnedPort {
+		w.warnedPort = rec.Port
+		w.logf("shared collector moved to port %d; session %s still exports to %d: %s",
+			rec.Port, w.sessionID, w.exportPort, MovedPortAdvice(w.c.opts.Harness))
 	}
-	WriteSharedCollectorPID(w.projectDir, w.sessionID, rec.PID, rec.Port)
+	w.writePID(rec)
 	w.mu.Lock()
 	w.rec = rec
 	w.mu.Unlock()
+}
+
+// logf writes one watchdog warning to opts.Log, or to the project's
+// otel-collector.log, where `wipnote doctor` and a person debugging telemetry
+// look.
+func (w *sharedWatch) logf(format string, args ...any) {
+	out := w.c.opts.Log
+	if out == nil {
+		out = CollectorLog(w.projectDir)
+	}
+	fmt.Fprintf(out, "wipnote: warning: "+format+"\n", args...)
 }
 
 // postLauncher registers (AttachPath) or releases (DetachPath) a launcher
@@ -186,13 +210,31 @@ func DefaultSharedSpawnFn(binPath, projectDir string, requestedPort int) (int, *
 // openSharedLog opens <project>/.wipnote/logs/otel-collector.log for append,
 // or returns nil (stderr then goes to /dev/null).
 func openSharedLog(projectDir string) *os.File {
-	dir := filepath.Join(projectDir, ".wipnote", "logs")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil
-	}
-	f, err := os.OpenFile(filepath.Join(dir, "otel-collector.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	f, err := openCollectorLog(projectDir)
 	if err != nil {
 		return nil
 	}
 	return f
+}
+
+// openCollectorLog opens <project>/.wipnote/logs/otel-collector.log for
+// append, creating the logs folder when it is missing.
+func openCollectorLog(projectDir string) (*os.File, error) {
+	dir := filepath.Join(projectDir, ".wipnote", "logs")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	return os.OpenFile(filepath.Join(dir, "otel-collector.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+}
+
+// CheckCollectorLog reports whether the collector log can be opened. Launchers
+// call it before the harness takes the terminal, the last moment a warning can
+// be printed there: once the harness runs, collector warnings go only to this
+// log, so a log that cannot be opened would make them vanish unseen.
+func CheckCollectorLog(projectDir string) error {
+	f, err := openCollectorLog(projectDir)
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }

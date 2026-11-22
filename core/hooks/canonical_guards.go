@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
+	"github.com/shakestzd/wipnote/core/models"
 )
 
 // Canonical answers for guards whose only input used to be the hook's database
@@ -68,21 +69,30 @@ func canonicalActiveWorkItem(projectDir, sessionID string) string {
 // workItemDirs maps a work item id prefix to its canonical directory.
 var workItemDirs = map[string]string{"feat": "features", "bug": "bugs", "spk": "spikes"}
 
-// canonicalWorkItemTitle reads a work item's title from its canonical HTML, or
-// "" when it cannot be found.
-func canonicalWorkItemTitle(projectDir, id string) string {
+// canonicalWorkItemNode parses a work item's canonical HTML, or returns nil
+// when the id has no known prefix or the file cannot be read.
+func canonicalWorkItemNode(projectDir, id string) *models.Node {
 	prefix, _, ok := strings.Cut(id, "-")
 	dir := workItemDirs[prefix]
-	if !ok || dir == "" || projectDir == "" {
-		return ""
+	if !ok || dir == "" || projectDir == "" || strings.ContainsAny(id, `/\`) {
+		return nil
 	}
 	path := filepath.Join(projectDir, ".wipnote", dir, id+".html")
 	if _, err := os.Stat(path); err != nil {
-		return ""
+		return nil
 	}
 	node, err := htmlparse.ParseFile(path)
-	if err != nil || node == nil {
-		return ""
+	if err != nil {
+		return nil
 	}
-	return node.Title
+	return node
+}
+
+// canonicalWorkItemTitle reads a work item's title from its canonical HTML, or
+// "" when it cannot be found.
+func canonicalWorkItemTitle(projectDir, id string) string {
+	if node := canonicalWorkItemNode(projectDir, id); node != nil {
+		return node.Title
+	}
+	return ""
 }

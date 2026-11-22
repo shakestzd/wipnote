@@ -1,7 +1,7 @@
-import type { EngineInterface } from 'claude-code'
 
 import type { AgentRow, PromptInfo, RunRow, Tally, WorkCard, WorkCounts } from '../types'
 import type { Segment, Span } from './model'
+import type { Elements } from './register'
 import { visibleRuns } from './runs'
 import { DEFAULT_VIEW, summaryText, visibleWork } from './workview'
 import type { WorkView } from './workview'
@@ -21,7 +21,6 @@ import {
   wrapSegments,
 } from './model'
 
-type Elements = ReturnType<EngineInterface['ui']['resolve']>
 
 export type BandData = {
   info: PromptInfo | null

@@ -23,7 +23,7 @@ tools:
   - Write
 maxTurns: 60
 skills:
-  - agent-context
+  - execute
 initialPrompt: "Run wipnote agent-init."
 ---
 
@@ -219,6 +219,13 @@ func TestMapCodexAgentModelAliases(t *testing.T) {
 func TestCodexAdapterEmitsAgentsAsTOML(t *testing.T) {
 	repoRoot := t.TempDir()
 	seedAssets(t, repoRoot)
+	rulesDir := filepath.Join(repoRoot, "cmd", "wipnote", "prompts")
+	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rulesDir, "worker-rules.md"), []byte("## Worker rules\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	agentDir := filepath.Join(repoRoot, "plugin", "agents")
 	if err := os.WriteFile(filepath.Join(agentDir, "feature-coder.md"), []byte(`---
 name: feature-coder
@@ -466,55 +473,54 @@ func TestCodexNoColonFormAgentIDsInOutputTree(t *testing.T) {
 	}
 }
 
-func TestCodexExecuteSkillUsesTargetOverride(t *testing.T) {
-	cwd, err := os.Getwd()
+// workerRulesHeading and workerRulesLine are literals from
+// cmd/wipnote/prompts/worker-rules.md, so these tests do not read the block
+// back through the code under test (feat-0d9b57bc).
+const (
+	workerRulesHeading = "## Worker rules"
+	workerRulesLine    = "After a second failed fix for one problem, write down what both fixes assumed"
+)
+
+func TestCodexAgents_CarryWorkerRules(t *testing.T) {
+	repoRoot := repositoryRootForTest(t)
+	manifest, err := Load(filepath.Join(repoRoot, "packages", "plugin-core", "manifest.json"))
 	if err != nil {
-		t.Fatalf("getwd: %v", err)
+		t.Fatal(err)
 	}
-	manifestPath, err := FindManifest(cwd)
+	out := t.TempDir()
+	if err := (codexAdapter{}).Emit(manifest, repoRoot, out); err != nil {
+		t.Fatalf("emit codex: %v", err)
+	}
+	path := filepath.Join(out, ".agents", "plugins", "wipnote", "agents", "wipnote-feature-coder.toml")
+	assertCarriesRulesNotSkills(t, path)
+}
+
+func TestAntigravityAgents_CarryWorkerRules(t *testing.T) {
+	repoRoot := repositoryRootForTest(t)
+	manifest, err := Load(filepath.Join(repoRoot, "packages", "plugin-core", "manifest.json"))
 	if err != nil {
-		t.Fatalf("FindManifest: %v", err)
+		t.Fatal(err)
 	}
-	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(manifestPath)))
+	out := t.TempDir()
+	if err := (antigravityAdapter{}).Emit(manifest, repoRoot, out); err != nil {
+		t.Fatalf("emit antigravity: %v", err)
+	}
+	assertCarriesRulesNotSkills(t, filepath.Join(out, "agents", "feature-coder.md"))
+}
 
-	m, err := Load(manifestPath)
+func assertCarriesRulesNotSkills(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatal(err)
 	}
-
-	outDir := t.TempDir()
-	if err := (codexAdapter{}).Emit(m, repoRoot, outDir); err != nil {
-		t.Fatalf("Emit: %v", err)
+	s := string(data)
+	if !strings.Contains(s, workerRulesHeading) || !strings.Contains(s, workerRulesLine) {
+		t.Errorf("%s lacks the worker rules block", path)
 	}
-
-	skillPath := filepath.Join(outDir, ".agents", "plugins", "wipnote", "skills", "execute", "SKILL.md")
-	data, err := os.ReadFile(skillPath)
-	if err != nil {
-		t.Fatalf("read execute skill: %v", err)
-	}
-	content := string(data)
-
-	for _, banned := range []string{
-		"SendMessage",
-		"TaskList(",
-		"TaskCreate(",
-		"TaskUpdate(",
-		"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS",
-		".claude/worktrees",
-	} {
-		if strings.Contains(content, banned) {
-			t.Errorf("Codex execute skill contains banned Claude-only term %q", banned)
-		}
-	}
-
-	for _, required := range []string{
-		"spawn_agent",
-		"wait_agent",
-		"send_input",
-		"close_agent",
-	} {
-		if !strings.Contains(content, required) {
-			t.Errorf("Codex execute skill missing required lifecycle primitive %q", required)
+	for _, gone := range []string{"Preloaded skill:"} {
+		if strings.Contains(s, gone) {
+			t.Errorf("%s still carries %q", path, gone)
 		}
 	}
 }

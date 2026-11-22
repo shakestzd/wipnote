@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/shakestzd/wipnote/core/paths"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -13,6 +13,7 @@ import (
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/oneshot"
 	"github.com/shakestzd/wipnote/internal/delegate/runstore"
@@ -59,7 +60,17 @@ doctor) the run is refused with the probe output unless the host opted in.
 --workspace-folder <root>, with the run folder's paths mapped into the
 container. It refuses without the config or the devcontainer CLI. An argv that
 is not claude or codex is a ccx task's arguments and runs as claude -p inside.
-Codex inside needs this host in dangerFullAccessHosts (bwrap fails there).`
+Codex inside needs this host in dangerFullAccessHosts (bwrap fails there).
+
+Put every wipnote flag before --; all words after it go to the tool. One tool
+argv only: pipes, ;, && and redirects are refused, and --help and --version are
+not runs. claude -p must not set its own --output-format. A long run blocks until
+it ends: on Claude Code run it under the Monitor tool with --progress, which
+prints run=R state=started, one state=step line per tool step and a last
+state=done line with exit=N, answer=<last.md> and page=<run.html> (state=failed
+error="..." when the run was refused). Read the answer from the answer= file.
+Show the user the run page, or give them its path. A bare ccx task in the Bash
+tool is denied and the denial names the run form to use.`
 
 // delegateRunCmd is `wipnote delegate run [--label] [--work-item] [--no-pane]
 // -- <cmd>` (plan-28b4a7f6 slice 8): one codex exec or review, claude -p or
@@ -67,14 +78,14 @@ Codex inside needs this host in dangerFullAccessHosts (bwrap fails there).`
 // report the retired herdr pane mod printed. The exit status is the tool's.
 func delegateRunCmd() *cobra.Command {
 	var label, workItem string
-	var noPane, write, inContainer bool
+	var noPane, write, inContainer, progress bool
 	cmd := &cobra.Command{
 		Use:   "run [--label L] [--work-item ID] [--no-pane] [--write] [--container] -- <codex exec|codex review|claude -p|ccx task> ...",
 		Short: "Run one delegated codex, claude -p or ccx call and print its report",
 		Long:  delegateRunLong,
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			code, err := runDelegateRun(cmd, args, label, workItem, runFlags{noPane: noPane, write: write, container: inContainer})
+			code, err := runDelegateRun(cmd, args, label, workItem, runFlags{noPane: noPane, write: write, container: inContainer, progress: progress})
 			if err != nil {
 				return err
 			}
@@ -90,11 +101,12 @@ func delegateRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&noPane, "no-pane", false, "run headless even inside herdr")
 	cmd.Flags().BoolVar(&write, "write", false, "codex exec: --sandbox workspace-write instead of read-only")
 	cmd.Flags().BoolVar(&inContainer, "container", false, "run the tool in the project's own devcontainer")
+	cmd.Flags().BoolVar(&progress, "progress", false, "print key=value lines (started, one per tool step, done) instead of the report, for Claude Code's Monitor tool")
 	return cmd
 }
 
 // runFlags are delegate run's boolean flags.
-type runFlags struct{ noPane, write, container bool }
+type runFlags struct{ noPane, write, container, progress bool }
 
 func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, f runFlags) (int, error) {
 	wipnoteDir, err := findWipnoteDir()
@@ -133,7 +145,15 @@ func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, f
 	}
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	var prog *runProgress
+	if f.progress {
+		prog = newRunProgress(cmd.OutOrStdout())
+		o.Stdout, o.OnRun = io.Discard, prog.start
+	}
 	res, err := oneshot.Run(ctx, o)
+	if prog != nil {
+		prog.finish(res, err)
+	}
 	return res.Exit, err
 }
 

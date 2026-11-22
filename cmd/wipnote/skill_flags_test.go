@@ -17,7 +17,7 @@ import (
 // on the target cobra command. Prevents recurrence of bug-7ca3638b (skill
 // prescribing `--format json` that trackShowCmd did not register).
 //
-// Scope: plugin/skills/**/*.md, plugin/commands/**/*.md, plugin/agents/**/*.md.
+// Scope: plugin/agents/**/*.md, plus any skill or command folder that exists.
 //
 // Allowlist: flags listed in allowedShellFlags are skipped — these belong to
 // piped-to tools (grep, jq, etc.) rather than the wipnote CLI.
@@ -91,20 +91,18 @@ func TestSkillFlagsValidator_PassesGoodFixture(t *testing.T) {
 }
 
 func TestPlanningSkillsAvoidClaudeOnlyCriticRunners(t *testing.T) {
-	root := repoRootForTest(t)
-	paths := []string{
-		filepath.Join(root, "plugin", "skills", "plan", "SKILL.md"),
-		filepath.Join(root, "plugin", "skills", "plan-critique", "SKILL.md"),
+	texts := map[string]string{
+		"design brief":       designBriefHead + findingsFormat,
+		"feasibility brief":  feasibilityBriefHead + feasibilityChecks + findingsFormat,
+		"plan critique help": planCritiqueLong,
 	}
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
-		}
-		content := string(data)
+	// The old plan guidance now prints from `wipnote plan next` (feat-bcc2297f).
+	for step, text := range planNextRules {
+		texts["plan next "+step] = text
+	}
+	for rel, content := range texts {
 		for _, forbidden := range []string{"Sonnet+Haiku", "Haiku model", "Sonnet model", "source: haiku", "source: sonnet", "Haiku (design)", "Sonnet (feasibility)"} {
 			if strings.Contains(content, forbidden) {
-				rel, _ := filepath.Rel(root, path)
 				t.Fatalf("%s contains Claude-only critique runner reference %q", rel, forbidden)
 			}
 		}
@@ -112,31 +110,22 @@ func TestPlanningSkillsAvoidClaudeOnlyCriticRunners(t *testing.T) {
 }
 
 func TestPlanningSkillsRequireResearchProvenance(t *testing.T) {
-	root := repoRootForTest(t)
-	checks := map[string][]string{
-		filepath.Join(root, "plugin", "skills", "plan", "SKILL.md"): {
-			"Mandatory Research",
-			"research gate",   // the schema-enforced gate is documented
-			"research_waiver", // the structured escape hatch is documented
-			"no reinventing the wheel",
-		},
-		filepath.Join(root, "plugin", "skills", "plan-critique", "SKILL.md"): {
-			"Verify external claims via web search / web fetch",
-			"Runtime verification requirements for backend claims",
-			"unverified",
-		},
-	}
-	for path, wants := range checks {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
+	// The Draft step of `wipnote plan next` carries the research rules that
+	// the old planning guidance held (feat-bcc2297f).
+	for _, want := range []string{"Research live", "v4 gate", "research_waiver", "adopt_vs_build"} {
+		if !strings.Contains(planNextRules["Draft"], want) {
+			t.Fatalf("plan next Draft step missing research marker %q", want)
 		}
-		content := string(data)
-		for _, want := range wants {
-			if !strings.Contains(content, want) {
-				rel, _ := filepath.Rel(root, path)
-				t.Fatalf("%s missing research provenance marker %q", rel, want)
-			}
+	}
+	// The critic rules of the deleted plan-critique skill live in the
+	// feasibility brief (feat-0be892a9).
+	for _, want := range []string{
+		"verify library behaviour",
+		"Backend claims",
+		"unverified",
+	} {
+		if !strings.Contains(feasibilityChecks, want) {
+			t.Fatalf("feasibility brief missing research provenance marker %q", want)
 		}
 	}
 }
@@ -144,8 +133,7 @@ func TestPlanningSkillsRequireResearchProvenance(t *testing.T) {
 func TestSharedPluginPromptsAvoidClaudeOnlyBoilerplate(t *testing.T) {
 	root := repoRootForTest(t)
 	pluginRoots := []string{
-		filepath.Join(root, "plugin", "commands"),
-		filepath.Join(root, "plugin", "skills"),
+		filepath.Join(root, "plugin", "agents"),
 	}
 	forbidden := []string{
 		"## Instructions for Claude",

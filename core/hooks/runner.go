@@ -115,14 +115,15 @@ type CloudEvent struct {
 	// BeforeTool, AfterTool) rather than Claude canonical names.
 	HookEventName string `json:"hook_event_name,omitempty"`
 
-	// PreCompact — controlling event. CC is about to compact the conversation
-	// context. compaction_trigger distinguishes a user-initiated compaction
-	// ("manual") from an automatic one fired on context pressure ("auto").
-	// context_stats carries CC's pre-compaction context accounting (token
-	// counts, message counts, etc.); shape is harness-defined so it is decoded
-	// as a free-form map and recorded verbatim for observability.
-	CompactionTrigger string         `json:"compaction_trigger"`
-	ContextStats      map[string]any `json:"context_stats"`
+	// PreCompact / PostCompact (feat-9bc8e611). Claude Code's hooks doc lists
+	// trigger ("manual" or "auto") on both events, custom_instructions on
+	// PreCompact (null unless the user passed text to /compact) and
+	// compact_summary on PostCompact. Codex sends trigger and turn_id. The old
+	// compaction_trigger and context_stats fields are in neither doc, so they
+	// were dropped rather than decoded as always-empty.
+	Trigger            string `json:"trigger"`
+	CustomInstructions string `json:"custom_instructions"`
+	CompactSummary     string `json:"compact_summary"`
 
 	// InstructionsLoaded — observational event. CC has loaded an instruction
 	// file (CLAUDE.md, AGENTS.md, a memory file, a glob-matched ruleset, …).

@@ -87,6 +87,7 @@ func runTrackPR(trackID, base string, dryRun bool) error {
 
 	// Build PR body
 	body := buildPRBody(trackID, groups, diffStat)
+	adviseProse(proseItem{path: "pr-body", text: body})
 
 	// Build title
 	title := fmt.Sprintf("feat: %s", trackID)

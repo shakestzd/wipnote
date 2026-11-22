@@ -87,6 +87,7 @@ type codexPayload struct {
 	AgentType            string          `json:"agent_type"`
 	SessionID            string          `json:"session_id"`
 	TurnID               string          `json:"turn_id"`
+	Trigger              string          `json:"trigger"` // PreCompact / PostCompact
 	TranscriptPath       string          `json:"transcript_path"`
 	CWD                  string          `json:"cwd"`
 	HookEventName        string          `json:"hook_event_name"`
@@ -170,6 +171,7 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 		Source:               p.Source,
 		Prompt:               p.Prompt,
 		TurnID:               p.TurnID,
+		Trigger:              p.Trigger,
 		LastAssistantMessage: p.LastAssistantMessage,
 		StopReason:           p.StopReason,
 		StopHookActive:       p.StopHookActive,

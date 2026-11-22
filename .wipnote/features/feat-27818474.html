@@ -10,20 +10,29 @@
 <body>
     <article id="feat-27818474"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-20T09:08:10.612509"
-             data-updated="2026-10-20T09:51:50.467759" data-agent-assigned="claude-code" data-track-id="trk-43e0650a" data-created-by-cli-version="dev" data-created_in_session="bada953c-8d41-5715-8b8b-b93015a1f379">
+             data-updated="2026-11-08T03:11:36.457496" data-agent-assigned="claude-code" data-track-id="trk-43e0650a" data-created-by-cli-version="dev" data-created_in_session="bada953c-8d41-5715-8b8b-b93015a1f379" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Skills: conform to Anthropic skill authoring best practices</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="ac5c4d422c0bf8a0dcf1bcc6d6d7c12d3b6b123b.html" data-relationship="committed_in" data-since="2026-10-20T06:42:46">feat(skills): best-practice overhaul — spec fixes, 18→14 consolidation, checklists and evals (#233)</a></li>
+                    <li><a href="97e9cea9199bcd9ced01452050d740a94d088b39.html" data-relationship="committed_in" data-since="2026-10-20T10:23:16">fix(skills): order plan lifecycle as decisions, promote, spec</a></li>
+                    <li><a href="eb7002d149a59465f1ed7efce71ad50686edcce3.html" data-relationship="committed_in" data-since="2026-10-20T09:51:50">feat(skills): consolidate to 14 skills with checklists and feedback loops</a></li>
+                    <li><a href="0daa0e0a301bc2dfe17d37d54e2be61f90c44121.html" data-relationship="committed_in" data-since="2026-10-20T09:18:39">fix(skills): conform skills to Anthropic skill authoring best practices</a></li>
+                </ul>
+            </section>
             <section data-edge-type="part_of">
                 <h3>Part Of:</h3>
                 <ul>
@@ -35,11 +44,11 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-feat-27818474-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Skill names set to dir names; descriptions third person; execute frontmatter YAML fixed (was unparseable)</li>
-                <li data-completed="false" data-step-id="step-feat-27818474-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Deleted stale .claude/skills; removed body trigger lists; fixed paths, Agent() terminology, plan checklist &#43; EXAMPLES.md, deploy dry-run checklist</li>
-                <li data-completed="false" data-step-id="step-feat-27818474-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ .archived excluded from port trees; skill_spec_test.go added; 15 plugin evals added (15/15 after agent-context refusal wording fix)</li>
-                <li data-completed="false" data-step-id="step-feat-27818474-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Consolidated 18 -&gt; 14 skills: plan absorbs visual-plan (ENRICH.md) and spec-from-slice (SPEC.md); agent-context absorbs tdd-protocol; /wipnote:recommend absorbs strategic-planning</li>
-                <li data-completed="false" data-step-id="step-feat-27818474-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Every workflow skill has a copyable checklist and verify-fix-repeat loops; spec test enforces checklists and covers SKILL.&lt;harness&gt;.md variants; 16 evals pass 3/3</li>
+                <li data-completed="true" data-step-id="step-feat-27818474-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Skill names set to dir names; descriptions third person; execute frontmatter YAML fixed (was unparseable)</li>
+                <li data-completed="true" data-step-id="step-feat-27818474-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Deleted stale .claude/skills; removed body trigger lists; fixed paths, Agent() terminology, plan checklist &#43; EXAMPLES.md, deploy dry-run checklist</li>
+                <li data-completed="true" data-step-id="step-feat-27818474-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ .archived excluded from port trees; skill_spec_test.go added; 15 plugin evals added (15/15 after agent-context refusal wording fix)</li>
+                <li data-completed="true" data-step-id="step-feat-27818474-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Consolidated 18 -&gt; 14 skills: plan absorbs visual-plan (ENRICH.md) and spec-from-slice (SPEC.md); agent-context absorbs tdd-protocol; /wipnote:recommend absorbs strategic-planning</li>
+                <li data-completed="true" data-step-id="step-feat-27818474-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Every workflow skill has a copyable checklist and verify-fix-repeat loops; spec test enforces checklists and covers SKILL.&lt;harness&gt;.md variants; 16 evals pass 3/3</li>
             </ol>
         </section>
 

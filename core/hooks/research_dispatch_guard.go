@@ -18,7 +18,7 @@ import (
 
 // dispatchTools are the subagent-spawn tools the guard inspects: Claude Code's
 // Task/Agent and Codex's native spawn tools (the same set
-// hasPriorDelegationEvidence treats as a spawn). Codex's execute skill calls
+// hasPriorDelegationEvidence treats as a spawn). Codex workers start with
 // spawn_agent(agent_type=..., description=..., message=...).
 var dispatchTools = map[string]bool{
 	"Task": true, "Agent": true,

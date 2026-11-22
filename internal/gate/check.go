@@ -252,6 +252,9 @@ func DetectPlan(projectRoot, codeRoot, phase string) (Plan, error) {
 		return Plan{}, fmt.Errorf("resolve guard profile: %w", err)
 	}
 	if usedProfile {
+		// bug-9f3b580f: the approved commands run as written. Then the gate
+		// adds build, vet and test for each nested Go module no guard names,
+		// because a root-only profile left those modules unchecked.
 		prof, _ := guardprofile.Load(projectRoot)
 		plan := Plan{
 			ProjectType:      paths.ProjectTypeUnknown,
@@ -271,6 +274,7 @@ func DetectPlan(projectRoot, codeRoot, phase string) (Plan, error) {
 			})
 			plan.GuardNames = append(plan.GuardNames, g.Name)
 		}
+		plan.Commands = append(plan.Commands, nestedModuleCommands(codeRoot, guards)...)
 		return plan, nil
 	}
 
@@ -281,20 +285,7 @@ func DetectPlan(projectRoot, codeRoot, phase string) (Plan, error) {
 	plan := Plan{ProjectType: projectType, ManifestDir: manifestDir, Manifest: filepath.Join(manifestDir, manifestName)}
 	switch projectType {
 	case paths.ProjectTypeGo:
-		// The `go test ... -short ./...` step covers the whole module, which
-		// includes the always-on durability contention fixture
-		// (DurabilityContentionFixtureTest in DurabilityContentionFixturePkg).
-		// That fixture is intentionally NOT skipped under -short, so a
-		// regression in the migrated hot hooks (plan-2390966a, feat-bbb80917)
-		// — e.g. reverting a hot write to a direct, lock-contending Exec —
-		// fails THIS gate. GoGateRunsDurabilityFixtureUnderShort + the
-		// gate_durability_test.go assertion guard that this command keeps both
-		// the -short flag and the module-wide ./... scope.
-		plan.Commands = []Command{
-			{Name: "go build", Args: []string{"go", "build", "-buildvcs=false", "./..."}},
-			{Name: "go vet", Args: []string{"go", "vet", "./..."}},
-			{Name: "go test", Args: []string{"go", "test", "-buildvcs=false", "-short", GoTestTimeoutArg, "./..."}},
-		}
+		plan.Commands = goGateCommands(codeRoot)
 	case paths.ProjectTypeNode:
 		plan.Commands, err = NodeGateCommands(plan.Manifest)
 		if err != nil {

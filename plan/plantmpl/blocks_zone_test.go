@@ -127,7 +127,7 @@ func TestBlocksZone_WireframeRejectsRawColors(t *testing.T) {
 	}
 }
 
-// TestBlocksZone_DataModelShowsRouteFromName guards the plan skill's guidance for
+// TestBlocksZone_DataModelShowsRouteFromName guards the plan guidance for
 // HTTP contracts: since the api-endpoint block was removed, a contract is a
 // data-model whose `name` field carries the method and path. The renderer shows
 // `name` as the block heading, so the route must appear in the rendered plan.

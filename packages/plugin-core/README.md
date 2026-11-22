@@ -11,13 +11,11 @@ Gemini CLI session data via the retained ingest read path; see `AGENTS.md`.)
   matrix. `plugin/.claude-plugin/plugin.json`,
   `port/packages/codex-marketplace/.agents/plugins/wipnote/.codex-plugin/plugin.json`, and
   `port/packages/antigravity-extension/plugin.json` are all generated from it.
-- **Assets** (commands, agents, skills, templates, static, config) live in
-  `plugin/…/`. Codex skills and commands are copied in their native markdown
-  form, while Codex agents are translated from `plugin/agents/*.md` into
+- **Assets** (agents, templates, static, config, output-styles) live in
+  `plugin/…/`. Codex agents are translated from `plugin/agents/*.md` into
   custom-agent TOML under the generated marketplace plugin's `agents/` directory.
-  Antigravity requires TOML slash commands, so a sub-emitter translates the
-  markdown on the way out (reusing the same Gemini-CLI-derived translation
-  helpers Antigravity's tool vocabulary shares — see `port/pluginbuild/gemini_compat.go`).
+  Antigravity agents are translated on the way out too (reusing the same
+  Gemini-CLI-derived translation helpers — see `port/pluginbuild/gemini_compat.go`).
 - **Generated trees** — `plugin/` (Claude), `port/packages/codex-marketplace/` (Codex),
   and `port/packages/antigravity-extension/` (Antigravity) are output directories. Treat them
   as build artifacts: do not hand-edit anything under `plugin/.claude-plugin/`,
@@ -83,51 +81,45 @@ edit the manifest.
 
 | Event | Handler | Claude | Codex | Antigravity | Notes |
 |-------|---------|:---:|:---:|:---:|-------|
-| `SessionStart` | `session-start` | x | x | | |
-| `SessionStart` | `session-resume` | x | | | matcher: `resume` |
-| `SessionEnd` | `session-end` | x | | | timeout 90s |
-| `UserPromptSubmit` | `user-prompt` | x | x | x | |
-| `AfterAgent` | `after-agent` | | | x | Antigravity-specific |
-| `UserPromptSubmit` | `timestamp` | x | | | shell `command:` only — injects local timestamp |
-| `PreToolUse` | `pretooluse` | x | x | x | |
-| `PostToolUse` | `posttooluse` | x | x | x | |
-| `PostToolUse` | `exit-plan-mode` | x | | | matcher: `ExitPlanMode` |
-| `SubagentStart` | `subagent-start` | x | | | |
-| `SubagentStop` | `subagent-stop` | x | | | |
-| `Stop` | `stop` | x | | x | timeout 90s |
-| `PostToolUseFailure` | `posttooluse-failure` | x | | | |
-| `PreCompact` | `pre-compact` | x | | | |
-| `TeammateIdle` | `teammate-idle` | x | | | |
-| `TaskCompleted` | `task-completed` | x | | | |
-| `InstructionsLoaded` | `instructions-loaded` | x | | | |
-| `WorktreeCreate` | `worktree-create` | x | | | |
-| `WorktreeRemove` | `worktree-remove` | x | | | |
-| `PostCompact` | `post-compact` | x | | | |
-| `TaskCreated` | `task-created` | x | | | |
-| `PermissionRequest` | `permission-request` | x | | | |
-| `ConfigChange` | `config-change` | x | | | |
-| `TaskStarted` | `task-started` | | x | | Codex-specific |
-| `TaskComplete` | `stop` | | x | | Codex-specific — reuses `stop` handler; timeout 90s |
-| `TaskComplete` | `session-end` | | x | | Codex-specific — reuses `session-end` handler; timeout 90s |
-| `TurnAborted` | `task-aborted` | | x | | Codex-specific |
+| `SessionStart` | `session-start` | x | x |  | timeout 30s |
+| `SessionStart` | `session-resume` | x |  |  | matcher: `resume`, timeout 15s |
+| `SessionEnd` | `session-end` | x | x |  | timeout 60s |
+| `UserPromptSubmit` | `user-prompt` | x | x | x | timeout 15s |
+| `PreToolUse` | `pretooluse` | x | x | x | timeout 15s |
+| `PostToolUse` | `posttooluse` | x |  |  | matcher: `^(Write|Edit|MultiEdit|NotebookEdit|Bash)$`, timeout 15s |
+| `PostToolUse` | `posttooluse-record` | x |  |  | timeout 15s, async |
+| `PostToolUse` | `posttooluse` |  | x | x |  |
+| `PostToolUse` | `exit-plan-mode` | x |  |  | matcher: `ExitPlanMode`, timeout 30s |
+| `SubagentStart` | `subagent-start` | x | x |  | timeout 30s |
+| `SubagentStop` | `subagent-stop` | x | x |  | timeout 30s |
+| `Stop` | `stop` | x | x | x | timeout 90s |
+| `PostToolUseFailure` | `posttooluse-failure` | x |  |  | timeout 15s, async |
+| `StopFailure` | `stop-failure` | x |  |  | timeout 15s, async |
+| `TaskCompleted` | `task-completed` | x |  |  |  |
+| `WorktreeCreate` | `worktree-create` | x |  |  | timeout 60s |
+| `WorktreeRemove` | `worktree-remove` | x |  |  | timeout 30s |
+| `TaskCreated` | `task-created` | x |  |  | timeout 15s, async |
+| `PermissionRequest` | `permission-request` | x |  |  | timeout 10s |
+| `PermissionDenied` | `permission-denied` | x |  |  | timeout 15s, async |
+| `ConfigChange` | `config-change` | x |  |  | timeout 15s, async |
+| `PreCompact` | `pre-compact` | x | x |  | timeout 15s |
+| `PostCompact` | `post-compact` | x | x |  | timeout 15s |
 
 ## Recipes
 
-### Add a new slash command / agent / skill
+### Add a new agent
 
 Drop the markdown file into the matching `plugin/` subtree and regenerate:
 
 ```bash
 # examples
-$EDITOR plugin/commands/mycmd.md
 $EDITOR plugin/agents/my-agent.md
-$EDITOR plugin/skills/my-skill/SKILL.md
 
 wipnote plugin build-ports
 ```
 
 Every target picks the new asset up automatically — no manifest edit needed,
-because `manifest.json → assetSources` already points at `plugin/{commands,agents,skills,…}`.
+because `manifest.json → assetSources` already points at `plugin/{agents,templates,static,config,output-styles}`.
 
 ### Add a new hook event
 

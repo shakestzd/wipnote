@@ -17,6 +17,7 @@ func Stop(event *CloudEvent) (*HookResult, error) {
 	}
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
 	recordDelegateHook(event, projectDir, sessionID, "stop")
+	delegateStopReply(event, projectDir)
 	// Denied calls in the turn just ended count as failed (feat-ddeaa0d1).
 	recordTranscriptFailuresFor(event, projectDir, sessionID)
 	// Background tasks that ended since the last turn (feat-36658c22).
@@ -32,6 +33,8 @@ func Stop(event *CloudEvent) (*HookResult, error) {
 	if err := runSessionExitReconcile(projectDir, currentHarness().String(), sessionID, true); err != nil {
 		return nil, err
 	}
+	// Re-title an item-less session from its work, in the background.
+	refreshTitleOnStop(event, projectDir, sessionID)
 	if block := stopQuestionNudge(event, projectDir, sessionID); block != nil {
 		return block, nil
 	}

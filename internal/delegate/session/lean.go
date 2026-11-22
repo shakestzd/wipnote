@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/paths"
@@ -34,6 +35,7 @@ type LeanSpec struct {
 	Home       string          // for the CLAUDE.md exclude; "" omits it
 	UserRules  bool            // keep ~/.claude/CLAUDE.md
 	RulesRoots []string        // folders whose CLAUDE.md and rules the worker does not load
+	Disallowed []string        // built-in tools removed from the list and passed as --disallowedTools
 	Tools      []string        // built-in tools beyond Bash, Read, Edit, Write, Grep, Glob
 	Plugins    map[string]bool // enabledPlugins overlay (name@marketplace)
 	Deny       []string        // MCP servers to deny by exact name
@@ -70,7 +72,7 @@ func (s LeanSpec) toolList() string {
 	if len(s.Plugins) > 0 {
 		extra = append(extra, "Skill")
 	}
-	return strings.Join(unionNames(leanTools, extra), ",")
+	return strings.Join(withoutNames(unionNames(leanTools, extra), s.Disallowed), ",")
 }
 
 // settings is the --settings JSON. Project settings still load:
@@ -148,6 +150,9 @@ func LeanFlags(user []string, s LeanSpec) []string {
 	if !hasFlag(user, "--tools") {
 		flags = append(flags, "--tools", s.toolList())
 	}
+	if len(s.Disallowed) > 0 && !hasFlag(user, "--disallowedTools") {
+		flags = append(flags, "--disallowedTools", strings.Join(s.Disallowed, ","))
+	}
 	if !hasFlag(user, "--chrome") && !hasFlag(user, "--no-chrome") {
 		flags = append(flags, "--no-chrome")
 	}
@@ -155,4 +160,15 @@ func LeanFlags(user []string, s LeanSpec) []string {
 		flags = append(flags, "--settings", s.settings())
 	}
 	return flags
+}
+
+// withoutNames drops every name in drop from list.
+func withoutNames(list, drop []string) []string {
+	var out []string
+	for _, n := range list {
+		if !slices.Contains(drop, n) {
+			out = append(out, n)
+		}
+	}
+	return out
 }

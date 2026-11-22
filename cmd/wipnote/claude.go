@@ -262,6 +262,9 @@ func launchClaude(opts LaunchOpts) error {
 		systemPromptFile = path
 		defer os.Remove(path) //nolint:errcheck
 	}
+	// The one place the default --autocompact reaches every interactive Claude
+	// launch (claude, yolo, dev, delegate spawn workers): feat-3fcabee6.
+	opts.ExtraArgs = withAutoCompact(opts.ExtraArgs, os.Getenv, paths.UserConfigPath(), os.Stderr)
 	claudeArgs := buildClaudeArgs(opts, systemPromptFile)
 
 	claudePath, err := exec.LookPath("claude")
@@ -315,7 +318,7 @@ func launchClaude(opts LaunchOpts) error {
 	// claude_env.go:buildClaudeLaunchEnv for precedence rules (user-set
 	// OTEL_* always wins).
 	c.Env = buildClaudeLaunchEnv(claudeEnvProjectDir(opts), &envOverrides)
-	c.Env = launcher.AppendOrReplaceEnv(c.Env, opts.ExtraEnv...)
+	c.Env = launcher.AppendOrReplaceEnv(c.Env, append([]string{launchNameEnv(opts.Name)}, opts.ExtraEnv...)...)
 
 	// Publish the work-item daemon's socket into the session (feat-f6759e37)
 	// if the ensure started above is done. markerRoot is the same root the
@@ -479,8 +482,8 @@ func composeSystemPrompt(opts LaunchOpts) string {
 		systemPrompt = systemPromptContent
 	}
 	// Append the shared research-routing disposition exactly once. Source of
-	// truth: cmd/wipnote/prompts/research-routing.md (mirrored for subagents in
-	// the agent-context skill).
+	// truth: cmd/wipnote/prompts/research-routing.md (subagents get theirs from
+	// plugin/agents/researcher.md).
 	if systemPrompt != "" {
 		systemPrompt = strings.TrimSpace(systemPrompt) + "\n\n" + strings.TrimSpace(researchRoutingContent) + "\n"
 	}

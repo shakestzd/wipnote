@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Codex session attribution diverges after wipnote claude launcher failure</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-288e6cd3"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-07-14T01:23:30.810712"
+             data-updated="2026-11-08T03:13:50.843327" data-track-id="trk-08dcbb33" data-created-by-agent="codex" data-created-by-model="gpt-5.5" data-created-by-cli-version="0.60.21-97-gd3b84942c">
+
+        <header>
+            <h1>Codex session attribution diverges after wipnote claude launcher failure</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/019ead4c-4dc1-7a41-8b09-2df8c034740d.html" data-relationship="implemented_in" data-since="2026-07-14T01:23:36.035696">session 019ead4c-4dc1-7a41-8b09-2df8c034740d</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-08dcbb33.html" data-relationship="part_of" data-since="2026-07-14T01:23:30.827971">trk-08dcbb33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>An external project session exposed a compound cross-harness attribution failure. Invoking the Claude launcher inside an already-active Codex task attempted an interactive Claude process and failed after telemetry/dashboard startup errors, but left CLI identity bound to the launcher-created Claude session. Subsequent work-item start claims attached to that Claude session while the Codex PreToolUse hook checked the original Codex thread ID and blocked delegated and root edits as having no active work item. The who and session list/show commands then disagreed about the active session. Creating a work item in a read-only checkout also unexpectedly attempted launcher and collector startup instead of failing cleanly. Track under existing Workitem Attribution and Lineage; publish a GitHub issue with reproduction and expected behavior.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,8 +1,8 @@
 # wipnote-visuals (dev mod)
 
-Three things: a **receipt line** under each turn that says what the tools did and how the reply reads (costs the model nothing), a **writing check** that sends one line with the next prompt only when a reply broke a rule, and **drawn fenced blocks** in replies, where the model sends only short inputs and the mod draws them. Without the mod each block still reads as plain text.
+Two things: a **receipt line** under each turn that says what the tools did and how the reply reads (costs the model nothing), and a **writing check** that sends one line with the next prompt only when a reply broke a rule. The mod draws nothing inside a reply (see Blocks).
 
-Commands: `/visuals on|off` turns the blocks and the model rule on or off; `/visuals receipt on|off` turns the receipt line on or off; `/visuals` alone reports both states, and any other argument prints usage and changes nothing. `/plainspeak strict|80|off` sets the writing check (default `off`: no score, no note).
+Commands: `/visuals receipt on|off` turns the receipt line on or off; `/visuals` alone reports its state, and any other argument prints usage and changes nothing. `/plainspeak strict|80|off` sets the writing check (default `off`: no score, no note).
 
 ## Receipt
 
@@ -44,28 +44,17 @@ The note travels as prompt context rather than a system-prompt section on purpos
 
 ## Blocks
 
-The rule (about 60 tokens, `prompt.md`) asks for one block only. `wipnote claude` appends it to the system prompt when it loads the mods, so `/visuals off` stops the drawing but not the rule. It is not a `prompt.compose` hook, because a managed policy plugin that sends that event past the user tier skips every mod's hook.
+The mod no longer draws blocks or sends a rule for them. Steps, options and callouts in a reply are ```` ```lulawrite ```` blocks, which the lulawrite plugin checks and draws (feat-fd3637f9). Two plugins that each draw a whole reply fight over it: the one loaded first won and the other's blocks showed raw.
 
-**wip:compare** — `# Option` starts an option (a trailing `*` marks the recommended one), then `+ pro` and `- con` lines. Drawn side by side.
+Install lulawrite beside wipnote: `/plugin install lulawrite@luladoc` (marketplace `shakestzd/luladoc`), then `/lulawrite-install`. Its Precise output style carries the block shapes.
 
-````
-```wip:compare
-# SQLite*
-+ no server
-- single writer
-# Postgres
-+ concurrent writes
-- extra service
-```
-````
+| Old wipnote block (`wip:` prefix) | lulawrite block |
+|---|---|
+| compare | `{"options": {"items": [{"name", "summary", "pros", "cons", "pick": true}]}}` |
+| steps | `{"steps": {"items": [{"title", "text"}]}}` (no done or current state) |
+| callout | `{"callout": {"tone": "decision\|warning\|note", "text"}}` |
 
-Two older blocks still parse and draw, so earlier transcripts keep their look, but the rule no longer asks for them: a numbered list and a bold `**Warning:**` line are Markdown already (feat-ca6bd746, design section 3).
-
-**wip:steps** — one step per line; `x ` = done, `> ` = current, no prefix = todo.
-
-**wip:callout** — first line `decision:`, `warning:` or `note:` then text; further lines continue it.
-
-Open or malformed fences stay plain text. Parsers are in `hooks/blocks.ts` (pure), drawing in `hooks/components.tsx`.
+Old transcripts still hold `wip:*` fences. They read as plain text, so they need no converter.
 
 ## Check it
 
@@ -74,4 +63,4 @@ claude plugin validate mods/wipnote-visuals
 claude plugin test mods/wipnote-visuals
 ```
 
-`eval/` holds the live-model eval for the rule and the offline lint check (see `eval/README.md`). The receipt's real-session measurement (20 turns: line shown when and only when tools changed something, classifier misses, mismatch flags that were right) is still to do.
+`eval/` holds the offline lint check (see `eval/README.md`). The receipt's real-session measurement (20 turns: line shown when and only when tools changed something, classifier misses, mismatch flags that were right) is still to do.

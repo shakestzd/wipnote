@@ -25,7 +25,10 @@ type Info struct {
 	WorkItem   string `json:"work_item"`
 	Caller     string `json:"caller_session,omitempty"`
 	CallerPane string `json:"caller_pane,omitempty"`
-	Pane       string `json:"pane,omitempty"`
+	// CallerLabel is the breadcrumb label of the caller (ParentLabel), set at
+	// spawn; boot names the Claude session "<label> › <name>".
+	CallerLabel string `json:"caller_label,omitempty"`
+	Pane        string `json:"pane,omitempty"`
 	// TerminalID is the pane's terminal, pinned at spawn right after the
 	// pane is placed (an older run gets it when list adopts its agent). Every
 	// key typed and every close checks it (ownPane); empty means unknown.

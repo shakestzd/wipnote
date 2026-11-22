@@ -60,7 +60,7 @@ func printRelevantText(results []relevantResult, shown, total int) {
 }
 
 // printRelevantCompact outputs one line per item — id, type, status, score,
-// title — with no citations, for the smallest possible agent-context
+// title — with no citations, for the smallest possible agent-friendly
 // footprint. Prints a truncation summary line when shown < total.
 func printRelevantCompact(results []relevantResult, shown, total int) {
 	if len(results) == 0 {

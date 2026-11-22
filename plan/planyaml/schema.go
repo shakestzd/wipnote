@@ -381,6 +381,19 @@ type PlanCritique struct {
 	Critics     []CriticSection      `yaml:"critics" json:"critics"`
 	Risks       []CritiqueRisk       `yaml:"risks" json:"risks"`
 	Synthesis   string               `yaml:"synthesis" json:"synthesis"`
+
+	// Round counts the critique rounds recorded so far. It is set by
+	// set-critique-yaml and capped at MaxCritiqueRounds (feat-0be892a9: a
+	// critic loop with no cap kept reopening settled findings).
+	Round int `yaml:"round,omitempty" json:"round,omitempty"`
+	// AcceptedRisks are findings the owner settled. Later rounds do not raise them.
+	AcceptedRisks []AcceptedRisk `yaml:"accepted_risks,omitempty" json:"accepted_risks,omitempty"`
+}
+
+// AcceptedRisk is a finding the owner chose to live with, and the reason.
+type AcceptedRisk struct {
+	Text   string `yaml:"text" json:"text"`
+	Reason string `yaml:"reason" json:"reason"`
 }
 
 // CritiqueAssumption is a single assumption with verification status.
@@ -395,6 +408,8 @@ type CritiqueAssumption struct {
 type CriticSection struct {
 	Title    string             `yaml:"title" json:"title"`
 	Sections []CriticSubsection `yaml:"sections" json:"sections"`
+	// Status says whether this critic ran: completed or not_run. Optional.
+	Status string `yaml:"status,omitempty" json:"status,omitempty"`
 }
 
 // CriticSubsection is a heading with a list of critic items.
@@ -408,6 +423,9 @@ type CriticItem struct {
 	Badge string `yaml:"badge" json:"badge"`
 	Kind  string `yaml:"kind" json:"kind"` // success|warn|danger|info
 	Text  string `yaml:"text" json:"text"`
+	// Contested marks a finding the author disputes. It needs a Citation.
+	Contested bool   `yaml:"contested,omitempty" json:"contested,omitempty"`
+	Citation  string `yaml:"citation,omitempty" json:"citation,omitempty"` // path:line or http(s) URL
 }
 
 // CritiqueRisk records a risk with severity and mitigation strategy.

@@ -318,6 +318,38 @@
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "pre-compact"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "post-compact"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
     ]
   }
 }

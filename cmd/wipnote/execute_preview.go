@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/shakestzd/wipnote/core/paths"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,6 +35,13 @@ type executePreview struct {
 	// one must not be dispatched. Always a list, never null.
 	Questions []questionRow   `json:"questions"`
 	Git       executeGitState `json:"git"`
+	// Ready lists the todo tasks to dispatch together: no open blocker, no
+	// blocking question, and no file shared with an earlier ready task.
+	Ready []string `json:"ready"`
+	// Deferred lists the todo tasks held back, each with its reason.
+	Deferred []deferredTask `json:"deferred"`
+	// Briefs holds one brief per ready task.
+	Briefs []taskBrief `json:"briefs"`
 }
 
 type executeGitState struct {
@@ -48,10 +56,37 @@ func executePreviewCmd() *cobra.Command {
 	var format string
 	cmd := &cobra.Command{
 		Use:   "execute-preview <trk-id>",
-		Short: "Return everything /wipnote:execute needs to start dispatching — one call",
-		Long: "Aggregates track metadata, linked features/bugs/plans, and current git state " +
-			"into a single structured payload. Collapses the ~10-call discovery sequence " +
-			"that orchestrators previously needed before first dispatch.",
+		Short: "Compute the ready set, file overlap and a brief per task for a track — one call",
+		Long: `Reads a track and prints what an orchestrator needs to dispatch a wave.
+
+Output: the linked work items, open blocking questions, git state, the ready
+tasks, the deferred tasks with reasons, one brief per ready task, and the
+review rule. --format json adds ready, deferred and briefs to the envelope.
+
+A task is a todo feature on the track. It is ready when it has no open
+blocked_by item, no open blocking question, and no file shared with an
+earlier ready task. File sets come from the plan slice files list, or from
+wipnote trace for a feature with no slice. Overlap is settled greedily by
+feature id, so the same input gives the same wave.
+
+Dispatch loop:
+  1. Run execute-preview once. Do not call track show, feature show or plan
+     show for the same facts.
+  2. Start the ready tasks together, one worktree each, with wipnote delegate
+     (see wipnote delegate --help). Each brief names its first command.
+     The worker rules reach a worker through the SubagentStart hook, so a
+     brief does not repeat them.
+  3. Merge each finished branch and run wipnote check --gate on the result.
+     If the gate fails, fix it or revert the merge before the next wave.
+  4. Rerun execute-preview. Deferred tasks come back once their blocker is
+     done. Stop when no todo task remains.
+
+A blocking question holds its item. Answer it with
+wipnote question answer <question-id> <key>, then rerun. A non-blocking
+question does not hold dispatch.
+
+Use native /batch instead for 5-30 independent units with no wipnote plan.
+Every brief still carries its work item id so commits stay attributed.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runExecutePreview(args[0], format)
@@ -85,7 +120,7 @@ func runExecutePreview(id, format string) error {
 			return err
 		}
 	default:
-		printExecutePreviewText(preview)
+		fmt.Print(renderExecutePreviewText(preview))
 	}
 	return nil
 }
@@ -135,6 +170,7 @@ func buildExecutePreview(dir, trackID string) (*executePreview, error) {
 
 	preview.Questions = blockingQuestionRows(time.Now(), preview.Features, preview.Bugs, preview.Spikes)
 	preview.Git = currentGitState(dir)
+	planDispatch(dir, preview)
 	return preview, nil
 }
 
@@ -283,15 +319,18 @@ func gitOutputIn(repoRoot string, args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func printExecutePreviewText(p *executePreview) {
-	fmt.Printf("Track: %s  %s  [%s]\n", p.Track.ID, p.Track.Title, p.Track.Status)
-	fmt.Printf("Git:   branch=%s  ahead=%d  behind=%d  head=%s\n",
+func renderExecutePreviewText(p *executePreview) string {
+	w := &strings.Builder{}
+	fmt.Fprintf(w, "Track: %s  %s  [%s]\n", p.Track.ID, p.Track.Title, p.Track.Status)
+	fmt.Fprintf(w, "Git:   branch=%s  ahead=%d  behind=%d  head=%s\n",
 		p.Git.Branch, p.Git.CommitsAheadMain, p.Git.CommitsBehindMain, firstN(p.Git.HeadSHA, 8))
-	printNodeGroup("Features", p.Features)
-	printNodeGroup("Bugs", p.Bugs)
-	printNodeGroup("Plans", p.Plans)
-	printNodeGroup("Spikes", p.Spikes)
-	printBlockingQuestions(p.Questions)
+	printNodeGroup(w, "Features", p.Features)
+	printNodeGroup(w, "Bugs", p.Bugs)
+	printNodeGroup(w, "Plans", p.Plans)
+	printNodeGroup(w, "Spikes", p.Spikes)
+	printBlockingQuestions(w, p.Questions)
+	printDispatch(w, p)
+	return w.String()
 }
 
 // blockingQuestionRows returns the open blocking questions on the nodes, in
@@ -310,23 +349,23 @@ func blockingQuestionRows(now time.Time, groups ...[]*models.Node) []questionRow
 	return rows
 }
 
-func printBlockingQuestions(rows []questionRow) {
+func printBlockingQuestions(w io.Writer, rows []questionRow) {
 	if len(rows) == 0 {
 		return
 	}
-	fmt.Printf("\nBlocking questions (%d) — do not dispatch these items:\n", len(rows))
+	fmt.Fprintf(w, "\nBlocking questions (%d) — do not dispatch these items:\n", len(rows))
 	for _, r := range rows {
-		fmt.Printf("  %-20s  %-12s  %s\n", r.ItemID, r.QuestionID, r.Text)
+		fmt.Fprintf(w, "  %-20s  %-12s  %s\n", r.ItemID, r.QuestionID, r.Text)
 	}
 }
 
-func printNodeGroup(label string, nodes []*models.Node) {
+func printNodeGroup(w io.Writer, label string, nodes []*models.Node) {
 	if len(nodes) == 0 {
 		return
 	}
-	fmt.Printf("\n%s (%d):\n", label, len(nodes))
+	fmt.Fprintf(w, "\n%s (%d):\n", label, len(nodes))
 	for _, n := range nodes {
-		fmt.Printf("  %-20s  %-12s  %s\n", n.ID, n.Status, n.Title)
+		fmt.Fprintf(w, "  %-20s  %-12s  %s\n", n.ID, n.Status, n.Title)
 	}
 }
 

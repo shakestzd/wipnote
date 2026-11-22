@@ -58,6 +58,8 @@ Launch-readiness contention gate (plan-ae0c37b2, feat-156e0a1a):
 With --gate, changed code over a size review trigger (module 500 lines,
 function 50) fails unless a "wipnote:size-ok: <reason>" comment records why it
 stays whole. Legacy code already over a trigger at base is only noted.
+It also prints evidence, never a failure: removed tests, added skips and edits
+to CI, lint and guard config.
 
 Returns exit code 0 if all gates pass, 1 if any fail.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -93,6 +95,9 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 				if err := checkChangedCodeSize(os.Stdout, gate.CodeRoot(projectRoot)); err != nil {
 					return err
 				}
+				// Evidence only (feat-a1daeef8): removed tests, added skips and
+				// config edits print here and never change the exit code.
+				writeGateEvidence(os.Stdout, gate.CodeRoot(projectRoot))
 				result, err := runSessionGate(projectRoot, sessionID, workItemID, "check", guardprofile.PhaseQuality, os.Stdout, os.Stderr)
 				if err != nil {
 					return err

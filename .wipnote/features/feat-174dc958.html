@@ -10,20 +10,37 @@
 <body>
     <article id="feat-174dc958"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-25T14:53:57.580962"
-             data-updated="2026-10-25T18:37:40.306899" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-cli-version="888f588" data-change_kind="capability" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+             data-updated="2026-11-08T03:02:48.466359" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-cli-version="888f588" data-change_kind="capability" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Hooks stop using the file-backed SQLite db: drop writes, move cross-hook reads to canonical files</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="b4444049163dae74e92d4e87be692b3c7f1857d5.html" data-relationship="committed_in" data-since="2026-10-25T22:03:42">test(hooks): check the foreign-cwd session record without writing outside temp (feat-174dc958)</a></li>
+                    <li><a href="6ae1d9aeb19e76cb8568e9f80af7215289a74ec2.html" data-relationship="committed_in" data-since="2026-10-25T21:05:33">refactor(otel): remove the receiver&#39;s pending_subagent_starts reader (feat-ddeaa0d1)</a></li>
+                    <li><a href="506f69cae14b2f96f61abdc8f6bc2c26647ddaef.html" data-relationship="committed_in" data-since="2026-10-25T20:11:06">refactor(hooks): drop the always-nil *sql.DB parameter from hook handlers (feat-726637b8)</a></li>
+                    <li><a href="be0b554ab3287a63175437832648425fd58fa12f.html" data-relationship="committed_in" data-since="2026-10-25T19:43:26">Merge bloat/hooks-nodb: hooks stop using the file-backed db (feat-174dc958)</a></li>
+                    <li><a href="f6ca4451d2b1113b741b0d0d9b50783abd605670.html" data-relationship="committed_in" data-since="2026-10-25T18:32:09">fix(hooks): one sweeper per tool log; integration tests build again (feat-174dc958)</a></li>
+                    <li><a href="073b39c0a9e15250ff385f2b0c91f469b661b45c.html" data-relationship="committed_in" data-since="2026-10-25T18:29:52">refactor(daemon): remove the write path; the daemon serves reads only (feat-174dc958)</a></li>
+                    <li><a href="cf97f3baed9309d9654e3542ede5b0c21ef58691.html" data-relationship="committed_in" data-since="2026-10-25T18:20:48">refactor(hooks): no hook opens or writes any SQLite db (feat-174dc958)</a></li>
+                    <li><a href="4d92b6957e4f037877f19de088d9ad93e91c43b3.html" data-relationship="committed_in" data-since="2026-10-25T17:56:26">feat(hooks): task steps from the claim ledger; failed and live-owner calls are not orphans (feat-174dc958)</a></li>
+                    <li><a href="64a5c86bbdcd85ca45bd8a0fb6ca2b6bec6204be.html" data-relationship="committed_in" data-since="2026-10-25T17:51:52">refactor(hooks): remove nine hooks that only wrote unread db rows (feat-174dc958)</a></li>
+                    <li><a href="a4671d48a0f6a2a67f287a0d897c5952a8bf5a0e.html" data-relationship="committed_in" data-since="2026-10-25T17:35:40">feat(hooks): find orphaned tool calls from the canonical tool log (feat-174dc958)</a></li>
+                    <li><a href="41eec3201025d8fbd7ad643ab6b3ef840351e05b.html" data-relationship="committed_in" data-since="2026-10-25T17:30:25">refactor(hooks): drop the daemon-miss fallback writes (feat-174dc958)</a></li>
+                    <li><a href="0dd70535c8979060d61d8e3f9af0b05b600d1834.html" data-relationship="committed_in" data-since="2026-10-25T17:30:16">refactor(hooks): delete the session-start stale-session reaper (feat-174dc958)</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>

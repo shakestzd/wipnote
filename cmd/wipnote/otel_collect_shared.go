@@ -204,6 +204,10 @@ type sessionSinks struct {
 	mu         sync.Mutex
 	bySession  map[string]*sessionSink
 	started    map[string]bool
+	// count mirrors len(bySession) so /healthz never waits on mu, which is
+	// held across file opens and closes: a health probe that times out behind
+	// a slow close got a live collector replaced on a new port (bug-fa4bb927).
+	count atomic.Int32
 }
 
 type sessionSink struct {
@@ -238,13 +242,12 @@ func (s *sessionSinks) get(sid string) (*ndjson.Sink, error) {
 		}
 	}
 	s.bySession[sid] = &sessionSink{snk: snk, last: time.Now()}
+	s.count.Store(int32(len(s.bySession)))
 	return snk, nil
 }
 
 func (s *sessionSinks) open() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return len(s.bySession)
+	return int(s.count.Load())
 }
 
 // closeIdle closes sinks with no traffic for maxIdle.
@@ -257,6 +260,7 @@ func (s *sessionSinks) closeIdle(now time.Time, maxIdle time.Duration) {
 			delete(s.bySession, sid)
 		}
 	}
+	s.count.Store(int32(len(s.bySession)))
 }
 
 // closeSession flushes and closes sid's sink; a later request reopens it.
@@ -266,6 +270,7 @@ func (s *sessionSinks) closeSession(sid string) {
 	if e, ok := s.bySession[sid]; ok {
 		_ = e.snk.Close()
 		delete(s.bySession, sid)
+		s.count.Store(int32(len(s.bySession)))
 	}
 }
 

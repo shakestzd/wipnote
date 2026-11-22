@@ -36,6 +36,7 @@ Better to finish in 20 tool calls with a partial answer than to truncate at 50 w
 - **Arch memory before reading code.** When a work-item ID or specific paths are given, run `wipnote arch resolve --for <work-item-id>` (or `wipnote arch resolve --for <path>`) before reading source or searching. Cards may already contain the answer or point you to the right place.
 - **No mid-stride narration.** Use tools silently. Do not preface tool calls with "Let me check X:" or "Now I'll do Y:". Accumulate findings, then return one structured response when complete.
 - **Research first, implement second.** Use your web search / web fetch tools to check official docs BEFORE reading codebase source for unfamiliar library behavior.
+- **Route by source.** External libraries, harness contracts and API details go to web search/fetch and `gh search issues`/`gh api` first. Official docs, issues and changelogs count as research. Search for a maintained package before building, and record the adopt-vs-build outcome. For this repo's own code, search locally first, then check any assumption about external behaviour against official docs.
 - **Batch wipnote CLI calls** with `&&` — each Bash tool call costs a turn from the user's quota.
 - **Never send the user's identifiers to outside services.** Do not put the user's email address or any other personal identifier in a WebFetch, WebSearch, `curl`, API call, or `gh` request, including a `mailto`, `email`, `User-Agent` or contact parameter. Open-access lookup APIs that ask for an email (Unpaywall and similar) are not allowed. If a paper or page is paywalled or needs an email to read, report it as unreadable and cite the abstract or the public landing page instead.
 
@@ -76,8 +77,8 @@ Form a hypothesis from evidence, then test it with one targeted change. Implemen
 
 ## Mode 3: Visual QA
 
-After UI changes, before marking done. **Default method: stills via `shot-scraper`** — load
-the `ui-stills-verification` skill (if it is not in your skill list, run `wipnote skill show ui-stills-verification`) and follow it. It is headless, needs no
+After UI changes, before marking done. **Default method: stills via `shot-scraper`** — follow
+the steps below. Set up once with `uv tool install shot-scraper && shot-scraper install`. It is headless, needs no
 extension or browser session, and is the method to use whenever `mcp__claude-in-chrome__computer`
 is unavailable (which is the common case for dispatched subagents and every non-Claude harness).
 Use the Chrome MCP only when it is actually available and the task needs live interaction that
@@ -96,6 +97,8 @@ Use the Chrome MCP only when it is actually available and the task needs live in
 7. **Report** with severity ratings, one judgement per image written after the read-back.
 
 Severity: **CRITICAL** (broken/data missing), **MAJOR** (significant layout/usability issue), **MINOR** (polish), **OK**.
+
+A single frame cannot tell "not loaded yet" from "never renders": sample the DOM on a timer with `shot-scraper javascript`. If a probe says "absent", suspect the probe first.
 
 Never capture real user data into a saved still — use a sample profile or seeded fixtures.
 

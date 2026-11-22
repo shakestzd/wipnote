@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -76,18 +75,8 @@ func TestClaudeParityFromLiveManifest(t *testing.T) {
 		}
 	}
 
-	// At least one command, one agent, and one skill copied over.
-	assertHasMarkdown(t, filepath.Join(outDir, "commands"), "commands")
+	// At least one agent copied over.
 	assertHasMarkdown(t, filepath.Join(outDir, "agents"), "agents")
-	assertHasSkill(t, filepath.Join(outDir, "skills"))
-
-	executeSkill, err := os.ReadFile(filepath.Join(outDir, "skills", "execute", "SKILL.md"))
-	if err != nil {
-		t.Fatalf("read Claude execute skill: %v", err)
-	}
-	if !strings.Contains(string(executeSkill), "SendMessage") {
-		t.Errorf("Claude execute skill lost SendMessage preflight content")
-	}
 }
 
 func assertHasMarkdown(t *testing.T, dir, label string) {
@@ -112,26 +101,10 @@ func assertHasMarkdown(t *testing.T, dir, label string) {
 	t.Errorf("no non-empty .md under %s", dir)
 }
 
-func assertHasSkill(t *testing.T, dir string) {
-	t.Helper()
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read skills: %v", err)
-	}
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		skill := filepath.Join(dir, e.Name(), "SKILL.md")
-		info, err := os.Stat(skill)
-		if err == nil && info.Size() > 0 {
-			return
-		}
-	}
-	t.Errorf("no non-empty SKILL.md under %s", dir)
-}
-
-func TestLiveGeneratedPortSkillAndCommandParity(t *testing.T) {
+// TestLiveGeneratedPortsCarryNoSkillsOrCommands checks that the Codex and
+// Antigravity trees hold no skills or commands now that the source folders are
+// gone (feat-9796e97f).
+func TestLiveGeneratedPortsCarryNoSkillsOrCommands(t *testing.T) {
 	manifestPath, err := FindManifest(".")
 	if err != nil {
 		t.Skipf("no live manifest: %v", err)
@@ -141,40 +114,29 @@ func TestLiveGeneratedPortSkillAndCommandParity(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(manifestPath)))
-
-	commands := liveCommandNames(t, filepath.Join(repoRoot, m.AssetSources.Commands))
-	skills := liveSkillNames(t, filepath.Join(repoRoot, m.AssetSources.Skills))
-	if len(commands) == 0 {
-		t.Fatalf("expected live plugin commands")
-	}
-	if len(skills) == 0 {
-		t.Fatalf("expected live plugin skills")
-	}
-
 	outBase := t.TempDir()
-
-	codexTarget, ok := m.Targets["codex"]
-	if !ok {
-		t.Fatalf("manifest missing codex target")
-	}
 	codexOut := filepath.Join(outBase, "codex")
 	if err := (codexAdapter{}).Emit(m, repoRoot, codexOut); err != nil {
 		t.Fatalf("emit codex: %v", err)
-	}
-	codexPluginDir := filepath.Join(codexOut, codexTarget.PluginSubdir)
-	assertSkillFilesPresent(t, filepath.Join(codexPluginDir, "skills"), skills)
-	assertCommandFilesPresent(t, filepath.Join(codexPluginDir, "commands"), commands, ".md")
-
-	antigravityTarget, ok := m.Targets["antigravity"]
-	if !ok {
-		t.Fatalf("manifest missing antigravity target")
 	}
 	antigravityOut := filepath.Join(outBase, "antigravity")
 	if err := (antigravityAdapter{}).Emit(m, repoRoot, antigravityOut); err != nil {
 		t.Fatalf("emit antigravity: %v", err)
 	}
-	assertSkillFilesPresent(t, filepath.Join(antigravityOut, "skills"), withoutSkills(skills, antigravityExcludedSkills))
-	assertCommandFilesPresent(t, filepath.Join(antigravityOut, "commands", antigravityTarget.CommandNamespace), commands, ".toml")
+	for _, dir := range []string{
+		filepath.Join(codexOut, m.Targets["codex"].PluginSubdir, "skills"),
+		filepath.Join(codexOut, m.Targets["codex"].PluginSubdir, "commands"),
+		filepath.Join(antigravityOut, "skills"),
+		filepath.Join(antigravityOut, "commands"),
+	} {
+		files, err := skillFilesUnder(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(files) > 0 {
+			t.Errorf("%s should hold no file, found %v", dir, files)
+		}
+	}
 }
 
 // TestAntigravityEmitsMCPConfig verifies the antigravity adapter scaffolds a
@@ -218,71 +180,6 @@ func TestAntigravityEmitsMCPConfig(t *testing.T) {
 	}
 	if parsed.MCPServers == nil {
 		t.Errorf("mcp_config.json missing mcpServers key; got: %s", raw)
-	}
-}
-
-// TestInjectDisableModelInvocation unit-tests the frontmatter injector.
-func TestInjectDisableModelInvocation(t *testing.T) {
-	t.Run("inserts into frontmatter", func(t *testing.T) {
-		in := []byte("---\nname: deploy\ndescription: ship it\n---\nbody\n")
-		out, changed := injectDisableModelInvocation(in)
-		if !changed {
-			t.Fatal("expected changed=true")
-		}
-		if !strings.Contains(string(out), "disable-model-invocation: true") {
-			t.Errorf("missing flag; got:\n%s", out)
-		}
-		if !strings.Contains(string(out), "name: deploy") || !strings.Contains(string(out), "body") {
-			t.Errorf("original content not preserved; got:\n%s", out)
-		}
-	})
-	t.Run("idempotent when present", func(t *testing.T) {
-		in := []byte("---\ndisable-model-invocation: true\nname: deploy\n---\nbody\n")
-		_, changed := injectDisableModelInvocation(in)
-		if changed {
-			t.Error("expected changed=false when flag already present")
-		}
-	})
-	t.Run("no frontmatter — no change", func(t *testing.T) {
-		in := []byte("no frontmatter here\n")
-		_, changed := injectDisableModelInvocation(in)
-		if changed {
-			t.Error("expected changed=false when no frontmatter")
-		}
-	})
-}
-
-// TestAntigravityDisablesModelInvocationForExplicitSkills verifies that the
-// emitted antigravity skill tree carries disable-model-invocation on the
-// curated explicit-only skills and not on ordinary skills.
-func TestAntigravityDisablesModelInvocationForExplicitSkills(t *testing.T) {
-	manifestPath, err := FindManifest(".")
-	if err != nil {
-		t.Skipf("no live manifest: %v", err)
-	}
-	m, err := Load(manifestPath)
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(manifestPath)))
-
-	out := t.TempDir()
-	if err := (antigravityAdapter{}).Emit(m, repoRoot, out); err != nil {
-		t.Fatalf("emit antigravity: %v", err)
-	}
-
-	skillHasFlag := func(name string) bool {
-		raw, rerr := os.ReadFile(filepath.Join(out, "skills", name, "SKILL.md"))
-		if rerr != nil {
-			t.Fatalf("read skill %s: %v", name, rerr)
-		}
-		return strings.Contains(string(raw), "disable-model-invocation: true")
-	}
-
-	for name := range antigravityDisableModelInvocationSkills {
-		if !skillHasFlag(name) {
-			t.Errorf("explicit-only skill %q is missing disable-model-invocation", name)
-		}
 	}
 }
 
@@ -417,79 +314,4 @@ func keysOf[V any](m map[string]V) []string {
 		ks = append(ks, k)
 	}
 	return ks
-}
-
-func liveCommandNames(t *testing.T, dir string) []string {
-	t.Helper()
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read commands %s: %v", dir, err)
-	}
-	var names []string
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-			continue
-		}
-		names = append(names, strings.TrimSuffix(e.Name(), ".md"))
-	}
-	return names
-}
-
-func liveSkillNames(t *testing.T, dir string) []string {
-	t.Helper()
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read skills %s: %v", dir, err)
-	}
-	var names []string
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		if info, err := os.Stat(filepath.Join(dir, e.Name(), "SKILL.md")); err == nil && info.Size() > 0 {
-			names = append(names, e.Name())
-		}
-	}
-	return names
-}
-
-// withoutSkills returns names minus the excluded ones.
-func withoutSkills(names, excluded []string) []string {
-	var out []string
-	for _, n := range names {
-		if !slices.Contains(excluded, n) {
-			out = append(out, n)
-		}
-	}
-	return out
-}
-
-func assertSkillFilesPresent(t *testing.T, root string, names []string) {
-	t.Helper()
-	for _, name := range names {
-		path := filepath.Join(root, name, "SKILL.md")
-		info, err := os.Stat(path)
-		if err != nil {
-			t.Errorf("missing generated skill %s: %v", path, err)
-			continue
-		}
-		if info.Size() == 0 {
-			t.Errorf("generated skill is empty: %s", path)
-		}
-	}
-}
-
-func assertCommandFilesPresent(t *testing.T, root string, names []string, ext string) {
-	t.Helper()
-	for _, name := range names {
-		path := filepath.Join(root, name+ext)
-		info, err := os.Stat(path)
-		if err != nil {
-			t.Errorf("missing generated command %s: %v", path, err)
-			continue
-		}
-		if info.Size() == 0 {
-			t.Errorf("generated command is empty: %s", path)
-		}
-	}
 }

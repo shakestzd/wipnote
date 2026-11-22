@@ -66,7 +66,6 @@ func queryCommands() []cliinternal.GroupedCommand {
 		sessionCmd(),
 		sessionsCmd(),
 		analyticsCmd(),
-		skillCmd(),
 		recommendCmd(),
 		relevantCmd(),
 		newHistoryCmd(),
@@ -95,6 +94,7 @@ func qualityCommands() []cliinternal.GroupedCommand {
 		guardCmd(),
 		researchCmd(),
 		ciCmd(),
+		proseCmd(),
 	)
 }
 
@@ -142,6 +142,7 @@ func devCommands() []cliinternal.GroupedCommand {
 		yoloCmd(),
 		upgradeCmd(),
 		buildCmd(),
+		worktreeCmd(),
 		agentInitCmd(),
 		shCmd(),
 		delegateCmd(),
@@ -155,6 +156,7 @@ func ungroupedCommands() []*cobra.Command {
 		versionCmd(),
 		statuslineCmd(),
 		serveChildCmd(),
+		sessionTitleCmd(),
 		otelCollectCmd(),
 		hookCmd(),
 		claudeCmd(),

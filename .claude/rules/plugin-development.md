@@ -11,7 +11,7 @@ paths:
 **Source of truth:**
 
 - `packages/plugin-core/manifest.json` — plugin metadata, per-target output paths, hook event matrix (Claude, Codex, Antigravity)
-- `plugin/{commands,agents,skills,templates,static,config}/` — shared markdown/static assets (copied verbatim into every target)
+- `plugin/{agents,templates,static,config,output-styles}/` — shared markdown/static assets (copied verbatim into every target). The plugin ships no `commands/` or `skills/` folder since plan-2622b3f7; the manifest still accepts both.
 - `cmd/` and `internal/` — Go CLI and hook handlers
 
 **Generated — DO NOT hand-edit (regenerate via `wipnote plugin build-ports`):**
@@ -20,39 +20,25 @@ paths:
 - `plugin/hooks/hooks.json`
 - everything under `port/packages/codex-marketplace/`
 - everything under `port/packages/antigravity-extension/`
-- everything under `.claude/` (auto-synced from `plugin/`)
 
 See `packages/plugin-core/README.md` for new-command / new-hook / new-target recipes.
-
-## Directory Structure (generated Claude tree)
-
-- `plugin/.claude-plugin/plugin.json` — manifest (generated)
-- `plugin/hooks/hooks.json` + `bin/wipnote` — Go binary hook handler (hooks.json generated)
-- `plugin/agents/` — markdown agent definitions (source asset, edit directly)
-- `plugin/skills/` — skill directories with SKILL.md (source asset, edit directly)
-- `plugin/commands/` — slash commands (source asset, edit directly)
-- `plugin/config/` — classification, drift, validation (source asset, edit directly)
 
 **CRITICAL:** Don't put `commands/`, `agents/`, `skills/`, or `hooks/` inside `.claude-plugin/`. Only `plugin.json` belongs there. Caveat: `plugin/` is the Claude target's output directory — the asset subtrees listed above are hand-edited (they are the shared source for every target), while `plugin/.claude-plugin/plugin.json` and `plugin/hooks/hooks.json` are generated from `packages/plugin-core/manifest.json` and must be regenerated, not hand-edited.
 
 ## Workflow
 
-1. Edit shared source: `packages/plugin-core/manifest.json`, `plugin/{commands,agents,skills,…}/`, `cmd/`, or `internal/`
+1. Edit shared source: `packages/plugin-core/manifest.json`, `plugin/{agents,templates,…}/`, `cmd/`, or `internal/`
 2. Regenerate target trees: `wipnote plugin build-ports`
-3. Run: `go build ./... && go vet ./... && go test ./...`
+3. Run the gate in `code-hygiene.md`
 4. Build: `wipnote build`
 5. Test: `wipnote claude --dev`
 6. Deploy: `./scripts/deploy-all.sh X.Y.Z --no-confirm`
 
 ## Rules
 
-- Edit `packages/plugin-core/manifest.json` (never the generated `plugin/hooks/hooks.json` or `plugin/.claude-plugin/plugin.json`)
-- Edit Go source in `cmd/` or `internal/` for hook/CLI logic
-- Add agents to `plugin/agents/`, skills to `plugin/skills/`, commands to `plugin/commands/` — all targets pick them up after `wipnote plugin build-ports`
-- Hooks receive CloudEvent JSON on stdin — process via Go binary
-- No stderr from hooks (causes "hook error" in Claude Code UI)
-- Return `{}` to allow, `{"decision":"block","reason":"..."}` to block
-- Prefer file/branch state over session state for hook gates (see "Hook State" below)
+- Hooks receive CloudEvent JSON on stdin and return `{}` to allow or `{"decision":"block","reason":"..."}` to block.
+- No stderr from hooks (causes "hook error" in Claude Code UI).
+- Prefer file/branch state over session state for hook gates (see "Hook State" below).
 
 ## Claude Code Plugin-Loaded Subagent Field Restrictions
 
@@ -142,3 +128,8 @@ trigger (noisy).
    and commit `88d2f51b4` as the canonical pattern.
 4. Anchor Bash command matching to the specific command shape, not substrings.
    Use `^\s*git\s+commit(\s|$|--|-[^a-z])`, not `LIKE '%commit%'`.
+
+## Failure Bar for New Guidance
+
+- Add a line to a skill, prompt or rule only if it names the work item where the agent failed without it (plan-2622b3f7, card A1). Otherwise leave it out.
+- Each skill and prompt has a byte limit in `port/pluginbuild/guidance_size_test.go`. A change that shrinks a file lowers its limit in the same commit.
