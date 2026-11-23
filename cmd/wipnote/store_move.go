@@ -323,7 +323,7 @@ func deleteOldStoreFolder(w io.Writer, src string) error {
 	}
 	if err := os.RemoveAll(src); err != nil {
 		// A wipnote process started before the move can still write files here.
-		fmt.Fprintf(w, "Could not delete all of %s (%v). wipnote no longer reads it. Run `wipnote doctor processes --restart-all` to stop older wipnote processes, then delete it.\n", src, err)
+		fmt.Fprintf(w, "Could not delete all of %s (%v). wipnote no longer reads it. A wipnote session started before the move still writes there. Exit that session, then delete the folder.\n", src, err)
 		return nil
 	}
 	fmt.Fprintf(w, "Deleted %s.\n", src)
