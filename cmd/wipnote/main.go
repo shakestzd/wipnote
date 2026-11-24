@@ -75,8 +75,7 @@ func main() {
 	provenance.SetCLIVersion(version)
 
 	selfHealGitdirIfStale()
-	root := buildRoot()
-	root.SetArgs(forwardHarnessFlags(root, os.Args[1:]))
+	root := buildRootFor(os.Args[1:])
 	if err := root.Execute(); err != nil {
 		msg := err.Error()
 		// Cobra's "unknown command" error doesn't tell the agent what to do
@@ -87,6 +86,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, msg)
 		os.Exit(1)
 	}
+}
+
+// buildRootFor is buildRoot with argv set as the command line, after the
+// launcher rewrite that forwards harness flags (forwardHarnessFlags).
+func buildRootFor(argv []string) *cobra.Command {
+	root := buildRoot()
+	root.SetArgs(forwardHarnessFlags(root, argv))
+	return root
 }
 
 // buildRoot constructs and returns a fully-registered root cobra command,

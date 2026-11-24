@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -94,9 +95,11 @@ Modes:
 Session IDs come from ~/.codex/session_index.jsonl.
 
 Flags that wipnote does not define go to Codex as written, for example
-"wipnote codex --sandbox read-only". Where both define a flag (--resume,
---worktree), wipnote's meaning applies. Put a flag after "--" to give it
-Codex's meaning.`,
+"wipnote codex --sandbox read-only". A flag below keeps wipnote's meaning
+when it comes before a Codex subcommand. Every word from a Codex subcommand
+on goes to Codex: "wipnote codex review --base main". Every word after "--"
+goes to Codex too, so a prompt that starts with a dash needs a second "--":
+"wipnote codex -- -- '-v fails'".`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCodexCmd(&f, args)
 		},
@@ -119,6 +122,11 @@ func runCodexCmd(f *codexFlags, args []string) error {
 	// every other mode execs an interactive Codex TUI, so refuse a
 	// non-TTY stdin BEFORE any launch marker, serve/collector spawn,
 	// worktree or session write happens (issue #148).
+	// `codex --version` and a subcommand's --help only print. Run them as
+	// they are, with no launch marker, daemon or collector (bug-fc843d71).
+	if codexInfoOnly(args) && !f.init_ {
+		return runCodexPlainFn(args)
+	}
 	if !f.init_ && !f.dryRun {
 		if err := requireInteractiveLaunch(harnessCodex, f.allowNonInteractive, args); err != nil {
 			return err
@@ -159,4 +167,32 @@ func registerCodexFlags(cmd *cobra.Command, f *codexFlags) {
 	cmd.Flags().StringVar(&f.baseBranch, "base", "", "Base branch for managed worktree (advanced; default: current HEAD)")
 	cmd.Flags().BoolVar(&f.allowNonInteractive, allowNonInteractiveFlag, false,
 		"Launch even when stdin is not a terminal (default: refuse; env "+allowNonTTYEnv+"=1 is equivalent)")
+}
+
+// codexInfoOnly reports whether the words forwarded to Codex only ask it to
+// print its version or a help page.
+func codexInfoOnly(args []string) bool {
+	for i, a := range args {
+		switch {
+		case a == "--":
+			return false
+		case a == "--help" || a == "-h":
+			return true
+		case i == 0 && (a == "--version" || a == "-V"):
+			return true
+		}
+	}
+	return false
+}
+
+// runCodexPlainFn runs codex with args and this process's terminal, and
+// nothing else. It is a package-level var so tests can record the call.
+var runCodexPlainFn = func(args []string) error {
+	path, err := exec.LookPath("codex")
+	if err != nil {
+		return fmt.Errorf("codex not found in PATH: %w", err)
+	}
+	c := exec.Command(path, args...)
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return c.Run()
 }

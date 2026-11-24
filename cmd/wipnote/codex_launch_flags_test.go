@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -8,20 +9,31 @@ import (
 	"testing"
 )
 
-func stubCodexHelp(t *testing.T, help string) {
+func stubCodexHelp(t *testing.T, help string, err error) {
 	t.Helper()
 	prev := codexHelpFn
-	codexHelpFn = func(string) string { return help }
+	codexHelpFn = func(string) (string, error) { return help, err }
 	t.Cleanup(func() { codexHelpFn = prev })
 }
 
-// isolateCodexHome points the launcher at an empty Codex config.
-func isolateCodexHome(t *testing.T, config string) {
+// isolateCodexHome points the launcher at a Codex home that holds only the
+// given files, and returns it.
+func isolateCodexHome(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("CODEX_HOME", dir)
-	if config != "" {
-		if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(config), 0o644); err != nil {
+	writeFiles(t, dir, files)
+	return dir
+}
+
+func writeFiles(t *testing.T, dir string, files map[string]string) {
+	t.Helper()
+	for name, body := range files {
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -31,86 +43,173 @@ const helpWithNoDaemon = "Options:\n      --no-alt-screen\n          Disable alt
 
 // herdr-core's manual requires --no-daemon in an hc terminal. A Codex that
 // predates the flag exits on it, so the launcher adds it only when the
-// installed Codex lists it (bug-fc843d71).
-func TestApplyCodexHostFlags_NoDaemonNeedsAnHcTerminalAndSupport(t *testing.T) {
-	isolateCodexHome(t, "")
+// installed Codex lists it, and says why when it leaves it out (bug-fc843d71).
+func TestApplyCodexNoDaemon(t *testing.T) {
 	for _, tt := range []struct {
 		name, terminal, help string
+		helpErr              error
+		args                 []string
 		want                 bool
+		wantNote             string
 	}{
-		{"hc terminal, flag listed", "t7", helpWithNoDaemon, true},
-		{"hc terminal, old codex", "t7", "Options:\n      --no-alt-screen\n", false},
-		{"hc terminal, help failed", "t7", "", false},
-		{"outside hc", "", helpWithNoDaemon, false},
+		{"hc terminal, flag listed", "t7", helpWithNoDaemon, nil, nil, true, ""},
+		{"hc terminal, old codex", "t7", "Options:\n      --no-alt-screen\n", nil, nil, false, "does not list --no-daemon"},
+		{"hc terminal, help failed", "t7", "", errors.New("signal: killed"), nil, false, "could not read `codex --help` (signal: killed)"},
+		{"hc terminal, remote server", "t7", helpWithNoDaemon, nil, []string{"--remote", "ws://x"}, false, "together with --remote"},
+		{"outside hc", "", helpWithNoDaemon, nil, nil, false, ""},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("HC_TERMINAL_ID", tt.terminal)
-			stubCodexHelp(t, tt.help)
-			opts := codexLaunchOpts{}
-			applyCodexHostFlags("codex", &opts)
+			stubCodexHelp(t, tt.help, tt.helpErr)
+			opts := codexLaunchOpts{ExtraArgs: tt.args}
+			note := applyCodexNoDaemon("codex", &opts)
 			if got := slices.Contains(buildCodexArgs(opts, 0, nil), "--no-daemon"); got != tt.want {
 				t.Errorf("--no-daemon passed = %v, want %v", got, tt.want)
+			}
+			if (tt.wantNote == "") != (note == "") || !strings.Contains(note, tt.wantNote) {
+				t.Errorf("note = %q, want it to contain %q", note, tt.wantNote)
 			}
 		})
 	}
 }
 
-// Codex refuses --add-dir and exits when its sandbox is read-only, its default
-// in a project it does not trust. The launcher names workspace-write unless
-// the user chose a sandbox themselves (bug-fc843d71).
+// resolveCodexWritableRoots names a sandbox only when nothing else did.
 func TestResolveCodexWritableRoots(t *testing.T) {
 	roots := []string{"/store"}
 	for _, tt := range []struct {
 		name      string
 		opts      codexLaunchOpts
-		cfg       codexSandboxConfig
+		choice    codexSandboxChoice
 		wantMode  string
 		wantRoots bool
+		wantNote  string
 	}{
-		{"no choice anywhere", codexLaunchOpts{WritableRoots: roots}, codexSandboxConfig{}, codexWorkspaceWrite, true},
-		{"no writable root", codexLaunchOpts{}, codexSandboxConfig{}, "", false},
-		{"yolo", codexLaunchOpts{WritableRoots: roots, Yolo: true}, codexSandboxConfig{}, "", true},
-		{"launcher already set a sandbox", codexLaunchOpts{WritableRoots: roots, SandboxMode: "danger-full-access"}, codexSandboxConfig{}, "", true},
-		{"user flag", codexLaunchOpts{WritableRoots: roots, ExtraArgs: []string{"--sandbox", "danger-full-access"}}, codexSandboxConfig{}, "", true},
-		{"user flag read-only drops the root", codexLaunchOpts{WritableRoots: roots, ExtraArgs: []string{"-s", "read-only"}}, codexSandboxConfig{}, "", false},
-		{"user bypass", codexLaunchOpts{WritableRoots: roots, ExtraArgs: []string{"--dangerously-bypass-approvals-and-sandbox"}}, codexSandboxConfig{}, "", true},
-		{"approve-for-me picks its own", codexLaunchOpts{WritableRoots: roots, ExtraArgs: []string{"--approve-for-me"}}, codexSandboxConfig{}, "", true},
-		{"profile flag", codexLaunchOpts{WritableRoots: roots, ExtraArgs: []string{"-p", "work"}}, codexSandboxConfig{}, "", true},
-		{"-c override", codexLaunchOpts{WritableRoots: roots, ExtraArgs: []string{"-c", `sandbox_mode="workspace-write"`}}, codexSandboxConfig{}, "", true},
-		{"-c override read-only", codexLaunchOpts{WritableRoots: roots, ExtraArgs: []string{"--config=sandbox_mode=read-only"}}, codexSandboxConfig{}, "", false},
-		{"configured mode is kept", codexLaunchOpts{WritableRoots: roots}, codexSandboxConfig{SandboxMode: "danger-full-access"}, "", true},
-		{"configured read-only drops the root", codexLaunchOpts{WritableRoots: roots}, codexSandboxConfig{SandboxMode: "read-only"}, "", false},
-		{"configured profile is kept", codexLaunchOpts{WritableRoots: roots}, codexSandboxConfig{Profile: "work", SandboxMode: "read-only"}, "", true},
-		{"a flag beats the config", codexLaunchOpts{WritableRoots: roots, ExtraArgs: []string{"--sandbox=workspace-write"}}, codexSandboxConfig{SandboxMode: "read-only"}, "", true},
+		{"no choice anywhere", codexLaunchOpts{WritableRoots: roots}, codexSandboxChoice{}, codexWorkspaceWrite, true, "--sandbox workspace-write"},
+		{"no writable root", codexLaunchOpts{}, codexSandboxChoice{}, "", false, ""},
+		{"yolo", codexLaunchOpts{WritableRoots: roots, Yolo: true}, codexSandboxChoice{}, "", true, ""},
+		{"launcher already set a sandbox", codexLaunchOpts{WritableRoots: roots, SandboxMode: "danger-full-access"}, codexSandboxChoice{}, "", true, ""},
+		{"user bypass", codexLaunchOpts{WritableRoots: roots, ExtraArgs: []string{"--dangerously-bypass-approvals-and-sandbox"}}, codexSandboxChoice{ReadOnly: true, Set: true}, "", true, ""},
+		{"a writable choice is kept", codexLaunchOpts{WritableRoots: roots}, codexSandboxChoice{Set: true}, "", true, ""},
+		{"a read-only choice drops the root", codexLaunchOpts{WritableRoots: roots}, codexSandboxChoice{Set: true, ReadOnly: true, Source: "your Codex config"}, "", false, "read-only here (your Codex config)"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			mode, got, notice := resolveCodexWritableRoots(tt.opts, tt.cfg)
+			mode, got, notice := resolveCodexWritableRoots(tt.opts, tt.choice)
 			if mode != tt.wantMode || (len(got) > 0) != tt.wantRoots {
 				t.Errorf("mode = %q roots = %q, want mode %q roots kept %v", mode, got, tt.wantMode, tt.wantRoots)
 			}
-			changed := mode != "" || (len(tt.opts.WritableRoots) > 0 && len(got) == 0)
-			if changed != (notice != "") {
-				t.Errorf("notice = %q for a change = %v", notice, changed)
+			if (tt.wantNote == "") != (notice == "") || !strings.Contains(notice, tt.wantNote) {
+				t.Errorf("notice = %q, want it to contain %q", notice, tt.wantNote)
 			}
 		})
 	}
 }
 
-// End to end through the argv: the sandbox flag comes before --add-dir, and a
-// configured sandbox_mode is read from the user's Codex config.
+// Every way the user can choose a sandbox is read, so wipnote never widens
+// one. Each case is a launch in a project with no trust entry.
+func TestReadCodexSandboxChoice(t *testing.T) {
+	for _, tt := range []struct {
+		name         string
+		args         []string
+		home         map[string]string
+		project      map[string]string
+		set, readOnl bool
+	}{
+		{name: "nothing chosen"},
+		{name: "flag", args: []string{"--sandbox", "danger-full-access"}, set: true},
+		{name: "short flag read-only", args: []string{"-s", "read-only"}, set: true, readOnl: true},
+		{name: "approve-for-me", args: []string{"--approve-for-me"}, set: true},
+		{name: "-c K=V", args: []string{"-c", `sandbox_mode="workspace-write"`}, set: true},
+		{name: "-c with spaces", args: []string{"-c", `sandbox_mode = "read-only"`}, set: true, readOnl: true},
+		{name: "-cK=V attached", args: []string{"-csandbox_mode=read-only"}, set: true, readOnl: true},
+		{name: "--config=K=V", args: []string{"--config=sandbox_mode=read-only"}, set: true, readOnl: true},
+		{name: "the last -c wins", args: []string{"-c", "sandbox_mode=workspace-write", "-c", "sandbox_mode=read-only"}, set: true, readOnl: true},
+		{name: "-c default_permissions", args: []string{"-c", `default_permissions=":read-only"`}, set: true, readOnl: true},
+		{name: "a flag beats the config", args: []string{"--sandbox=workspace-write"}, home: map[string]string{"config.toml": `sandbox_mode = "read-only"`}, set: true},
+		{name: "config sandbox_mode", home: map[string]string{"config.toml": `sandbox_mode = "danger-full-access"`}, set: true},
+		{name: "config read-only", home: map[string]string{"config.toml": "model = \"x\"\nsandbox_mode = \"read-only\"\n"}, set: true, readOnl: true},
+		{name: "config default_permissions", home: map[string]string{"config.toml": `default_permissions = ":read-only"`}, set: true, readOnl: true},
+		{name: "project config", project: map[string]string{".codex/config.toml": `sandbox_mode = "read-only"`}, set: true, readOnl: true},
+		{name: "profile file with a sandbox", args: []string{"-p", "work"}, home: map[string]string{"work.config.toml": `sandbox_mode = "read-only"`}, set: true, readOnl: true},
+		{name: "legacy profile table", home: map[string]string{"config.toml": "profile = \"work\"\n[profiles.work]\nsandbox_mode = \"workspace-write\"\n"}, set: true},
+		{name: "-c profile", args: []string{"-c", "profile=work"}, home: map[string]string{"work.config.toml": `sandbox_mode = "read-only"`}, set: true, readOnl: true},
+		{name: "a profile with no sandbox decides nothing", args: []string{"--profile", "work"}, home: map[string]string{"work.config.toml": `model = "x"`}},
+		{name: "a profile beats the base config", args: []string{"-p", "work"}, home: map[string]string{"work.config.toml": `sandbox_mode = "workspace-write"`, "config.toml": `sandbox_mode = "read-only"`}, set: true},
+		{name: "words after -- are prompt", args: []string{"--", "--sandbox", "read-only"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateCodexHome(t, tt.home)
+			project := t.TempDir()
+			writeFiles(t, project, tt.project)
+			got := readCodexSandboxChoice(codexLaunchOpts{ProjectRoot: project, ExtraArgs: tt.args})
+			if got.Set != tt.set || got.ReadOnly != tt.readOnl {
+				t.Errorf("choice = %+v, want set %v read-only %v", got, tt.set, tt.readOnl)
+			}
+			if got.Set && got.Source == "" {
+				t.Error("a set choice names no source")
+			}
+		})
+	}
+}
+
+// A trust entry of either kind settles the sandbox: Codex accepts --add-dir
+// there with no sandbox flag. Only a project with no entry is left open.
+func TestReadCodexSandboxChoice_TrustEntry(t *testing.T) {
+	project := t.TempDir()
+	sub := filepath.Join(project, "pkg")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		name, level, launchDir string
+		set, readOnly          bool
+	}{
+		{"trusted", "trusted", project, true, false},
+		{"trusted parent", "trusted", sub, true, false},
+		{"untrusted", "untrusted", project, true, false},
+		{"entry for another project", "trusted", t.TempDir(), false, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateCodexHome(t, map[string]string{"config.toml": "[projects.\"" + project + "\"]\ntrust_level = \"" + tt.level + "\"\n"})
+			got := readCodexSandboxChoice(codexLaunchOpts{ProjectRoot: tt.launchDir})
+			if got.Set != tt.set || got.ReadOnly != tt.readOnly {
+				t.Errorf("choice = %+v, want set %v read-only %v", got, tt.set, tt.readOnly)
+			}
+		})
+	}
+}
+
+// End to end through the argv, for a fresh launch and both resume shapes.
 func TestApplyCodexHostFlags_WritableRootArgv(t *testing.T) {
 	t.Setenv("HC_TERMINAL_ID", "")
-	isolateCodexHome(t, "")
-	opts := codexLaunchOpts{WritableRoots: []string{"/store"}}
-	applyCodexHostFlags("codex", &opts)
-	if got := strings.Join(buildCodexArgs(opts, 0, nil), " "); !strings.Contains(got, "--sandbox workspace-write --add-dir /store") {
-		t.Errorf("argv = %q", got)
-	}
-
-	isolateCodexHome(t, "model = \"x\"\nsandbox_mode = \"read-only\"\n")
-	opts = codexLaunchOpts{WritableRoots: []string{"/store"}}
-	applyCodexHostFlags("codex", &opts)
-	if got := buildCodexArgs(opts, 0, nil); slices.Contains(got, "--add-dir") || slices.Contains(got, "--sandbox") {
-		t.Errorf("configured read-only: argv = %q", got)
+	project := t.TempDir()
+	for _, tt := range []struct {
+		name string
+		opts codexLaunchOpts
+		home map[string]string
+		want string
+		not  []string
+	}{
+		{"no trust entry", codexLaunchOpts{}, nil, "--sandbox workspace-write --add-dir /store", nil},
+		{"resume last", codexLaunchOpts{ResumeLast: true}, nil, "--sandbox workspace-write --add-dir /store resume --last", nil},
+		{"resume id", codexLaunchOpts{ResumeID: "abc"}, nil, "--sandbox workspace-write --add-dir /store resume abc", nil},
+		{"trusted project", codexLaunchOpts{}, map[string]string{"config.toml": "[projects.\"" + project + "\"]\ntrust_level = \"trusted\"\n"}, "--add-dir /store", []string{"--sandbox"}},
+		{"configured read-only", codexLaunchOpts{}, map[string]string{"config.toml": `sandbox_mode = "read-only"`}, "", []string{"--sandbox", "--add-dir"}},
+		{"default_permissions override", codexLaunchOpts{ExtraArgs: []string{"-c", "default_permissions=:workspace"}}, nil, "--add-dir /store", []string{"--sandbox"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateCodexHome(t, tt.home)
+			opts := tt.opts
+			opts.ProjectRoot, opts.WritableRoots = project, []string{"/store"}
+			applyCodexHostFlags("codex", &opts)
+			argv := buildCodexArgs(opts, 0, nil)
+			if got := strings.Join(argv, " "); !strings.Contains(got, tt.want) {
+				t.Errorf("argv = %q, want it to contain %q", got, tt.want)
+			}
+			for _, word := range tt.not {
+				if slices.Contains(argv, word) {
+					t.Errorf("argv = %q, want no %s", argv, word)
+				}
+			}
+		})
 	}
 }

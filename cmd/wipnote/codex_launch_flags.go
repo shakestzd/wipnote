@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
-
-	toml "github.com/pelletier/go-toml/v2"
 )
 
 // The flags wipnote adds to a Codex launch on its own account. Each one is
@@ -20,37 +19,39 @@ const codexWorkspaceWrite = "workspace-write"
 
 // codexHelpFn returns the text of `codex --help`. It is a package-level var
 // so tests can describe a Codex version without running one.
-var codexHelpFn = func(codexPath string) string {
+var codexHelpFn = func(codexPath string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	out, _ := exec.CommandContext(ctx, codexPath, "--help").CombinedOutput()
-	return string(out)
+	cmd := exec.CommandContext(ctx, codexPath, "--help")
+	// codex is a node script that starts a native binary. Killing node leaves
+	// the child holding the pipe, so bound the wait for it too.
+	cmd.WaitDelay = time.Second
+	out, err := cmd.Output()
+	return string(out), err
 }
 
 // codexAcceptsFlag reports whether the installed Codex lists flag in its help.
-func codexAcceptsFlag(codexPath, flag string) bool {
-	for _, word := range strings.Fields(codexHelpFn(codexPath)) {
+// An error means the question was not answered.
+func codexAcceptsFlag(codexPath, flag string) (bool, error) {
+	help, err := codexHelpFn(codexPath)
+	if err != nil {
+		return false, err
+	}
+	for _, word := range strings.Fields(help) {
 		if strings.TrimRight(word, ",") == flag {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // applyCodexHostFlags settles the flags that depend on the installed Codex
 // and on the user's sandbox choice, and prints a note for each change.
 func applyCodexHostFlags(codexPath string, opts *codexLaunchOpts) {
-	// herdr-core's manual: Codex must run with --no-daemon in an hc terminal,
-	// or its commands execute in the shared server, outside that terminal.
-	// A Codex that predates the flag exits on it, so ask before adding it.
-	if os.Getenv("HC_TERMINAL_ID") != "" {
-		if codexAcceptsFlag(codexPath, "--no-daemon") {
-			opts.NoDaemon = true
-		} else {
-			fmt.Fprintln(os.Stderr, "wipnote: this Codex does not accept --no-daemon, so wipnote left it out. Upgrade Codex if its commands run outside this terminal.")
-		}
+	if note := applyCodexNoDaemon(codexPath, opts); note != "" {
+		fmt.Fprintln(os.Stderr, note)
 	}
-	mode, roots, notice := resolveCodexWritableRoots(*opts, readCodexSandboxConfig(codexHomeConfigPath()))
+	mode, roots, notice := resolveCodexWritableRoots(*opts, readCodexSandboxChoice(*opts))
 	if mode != "" {
 		opts.SandboxMode = mode
 	}
@@ -60,84 +61,58 @@ func applyCodexHostFlags(codexPath string, opts *codexLaunchOpts) {
 	}
 }
 
-// codexSandboxConfig is what the user's Codex config says about the sandbox.
-type codexSandboxConfig struct {
-	SandboxMode string `toml:"sandbox_mode"`
-	Profile     string `toml:"profile"`
+// applyCodexNoDaemon sets opts.NoDaemon and returns a note when it leaves the
+// flag out of an hc terminal launch.
+//
+// herdr-core's manual: Codex must run with --no-daemon in an hc terminal, or
+// its commands execute in the shared server, outside that terminal. A Codex
+// that predates the flag exits on it, and so does one that is also given
+// --remote, so the launcher asks before it adds the flag.
+func applyCodexNoDaemon(codexPath string, opts *codexLaunchOpts) string {
+	if os.Getenv("HC_TERMINAL_ID") == "" {
+		return ""
+	}
+	if codexUsesRemoteServer(opts.ExtraArgs) {
+		return "wipnote: --no-daemon left out, because Codex refuses it together with --remote."
+	}
+	ok, err := codexAcceptsFlag(codexPath, "--no-daemon")
+	switch {
+	case err != nil:
+		return fmt.Sprintf("wipnote: could not read `codex --help` (%v), so wipnote left out --no-daemon. Codex commands may run outside this terminal.", err)
+	case !ok:
+		return "wipnote: this Codex does not list --no-daemon, so wipnote left it out. Upgrade Codex if its commands run outside this terminal."
+	}
+	opts.NoDaemon = true
+	return ""
 }
 
-// readCodexSandboxConfig reads the user config layer. A missing or unparsable
-// file counts as no choice.
-func readCodexSandboxConfig(path string) codexSandboxConfig {
-	var cfg codexSandboxConfig
-	if data, err := os.ReadFile(path); err == nil {
-		_ = toml.Unmarshal(data, &cfg)
-	}
-	return cfg
+// codexUsesRemoteServer reports whether args connect the TUI to a remote app
+// server, which Codex does not allow together with --no-daemon.
+func codexUsesRemoteServer(args []string) bool {
+	return slices.ContainsFunc(args, func(a string) bool {
+		return a == "--remote" || strings.HasPrefix(a, "--remote=")
+	})
 }
 
 // resolveCodexWritableRoots decides how a launch that needs extra writable
-// folders (the app store) gets them. Codex refuses --add-dir and exits when
-// the effective sandbox is read-only, which is its default in a project it
-// does not yet trust. It returns the sandbox to pass ("" for none), the roots
-// to pass and a note for the user ("" for none).
+// folders (the app store) gets them. Codex prints "Error adding directories"
+// and exits when --add-dir meets a read-only sandbox, which is its default in
+// a project with no trust entry (seen on Codex 0.172.0). It returns the
+// sandbox to pass ("" for none), the roots to pass and a note ("" for none).
 //
-// The user's own choice always wins: a sandbox flag, a bypass, a -c override,
-// a profile or a configured sandbox_mode is never replaced.
-func resolveCodexWritableRoots(opts codexLaunchOpts, cfg codexSandboxConfig) (mode string, roots []string, notice string) {
+// wipnote names a sandbox only when nothing else did. Any choice the user
+// made is kept, and a read-only choice drops the roots instead.
+func resolveCodexWritableRoots(opts codexLaunchOpts, choice codexSandboxChoice) (mode string, roots []string, notice string) {
 	roots = opts.WritableRoots
 	if len(roots) == 0 || opts.Yolo || opts.SandboxMode != "" || codexBypassesSandbox(opts.ExtraArgs) {
 		return "", roots, ""
 	}
-	chosen := codexRequestedSandbox(opts.ExtraArgs)
-	if chosen == "" {
-		chosen = codexSandboxOverride(opts.ExtraArgs)
-	}
-	if chosen == "" && codexPicksOwnSandbox(opts.ExtraArgs) {
-		return "", roots, ""
-	}
-	if chosen == "" && cfg.Profile == "" {
-		chosen = cfg.SandboxMode
-	}
 	switch {
-	case chosen == "read-only":
-		return "", nil, "wipnote: Codex runs read-only here, so the wipnote store is not writable. Commands that write work items will fail in this session."
-	case chosen != "" || cfg.Profile != "":
+	case choice.ReadOnly:
+		return "", nil, "wipnote: Codex runs read-only here (" + choice.Source + "), so the wipnote store is not writable. Commands that write work items will fail in this session."
+	case choice.Set:
 		return "", roots, ""
 	}
 	return codexWorkspaceWrite, roots,
-		"wipnote: launching Codex with --sandbox " + codexWorkspaceWrite + " so the session can write the wipnote store. Pass --sandbox <mode> to choose another."
-}
-
-// codexSandboxOverride is the sandbox_mode a -c/--config override sets, or "".
-func codexSandboxOverride(args []string) string {
-	for i, a := range args {
-		var kv string
-		switch {
-		case a == "--":
-			return ""
-		case (a == "-c" || a == "--config") && i+1 < len(args):
-			kv = args[i+1]
-		case strings.HasPrefix(a, "--config="):
-			kv = strings.TrimPrefix(a, "--config=")
-		}
-		if v, ok := strings.CutPrefix(kv, "sandbox_mode="); ok {
-			return strings.Trim(v, `"'`)
-		}
-	}
-	return ""
-}
-
-// codexPicksOwnSandbox reports whether args carry a flag that selects the
-// sandbox by another route: a preset flag or a profile.
-func codexPicksOwnSandbox(args []string) bool {
-	for _, a := range args {
-		switch {
-		case a == "--":
-			return false
-		case a == "--approve-for-me", a == "--full-auto", a == "-p", a == "--profile", strings.HasPrefix(a, "--profile="):
-			return true
-		}
-	}
-	return false
+		"wipnote: Codex has no trust entry or sandbox setting for this project. Launching with --sandbox " + codexWorkspaceWrite + " so the session can write the wipnote store. Pass --sandbox <mode> to choose another."
 }

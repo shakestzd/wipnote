@@ -7,9 +7,40 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// harnessWords describes a harness's own command line, as far as the rewrite
+// needs it.
+type harnessWords struct {
+	// subcommands end wipnote's part of the line: every word from the first
+	// one on belongs to the harness.
+	subcommands map[string]bool
+	// valueFlags take the next word as their value, so that word is never read
+	// as a wipnote flag.
+	valueFlags map[string]bool
+}
+
 // passthroughLaunchers are the launcher commands that forward every flag they
-// do not define to the harness they start.
-var passthroughLaunchers = map[string]bool{"codex": true}
+// do not define to the harness they start. The Codex words come from
+// `codex --help` of codex-cli 0.172.0. A flag or subcommand missing here is
+// still forwarded: only the two refinements above do not apply to it.
+var passthroughLaunchers = map[string]harnessWords{
+	"codex": {
+		subcommands: wordSet("agents", "exec", "review", "login", "logout", "mcp", "plugin", "app-server",
+			"remote-control", "app", "completion", "update", "doctor", "sandbox", "debug", "apply", "resume",
+			"queue", "archive", "delete", "migrate-rollouts", "migrate-nfs-db", "unarchive", "fork", "cloud",
+			"exec-server", "features", "help"),
+		valueFlags: wordSet("-c", "--config", "--enable", "--disable", "--remote", "--remote-auth-token-env",
+			"-i", "--image", "-m", "--model", "--local-provider", "-p", "--profile", "-s", "--sandbox",
+			"-C", "--cd", "--add-dir", "-a", "--ask-for-approval"),
+	},
+}
+
+func wordSet(words ...string) map[string]bool {
+	set := make(map[string]bool, len(words))
+	for _, w := range words {
+		set[w] = true
+	}
+	return set
+}
 
 // forwardHarnessFlags rewrites a launcher command line so the flags wipnote
 // does not define reach the harness. Cobra stops on an unknown flag, so
@@ -19,8 +50,10 @@ var passthroughLaunchers = map[string]bool{"codex": true}
 //
 //	wipnote codex --sandbox read-only --yolo  ->  wipnote codex --yolo -- --sandbox read-only
 //
-// A flag both sides define keeps wipnote's meaning. Words after a "--" the
-// user typed always go to the harness. Other commands are returned unchanged.
+// A flag both sides define keeps wipnote's meaning, up to the first harness
+// subcommand: `wipnote codex review --base main` gives --base to Codex. Words
+// after a "--" the user typed always go to the harness, as they did before
+// the rewrite. Other commands are returned unchanged.
 func forwardHarnessFlags(root *cobra.Command, argv []string) []string {
 	at := launcherIndex(argv)
 	if at < 0 {
@@ -30,7 +63,7 @@ func forwardHarnessFlags(root *cobra.Command, argv []string) []string {
 	if err != nil || cmd == root {
 		return argv
 	}
-	own, fwd := splitLauncherWords(cmd, root, argv[at+1:])
+	own, fwd := splitLauncherWords(cmd, root, passthroughLaunchers[argv[at]], argv[at+1:])
 	out := append(append([]string{}, argv[:at+1]...), own...)
 	if len(fwd) > 0 {
 		out = append(append(out, "--"), fwd...)
@@ -46,7 +79,7 @@ func launcherIndex(argv []string) int {
 		case a == "--project-dir":
 			i++
 		case strings.HasPrefix(a, "--project-dir="):
-		case passthroughLaunchers[a]:
+		case passthroughLaunchers[a].subcommands != nil:
 			return i
 		default:
 			return -1
@@ -57,24 +90,31 @@ func launcherIndex(argv []string) int {
 
 // splitLauncherWords separates the words after the launcher name into the
 // flags wipnote defines (with their values) and everything else.
-func splitLauncherWords(cmd, root *cobra.Command, words []string) (own, fwd []string) {
+func splitLauncherWords(cmd, root *cobra.Command, harness harnessWords, words []string) (own, fwd []string) {
 	for i := 0; i < len(words); i++ {
 		w := words[i]
 		if w == "--" {
 			return own, append(fwd, words[i+1:]...)
 		}
+		if harness.subcommands[w] {
+			return own, append(fwd, words[i:]...)
+		}
 		flag, inline := launcherFlag(cmd, root, w)
 		switch {
 		case w == "--help" || w == "-h":
 			own = append(own, w)
-		case flag == nil:
-			fwd = append(fwd, w)
-		default:
+		case flag != nil:
 			own = append(own, w)
 			// A flag with no default value takes the next word as its value.
 			if !inline && flag.NoOptDefVal == "" && i+1 < len(words) {
 				i++
 				own = append(own, words[i])
+			}
+		default:
+			fwd = append(fwd, w)
+			if harness.valueFlags[w] && i+1 < len(words) {
+				i++
+				fwd = append(fwd, words[i])
 			}
 		}
 	}
