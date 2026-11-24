@@ -76,6 +76,7 @@ func main() {
 
 	selfHealGitdirIfStale()
 	root := buildRoot()
+	root.SetArgs(forwardHarnessFlags(root, os.Args[1:]))
 	if err := root.Execute(); err != nil {
 		msg := err.Error()
 		// Cobra's "unknown command" error doesn't tell the agent what to do

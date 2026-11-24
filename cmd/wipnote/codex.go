@@ -91,7 +91,12 @@ Modes:
   wipnote codex --track <id>      Launch in the track's git worktree.
   wipnote codex --yolo            Launch without Codex approvals/sandbox prompts.
 
-Session IDs come from ~/.codex/session_index.jsonl.`,
+Session IDs come from ~/.codex/session_index.jsonl.
+
+Flags that wipnote does not define go to Codex as written, for example
+"wipnote codex --sandbox read-only". Where both define a flag (--resume,
+--worktree), wipnote's meaning applies. Put a flag after "--" to give it
+Codex's meaning.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCodexCmd(&f, args)
 		},
