@@ -6,7 +6,7 @@ import "github.com/spf13/cobra"
 // (feat-8f910039): agents ran delegate often and rarely opened the skill, so
 // the steps live where they already look. Keep the help under 40 lines.
 const delegateLong = `Hands work to another harness; each run is a row in the delegations ledger.
-One call: wipnote delegate run [--label L] -- <codex exec|claude -p|ccx task ...>
+One call: wipnote delegate run [--label L] -- <codex exec|claude -p|agy -p|ccx task ...>
 A worker, in herdr or an hc terminal, on a work item you hold:
   1. wipnote delegate spawn NAME --harness claude|codex --brief-file F [--profile P]
   2. wipnote delegate send NAME TASK, then wipnote delegate wait NAME --timeout 20m

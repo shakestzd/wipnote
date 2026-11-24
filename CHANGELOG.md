@@ -5,6 +5,11 @@ All notable changes to wipnote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `wipnote delegate run -- agy -p PROMPT` runs the Antigravity CLI as a recorded one-shot delegation, with a ledger row (harness `antigravity-print`), a run folder and the answer in the report (feat-e014b05b).
+
 ## [0.85.0] - 2026-10-29
 
 ### Added

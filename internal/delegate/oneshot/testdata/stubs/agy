@@ -1,0 +1,5 @@
+#!/bin/sh
+# Stub Antigravity CLI: progress on stderr, STUB_ANSWER as the text answer on stdout.
+echo "thinking about: $*" >&2
+printf '%s\n' "${STUB_ANSWER:-the agy answer}"
+exit "${STUB_EXIT:-0}"

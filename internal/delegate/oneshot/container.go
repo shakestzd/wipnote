@@ -52,6 +52,8 @@ func ClassifyContainer(argv []string) (Recipe, error) {
 	switch filepath.Base(argv[0]) {
 	case "claude", "codex":
 		return Classify(argv)
+	case "agy", "antigravity":
+		return Recipe{}, fmt.Errorf("delegate run: --container runs Claude or Codex in the project's devcontainer; Antigravity runs on the host, so drop --container")
 	case "ccx":
 		return Recipe{}, fmt.Errorf("delegate run: --container runs Claude in the project's devcontainer itself; pass the task's arguments (--container -- <task args>), not ccx")
 	}

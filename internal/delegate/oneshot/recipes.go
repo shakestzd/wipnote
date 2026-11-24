@@ -25,10 +25,11 @@ import (
 type Kind string
 
 const (
-	KindCodex       Kind = "codex"        // codex exec (or e)
-	KindCodexReview Kind = "codex-review" // codex review
-	KindClaude      Kind = "claude-print" // claude -p / --print
-	KindCcx         Kind = "ccx"          // ccx task
+	KindCodex       Kind = "codex"             // codex exec (or e)
+	KindCodexReview Kind = "codex-review"      // codex review
+	KindClaude      Kind = "claude-print"      // claude -p / --print
+	KindCcx         Kind = "ccx"               // ccx task
+	KindAntigravity Kind = "antigravity-print" // agy --print (feat-e014b05b)
 )
 
 // Recipe is a classified tool argv, as given by the caller.
@@ -80,9 +81,11 @@ func Classify(argv []string) (Recipe, error) {
 		}
 	case "claude":
 		r.Kind = claudeKind(argv[1:])
+	case "agy", "antigravity":
+		r.Kind = antigravityKind(argv[1:])
 	}
 	if r.Kind == "" {
-		return Recipe{}, fmt.Errorf("delegate run: %q is not codex exec, codex review, claude -p or ccx task", strings.Join(argv, " "))
+		return Recipe{}, fmt.Errorf("delegate run: %q is not codex exec, codex review, claude -p, agy -p or ccx task", strings.Join(argv, " "))
 	}
 	if err := r.refuseOwnFormat(); err != nil {
 		return Recipe{}, err
@@ -121,9 +124,31 @@ func claudeKind(args []string) Kind {
 	return ""
 }
 
+// antigravityPrintFlags each start a print run of the Antigravity CLI.
+var antigravityPrintFlags = []string{"-p", "--print", "--prompt"}
+
+// antigravityKind: agy runs one prompt and prints the answer only with a print
+// flag. Any other agy call is interactive or a subcommand, never a run.
+func antigravityKind(args []string) Kind {
+	if slices.ContainsFunc(ownWords(args), func(w string) bool {
+		name, _, _ := strings.Cut(w, "=")
+		return slices.Contains(antigravityPrintFlags, name)
+	}) {
+		return KindAntigravity
+	}
+	return ""
+}
+
 // refuseOwnFormat: the run reads claude's stream-json, so a caller's other
 // --output-format would leave the report with nothing to read.
 func (r Recipe) refuseOwnFormat() error {
+	if r.Kind == KindAntigravity {
+		// The answer file is agy's stdout, read as text.
+		if f, ok := flagValue(ownWords(r.Argv[1:]), "--output-format"); ok && f != "text" {
+			return fmt.Errorf("delegate run: agy --output-format %s is not supported; delegate run keeps the text answer, so drop the flag", f)
+		}
+		return nil
+	}
 	if r.Kind != KindClaude {
 		return nil
 	}
@@ -153,6 +178,8 @@ func (r Recipe) Name() string {
 		return "claude"
 	case KindCcx:
 		return "ccx"
+	case KindAntigravity:
+		return "agy"
 	}
 	return "codex"
 }
@@ -244,7 +271,7 @@ var labelWord = regexp.MustCompile(`[^A-Za-z0-9 _.:/=+-]`)
 // It goes only to the run folder's label file, never to the ledger.
 func (r Recipe) DerivedLabel() string {
 	text := r.promptText()
-	title := map[Kind]string{KindCodex: "cdx", KindCodexReview: "cdx review", KindCcx: "ccx task", KindClaude: "Claude task"}[r.Kind]
+	title := map[Kind]string{KindCodex: "cdx", KindCodexReview: "cdx review", KindCcx: "ccx task", KindClaude: "Claude task", KindAntigravity: "agy task"}[r.Kind]
 	if r.Kind == KindClaude && strings.HasPrefix(text, "/code-review") {
 		title = "Claude review"
 	}
@@ -264,7 +291,7 @@ func (r Recipe) DerivedLabel() string {
 // last word that is not a flag; collapsed to one line.
 func (r Recipe) promptText() string {
 	start := min(2, len(r.Argv))
-	if r.Kind == KindClaude {
+	if r.Kind == KindClaude || r.Kind == KindAntigravity {
 		start = 1
 	}
 	args := r.Argv[start:]
