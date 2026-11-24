@@ -141,7 +141,7 @@ func mirrorModsTree(projectRoot, dst string) error {
 }
 
 // pruneModsTree removes the files under dst that the mirror did not keep,
-// then the folders that left empty. It leaves each mod's
+// then the folders that left empty. It leaves each kept mod's
 // .claude-plugin/types/ alone: Claude Code writes its own type files there
 // once it loads the mod, and they are not part of the source.
 func pruneModsTree(dst string, kept map[string]bool) error {
@@ -158,7 +158,9 @@ func pruneModsTree(dst string, kept map[string]bool) error {
 			return nil
 		}
 		if d.IsDir() {
-			if isEngineTypesDir(rel) {
+			// Only for a mod the source still holds. A removed mod must
+			// leave no folder: --plugin-dir loads every child of dst.
+			if isEngineTypesDir(rel) && kept[filepath.Join(filepath.Dir(rel), "plugin.json")] {
 				return filepath.SkipDir
 			}
 			dirs = append(dirs, path)

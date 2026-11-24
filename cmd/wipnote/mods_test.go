@@ -266,7 +266,9 @@ func TestMirrorModsTreeWritesChangesAndRemovesWhatLeftTheSource(t *testing.T) {
 	// Claude Code's own generated types, and a stray file nobody tracks.
 	engine := filepath.Join(dst, "one", ".claude-plugin", "types", "claude-code", "index.d.ts")
 	stray := filepath.Join(dst, "one", "hooks", "old.tsx")
-	for _, f := range []string{engine, stray} {
+	// A removed mod has generated types too. They must not keep its folder.
+	goneTypes := filepath.Join(dst, "gone", ".claude-plugin", "types", "claude-code", "index.d.ts")
+	for _, f := range []string{engine, stray, goneTypes} {
 		if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
 			t.Fatal(err)
 		}
