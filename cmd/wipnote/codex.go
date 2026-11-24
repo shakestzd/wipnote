@@ -131,6 +131,10 @@ func runCodexCmd(f *codexFlags, args []string) error {
 	// `codex --version` and a subcommand's --help only print. Run them as
 	// they are, with no launch marker, daemon or collector (bug-fc843d71).
 	if codexInfoOnly(args) && !f.init_ {
+		if f.dryRun {
+			fmt.Println("would run: codex " + strings.Join(args, " "))
+			return nil
+		}
 		return runCodexPlainFn(args)
 	}
 	if !f.init_ && !f.dryRun {
@@ -177,15 +181,27 @@ func registerCodexFlags(cmd *cobra.Command, f *codexFlags) {
 
 // codexInfoOnly reports whether the words forwarded to Codex only ask it to
 // print its version or a help page.
+//
+// The version flag counts before the first subcommand or prompt word, and the
+// help subcommand counts as the first such word. A flag's value is skipped.
 func codexInfoOnly(args []string) bool {
-	for i, a := range args {
-		switch {
+	codex := passthroughLaunchers[harnessCodex]
+	words := 0
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
 		case a == "--":
 			return false
 		case a == "--help" || a == "-h":
 			return true
-		case i == 0 && (a == "--version" || a == "-V"):
+		case words == 0 && (a == "--version" || a == "-V"):
 			return true
+		case codex.valueFlags[a]:
+			i++
+		case !strings.HasPrefix(a, "-"):
+			if words == 0 && a == "help" {
+				return true
+			}
+			words++
 		}
 	}
 	return false

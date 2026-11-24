@@ -27,7 +27,9 @@ var passthroughLaunchers = map[string]harnessWords{
 		subcommands: wordSet("agents", "exec", "review", "login", "logout", "mcp", "plugin", "app-server",
 			"remote-control", "app", "completion", "update", "doctor", "sandbox", "debug", "apply", "resume",
 			"queue", "archive", "delete", "migrate-rollouts", "migrate-nfs-db", "unarchive", "fork", "cloud",
-			"exec-server", "features", "help"),
+			"exec-server", "features", "help",
+			// Codex's own aliases: e for exec, a for apply.
+			"e", "a"),
 		valueFlags: wordSet("-c", "--config", "--enable", "--disable", "--remote", "--remote-auth-token-env",
 			"-i", "--image", "-m", "--model", "--local-provider", "-p", "--profile", "-s", "--sandbox",
 			"-C", "--cd", "--add-dir", "-a", "--ask-for-approval"),

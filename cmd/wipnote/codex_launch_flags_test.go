@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/shakestzd/wipnote/core/hooks"
 )
 
 func stubCodexHelp(t *testing.T, help string, err error) {
@@ -22,6 +24,8 @@ func isolateCodexHome(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("CODEX_HOME", dir)
+	// A test run inside a delegated worker must still see a plain launch.
+	t.Setenv(hooks.DelegateRunEnv, "")
 	writeFiles(t, dir, files)
 	return dir
 }

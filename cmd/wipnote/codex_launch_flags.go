@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/shakestzd/wipnote/core/hooks"
 )
 
 // The flags wipnote adds to a Codex launch on its own account. Each one is
@@ -77,11 +79,24 @@ func applyCodexApproveForMe(help func() (string, error), opts *codexLaunchOpts) 
 	if opts.Yolo || opts.SandboxMode != "" || codexBypassesSandbox(opts.ExtraArgs) {
 		return ""
 	}
+	// A delegated worker runs with nobody watching it. It keeps the mode its
+	// caller's recipe gives it, and never gets this default (owner decision
+	// on feat-c1c93fd2).
+	if os.Getenv(hooks.DelegateRunEnv) != "" {
+		return ""
+	}
+	// Flag-like words after a forwarded "--" are prompt text to Codex. The
+	// user may have meant them as flags, such as --sandbox read-only, so the
+	// default must not widen that launch.
+	if codexDashWordsAfterSeparator(opts.ExtraArgs) {
+		return "wipnote: the words after -- reach Codex as prompt text, not as flags, so wipnote left out " + codexApproveForMe + ". Put Codex flags before the prompt."
+	}
 	if words := passthroughLaunchers[harnessCodex].positionals(opts.ExtraArgs); len(words) > 0 &&
 		passthroughLaunchers[harnessCodex].subcommands[words[0]] && words[0] != "resume" && words[0] != "fork" {
 		return ""
 	}
-	if choice := readCodexSandboxChoice(*opts); (choice.Set && !choice.Trust) || codexApprovalChosen(*opts) {
+	// An untrusted mark is the user's own stricter approval choice.
+	if choice := readCodexSandboxChoice(*opts); (choice.Set && !choice.Trust) || choice.Untrusted || codexApprovalChosen(*opts) {
 		return ""
 	}
 	// An older Codex exits on a flag it does not know. A failed probe leaves
@@ -91,6 +106,13 @@ func applyCodexApproveForMe(help func() (string, error), opts *codexLaunchOpts) 
 	}
 	opts.ExtraArgs = append([]string{codexApproveForMe}, opts.ExtraArgs...)
 	return "wipnote: launching Codex with " + codexApproveForMe + " (automatic approval review, workspace-write sandbox). Pass -a <policy> or --sandbox <mode> to choose another."
+}
+
+// codexDashWordsAfterSeparator reports whether args hold a "--" followed by a
+// word that starts with a dash.
+func codexDashWordsAfterSeparator(args []string) bool {
+	at := slices.Index(args, "--")
+	return at >= 0 && slices.ContainsFunc(args[at+1:], func(a string) bool { return strings.HasPrefix(a, "-") && a != "-" })
 }
 
 // applyCodexNoDaemon sets opts.NoDaemon and returns a note when it leaves the
