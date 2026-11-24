@@ -15,6 +15,7 @@ type codexSandboxChoice struct {
 	Set      bool   // a flag, an override, a profile, a config layer or a trust entry decides
 	ReadOnly bool   // the decision is a read-only sandbox
 	Source   string // where the decision came from, for the note
+	Trust    bool   // only the project's trust entry decides, so the user named no sandbox
 }
 
 // codexSandboxLayer is the part of one Codex config file that selects the
@@ -22,6 +23,8 @@ type codexSandboxChoice struct {
 type codexSandboxLayer struct {
 	SandboxMode        *string                      `toml:"sandbox_mode"`
 	DefaultPermissions *string                      `toml:"default_permissions"`
+	ApprovalPolicy     *string                      `toml:"approval_policy"`
+	ApprovalsReviewer  *string                      `toml:"approvals_reviewer"`
 	Profile            string                       `toml:"profile"`
 	Profiles           map[string]codexSandboxLayer `toml:"profiles"`
 	Projects           map[string]struct {
@@ -71,28 +74,67 @@ func readCodexSandboxChoice(opts codexLaunchOpts) codexSandboxChoice {
 			return codexSandboxChoice{Set: true, ReadOnly: strings.Contains(v, "read-only"), Source: "-c " + key}
 		}
 	}
-	home := codexHomeDir()
-	user, system := readCodexSandboxLayer(codexHomeConfigPath()), readCodexSandboxLayer(codexSystemConfigPath)
-	launchDir := codexLaunchDir(opts)
-	type sourced struct {
-		layer  codexSandboxLayer
-		source string
-	}
-	var layers []sourced
-	add := func(l codexSandboxLayer, source string) { layers = append(layers, sourced{l, source}) }
-	if profile := firstNonEmpty(codexProfileFromArgs(args), overrides["profile"], user.Profile, system.Profile); profile != "" {
-		add(readCodexSandboxLayer(filepath.Join(home, profile+".config.toml")), "profile "+profile)
-		add(user.Profiles[profile], "profile "+profile)
-	}
-	add(readCodexSandboxLayer(filepath.Join(launchDir, ".codex", "config.toml")), "the project's .codex/config.toml")
-	add(user, "your Codex config")
-	add(system, codexSystemConfigPath)
+	layers, user, launchDir := codexConfigLayers(opts, overrides)
 	for _, l := range layers {
 		if c, ok := l.layer.choice(l.source); ok {
 			return c
 		}
 	}
 	return codexTrustChoice(user, launchDir)
+}
+
+// codexSourcedLayer is one Codex config layer and the words that name it in a
+// note.
+type codexSourcedLayer struct {
+	layer  codexSandboxLayer
+	source string
+}
+
+// codexConfigLayers returns the config layers that apply to this launch,
+// highest precedence first: the active profile, the project config, the user
+// config and the system config. It also returns the user layer, which holds
+// the trust entries, and the folder Codex starts in.
+func codexConfigLayers(opts codexLaunchOpts, overrides map[string]string) (layers []codexSourcedLayer, user codexSandboxLayer, launchDir string) {
+	home := codexHomeDir()
+	user = readCodexSandboxLayer(codexHomeConfigPath())
+	system := readCodexSandboxLayer(codexSystemConfigPath)
+	launchDir = codexLaunchDir(opts)
+	add := func(l codexSandboxLayer, source string) { layers = append(layers, codexSourcedLayer{l, source}) }
+	if profile := firstNonEmpty(codexProfileFromArgs(opts.ExtraArgs), overrides["profile"], user.Profile, system.Profile); profile != "" {
+		add(readCodexSandboxLayer(filepath.Join(home, profile+".config.toml")), "profile "+profile)
+		add(user.Profiles[profile], "profile "+profile)
+	}
+	add(readCodexSandboxLayer(filepath.Join(launchDir, ".codex", "config.toml")), "the project's .codex/config.toml")
+	add(user, "your Codex config")
+	add(system, codexSystemConfigPath)
+	return layers, user, launchDir
+}
+
+// codexApprovalChosen reports whether the user already decided how Codex asks
+// for approval: -a, an approval_policy or approvals_reviewer override, or
+// either key in a config layer.
+func codexApprovalChosen(opts codexLaunchOpts) bool {
+	for _, a := range opts.ExtraArgs {
+		if a == "--" {
+			break
+		}
+		if a == "-a" || a == "--ask-for-approval" || strings.HasPrefix(a, "--ask-for-approval=") || (strings.HasPrefix(a, "-a") && !strings.HasPrefix(a, "--")) {
+			return true
+		}
+	}
+	overrides := codexConfigOverrides(opts.ExtraArgs)
+	for _, key := range []string{"approval_policy", "approvals_reviewer"} {
+		if _, ok := overrides[key]; ok {
+			return true
+		}
+	}
+	layers, _, _ := codexConfigLayers(opts, overrides)
+	for _, l := range layers {
+		if l.layer.ApprovalPolicy != nil || l.layer.ApprovalsReviewer != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // codexTrustChoice turns the project's trust entry into a sandbox decision.
@@ -107,7 +149,7 @@ func codexTrustChoice(user codexSandboxLayer, launchDir string) codexSandboxChoi
 		if project.TrustLevel == "" || (dir != p && !strings.HasPrefix(dir, p+string(filepath.Separator))) {
 			continue
 		}
-		return codexSandboxChoice{Set: true, Source: "project marked " + project.TrustLevel}
+		return codexSandboxChoice{Set: true, Trust: true, Source: "project marked " + project.TrustLevel}
 	}
 	return codexSandboxChoice{}
 }

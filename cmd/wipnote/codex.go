@@ -99,6 +99,10 @@ Flags that wipnote does not define go to Codex as written, for example
 when it comes before a Codex subcommand. Every word from a Codex subcommand
 on goes to Codex: "wipnote codex review --base main".
 
+A plain launch adds --approve-for-me, Codex's automatic approval review in
+the workspace-write sandbox. wipnote leaves it out when you chose a sandbox or
+an approval policy yourself, on the line or in your Codex config.
+
 A "--" ends wipnote's flags. After Codex flags it also reaches Codex, so a
 prompt may start with a dash: "wipnote codex --search -- '-v fails'". With
 no Codex flag before it, write it twice: "wipnote codex -- -- '-v fails'".`,

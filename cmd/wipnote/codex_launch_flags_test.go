@@ -64,7 +64,7 @@ func TestApplyCodexNoDaemon(t *testing.T) {
 			t.Setenv("HC_TERMINAL_ID", tt.terminal)
 			stubCodexHelp(t, tt.help, tt.helpErr)
 			opts := codexLaunchOpts{ExtraArgs: tt.args}
-			note := applyCodexNoDaemon("codex", &opts)
+			note := applyCodexNoDaemon(func() (string, error) { return codexHelpFn("codex") }, &opts)
 			if got := slices.Contains(buildCodexArgs(opts, 0, nil), "--no-daemon"); got != tt.want {
 				t.Errorf("--no-daemon passed = %v, want %v", got, tt.want)
 			}
@@ -183,6 +183,7 @@ func TestReadCodexSandboxChoice_TrustEntry(t *testing.T) {
 // End to end through the argv, for a fresh launch and both resume shapes.
 func TestApplyCodexHostFlags_WritableRootArgv(t *testing.T) {
 	t.Setenv("HC_TERMINAL_ID", "")
+	stubCodexHelp(t, "an older Codex with no approval preset", nil)
 	project := t.TempDir()
 	for _, tt := range []struct {
 		name string
@@ -211,6 +212,59 @@ func TestApplyCodexHostFlags_WritableRootArgv(t *testing.T) {
 				if slices.Contains(argv, word) {
 					t.Errorf("argv = %q, want no %s", argv, word)
 				}
+			}
+		})
+	}
+}
+
+// A plain launch gets --approve-for-me. Any sandbox or approval choice the
+// user made, and any launch that opens no session, leaves it out.
+func TestApplyCodexHostFlags_ApproveForMeDefault(t *testing.T) {
+	t.Setenv("HC_TERMINAL_ID", "")
+	project := t.TempDir()
+	trusted := map[string]string{"config.toml": "[projects.\"" + project + "\"]\ntrust_level = \"trusted\"\n"}
+	listed := "      --approve-for-me\n          Route approval requests"
+	for _, tt := range []struct {
+		name string
+		opts codexLaunchOpts
+		home map[string]string
+		help string
+		err  error
+		want bool
+	}{
+		{"plain launch", codexLaunchOpts{}, nil, listed, nil, true},
+		{"trusted project", codexLaunchOpts{}, trusted, listed, nil, true},
+		{"prompt", codexLaunchOpts{ExtraArgs: []string{"-m", "o3", "fix it"}}, nil, listed, nil, true},
+		{"resume", codexLaunchOpts{ResumeLast: true}, nil, listed, nil, true},
+		{"resume subcommand", codexLaunchOpts{ExtraArgs: []string{"resume", "--last"}}, nil, listed, nil, true},
+		{"older Codex", codexLaunchOpts{}, nil, "no such flag", nil, false},
+		{"help failed", codexLaunchOpts{}, nil, "", errors.New("timeout"), false},
+		{"yolo", codexLaunchOpts{Yolo: true}, nil, listed, nil, false},
+		{"wipnote picked a sandbox", codexLaunchOpts{SandboxMode: "danger-full-access"}, nil, listed, nil, false},
+		{"--sandbox", codexLaunchOpts{ExtraArgs: []string{"--sandbox", "read-only"}}, nil, listed, nil, false},
+		{"-a", codexLaunchOpts{ExtraArgs: []string{"-a", "on-request"}}, nil, listed, nil, false},
+		{"--ask-for-approval=", codexLaunchOpts{ExtraArgs: []string{"--ask-for-approval=never"}}, nil, listed, nil, false},
+		{"-c approval_policy", codexLaunchOpts{ExtraArgs: []string{"-c", "approval_policy=never"}}, nil, listed, nil, false},
+		{"--full-auto", codexLaunchOpts{ExtraArgs: []string{"--full-auto"}}, nil, listed, nil, false},
+		{"configured sandbox", codexLaunchOpts{}, map[string]string{"config.toml": `sandbox_mode = "workspace-write"`}, listed, nil, false},
+		{"configured approval policy", codexLaunchOpts{}, map[string]string{"config.toml": `approval_policy = "untrusted"`}, listed, nil, false},
+		{"configured reviewer", codexLaunchOpts{}, map[string]string{"config.toml": `approvals_reviewer = "user"`}, listed, nil, false},
+		{"exec subcommand", codexLaunchOpts{ExtraArgs: []string{"exec", "do it"}}, nil, listed, nil, false},
+		{"login subcommand", codexLaunchOpts{ExtraArgs: []string{"login"}}, nil, listed, nil, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateCodexHome(t, tt.home)
+			stubCodexHelp(t, tt.help, tt.err)
+			opts := tt.opts
+			opts.ProjectRoot, opts.WritableRoots = project, []string{"/store"}
+			applyCodexHostFlags("codex", &opts)
+			argv := buildCodexArgs(opts, 0, nil)
+			if got := slices.Contains(argv, codexApproveForMe); got != tt.want {
+				t.Errorf("--approve-for-me passed = %v, want %v (argv %q)", got, tt.want, argv)
+			}
+			// The preset names the sandbox, so wipnote adds no second one.
+			if tt.want && (slices.Contains(argv, "--sandbox") || !slices.Contains(argv, "--add-dir")) {
+				t.Errorf("argv = %q, want --add-dir and no --sandbox beside the preset", argv)
 			}
 		})
 	}

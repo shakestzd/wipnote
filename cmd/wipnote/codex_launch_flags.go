@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -32,12 +33,12 @@ var codexHelpFn = func(codexPath string) (string, error) {
 
 // codexAcceptsFlag reports whether the installed Codex lists flag in its help.
 // An error means the question was not answered.
-func codexAcceptsFlag(codexPath, flag string) (bool, error) {
-	help, err := codexHelpFn(codexPath)
+func codexAcceptsFlag(help func() (string, error), flag string) (bool, error) {
+	text, err := help()
 	if err != nil {
 		return false, err
 	}
-	for _, word := range strings.Fields(help) {
+	for _, word := range strings.Fields(text) {
 		if strings.TrimRight(word, ",") == flag {
 			return true, nil
 		}
@@ -48,17 +49,48 @@ func codexAcceptsFlag(codexPath, flag string) (bool, error) {
 // applyCodexHostFlags settles the flags that depend on the installed Codex
 // and on the user's sandbox choice, and prints a note for each change.
 func applyCodexHostFlags(codexPath string, opts *codexLaunchOpts) {
-	if note := applyCodexNoDaemon(codexPath, opts); note != "" {
-		fmt.Fprintln(os.Stderr, note)
-	}
+	// One `codex --help` run answers every flag question of this launch.
+	help := sync.OnceValues(func() (string, error) { return codexHelpFn(codexPath) })
+	notes := []string{applyCodexNoDaemon(help, opts), applyCodexApproveForMe(help, opts)}
 	mode, roots, notice := resolveCodexWritableRoots(*opts, readCodexSandboxChoice(*opts))
 	if mode != "" {
 		opts.SandboxMode = mode
 	}
 	opts.WritableRoots = roots
-	if notice != "" {
-		fmt.Fprintln(os.Stderr, notice)
+	for _, note := range append(notes, notice) {
+		if note != "" {
+			fmt.Fprintln(os.Stderr, note)
+		}
 	}
+}
+
+const codexApproveForMe = "--approve-for-me"
+
+// applyCodexApproveForMe makes Codex's automatic approval review the default
+// for a wipnote launch (feat-c1c93fd2: the owner wants Codex to start the way
+// Claude Code's auto mode does). It adds the flag only when the user decided
+// nothing about the sandbox or approvals, so every other choice still wins.
+// The flag selects the workspace-write sandbox, so it is also left out where
+// wipnote itself picked a sandbox, and for Codex subcommands that open no
+// session. It returns a note when it adds the flag.
+func applyCodexApproveForMe(help func() (string, error), opts *codexLaunchOpts) string {
+	if opts.Yolo || opts.SandboxMode != "" || codexBypassesSandbox(opts.ExtraArgs) {
+		return ""
+	}
+	if words := passthroughLaunchers[harnessCodex].positionals(opts.ExtraArgs); len(words) > 0 &&
+		passthroughLaunchers[harnessCodex].subcommands[words[0]] && words[0] != "resume" && words[0] != "fork" {
+		return ""
+	}
+	if choice := readCodexSandboxChoice(*opts); (choice.Set && !choice.Trust) || codexApprovalChosen(*opts) {
+		return ""
+	}
+	// An older Codex exits on a flag it does not know. A failed probe leaves
+	// the flag out too: Codex then starts in its own default mode.
+	if ok, err := codexAcceptsFlag(help, codexApproveForMe); err != nil || !ok {
+		return ""
+	}
+	opts.ExtraArgs = append([]string{codexApproveForMe}, opts.ExtraArgs...)
+	return "wipnote: launching Codex with " + codexApproveForMe + " (automatic approval review, workspace-write sandbox). Pass -a <policy> or --sandbox <mode> to choose another."
 }
 
 // applyCodexNoDaemon sets opts.NoDaemon and returns a note when it leaves the
@@ -68,14 +100,14 @@ func applyCodexHostFlags(codexPath string, opts *codexLaunchOpts) {
 // its commands execute in the shared server, outside that terminal. A Codex
 // that predates the flag exits on it, and so does one that is also given
 // --remote, so the launcher asks before it adds the flag.
-func applyCodexNoDaemon(codexPath string, opts *codexLaunchOpts) string {
+func applyCodexNoDaemon(help func() (string, error), opts *codexLaunchOpts) string {
 	if os.Getenv("HC_TERMINAL_ID") == "" {
 		return ""
 	}
 	if codexUsesRemoteServer(opts.ExtraArgs) {
 		return "wipnote: --no-daemon left out, because Codex refuses it with a remote or shared server."
 	}
-	ok, err := codexAcceptsFlag(codexPath, "--no-daemon")
+	ok, err := codexAcceptsFlag(help, "--no-daemon")
 	switch {
 	case err != nil:
 		return fmt.Sprintf("wipnote: could not read `codex --help` (%v), so wipnote left out --no-daemon. Codex commands may run outside this terminal.", err)
