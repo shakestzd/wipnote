@@ -219,6 +219,7 @@ func TestApplyCodexHostFlags_WritableRootArgv(t *testing.T) {
 
 // A plain launch gets --approve-for-me. Any sandbox or approval choice the
 // user made, and any launch that opens no session, leaves it out.
+// The preset names the sandbox, so wipnote adds no second one beside it.
 func TestApplyCodexHostFlags_ApproveForMeDefault(t *testing.T) {
 	t.Setenv("HC_TERMINAL_ID", "")
 	project := t.TempDir()
@@ -263,7 +264,6 @@ func TestApplyCodexHostFlags_ApproveForMeDefault(t *testing.T) {
 			if got := slices.Contains(argv, codexApproveForMe); got != tt.want {
 				t.Errorf("--approve-for-me passed = %v, want %v (argv %q)", got, tt.want, argv)
 			}
-			// The preset names the sandbox, so wipnote adds no second one.
 			if tt.want && (slices.Contains(argv, "--sandbox") || !slices.Contains(argv, "--add-dir")) {
 				t.Errorf("argv = %q, want --add-dir and no --sandbox beside the preset", argv)
 			}
