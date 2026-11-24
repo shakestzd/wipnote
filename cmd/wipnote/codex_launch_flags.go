@@ -73,7 +73,7 @@ func applyCodexNoDaemon(codexPath string, opts *codexLaunchOpts) string {
 		return ""
 	}
 	if codexUsesRemoteServer(opts.ExtraArgs) {
-		return "wipnote: --no-daemon left out, because Codex refuses it together with --remote."
+		return "wipnote: --no-daemon left out, because Codex refuses it with a remote or shared server."
 	}
 	ok, err := codexAcceptsFlag(codexPath, "--no-daemon")
 	switch {
@@ -86,12 +86,15 @@ func applyCodexNoDaemon(codexPath string, opts *codexLaunchOpts) string {
 	return ""
 }
 
-// codexUsesRemoteServer reports whether args connect the TUI to a remote app
-// server, which Codex does not allow together with --no-daemon.
+// codexUsesRemoteServer reports whether args use a remote or shared app
+// server, which Codex does not allow together with --no-daemon: the --remote
+// flag and the queue and remote-control subcommands.
 func codexUsesRemoteServer(args []string) bool {
-	return slices.ContainsFunc(args, func(a string) bool {
-		return a == "--remote" || strings.HasPrefix(a, "--remote=")
-	})
+	if slices.ContainsFunc(args, func(a string) bool { return a == "--remote" || strings.HasPrefix(a, "--remote=") }) {
+		return true
+	}
+	words := passthroughLaunchers[harnessCodex].positionals(args)
+	return len(words) > 0 && (words[0] == "queue" || words[0] == "remote-control")
 }
 
 // resolveCodexWritableRoots decides how a launch that needs extra writable

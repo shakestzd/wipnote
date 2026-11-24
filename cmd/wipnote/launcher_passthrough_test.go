@@ -27,8 +27,9 @@ func TestForwardHarnessFlags(t *testing.T) {
 		{"help after a subcommand is codex's", []string{"codex", "exec", "--help"}, []string{"codex", "--", "exec", "--help"}},
 		{"a codex flag's value is not a wipnote flag", []string{"codex", "--add-dir", "--yolo", "-c", "--dev"}, []string{"codex", "--", "--add-dir", "--yolo", "-c", "--dev"}},
 		{"a value named like a subcommand is a value", []string{"codex", "-m", "review", "--yolo"}, []string{"codex", "--yolo", "--", "-m", "review"}},
-		{"a second -- keeps a dash prompt a prompt", []string{"codex", "--sandbox", "read-only", "--", "--", "--help me"},
-			[]string{"codex", "--", "--sandbox", "read-only", "--", "--help me"}},
+		{"a second -- keeps a dash prompt a prompt", []string{"codex", "--dev", "--", "--", "--help me"}, []string{"codex", "--dev", "--", "--", "--help me"}},
+		{"a -- after codex words is codex's separator", []string{"codex", "--search", "--", "-v fails"}, []string{"codex", "--", "--search", "--", "-v fails"}},
+		{"a -- after wipnote flags only ends them", []string{"codex", "--in-place", "--", "the brief", "--search"}, []string{"codex", "--in-place", "--", "the brief", "--search"}},
 		{"version goes to codex", []string{"codex", "--version"}, []string{"codex", "--", "--version"}},
 		{"project dir before the launcher", []string{"--project-dir", "/p", "codex", "--search", "--project-dir=/q"},
 			[]string{"--project-dir", "/p", "codex", "--project-dir=/q", "--", "--search"}},
@@ -107,5 +108,22 @@ func TestCodexInfoOnlyLinesSkipTheLauncher(t *testing.T) {
 	}
 	if len(ran) != 1 || !slices.Equal(ran[0], []string{"--version"}) {
 		t.Errorf("plain runs = %q", ran)
+	}
+}
+
+// Only a prompt or a subcommand counts as a positional word. The launch
+// chooser reads this, so forwarded flags alone do not skip it.
+func TestHarnessPositionals(t *testing.T) {
+	codexWords := passthroughLaunchers[harnessCodex]
+	for _, tt := range []struct{ args, want []string }{
+		{[]string{"--search"}, nil},
+		{[]string{"-m", "o3", "--sandbox", "read-only"}, nil},
+		{[]string{"-m", "o3", "fix it"}, []string{"fix it"}},
+		{[]string{"review", "--base", "main"}, []string{"review", "main"}},
+		{[]string{"--search", "--", "-v fails"}, []string{"-v fails"}},
+	} {
+		if got := codexWords.positionals(tt.args); !slices.Equal(got, tt.want) {
+			t.Errorf("positionals(%q) = %q, want %q", tt.args, got, tt.want)
+		}
 	}
 }

@@ -34,6 +34,24 @@ var passthroughLaunchers = map[string]harnessWords{
 	},
 }
 
+// positionals returns the words in args that are neither flags nor the value
+// of a flag: a prompt, or a subcommand and its arguments. It stops at "--",
+// after which every word is positional.
+func (h harnessWords) positionals(args []string) []string {
+	var out []string
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--":
+			return append(out, args[i+1:]...)
+		case h.valueFlags[a]:
+			i++
+		case !strings.HasPrefix(a, "-") || a == "-":
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
 func wordSet(words ...string) map[string]bool {
 	set := make(map[string]bool, len(words))
 	for _, w := range words {
@@ -52,8 +70,8 @@ func wordSet(words ...string) map[string]bool {
 //
 // A flag both sides define keeps wipnote's meaning, up to the first harness
 // subcommand: `wipnote codex review --base main` gives --base to Codex. Words
-// after a "--" the user typed always go to the harness, as they did before
-// the rewrite. Other commands are returned unchanged.
+// after a "--" the user typed always go to the harness. Other commands are
+// returned unchanged.
 func forwardHarnessFlags(root *cobra.Command, argv []string) []string {
 	at := launcherIndex(argv)
 	if at < 0 {
@@ -94,6 +112,13 @@ func splitLauncherWords(cmd, root *cobra.Command, harness harnessWords, words []
 	for i := 0; i < len(words); i++ {
 		w := words[i]
 		if w == "--" {
+			// Harness words before the "--" make it the harness's own
+			// separator: what follows is a prompt, even with a leading dash.
+			// With none before it, it only ends wipnote's flags, as it
+			// always did (`wipnote codex --in-place -- <codex words>`).
+			if len(fwd) > 0 {
+				fwd = append(fwd, w)
+			}
 			return own, append(fwd, words[i+1:]...)
 		}
 		if harness.subcommands[w] {

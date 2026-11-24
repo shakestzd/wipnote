@@ -55,7 +55,9 @@ func TestApplyCodexNoDaemon(t *testing.T) {
 		{"hc terminal, flag listed", "t7", helpWithNoDaemon, nil, nil, true, ""},
 		{"hc terminal, old codex", "t7", "Options:\n      --no-alt-screen\n", nil, nil, false, "does not list --no-daemon"},
 		{"hc terminal, help failed", "t7", "", errors.New("signal: killed"), nil, false, "could not read `codex --help` (signal: killed)"},
-		{"hc terminal, remote server", "t7", helpWithNoDaemon, nil, []string{"--remote", "ws://x"}, false, "together with --remote"},
+		{"hc terminal, remote server", "t7", helpWithNoDaemon, nil, []string{"--remote", "ws://x"}, false, "remote or shared server"},
+		{"hc terminal, queue subcommand", "t7", helpWithNoDaemon, nil, []string{"-m", "o3", "queue", "list"}, false, "remote or shared server"},
+		{"hc terminal, a prompt named queue is fine", "t7", helpWithNoDaemon, nil, []string{"-m", "queue", "fix the queue"}, true, ""},
 		{"outside hc", "", helpWithNoDaemon, nil, nil, false, ""},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

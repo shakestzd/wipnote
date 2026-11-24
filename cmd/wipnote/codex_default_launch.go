@@ -105,14 +105,16 @@ func (l *codexDefaultLaunch) resolveIntent() error {
 	}
 	l.projectRoot, l.canonicalRoot = projectRoot, canonicalRoot
 	intent, err := resolveLaunchIntentForDefaultLaunch(projectRoot, canonicalRoot, "codex", chooserEligibility{
-		TTY:       isInteractiveTerminalFile(os.Stdin) && isInteractiveTerminalFile(os.Stdout),
-		CI:        os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") != "",
-		ResumeID:  l.resumeID,
-		WorkItem:  l.workItem,
-		Targeted:  l.trackID != "" || l.featureID != "" || l.worktreePath != "",
-		InPlace:   l.noWorktree,
-		Yolo:      l.yolo,
-		ExtraArgs: l.extraArgs,
+		TTY:      isInteractiveTerminalFile(os.Stdin) && isInteractiveTerminalFile(os.Stdout),
+		CI:       os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") != "",
+		ResumeID: l.resumeID,
+		WorkItem: l.workItem,
+		Targeted: l.trackID != "" || l.featureID != "" || l.worktreePath != "",
+		InPlace:  l.noWorktree,
+		Yolo:     l.yolo,
+		// Only a prompt or a Codex subcommand skips the chooser. Forwarded
+		// flags alone (`wipnote codex --search`) are still a plain launch.
+		ExtraArgs: passthroughLaunchers[harnessCodex].positionals(l.extraArgs),
 	}, os.Stdin, os.Stdout)
 	if err != nil {
 		return err

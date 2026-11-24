@@ -97,9 +97,11 @@ Session IDs come from ~/.codex/session_index.jsonl.
 Flags that wipnote does not define go to Codex as written, for example
 "wipnote codex --sandbox read-only". A flag below keeps wipnote's meaning
 when it comes before a Codex subcommand. Every word from a Codex subcommand
-on goes to Codex: "wipnote codex review --base main". Every word after "--"
-goes to Codex too, so a prompt that starts with a dash needs a second "--":
-"wipnote codex -- -- '-v fails'".`,
+on goes to Codex: "wipnote codex review --base main".
+
+A "--" ends wipnote's flags. After Codex flags it also reaches Codex, so a
+prompt may start with a dash: "wipnote codex --search -- '-v fails'". With
+no Codex flag before it, write it twice: "wipnote codex -- -- '-v fails'".`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCodexCmd(&f, args)
 		},
