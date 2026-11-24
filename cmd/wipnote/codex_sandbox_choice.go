@@ -177,7 +177,7 @@ func codexPresetFlag(args []string) string {
 		switch a {
 		case "--":
 			return ""
-		case "--approve-for-me", "--full-auto":
+		case "--approve-for-me", "--not-so-yolo", "--full-auto":
 			return a
 		}
 	}

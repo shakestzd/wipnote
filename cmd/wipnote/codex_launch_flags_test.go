@@ -246,6 +246,7 @@ func TestApplyCodexHostFlags_ApproveForMeDefault(t *testing.T) {
 		{"--ask-for-approval=", codexLaunchOpts{ExtraArgs: []string{"--ask-for-approval=never"}}, nil, listed, nil, false},
 		{"-c approval_policy", codexLaunchOpts{ExtraArgs: []string{"-c", "approval_policy=never"}}, nil, listed, nil, false},
 		{"--full-auto", codexLaunchOpts{ExtraArgs: []string{"--full-auto"}}, nil, listed, nil, false},
+		{"--not-so-yolo alias", codexLaunchOpts{ExtraArgs: []string{"--not-so-yolo"}}, nil, listed, nil, false},
 		{"configured sandbox", codexLaunchOpts{}, map[string]string{"config.toml": `sandbox_mode = "workspace-write"`}, listed, nil, false},
 		{"configured approval policy", codexLaunchOpts{}, map[string]string{"config.toml": `approval_policy = "untrusted"`}, listed, nil, false},
 		{"configured reviewer", codexLaunchOpts{}, map[string]string{"config.toml": `approvals_reviewer = "user"`}, listed, nil, false},
