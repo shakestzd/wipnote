@@ -5,6 +5,11 @@ All notable changes to wipnote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- A delegated Claude worker no longer waits unseen at Claude Code's trust prompt for the app store folder. `wipnote store trust` marks the project's store as trusted once, and `wipnote delegate spawn` warns when it is not (bug-65bf54aa).
+
 ## [0.85.0] - 2026-10-29
 
 ### Added

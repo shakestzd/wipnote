@@ -34,7 +34,7 @@ func storeCmd() *cobra.Command {
 	// Hidden: a one-off migration step, run on request, that should not cost a
 	// line of the compact help agents read. `wipnote store --help` still works.
 	cmd := &cobra.Command{Use: "store", Short: "Manage wipnote's app-owned project stores", Hidden: true}
-	cmd.AddCommand(storeImportHomeCmd())
+	cmd.AddCommand(storeImportHomeCmd(), storeTrustCmd())
 	return cmd
 }
 

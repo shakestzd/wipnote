@@ -3,9 +3,11 @@ package oneshot
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -29,6 +31,11 @@ const preseedTries = 3
 // re-applied. A held lock that does not free, or a config that cannot be
 // parsed, is left alone and reported.
 func preseedClaude(path string, dirs ...string) error {
+	return seedLocked(path, true, dirs)
+}
+
+// seedLocked is the locked, re-read seed. onboarding false sets trust only.
+func seedLocked(path string, onboarding bool, dirs []string) error {
 	if real, err := filepath.EvalSymlinks(path); err == nil {
 		path = real
 	}
@@ -41,7 +48,7 @@ func preseedClaude(path string, dirs ...string) error {
 	}
 	defer unlock()
 	for try := 0; try < preseedTries; try++ {
-		if done, err := seedOnce(path, dirs); done || err != nil {
+		if done, err := seedOnce(path, dirs, onboarding); done || err != nil {
 			return err
 		}
 	}
@@ -53,6 +60,25 @@ func preseedClaude(path string, dirs ...string) error {
 // in a folder of its own.
 func PreseedTrust(dir string) error {
 	return preseedClaude(ClaudeConfigPath(), filepath.Clean(dir))
+}
+
+// TrustFolder sets only dir's trust flag in Claude Code's global config and
+// no other key (bug-65bf54aa: store trust must not skip a user's onboarding).
+func TrustFolder(dir string) error {
+	abs, err := absFolder(dir)
+	if err != nil {
+		return err
+	}
+	return seedLocked(ClaudeConfigPath(), false, []string{abs})
+}
+
+// absFolder refuses an empty folder and makes a relative one absolute: Claude
+// Code keys trust by absolute path, and a "." key would match every relative path.
+func absFolder(dir string) (string, error) {
+	if strings.TrimSpace(dir) == "" {
+		return "", errors.New("claude trust: no folder given")
+	}
+	return filepath.Abs(dir)
 }
 
 // lockClaudeConfig takes <path>.lock as Claude Code does (mkdir), waiting
@@ -93,13 +119,13 @@ func stampOf(path string) fileStamp {
 
 // seedOnce is one read, seed and rename. done false: the file changed
 // before the rename, nothing was written, try again.
-func seedOnce(path string, dirs []string) (bool, error) {
+func seedOnce(path string, dirs []string, onboarding bool) (bool, error) {
 	before := stampOf(path)
 	cfg, err := readClaudeConfig(path)
 	if err != nil {
 		return false, err
 	}
-	if !seedKeys(cfg, dirs) {
+	if !seedKeys(cfg, dirs, onboarding) {
 		return true, nil
 	}
 	out, err := json.MarshalIndent(cfg, "", "  ")
@@ -139,6 +165,9 @@ func readClaudeConfig(path string) (map[string]any, error) {
 	if err := dec.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("claude config %s: %w; nothing was changed", path, err)
 	}
+	if cfg == nil { // a config holding JSON null decodes to a nil map
+		return nil, fmt.Errorf("claude config %s holds null, not an object; nothing was changed", path)
+	}
 	return cfg, nil
 }
 
@@ -162,4 +191,27 @@ func writeTemp(path string, data []byte, mode os.FileMode) (string, error) {
 		return "", werr
 	}
 	return f.Name(), nil
+}
+
+// TrustAccepted reports whether Claude Code's global config marks dir, or a
+// folder above it, as trusted. Trust covers everything below the trusted
+// folder. A missing config is "not trusted", not an error.
+func TrustAccepted(dir string) (bool, error) {
+	abs, err := absFolder(dir)
+	if err != nil {
+		return false, err
+	}
+	cfg, err := readClaudeConfig(ClaudeConfigPath())
+	if err != nil {
+		return false, err
+	}
+	projects, _ := cfg["projects"].(map[string]any)
+	for d := abs; ; d = filepath.Dir(d) {
+		if p, _ := projects[d].(map[string]any); p["hasTrustDialogAccepted"] == true {
+			return true, nil
+		}
+		if d == filepath.Dir(d) {
+			return false, nil
+		}
+	}
 }

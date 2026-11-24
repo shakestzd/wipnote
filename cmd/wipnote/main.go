@@ -172,6 +172,12 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 	// into its herdr pane; the caller's run already did the session work.
 	case "run-pane":
 		return nil
+	// `wipnote store trust` edits Claude Code's config only. Its dry run promises to
+	// change nothing, so it writes no session row and no registry entry.
+	case "trust":
+		if p := cmd.Parent(); p != nil && p.Name() == "store" {
+			return nil
+		}
 	}
 	// `wipnote status --all` reads every registered project and must write
 	// nothing: no session row, no registry upsert (feat-715f1d4f).

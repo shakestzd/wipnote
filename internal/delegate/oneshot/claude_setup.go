@@ -43,9 +43,11 @@ func TranscriptPath(claudeDir, workDir, sid string) string {
 }
 
 // seedKeys sets the missing keys and reports whether any was missing.
-func seedKeys(cfg map[string]any, dirs []string) bool {
+// onboarding false leaves hasCompletedOnboarding alone (store trust promises to
+// change one key).
+func seedKeys(cfg map[string]any, dirs []string, onboarding bool) bool {
 	changed := false
-	if cfg["hasCompletedOnboarding"] != true {
+	if onboarding && cfg["hasCompletedOnboarding"] != true {
 		cfg["hasCompletedOnboarding"], changed = true, true
 	}
 	projects, _ := cfg["projects"].(map[string]any)
