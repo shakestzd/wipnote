@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // writeMod lays out <dir>/<name>/.claude-plugin/plugin.json.
@@ -194,6 +195,104 @@ func TestMirrorModsTreeCopiesTrackedRuntimeFilesOnly(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// modsCheckout lays out a git checkout whose index tracks the given files
+// under mods/, each holding its own path as content.
+func modsCheckout(t *testing.T, files ...string) string {
+	t.Helper()
+	root := t.TempDir()
+	if out, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v: %s", err, out)
+	}
+	for _, name := range files {
+		path := filepath.Join(root, "mods", filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if out, err := exec.Command("git", "-C", root, "add", "-A").CombinedOutput(); err != nil {
+		t.Fatalf("git add: %v: %s", err, out)
+	}
+	return root
+}
+
+// A second mirror of an unchanged checkout must not touch a file: Claude Code
+// reloads a mod whose files change on disk, in every open session.
+func TestMirrorModsTreeLeavesUnchangedFilesUntouched(t *testing.T) {
+	root := modsCheckout(t, "one/.claude-plugin/plugin.json", "one/hooks/register.tsx")
+	dst := filepath.Join(t.TempDir(), "mods")
+	if err := mirrorModsTree(root, dst); err != nil {
+		t.Fatalf("first mirror: %v", err)
+	}
+	old := time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
+	files := []string{
+		filepath.Join(dst, "one", ".claude-plugin", "plugin.json"),
+		filepath.Join(dst, "one", "hooks", "register.tsx"),
+	}
+	for _, f := range files {
+		if err := os.Chtimes(f, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := mirrorModsTree(root, dst); err != nil {
+		t.Fatalf("second mirror: %v", err)
+	}
+	for _, f := range files {
+		info, err := os.Stat(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !info.ModTime().Equal(old) {
+			t.Errorf("%s was rewritten with no change in the source", f)
+		}
+	}
+	left, err := filepath.Glob(filepath.Join(dst, "one", "hooks", ".mirror-*"))
+	if err != nil || len(left) != 0 {
+		t.Errorf("temporary files left behind: %v (%v)", left, err)
+	}
+}
+
+func TestMirrorModsTreeWritesChangesAndRemovesWhatLeftTheSource(t *testing.T) {
+	root := modsCheckout(t, "one/.claude-plugin/plugin.json", "one/hooks/register.tsx", "gone/.claude-plugin/plugin.json", "gone/hooks/register.tsx")
+	dst := filepath.Join(t.TempDir(), "mods")
+	if err := mirrorModsTree(root, dst); err != nil {
+		t.Fatalf("first mirror: %v", err)
+	}
+	// Claude Code's own generated types, and a stray file nobody tracks.
+	engine := filepath.Join(dst, "one", ".claude-plugin", "types", "claude-code", "index.d.ts")
+	stray := filepath.Join(dst, "one", "hooks", "old.tsx")
+	for _, f := range []string{engine, stray} {
+		if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "mods", "one", "hooks", "register.tsx"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("git", "-C", root, "rm", "-rq", "--cached", "mods/gone").CombinedOutput(); err != nil {
+		t.Fatalf("git rm: %v: %s", err, out)
+	}
+	if err := mirrorModsTree(root, dst); err != nil {
+		t.Fatalf("second mirror: %v", err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(dst, "one", "hooks", "register.tsx")); string(got) != "new" {
+		t.Errorf("changed file not rewritten: %q", got)
+	}
+	if _, err := os.Stat(engine); err != nil {
+		t.Errorf("the engine's generated types must stay: %v", err)
+	}
+	for _, f := range []string{stray, filepath.Join(dst, "gone")} {
+		if _, err := os.Stat(f); !os.IsNotExist(err) {
+			t.Errorf("%s must be removed (err %v)", f, err)
+		}
 	}
 }
 
