@@ -42,6 +42,9 @@ logs/
 # Live delegation runs, events and mailboxes (only ledger rows are committed)
 delegate/
 
+# Saved scratch drafts and their manifest (local rescue copies, never committed)
+scratch/
+
 # Per-user project config (host paths); config.json stays committed
 config.local.json
 

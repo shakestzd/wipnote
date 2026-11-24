@@ -24,6 +24,9 @@ func Stop(event *CloudEvent) (*HookResult, error) {
 	syncTranscriptRunsFor(event, projectDir, sessionID, runStopPass)
 	FinalizeSessionHTML(projectDir, sessionID, time.Now().UTC().Format(time.RFC3339), "completed",
 		canonicalToolEventCount(projectDir, sessionID))
+	// Authored scratch drafts go into the store before the turn is over, so a
+	// restart or the harness's retention sweep cannot lose them (feat-7884b1d0).
+	captureScratch(event, projectDir, sessionID, scratchWorkItem(event, projectDir, sessionID))
 
 	// Session-exit reconciliation (slice-5, feat-f93fe770). It blocks
 	// (BlockExit2Error) ONLY for harness=="claude" on ambiguous generator

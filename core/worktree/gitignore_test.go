@@ -250,3 +250,41 @@ func TestEnsureWipnoteGitignore_GitHonorsPolicy(t *testing.T) {
 		t.Errorf("canonical feat-x.html should be untracked (not ignored); git output:\n%s", listed)
 	}
 }
+
+// TestGitignore_IgnoresScratch verifies the managed block ignores saved
+// scratch drafts and their manifest, both in a fresh file and in a file an
+// older wipnote wrote without the scratch/ line (the upgrader appends it).
+// Drafts are local rescue copies: none may enter the store's git repo.
+func TestGitignore_IgnoresScratch(t *testing.T) {
+	for _, existing := range []string{"", "# Managed by wipnote\nsessions/\ndelegate/\n"} {
+		dir := setupGitRepoWithWipnote(t)
+		target := filepath.Join(dir, ".wipnote", ".gitignore")
+		if existing != "" {
+			if err := os.WriteFile(target, []byte(existing), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		worktree.EnsureWipnoteGitignore(dir)
+		got, _ := os.ReadFile(target)
+		if !strings.Contains("\n"+string(got), "\nscratch/\n") {
+			t.Errorf("existing=%q: ignore file does not list scratch/:\n%s", existing, got)
+		}
+		files := filepath.Join(dir, ".wipnote", "scratch", "sess-0001", "files")
+		if err := os.MkdirAll(files, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		_ = os.WriteFile(filepath.Join(files, "draft.md"), []byte("x\n"), 0o600)
+		_ = os.WriteFile(filepath.Join(files, "..", "manifest.json"), []byte("{}\n"), 0o600)
+		_ = os.WriteFile(filepath.Join(dir, ".wipnote", "feat-y.html"), []byte("x"), 0o644)
+		out, err := exec.Command("git", "-C", dir, "status", "--porcelain", "--untracked-files=all").Output()
+		if err != nil {
+			t.Fatalf("git status: %v", err)
+		}
+		if strings.Contains(string(out), "scratch/") {
+			t.Errorf("existing=%q: git status lists scratch/:\n%s", existing, out)
+		}
+		if !strings.Contains(string(out), "feat-y.html") {
+			t.Errorf("existing=%q: canonical html hidden:\n%s", existing, out)
+		}
+	}
+}
