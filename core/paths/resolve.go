@@ -73,23 +73,46 @@ func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
 func resolveProjectDir(opts ProjectDirOptions) (string, error) {
 	// 1. Explicit flag — highest priority, hard-fail on miss.
 	if opts.ExplicitDir != "" {
-		if validStoreOwner(opts.ExplicitDir) {
-			return opts.ExplicitDir, nil
-		}
-		if IsExternalStore(opts.ExplicitDir) {
-			return "", fmt.Errorf("--project-dir %q: this store's code root is gone (a moved project gets a new store)", opts.ExplicitDir)
-		}
-		// A folder served by an app-owned store names that store.
-		if shadow := ExternalStoreFor(opts.ExplicitDir); shadow != "" {
-			return shadow, nil
-		}
-		return "", fmt.Errorf("--project-dir %q: no .wipnote directory found. cd into a repo with .wipnote/ or set $CLAUDE_PROJECT_DIR", opts.ExplicitDir)
+		return resolveExplicitDir(opts.ExplicitDir)
 	}
+	// 2-4. A store named by the environment or by a session hint.
+	if d := resolveNamedStore(opts); d != "" {
+		return d, nil
+	}
+	// 5-6. Inside a git repo, git decides.
+	startDir := opts.EventCWD
+	if startDir == "" {
+		startDir, _ = os.Getwd()
+	}
+	if dir, ok := resolveInGit(startDir, opts.WalkLevels); ok {
+		return dir, nil
+	}
+	// 7-10. Outside git, the folders themselves decide.
+	return resolveOutsideGit(opts)
+}
 
+// resolveExplicitDir is step 1: the folder --project-dir names, or an error.
+func resolveExplicitDir(dir string) (string, error) {
+	if validStoreOwner(dir) {
+		return dir, nil
+	}
+	if IsExternalStore(dir) {
+		return "", fmt.Errorf("--project-dir %q: this store's code root is gone (a moved project gets a new store)", dir)
+	}
+	// A folder served by an app-owned store names that store.
+	if shadow := ExternalStoreFor(dir); shadow != "" {
+		return shadow, nil
+	}
+	return "", fmt.Errorf("--project-dir %q: no .wipnote directory found. cd into a repo with .wipnote/ or set $CLAUDE_PROJECT_DIR", dir)
+}
+
+// resolveNamedStore is steps 2 to 4: a store the environment or a session
+// hint names. It returns "" when none names a valid store.
+func resolveNamedStore(opts ProjectDirOptions) string {
 	// 2. WIPNOTE_PROJECT_DIR env var — written by yolo mode (subagent override);
 	// takes precedence over ambient CLAUDE_PROJECT_DIR.
 	if d := os.Getenv("WIPNOTE_PROJECT_DIR"); d != "" && validStoreOwner(d) {
-		return d, nil
+		return d
 	}
 
 	// 3. CLAUDE_PROJECT_DIR env var — only trusted when WIPNOTE_SESSION_ID is
@@ -97,7 +120,7 @@ func resolveProjectDir(opts ProjectDirOptions) (string, error) {
 	// session's hook runner (not inherited as a stale value from a parent shell).
 	// See: fix for bug-71fc095f (split-brain session HTML when user cd's between projects).
 	if d := os.Getenv("CLAUDE_PROJECT_DIR"); d != "" && os.Getenv("WIPNOTE_SESSION_ID") != "" && validStoreOwner(d) {
-		return d, nil
+		return d
 	}
 
 	// 4. Session-scoped hint file — written by SubagentStart for worktree
@@ -106,34 +129,39 @@ func resolveProjectDir(opts ProjectDirOptions) (string, error) {
 	// don't set SessionID and skip this.
 	if opts.SessionID != "" {
 		if d := ReadSessionHint(opts.SessionID); d != "" && validStoreOwner(d) {
-			return d, nil
+			return d
 		}
 	}
+	return ""
+}
 
+// resolveInGit is steps 5 and 6. It reports false when startDir is outside git
+// and holds no store of its own.
+func resolveInGit(startDir string, walkLevels int) (string, bool) {
 	// 5. Git worktree detection — resolve linked worktrees to main repo root.
-	startDir := opts.EventCWD
-	if startDir == "" {
-		startDir, _ = os.Getwd()
-	}
 	if dir := ResolveViaGitCommonDir(startDir); dir != "" {
-		return dir, nil
+		return dir, true
 	}
 
 	// 6. Inside a git repo the toplevel bounds the search. A store right at the
 	// start dir is the nearest whatever the repo, so it costs no git process.
 	if hasStoreAt(startDir) {
-		return startDir, nil
+		return startDir, true
 	}
 	if scope, ok := scopeOf(startDir); ok {
-		if dir := scope.inRepoStore(startDir, opts.WalkLevels); dir != "" {
-			return dir, nil
+		if dir := scope.inRepoStore(startDir, walkLevels); dir != "" {
+			return dir, true
 		}
 		if shadow := scope.shadow(); shadow != "" {
-			return shadow, nil
+			return shadow, true
 		}
-		return startDir, nil
+		return startDir, true
 	}
+	return "", false
+}
 
+// resolveOutsideGit is steps 7 to 10: direct checks, then a walk up the tree.
+func resolveOutsideGit(opts ProjectDirOptions) (string, error) {
 	// 7. EventCWD direct check: its .wipnote, or a shadow root keyed by it.
 	if opts.EventCWD != "" {
 		if owner := ownerAt(opts.EventCWD, true); owner != "" {
