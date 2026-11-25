@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/paths"
-	"github.com/shakestzd/wipnote/internal/commitqueue"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +35,15 @@ is and wipnote ignores it, also when an old commit puts it back. Runtime files
 
 With --untrack it also removes .wipnote/ from the project's git index in one
 commit that touches no other path and runs no commit hook, then deletes the
-folder.`,
+folder. Before that it checks every file in the folder against the app store.
+It copies a file the app store lacks. It keeps a file that differs and that
+git history does not hold in a rescued/ folder beside the store. It never
+overwrites a file in the app store. If a copy fails, the folder and the index
+stay as they are.
+
+The move makes no other commit in the project. Commits queued for store files
+are dropped, because the app store holds those files. A checkout of another
+repository, such as a submodule, is left alone.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runStoreMove(cmd.OutOrStdout(), dryRun, untrack)
@@ -143,17 +150,20 @@ func runStoreMove(w io.Writer, dryRun, untrack bool) error {
 }
 
 // removeOldStore takes the old store folder out of the project: out of the
-// index and the working tree of each checkout in a repo, off the disk
-// elsewhere. busy is called for a checkout that cannot take a commit now.
+// index and the working tree of each checkout of the project's repo, off the
+// disk elsewhere. Every file in a folder is accounted for first (see
+// oldStoreReconciler), and a failure there leaves the folder and the index as
+// they are. busy is called for a checkout that cannot take a commit now.
 func removeOldStore(w io.Writer, p storeMovePlan, busy func(top, reason string) error) error {
+	r := &oldStoreReconciler{w: w, owner: p.owner}
 	if !p.inGit {
-		return deleteOldStoreFolder(w, filepath.Join(p.code, p.rel))
+		old := filepath.Join(p.code, p.rel)
+		if err := r.reconcile("", old); err != nil {
+			return err
+		}
+		return deleteOldStoreFolder(w, old)
 	}
-	tops := []string{p.code}
-	if top := checkoutTop(p.cwd); top != p.code {
-		tops = append(tops, top)
-	}
-	for _, top := range tops {
+	for _, top := range projectCheckouts(w, p) {
 		if _, serr := os.Stat(filepath.Join(top, p.rel)); serr != nil && len(trackedStoreFiles(top, p.rel)) == 0 {
 			continue
 		}
@@ -162,6 +172,9 @@ func removeOldStore(w io.Writer, p storeMovePlan, busy func(top, reason string) 
 				return err
 			}
 			continue
+		}
+		if err := r.reconcile(top, filepath.Join(top, p.rel)); err != nil {
+			return err
 		}
 		if err := untrackInRepoStore(w, top, p.rel); err != nil {
 			return err
@@ -196,16 +209,10 @@ func printStoreMovePlan(w io.Writer, p storeMovePlan, untrack bool) error {
 }
 
 // moveStore copies the in-repo store into a new shadow root and returns it.
+// It never commits to the project: a commit queued for a store file is
+// dropped once the copy holds that file.
 func moveStore(w io.Writer, p storeMovePlan) (string, error) {
 	code, src := p.code, p.src
-	// A queued commit names a path in the project's repo. After the move that
-	// path is stale, so the queue is drained into the project one last time.
-	if outbox, err := openCommitOutbox(code); err == nil {
-		_, _ = outbox.Flush(outboxCommitter, commitqueue.MaxAttempts)
-		if n, derr := outbox.Depth(); derr == nil && n > 0 {
-			return "", fmt.Errorf("store move: %d store commit(s) are still queued for this repo and `wipnote commit-queue flush` cannot drain them; resolve them first", n)
-		}
-	}
 	files, err := storeMoveFiles(src)
 	if err != nil {
 		return "", err
@@ -222,6 +229,7 @@ func moveStore(w io.Writer, p storeMovePlan) (string, error) {
 		return "", fmt.Errorf("store move: %w", err)
 	}
 	fmt.Fprintf(w, "Copied %d file(s) into %s.\nwipnote now uses that store for %s.\n", len(files), filepath.Join(root, ".wipnote"), code)
+	dropMovedStoreIntents(w, code, p.rel)
 	return root, nil
 }
 
@@ -297,8 +305,8 @@ func checkoutBusy(top string) string {
 // untrackInRepoStore removes the tracked .wipnote/ files of the checkout at
 // top in one commit limited to that path, then deletes what is left of the
 // folder. `git commit -- <path>` records the working tree's state of the path,
-// so the files must leave the working tree with the index. The app store
-// already holds a copy of each. The commit runs no hook: it only deletes
+// so the files must leave the working tree with the index. The caller has
+// reconciled the folder with the app store first. The commit runs no hook: it only deletes
 // store files, and a project's commit checks have nothing to say about it.
 func untrackInRepoStore(w io.Writer, top, rel string) error {
 	src := filepath.Join(top, rel)
@@ -316,7 +324,7 @@ func untrackInRepoStore(w io.Writer, top, rel string) error {
 }
 
 // deleteOldStoreFolder deletes what is left of a moved store's old folder. The
-// app store holds a copy of every record in it.
+// caller has reconciled the folder with the app store first.
 func deleteOldStoreFolder(w io.Writer, src string) error {
 	if _, err := os.Stat(src); err != nil {
 		return nil
@@ -335,13 +343,9 @@ func deleteOldStoreFolder(w io.Writer, src string) error {
 // The rule goes in the repo's own info/exclude, which git never commits.
 func excludeStoreFolder(top, rel string) {
 	line := "/" + filepath.ToSlash(rel) + "/"
-	out, err := gitRunner(top, "rev-parse", "--git-common-dir")
+	commonDir, err := gitCommonDir(top)
 	if err != nil {
 		return
-	}
-	commonDir := strings.TrimSpace(string(out))
-	if !filepath.IsAbs(commonDir) {
-		commonDir = filepath.Join(top, commonDir)
 	}
 	path := filepath.Join(commonDir, "info", "exclude")
 	existing, _ := os.ReadFile(path)

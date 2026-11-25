@@ -10,8 +10,8 @@ import (
 	"github.com/shakestzd/wipnote/core/paths"
 )
 
-// inRepoStoreProject is a repo with a tracked in-repo store, one runtime file
-// and one unrelated staged change.
+// inRepoStoreProject is a repo with a tracked in-repo store, one runtime file,
+// one unrelated staged change and one queued commit for an edited record.
 func inRepoStoreProject(t *testing.T) externalProject {
 	t.Helper()
 	p := newExternalProject(t)
@@ -37,6 +37,10 @@ func inRepoStoreProject(t *testing.T) externalProject {
 	p.write(t, ".wipnote/features/feat-11111111.html", "<article id=\"feat-11111111\" data-status=\"done\"></article>\n")
 	p.write(t, "other.go", "package main\n")
 	extGit(t, p.code, "add", "other.go")
+	// The edit above is queued for a commit, as a real write would be.
+	if err := appendCommitIntent(p.code, []string{".wipnote/features/feat-11111111.html"}, "wipnote: update feat-11111111", "feat-11111111", "update"); err != nil {
+		t.Fatal(err)
+	}
 	return p
 }
 

@@ -175,7 +175,7 @@ func copyImportHome(w io.Writer, src, destRoot string, items []importItem) error
 		fmt.Fprintf(w, "copied  %s\n", it.rel)
 	}
 	if copied > 0 {
-		if err := commitImport(destRoot); err != nil {
+		if err := commitStoreFiles(destRoot, "Import the old home-folder store from ~/.wipnote"); err != nil {
 			fmt.Fprintf(w, "warning: the files are copied but the store commit failed: %v\n", err)
 		}
 	}
@@ -212,16 +212,16 @@ func copyNewFile(src, dst string) (bool, error) {
 	return true, out.Close()
 }
 
-// commitImport records the imported files in the store's own repo. Files its
-// managed gitignore marks as runtime stay untracked, as in any store.
-func commitImport(destRoot string) error {
+// commitStoreFiles records files copied into a store in the store's own repo.
+// Files its managed gitignore marks as runtime stay untracked, as in any store.
+func commitStoreFiles(destRoot, message string) error {
 	if out, err := exec.Command("git", "-C", destRoot, "add", "-A", "--", ".wipnote").CombinedOutput(); err != nil {
 		return fmt.Errorf("git add: %v: %s", err, strings.TrimSpace(string(out)))
 	}
 	if exec.Command("git", "-C", destRoot, "diff", "--cached", "--quiet").Run() == nil {
 		return nil // everything copied is gitignored runtime state
 	}
-	out, err := exec.Command("git", "-C", destRoot, "commit", "--quiet", "--no-verify", "-m", "Import the old home-folder store from ~/.wipnote").CombinedOutput()
+	out, err := exec.Command("git", "-C", destRoot, "commit", "--quiet", "--no-verify", "-m", message).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git commit: %v: %s", err, strings.TrimSpace(string(out)))
 	}
