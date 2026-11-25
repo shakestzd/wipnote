@@ -30,7 +30,7 @@ Segments are powerline-style with rounded caps and **wrap between segments** to 
 ## wipnote integration
 
 - **Active work items**: the session's claim from `wipnote who --json` comes first. It is read at session start, after `/resume`, `/branch` or `/clear`, and after each turn (a swap is seen as a changed session id, after `session.end` and on the 1 s tick; each swap rehydrates once); when `who` fails, the last claim stays. Then come the items started by shell commands any loop runs: `wipnote <feature|bug|spike|track> start <id>` adds, `… complete <id>` removes. A subagent's work item is the first `feat-/bug-/spk-/trk-` id in its brief.
-- **Titles and progress**: every 5 s, `wipnote <kind> show <id> --format json` per item (title, status, steps, `part_of` track) and `wipnote track show <trk>` per track (title and `(n/m done)`, which only the text form carries). Up to 12 items.
+- **Titles and progress**: every 30 s, and never while the previous refresh is still running, `wipnote <kind> show <id> --format json` per item (title, status, steps, `part_of` track) and `wipnote track show <trk>` per track (title and `(n/m done)`, which only the text form carries). Up to 12 items.
 - **Delegate runs**: every second the band lists `.wipnote/delegate/runs/` and reads each open run's folder (`label`, `start`, `end`, `exit`, `last.md`; see `internal/delegate/runstore`), so a run folder Go writes shows within 2 s. A run has ended once its folder has an `exit` file or its ledger row is closed (a stopped worker has no exit code). Mode, harness and name come from the run's row in `.wipnote/delegations-ledger.html`, read again only when that file changes; a folder with no row shows its label alone. The project is found as wipnote's CLI finds it: `WIPNOTE_PROJECT_DIR`, else the main checkout of a git worktree, else the nearest folder with a `.wipnote/` up from the session's directory. Files only, so it works outside herdr.
 - The band and the cards never write to wipnote: the run reader only lists, stats and reads.
 
@@ -82,7 +82,7 @@ does not show there.
 
 ```bash
 claude plugin validate mods/wipnote-orchestra
-claude plugin test mods/wipnote-orchestra     # 71 tests
+claude plugin test mods/wipnote-orchestra     # 83 tests
 tsc -p mods/wipnote-orchestra                 # after a load lays .claude-plugin/types/
 ```
 

@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standalone `install.sh` one-liner is now documented in README and docs/index.md. The installer itself already existed but was not advertised.
 
 ### Fixed
+- The wipnote-orchestra band refreshes its cards every 30 s, down from every 5 s, and never starts a refresh while one is running. Stacked refreshes from every open session loaded the machine (bug-0672aef0).
 - `bootstrap.sh` standalone install — now resolves version via `$WIPNOTE_VERSION` env var or GitHub API when no `plugin.json` is present (bug-b08a2ec9)
 
 ## [0.13.9] - 2025-12-30
