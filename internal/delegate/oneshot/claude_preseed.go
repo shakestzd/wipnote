@@ -193,9 +193,14 @@ func writeTemp(path string, data []byte, mode os.FileMode) (string, error) {
 	return f.Name(), nil
 }
 
-// TrustAccepted reports whether Claude Code's global config marks dir, or a
-// folder above it, as trusted. Trust covers everything below the trusted
-// folder. A missing config is "not trusted", not an error.
+// TrustAccepted reports whether Claude Code's global config marks dir itself
+// as trusted. A trusted folder above dir does not count. Callers pass an app
+// store, which is its own git repository, and Claude Code's permissions docs
+// say trust on a folder does not cover a repository nested inside it. They also
+// say trust on the home folder lasts one session. An earlier version accepted
+// any trusted parent, so a trusted home folder made `wipnote store trust` a
+// no-op while Claude Code went on asking (bug-65bf54aa). A missing config is
+// "not trusted", not an error.
 func TrustAccepted(dir string) (bool, error) {
 	abs, err := absFolder(dir)
 	if err != nil {
@@ -206,12 +211,6 @@ func TrustAccepted(dir string) (bool, error) {
 		return false, err
 	}
 	projects, _ := cfg["projects"].(map[string]any)
-	for d := abs; ; d = filepath.Dir(d) {
-		if p, _ := projects[d].(map[string]any); p["hasTrustDialogAccepted"] == true {
-			return true, nil
-		}
-		if d == filepath.Dir(d) {
-			return false, nil
-		}
-	}
+	p, _ := projects[abs].(map[string]any)
+	return p["hasTrustDialogAccepted"] == true, nil
 }

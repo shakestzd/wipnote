@@ -91,8 +91,8 @@ func TestStoreTrust_SetsOnlyTheStoreFlagAndIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestStoreTrust_InRepoStoreAndTrustedParentNeedNothing(t *testing.T) {
-	owner, cfgPath := trustStore(t)
+func TestStoreTrust_InRepoStoreNeedsNothing(t *testing.T) {
+	_, cfgPath := trustStore(t)
 	inRepo := t.TempDir()
 	if w := storeTrustWarning(inRepo); w != "" {
 		t.Fatalf("warning for an in-repo store: %q", w)
@@ -104,12 +104,33 @@ func TestStoreTrust_InRepoStoreAndTrustedParentNeedNothing(t *testing.T) {
 	if _, err := os.Stat(cfgPath); err == nil {
 		t.Fatal("the config was written for an in-repo store")
 	}
-	// Trust on a folder above the store covers it.
-	if err := oneshot.PreseedTrust(filepath.Dir(owner)); err != nil {
-		t.Fatal(err)
+}
+
+// Trust on a folder above the store, such as the home folder, does not cover
+// it: Claude Code still asks about a nested repository. The command must write
+// the store's own flag and the launch must still warn until it has.
+func TestStoreTrust_TrustedParentDoesNotCoverTheStore(t *testing.T) {
+	owner, _ := trustStore(t)
+	for dir := filepath.Dir(owner); dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+		if err := oneshot.PreseedTrust(dir); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if ok, err := oneshot.TrustAccepted(owner); ok || err != nil {
+		t.Fatalf("a trusted parent covered the store: %v %v", ok, err)
+	}
+	if w := storeTrustWarning(owner); w == "" {
+		t.Fatal("no warning although only parents are trusted")
+	}
+	var out bytes.Buffer
+	if err := runStoreTrust(&out, owner, false); err != nil || !strings.Contains(out.String(), "Marked") {
+		t.Fatalf("store trust under a trusted parent: %v %s", err, out.String())
 	}
 	if ok, err := oneshot.TrustAccepted(owner); !ok || err != nil {
-		t.Fatalf("trusted parent does not cover the store: %v %v", ok, err)
+		t.Fatalf("the store's own flag was not set: %v %v", ok, err)
+	}
+	if w := storeTrustWarning(owner); w != "" {
+		t.Fatalf("warning after the store was trusted: %q", w)
 	}
 }
 
