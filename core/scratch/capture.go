@@ -127,16 +127,32 @@ func (p *pass) walk() {
 
 // visitFolder lists the entries of one folder and returns the subfolders to
 // walk next.
+//
+// A folder at the depth limit gets one row for all its subfolders. One row
+// each filled the manifest: a trial folder with 1593 subfolders brought a
+// pass close to the file limit, where the gone check stops running.
 func (p *pass) visitFolder(f folder, entries []fs.DirEntry) (next []folder) {
+	deep := false
+	defer func() {
+		if deep {
+			p.listDeep(f)
+		}
+	}()
 	for _, d := range entries {
 		rel := f.rel + d.Name()
+		if d.IsDir() && f.depth >= p.lim.maxDepth {
+			// Rows an earlier pass wrote below it stay as they are.
+			deep = true
+			p.blind = append(p.blind, rel+"/")
+			continue
+		}
 		if p.overLimit() {
 			p.listUnreached(rel, d)
 			return nil
 		}
 		p.visited++
 		path := filepath.Join(f.path, d.Name())
-		if p.visit(path, rel, d, f.depth) {
+		if p.visit(path, rel, d) {
 			next = append(next, folder{path: path, rel: rel + "/", depth: f.depth + 1})
 		}
 	}
@@ -154,11 +170,21 @@ func (p *pass) overLimit() bool {
 	return p.stopped != ""
 }
 
+// listDeep writes the one row that stands for the unwalked subfolders of f.
+func (p *pass) listDeep(f folder) {
+	rel := strings.TrimSuffix(f.rel, "/")
+	info, err := os.Lstat(f.path)
+	if rel == "" || err != nil {
+		return
+	}
+	p.seen[rel] = true
+	p.skip(rel, KindTree, info, SkipDeep)
+}
+
 // visit lists one scratchpad entry and copies it when it is an authored
 // document. A symbolic link is listed and never opened. It reports whether
-// the entry is a folder to walk. depth is the depth of the folder that holds
-// the entry.
-func (p *pass) visit(path, rel string, d fs.DirEntry, depth int) (descend bool) {
+// the entry is a folder to walk.
+func (p *pass) visit(path, rel string, d fs.DirEntry) (descend bool) {
 	p.seen[rel] = true
 	info, err := d.Info()
 	if err != nil {
@@ -166,16 +192,10 @@ func (p *pass) visit(path, rel string, d fs.DirEntry, depth int) (descend bool) 
 	}
 	switch {
 	case d.IsDir():
-		reason := ""
-		switch {
-		case isTree(path, d.Name()):
-			reason = SkipTree
-		case depth >= p.lim.maxDepth:
-			reason = SkipDeep
-		default:
+		if !isTree(path, d.Name()) {
 			return true
 		}
-		p.skip(rel, KindTree, info, reason)
+		p.skip(rel, KindTree, info, SkipTree)
 		// Rows an earlier pass wrote below this folder stay as they are: the
 		// walk no longer looks there, so it cannot call them gone.
 		p.blind = append(p.blind, rel+"/")

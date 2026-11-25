@@ -391,22 +391,30 @@ func TestCapture_TopLevelIsWalkedFirst(t *testing.T) {
 	}
 }
 
-// Drafts are saved down to MaxSaveDepth folders. A deeper folder is one row
-// and is never walked.
-func TestCapture_DeepFolderIsOneRow(t *testing.T) {
+// Drafts are saved down to MaxSaveDepth folders. Deeper folders are never
+// walked, and the folder that holds them gets one row for all of them.
+func TestCapture_DeepFoldersShareOneRow(t *testing.T) {
 	e := newEnv(t)
 	e.write("a/b/kept.md", "kept\n")
-	e.write("a/b/c/deep.md", "deep\n")
-	e.write("a/b/c/d/deeper.md", "deeper\n")
+	for i := 0; i < 30; i++ {
+		e.write(fmt.Sprintf("a/b/c%02d/deep.md", i), "deep\n")
+	}
+	e.write("a/b/c00/d/deeper.md", "deeper\n")
+	e.lim.maxFiles = 10 // thirty deep folders must not count against the walk
 
-	m, _ := e.capture("")
+	m, res := e.capture("")
 
+	if res.StoppedEarly != "" {
+		t.Errorf("stopped = %q, want a full walk", res.StoppedEarly)
+	}
 	if !row(t, m, "a/b/kept.md").Saved {
 		t.Error("a draft two folders down was not saved")
 	}
-	e.wantSkipped(m, "a/b/c", KindTree, SkipDeep)
-	if hasRow(m, "a/b/c/deep.md") || e.hasCopy("a/b/c/deep.md") {
-		t.Error("a file below the depth limit was listed or copied")
+	if r := row(t, m, "a/b"); r.Kind != KindTree || r.SkipReason != SkipDeep || r.Saved {
+		t.Errorf("row = %+v, want one deep row for the folder", r)
+	}
+	if len(m.Files) != 2 || e.hasCopy("a/b/c00/deep.md") {
+		t.Errorf("rows = %+v, want the draft and one deep row, no deep copy", m.Files)
 	}
 }
 

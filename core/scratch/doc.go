@@ -46,7 +46,7 @@ const (
 	SkipTree        = "tree"
 	SkipSymlink     = "symlink"
 	SkipBudget      = "budget"
-	SkipDeep        = "deep" // a folder below MaxSaveDepth: one row, never walked
+	SkipDeep        = "deep" // a folder at MaxSaveDepth with subfolders: they are never walked
 )
 
 // MaxSaveDepth is how many folders may sit between the scratchpad and a draft
