@@ -1,6 +1,7 @@
 package scratch
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -366,5 +367,83 @@ func TestCapture_LinkedScratchpadIsNotWalked(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(e.store, "scratch")); err == nil {
 		t.Error("a linked scratchpad left a scratch folder in the store")
+	}
+}
+
+// A large subfolder that sorts first must not starve the top-level drafts:
+// the walk reads the top level before any subfolder (seen live: a pass ended
+// inside a copied store and never reached later drafts).
+func TestCapture_TopLevelIsWalkedFirst(t *testing.T) {
+	e := newEnv(t)
+	for i := 0; i < 20; i++ {
+		e.write(fmt.Sprintf("aaa/note-%02d.md", i), "inner\n")
+	}
+	e.write("zzz-draft.md", "mine\n")
+	e.lim.maxFiles = 5
+
+	m, res := e.capture("")
+
+	if res.StoppedEarly != StopFileCount {
+		t.Fatalf("stopped = %q, want the file count limit", res.StoppedEarly)
+	}
+	if !row(t, m, "zzz-draft.md").Saved {
+		t.Error("the top-level draft was not saved before the subfolder used the budget")
+	}
+}
+
+// Drafts are saved down to MaxSaveDepth folders. A deeper folder is one row
+// and is never walked.
+func TestCapture_DeepFolderIsOneRow(t *testing.T) {
+	e := newEnv(t)
+	e.write("a/b/kept.md", "kept\n")
+	e.write("a/b/c/deep.md", "deep\n")
+	e.write("a/b/c/d/deeper.md", "deeper\n")
+
+	m, _ := e.capture("")
+
+	if !row(t, m, "a/b/kept.md").Saved {
+		t.Error("a draft two folders down was not saved")
+	}
+	e.wantSkipped(m, "a/b/c", KindTree, SkipDeep)
+	if hasRow(m, "a/b/c/deep.md") || e.hasCopy("a/b/c/deep.md") {
+		t.Error("a file below the depth limit was listed or copied")
+	}
+}
+
+// A copied store and a tool home are trees: one row each, nothing copied.
+func TestCapture_StoreCopyAndToolHomeAreTrees(t *testing.T) {
+	e := newEnv(t)
+	e.write("store-copy/sessions-ledger.html", "<html></html>\n")
+	e.write("store-copy/bugs/bug-1.html", "<html></html>\n")
+	e.write("cx-home/installation_id", "id\n")
+	e.write("cx-home/skills/x/SKILL.md", "skill\n")
+	e.write("fake-home/.claude/notes.md", "n\n")
+	e.write("draft.md", "mine\n")
+
+	m, _ := e.capture("")
+
+	e.wantSkipped(m, "store-copy", KindTree, SkipTree)
+	e.wantSkipped(m, "cx-home", KindTree, SkipTree)
+	e.wantSkipped(m, "fake-home", KindTree, SkipTree)
+	if len(m.Files) != 4 || !row(t, m, "draft.md").Saved {
+		t.Errorf("rows = %+v, want three tree rows and the saved draft", m.Files)
+	}
+}
+
+// Rows an older pass saved below a folder that is now one row keep their
+// state: the walk no longer reads there, so it cannot call them gone.
+func TestCapture_RowsBelowAPrunedFolderStayPresent(t *testing.T) {
+	e := newEnv(t)
+	e.write("copy/page.html", "<html></html>\n")
+	e.capture("")
+	e.write("copy/sessions-ledger.html", "<html></html>\n")
+
+	m, _ := e.capture("")
+
+	if r := row(t, m, "copy"); r.Kind != KindTree || r.SkipReason != SkipTree {
+		t.Errorf("row = %+v, want one tree row", r)
+	}
+	if r := row(t, m, "copy/page.html"); r.State != StatePresent || !r.Saved {
+		t.Errorf("row = %+v, want it kept as present and saved", r)
 	}
 }

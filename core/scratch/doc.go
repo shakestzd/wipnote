@@ -46,7 +46,14 @@ const (
 	SkipTree        = "tree"
 	SkipSymlink     = "symlink"
 	SkipBudget      = "budget"
+	SkipDeep        = "deep" // a folder below MaxSaveDepth: one row, never walked
 )
+
+// MaxSaveDepth is how many folders may sit between the scratchpad and a draft
+// that capture saves. The first live pass saved hundreds of pages from a
+// copied store, four folders down: files that deep are copies or fixtures,
+// and an authored draft sits near the top (feat-7884b1d0).
+const MaxSaveDepth = 2
 
 // States of a manifest row.
 const (
@@ -68,6 +75,7 @@ type limits struct {
 	maxSession int64
 	maxFiles   int
 	budget     time.Duration
+	maxDepth   int
 	now        func() time.Time
 }
 
@@ -77,6 +85,7 @@ func defaultLimits() limits {
 		maxSession: MaxSessionBytes,
 		maxFiles:   MaxWalkFiles,
 		budget:     WalkBudget,
+		maxDepth:   MaxSaveDepth,
 		now:        time.Now,
 	}
 }

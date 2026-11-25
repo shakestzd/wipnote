@@ -100,31 +100,47 @@ func (p *pass) run(m *Manifest) {
 	}
 }
 
+// folder is one scratchpad folder waiting for its turn in the walk.
+type folder struct {
+	path  string
+	rel   string // slash-separated, with a trailing slash; "" for the scratchpad
+	depth int    // folders between it and the scratchpad
+}
+
+// walk visits the scratchpad level by level, so every top-level draft is
+// saved before any subfolder is read. A depth-first walk spent its whole
+// budget inside one large subfolder and never reached the drafts that sorted
+// after it.
 func (p *pass) walk() {
-	_ = filepath.WalkDir(p.root, func(path string, d fs.DirEntry, err error) error {
-		if path == p.root {
-			if err != nil { // the scratchpad cannot be read: every old row stays
-				p.blind = append(p.blind, "")
-				return fs.SkipAll
-			}
-			return nil
-		}
-		rel, relErr := filepath.Rel(p.root, path)
-		if relErr != nil || d == nil {
-			return nil
-		}
-		rel = filepath.ToSlash(rel)
+	queue := []folder{{path: p.root}}
+	for len(queue) > 0 && p.stopped == "" {
+		f := queue[0]
+		queue = queue[1:]
+		entries, err := os.ReadDir(f.path)
 		if err != nil { // a folder that cannot be read: its old rows stay
-			p.blind = append(p.blind, rel+"/")
-			return nil
+			p.blind = append(p.blind, f.rel)
+			continue
 		}
+		queue = append(queue, p.visitFolder(f, entries)...)
+	}
+}
+
+// visitFolder lists the entries of one folder and returns the subfolders to
+// walk next.
+func (p *pass) visitFolder(f folder, entries []fs.DirEntry) (next []folder) {
+	for _, d := range entries {
+		rel := f.rel + d.Name()
 		if p.overLimit() {
 			p.listUnreached(rel, d)
-			return fs.SkipAll
+			return nil
 		}
 		p.visited++
-		return p.visit(path, rel, d)
-	})
+		path := filepath.Join(f.path, d.Name())
+		if p.visit(path, rel, d, f.depth) {
+			next = append(next, folder{path: path, rel: rel + "/", depth: f.depth + 1})
+		}
+	}
+	return next
 }
 
 // overLimit records which limit ended the walk, if one did.
@@ -139,20 +155,30 @@ func (p *pass) overLimit() bool {
 }
 
 // visit lists one scratchpad entry and copies it when it is an authored
-// document. A symbolic link is listed and never opened.
-func (p *pass) visit(path, rel string, d fs.DirEntry) error {
+// document. A symbolic link is listed and never opened. It reports whether
+// the entry is a folder to walk. depth is the depth of the folder that holds
+// the entry.
+func (p *pass) visit(path, rel string, d fs.DirEntry, depth int) (descend bool) {
 	p.seen[rel] = true
 	info, err := d.Info()
 	if err != nil {
-		return nil
+		return false
 	}
 	switch {
 	case d.IsDir():
-		if !isTree(path, d.Name()) {
-			return nil
+		reason := ""
+		switch {
+		case isTree(path, d.Name()):
+			reason = SkipTree
+		case depth >= p.lim.maxDepth:
+			reason = SkipDeep
+		default:
+			return true
 		}
-		p.skip(rel, KindTree, info, SkipTree)
-		return fs.SkipDir
+		p.skip(rel, KindTree, info, reason)
+		// Rows an earlier pass wrote below this folder stay as they are: the
+		// walk no longer looks there, so it cannot call them gone.
+		p.blind = append(p.blind, rel+"/")
 	case info.Mode()&fs.ModeSymlink != 0:
 		p.skip(rel, kindOf(rel), info, SkipSymlink)
 	case !info.Mode().IsRegular():
@@ -162,7 +188,7 @@ func (p *pass) visit(path, rel string, d fs.DirEntry) error {
 	default:
 		p.document(path, rel, info)
 	}
-	return nil
+	return false
 }
 
 // markGone flags rows whose file a full walk did not meet. Saved copies stay.

@@ -37,14 +37,25 @@ func kindOf(rel string) string {
 	return KindOther
 }
 
-// treeMarkers are the entries that make a folder a project tree: a clone or
-// a build, never an authored draft.
-var treeMarkers = []string{".git", "go.mod", "package.json", "pyproject.toml", "node_modules"}
+// treeMarkers are the entries that make a folder a tree: a clone, a build, a
+// copied wipnote store or a tool's home folder, never an authored draft. The
+// store and home markers come from the first live pass, which saved a copied
+// store's pages and a test Codex home's skill files as drafts.
+var treeMarkers = []string{
+	".git", "go.mod", "package.json", "pyproject.toml", "node_modules",
+	// a project with a store, and a store itself
+	".wipnote", "sessions-ledger.html", "delegations-ledger.html", "gate-ledger.html",
+	// a home folder of Codex or Claude Code, or a folder used as HOME
+	".codex", ".claude", ".claude.json", "installation_id", ".codex-global-state.json",
+}
 
-// isTree reports whether the folder dir, named name, is a project tree: it
-// holds a marker, or is itself a .git or node_modules folder.
+// treeNames are folders that are a tree by name alone.
+var treeNames = map[string]bool{".git": true, "node_modules": true, ".wipnote": true, ".codex": true, ".claude": true}
+
+// isTree reports whether the folder dir, named name, is a tree: it holds a
+// marker, or its name is one.
 func isTree(dir, name string) bool {
-	if name == ".git" || name == "node_modules" {
+	if treeNames[name] {
 		return true
 	}
 	for _, m := range treeMarkers {
