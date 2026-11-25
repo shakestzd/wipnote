@@ -1,6 +1,7 @@
 package paths_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -41,5 +42,43 @@ func TestMoveStoreToExternal_RefusesAnotherOriginsStore(t *testing.T) {
 	createStore(t, repo)
 	if _, err := paths.MoveStoreToExternal(repo, ".wipnote", nil); err == nil {
 		t.Fatal("moved over a store that `wipnote init` made")
+	}
+}
+
+// A store below the repo's root moves to a shadow root keyed by the repo. A
+// command run in the store's own folder must then use the moved store too.
+func TestResolve_MovedNestedStoreWinsFromItsOwnFolder(t *testing.T) {
+	base := externalEnv(t)
+	repo := newRepo(t, filepath.Join(base, "repo"))
+	sub := filepath.Join(repo, "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mkStore(t, sub)
+	root, err := paths.MoveStoreToExternal(repo, filepath.Join("sub", ".wipnote"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{repo, sub} {
+		if got := resolveAt(t, dir); got != root {
+			t.Errorf("ResolveProjectDir(%s) = %s, want the moved store %s", dir, got, root)
+		}
+		if got := paths.StoreOwnerFor(dir); got != root {
+			t.Errorf("StoreOwnerFor(%s) = %s, want the moved store %s", dir, got, root)
+		}
+	}
+}
+
+// Outside git a nested folder's own store stays: no checkout above it names a
+// moved store.
+func TestResolve_NonGitNestedStoreUnchanged(t *testing.T) {
+	base := externalEnv(t)
+	sub := filepath.Join(base, "plain", "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mkStore(t, sub)
+	if got := resolveAt(t, sub); got != sub {
+		t.Errorf("ResolveProjectDir(%s) = %s, want the folder's own store", sub, got)
 	}
 }

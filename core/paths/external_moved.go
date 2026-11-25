@@ -20,8 +20,9 @@ func IsMovedStore(owner string) bool {
 
 // movedStoreOver is the moved shadow root that replaces an in-repo store at
 // dir, or "". The main checkout and a non-git folder cost file reads only. A
-// linked worktree or submodule keeps .git as a file, and only git knows the
-// main root its store is keyed by.
+// linked worktree or submodule keeps .git as a file, and a store below a
+// repo's root has no .git of its own. For both, only git knows the main root
+// the store is keyed by.
 func movedStoreOver(dir string) string {
 	if dir == "" || IsExternalStore(dir) {
 		return ""
@@ -29,7 +30,7 @@ func movedStoreOver(dir string) string {
 	if shadow := ShadowRootFor(dir); IsMovedStore(shadow) && validStoreOwner(shadow) {
 		return shadow
 	}
-	if fi, err := os.Lstat(filepath.Join(dir, ".git")); err != nil || fi.IsDir() {
+	if !rootNeedsGit(dir) {
 		return ""
 	}
 	if s, ok := scopeOf(dir); ok {
@@ -38,6 +39,25 @@ func movedStoreOver(dir string) string {
 		}
 	}
 	return ""
+}
+
+// rootNeedsGit reports whether only git can name the root dir's store is keyed
+// by. It reads files and starts no process. A main checkout keeps .git as a
+// folder, and its own shadow root was already checked. A folder with no .git
+// needs git only when a folder above it is a checkout: without this, a command
+// run in repo/sub kept using repo/sub/.wipnote after that store had moved.
+func rootNeedsGit(dir string) bool {
+	if fi, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
+		return !fi.IsDir()
+	}
+	for d := filepath.Dir(dir); ; d = filepath.Dir(d) {
+		if _, err := os.Lstat(filepath.Join(d, ".git")); err == nil {
+			return true
+		}
+		if d == filepath.Dir(d) {
+			return false
+		}
+	}
 }
 
 // MovedFrom is where the moved store at owner lived in each checkout, relative
