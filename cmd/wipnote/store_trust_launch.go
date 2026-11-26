@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -24,8 +25,8 @@ const storeTrustOffHint = "set launch.claude.trustStore to false in ~/.wipnote/c
 // the question (bug-65bf54aa). wipnote made the store and adds it itself, so it
 // sets that one flag and says so. It leaves the choice to the owner, with a
 // warning, when the config key is off or unreadable, when the store was not made
-// on this machine, when the store holds a .claude entry, or when Claude Code's
-// config cannot be read or written.
+// on this machine, when the store holds a .claude entry or a folder wipnote
+// cannot list, or when Claude Code's config cannot be read or written.
 func storeTrustAtLaunch(owner, cfgPath string) string {
 	if !paths.IsExternalStore(owner) {
 		return ""
@@ -129,6 +130,11 @@ func storeClaudeEntry(owner string) string {
 		switch {
 		case err != nil && d == nil:
 			return nil // the store folder itself is missing
+		case errors.Is(err, fs.ErrNotExist):
+			// The folder went away between the listing and the read. A live
+			// store removes run folders, and a fourth review saw this block
+			// trust on a store with no .claude entry (bug-65bf54aa).
+			return nil
 		case err != nil || (path != root && strings.EqualFold(d.Name(), ".claude")):
 			found = path
 			return filepath.SkipAll

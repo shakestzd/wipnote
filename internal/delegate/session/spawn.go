@@ -386,7 +386,8 @@ func boot(ctx context.Context, d Deps, o SpawnOptions, info Info) (string, error
 	// before the pane existed, a spawn that then failed left the working
 	// folder trusted in Claude Code's config with no worker to use it. Seeded
 	// after the line, the worker could reach the trust question first
-	// (bug-65bf54aa).
+	// (bug-65bf54aa). A boot line that herdr refuses to run still leaves the
+	// seed behind.
 	warn := seedTrust(d, o)
 	if err := d.Herdr.Run(ctx, pane, o.BootLine(info.Run)); err != nil {
 		return warn, fmt.Errorf("delegate: herdr would not run the boot line in %s: %w", pane, err)
