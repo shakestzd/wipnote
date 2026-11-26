@@ -40,7 +40,7 @@ func CreateExternalStore(dir, origin string, seed func(storeDir string) error) (
 		return "", false, err
 	}
 	defer os.RemoveAll(tmp) //nolint:errcheck // nothing is left after the rename
-	if err := buildShadowRoot(tmp, projectFile{Kind: externalStoreKind, CodeRoot: key, Origin: origin}, seed); err != nil {
+	if err := buildShadowRoot(tmp, projectFile{Kind: externalStoreKind, CodeRoot: key, Origin: origin, MadeOn: machineMark()}, seed); err != nil {
 		return "", false, err
 	}
 	if err := os.Rename(tmp, root); err != nil {
@@ -124,12 +124,18 @@ func initStoreGit(root string) error {
 }
 
 // StoreMadeHere reports whether owner is the shadow root this machine keys to
-// its own code_root, and that folder exists here. A store copied or synced from
-// another machine names a code root this machine does not key to it, so a
-// launcher must not grant it Claude Code trust on its own (bug-65bf54aa).
+// its own code_root, that folder exists here, and the store's machine mark, when
+// it has one, is this machine's. A store copied or synced from another machine
+// must not get Claude Code trust from a launcher on its own (bug-65bf54aa). The
+// path check alone passes for a store restored to a machine with the same user
+// name and project path, so a new store also records the machine that made it.
+// A store with no mark is judged by the path check.
 func StoreMadeHere(owner string) bool {
 	pf, ok := readProjectFile(owner)
 	if !ok || !isDir(pf.CodeRoot) || inAppHome(pf.CodeRoot) {
+		return false
+	}
+	if pf.MadeOn != "" && pf.MadeOn != machineMark() {
 		return false
 	}
 	return realDir(ShadowRootFor(pf.CodeRoot)) == realDir(owner)

@@ -30,6 +30,17 @@ func trustStore(t *testing.T) (owner, cfgPath string) {
 	return owner, oneshot.ClaudeConfigPath()
 }
 
+// storeTrustWarning is the launch line with launch-time trust turned off: the
+// warning for an untrusted app store, and "" otherwise.
+func storeTrustWarning(t *testing.T, owner string) string {
+	t.Helper()
+	off := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(off, []byte(`{"launch":{"claude":{"trustStore":false}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return storeTrustAtLaunch(owner, off)
+}
+
 // writeClaudeConfig writes body as Claude Code's config.
 func writeClaudeConfig(t *testing.T, cfgPath, body string) {
 	t.Helper()
@@ -44,7 +55,7 @@ func writeClaudeConfig(t *testing.T, cfgPath, body string) {
 func TestStoreTrust_SetsOnlyTheStoreFlagAndIsIdempotent(t *testing.T) {
 	owner, cfgPath := trustStore(t)
 	writeClaudeConfig(t, cfgPath, `{"numStartups":12345678901234567890,"projects":{"/other":{"x":1}}}`)
-	if w := storeTrustWarning(owner); !strings.Contains(w, "wipnote store trust") {
+	if w := storeTrustWarning(t, owner); !strings.Contains(w, "wipnote store trust") {
 		t.Fatalf("no warning for an untrusted store: %q", w)
 	}
 
@@ -83,7 +94,7 @@ func TestStoreTrust_SetsOnlyTheStoreFlagAndIsIdempotent(t *testing.T) {
 	if _, ok := all["hasCompletedOnboarding"]; ok || len(all) != 2 || len(cfg.Projects["/other"]) != 1 {
 		t.Fatalf("a key beyond the store flag changed: %s", data)
 	}
-	if w := storeTrustWarning(owner); w != "" {
+	if w := storeTrustWarning(t, owner); w != "" {
 		t.Fatalf("warning after trust: %q", w)
 	}
 
@@ -105,7 +116,7 @@ func assertSecondTrustRunChangesNothing(t *testing.T, owner, cfgPath string, dat
 func TestStoreTrust_InRepoStoreNeedsNothing(t *testing.T) {
 	_, cfgPath := trustStore(t)
 	inRepo := t.TempDir()
-	if w := storeTrustWarning(inRepo); w != "" {
+	if w := storeTrustWarning(t, inRepo); w != "" {
 		t.Fatalf("warning for an in-repo store: %q", w)
 	}
 	var out bytes.Buffer
@@ -130,7 +141,7 @@ func TestStoreTrust_TrustedParentDoesNotCoverTheStore(t *testing.T) {
 	if ok, err := oneshot.TrustAccepted(owner); ok || err != nil {
 		t.Fatalf("a trusted parent covered the store: %v %v", ok, err)
 	}
-	if w := storeTrustWarning(owner); w == "" {
+	if w := storeTrustWarning(t, owner); w == "" {
 		t.Fatal("no warning although only parents are trusted")
 	}
 	var out bytes.Buffer
@@ -140,7 +151,7 @@ func TestStoreTrust_TrustedParentDoesNotCoverTheStore(t *testing.T) {
 	if ok, err := oneshot.TrustAccepted(owner); !ok || err != nil {
 		t.Fatalf("the store's own flag was not set: %v %v", ok, err)
 	}
-	if w := storeTrustWarning(owner); w != "" {
+	if w := storeTrustWarning(t, owner); w != "" {
 		t.Fatalf("warning after the store was trusted: %q", w)
 	}
 }
@@ -163,7 +174,7 @@ func TestStoreTrust_NullConfigAndRelativeFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Chdir(owner)
-	if err := oneshot.TrustFolder("."); err != nil {
+	if err := func() error { _, err := oneshot.TrustFolder("."); return err }(); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(cfgPath)

@@ -38,6 +38,9 @@ type projectFile struct {
 	// OriginLauncher for a launcher that made one on its own. Walking up from a
 	// non-git folder honours only explicit stores. Absent reads as a launcher's.
 	Origin string `json:"origin,omitempty"`
+	// MadeOn is machineMark() of the machine that made the store. Absent in a
+	// store made before the mark existed, or where the system gives no id.
+	MadeOn string `json:"made_on,omitempty"`
 }
 
 // Store origins recorded in project.json.

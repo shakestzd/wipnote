@@ -42,3 +42,30 @@ func TestClaudeRun_NoWorkItemKeepsPrintPath(t *testing.T) {
 	}
 	// With a work item it is a worker (the opposite case is every other test).
 }
+
+// BeforeWorker runs only for a run that becomes an interactive worker. The
+// caller sets store trust there, so a run that stays claude -p writes nothing
+// to Claude Code's config.
+func TestClaudeRun_BeforeWorkerRunsOnlyForAWorker(t *testing.T) {
+	for name, tc := range map[string]struct {
+		change func(o *Options)
+		want   int
+	}{
+		"a worker":          {func(*Options) {}, 1},
+		"no work item":      {func(o *Options) { o.WorkItem = "" }, 0},
+		"forced headless":   {func(o *Options) { o.NoPane = true }, 0},
+		"a container run":   {func(o *Options) { o.Container = true }, 0},
+		"an unplanned argv": {func(o *Options) { o.Argv = []string{"claude", "-p", "--resume", "abc", "go on"} }, 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			w := newWorkerRun(t, stubClaude{}, "claude", "-p", "say the answer")
+			calls := 0
+			w.o.BeforeWorker = func() { calls++ }
+			tc.change(&w.o)
+			_, _, _ = runClaudeWorker(context.Background(), w.o, Recipe{Kind: KindClaude, Argv: w.o.Argv})
+			if calls != tc.want {
+				t.Fatalf("BeforeWorker ran %d times, want %d", calls, tc.want)
+			}
+		})
+	}
+}

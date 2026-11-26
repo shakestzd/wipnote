@@ -44,13 +44,58 @@ func TestStoreTrustAtLaunch_ConfigOffOnlyWarns(t *testing.T) {
 	if _, err := os.Stat(cfgPath); err == nil {
 		t.Fatal("Claude Code's config was written with the key off")
 	}
-	for _, body := range []string{`{"launch":{"claude":{"trustStore":true}}}`, `{}`, `not json`} {
+	for _, body := range []string{`{"launch":{"claude":{"trustStore":true}}}`, `{}`, ``, `{"launch":{"claude":{}}}`} {
 		if err := os.WriteFile(wipnoteCfg, []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		if !launchTrustsStore(wipnoteCfg) {
-			t.Fatalf("config %q turned launch trust off", body)
+		if on, problem := launchTrustsStore(wipnoteCfg); !on || problem != "" {
+			t.Fatalf("config %q turned launch trust off: %s", body, problem)
 		}
+	}
+}
+
+// A key or a file wipnote cannot read as true or false turns launch trust off
+// and says why. The owner may have meant to opt out.
+func TestStoreTrustAtLaunch_UnreadableOptOutFailsClosed(t *testing.T) {
+	owner, cfgPath := trustStore(t)
+	wipnoteCfg := filepath.Join(t.TempDir(), "config.json")
+	for _, body := range []string{
+		`{"launch":{"claude":{"trustStore":"false"}}}`, `{"launch":{"claude":{"trustStore":0}}}`,
+		`{"launch":{"claude":{"trustStore":null}}}`, `{"launch":{"claude":{"trustStore":false,}}}`,
+		`{"launch":"off"}`, `not json`,
+	} {
+		if err := os.WriteFile(wipnoteCfg, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		line := storeTrustAtLaunch(owner, wipnoteCfg)
+		if !strings.Contains(line, "wipnote did not set it") || !strings.Contains(line, wipnoteCfg) {
+			t.Fatalf("config %q: no reason in the warning: %q", body, line)
+		}
+		if _, err := os.Stat(cfgPath); err == nil {
+			t.Fatalf("config %q: Claude Code's config was written", body)
+		}
+	}
+}
+
+// A Claude Code config wipnote cannot parse gets a warning, not silence: the
+// worker would otherwise wait at the question with nothing said.
+func TestStoreTrustAtLaunch_UnreadableClaudeConfigWarns(t *testing.T) {
+	owner, cfgPath := trustStore(t)
+	writeClaudeConfig(t, cfgPath, `{"a":1} trailing`)
+	line := storeTrustAtLaunch(owner, "")
+	if !strings.Contains(line, "could not read Claude Code's config") || !strings.Contains(line, owner) {
+		t.Fatalf("no warning for an unreadable config: %q", line)
+	}
+	if data, _ := os.ReadFile(cfgPath); string(data) != `{"a":1} trailing` {
+		t.Fatalf("an unreadable config was changed: %s", data)
+	}
+}
+
+// The warning reads right for a person's own launch: it names no pane.
+func TestStoreUntrustedWarning_FitsAPersonAndAWorker(t *testing.T) {
+	w := storeUntrustedWarning("/s")
+	if strings.Contains(w, "this worker") || strings.Contains(w, "pane") || !strings.Contains(w, "wipnote store trust") {
+		t.Fatalf("warning %q", w)
 	}
 }
 
@@ -90,6 +135,9 @@ func TestStoreTrustAtLaunch_UnwritableConfigWarns(t *testing.T) {
 	dir := filepath.Dir(cfgPath)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root writes through a read-only folder")
 	}
 	if err := os.Chmod(dir, 0o500); err != nil { // no lock and no file can be made here
 		t.Fatal(err)

@@ -42,32 +42,6 @@ func TranscriptPath(claudeDir, workDir, sid string) string {
 	return filepath.Join(claudeDir, "projects", projectSlugRe.ReplaceAllString(workDir, "-"), sid+".jsonl")
 }
 
-// seedKeys sets the missing keys and reports whether any was missing.
-// onboarding false leaves hasCompletedOnboarding alone (store trust promises to
-// change one key).
-func seedKeys(cfg map[string]any, dirs []string, onboarding bool) bool {
-	changed := false
-	if onboarding && cfg["hasCompletedOnboarding"] != true {
-		cfg["hasCompletedOnboarding"], changed = true, true
-	}
-	projects, _ := cfg["projects"].(map[string]any)
-	if projects == nil {
-		projects = map[string]any{}
-	}
-	for _, d := range dirs {
-		p, _ := projects[d].(map[string]any)
-		if p == nil {
-			p = map[string]any{}
-		}
-		if p["hasTrustDialogAccepted"] != true {
-			p["hasTrustDialogAccepted"], changed = true, true
-		}
-		projects[d] = p
-	}
-	cfg["projects"] = projects
-	return changed
-}
-
 // writeWorkerSettings writes the worker's --settings file: the caller's own
 // settings (inline JSON or a file) with wipnote's status line command, which
 // records cost and token totals into the run folder.

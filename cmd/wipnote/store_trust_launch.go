@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,61 +21,79 @@ const storeTrustOffHint = "set launch.claude.trustStore to false in ~/.wipnote/c
 // that folder has its own trust flag, and a delegated worker waits unseen at
 // the question (bug-65bf54aa). wipnote made the store and adds it itself, so it
 // sets that one flag and says so. It leaves the choice to the owner, with a
-// warning, when the config key is off, when the store was not made on this
-// machine, when the store holds a .claude entry, or when Claude Code's config
-// cannot be written.
+// warning, when the config key is off or unreadable, when the store was not made
+// on this machine, when the store holds a .claude entry, or when Claude Code's
+// config cannot be read or written.
 func storeTrustAtLaunch(owner, cfgPath string) string {
 	if !paths.IsExternalStore(owner) {
 		return ""
 	}
 	ok, err := oneshot.TrustAccepted(owner)
 	if err != nil {
-		return "" // an unreadable config is Claude Code's to report
+		// Say so: a silent return left a delegated worker waiting unseen.
+		return "wipnote: warning: wipnote could not read Claude Code's config, so it did not check or set trust for the store folder " +
+			owner + ". A delegated worker may wait at a trust question (" + err.Error() + ")"
 	}
 	if w := storeClaudeConfigWarning(owner, ok); w != "" || ok {
 		return w
 	}
-	if !launchTrustsStore(cfgPath) || !paths.StoreMadeHere(owner) {
-		return storeTrustWarning(owner)
+	on, problem := launchTrustsStore(cfgPath)
+	if problem != "" {
+		return storeUntrustedWarning(owner) + " (wipnote did not set it: " + problem + ")"
 	}
-	if err := oneshot.TrustFolder(owner); err != nil {
-		return storeTrustWarning(owner) + " (wipnote could not set it: " + err.Error() + ")"
+	if !on || !paths.StoreMadeHere(owner) {
+		return storeUntrustedWarning(owner)
+	}
+	wrote, err := oneshot.TrustFolder(owner)
+	if err != nil {
+		return storeUntrustedWarning(owner) + " (wipnote could not set it: " + err.Error() + ")"
+	}
+	if !wrote {
+		return "" // another launch set the flag first and said so
 	}
 	return "wipnote: marked the store folder " + owner + " as trusted in " + oneshot.ClaudeConfigPath() +
 		", so Claude Code does not ask about it in each session; " + storeTrustOffHint
 }
 
-// launchTrustsStore reads launch.claude.trustStore from the user config. Only
-// an explicit false turns the launch-time trust off.
-func launchTrustsStore(cfgPath string) bool {
+// launchTrustsStore reads launch.claude.trustStore from the user config. A
+// missing file or key means on, and false means off. Anything wipnote cannot
+// read as true or false means off, with the problem to print. Why: the owner
+// may have meant to opt out, and an earlier version read a mistyped "false" or
+// a broken file as on, with no warning (bug-65bf54aa).
+func launchTrustsStore(cfgPath string) (on bool, problem string) {
 	if cfgPath == "" {
-		return true
+		return true, ""
 	}
 	data, err := os.ReadFile(cfgPath)
+	if os.IsNotExist(err) || (err == nil && len(bytes.TrimSpace(data)) == 0) {
+		return true, ""
+	}
 	if err != nil {
-		return true
+		return false, "could not read " + cfgPath + ": " + err.Error()
 	}
 	var f struct {
 		Launch struct {
 			Claude struct {
-				TrustStore *bool `json:"trustStore"`
+				TrustStore json.RawMessage `json:"trustStore"`
 			} `json:"claude"`
 		} `json:"launch"`
 	}
-	if json.Unmarshal(data, &f) != nil || f.Launch.Claude.TrustStore == nil {
-		return true
+	if err := json.Unmarshal(data, &f); err != nil {
+		return false, "could not read launch.claude.trustStore in " + cfgPath + ": " + err.Error()
 	}
-	return *f.Launch.Claude.TrustStore
+	switch v := string(bytes.TrimSpace(f.Launch.Claude.TrustStore)); v {
+	case "", "true":
+		return true, ""
+	case "false":
+		return false, ""
+	default:
+		return false, "launch.claude.trustStore in " + cfgPath + " is " + v + ", not true or false"
+	}
 }
 
-// trustStoreForClaudeRun handles store trust for a delegate run inside herdr.
-// There a claude -p run is an interactive worker that adds the store folder.
-// A container run adds no host store folder.
-func trustStoreForClaudeRun(w io.Writer, argv []string, projectDir string, container bool) {
-	if container || len(argv) == 0 || filepath.Base(argv[0]) != "claude" {
-		return
-	}
-	if line := storeTrustAtLaunch(projectDir, paths.UserConfigPath()); line != "" {
+// printStoreTrustLine runs the launch-time store trust and prints its line.
+func printStoreTrustLine(w io.Writer, owner string) {
+	if line := storeTrustAtLaunch(owner, paths.UserConfigPath()); line != "" {
 		fmt.Fprintln(w, line)
 	}
 }

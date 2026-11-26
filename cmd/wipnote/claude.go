@@ -265,15 +265,14 @@ func launchClaude(opts LaunchOpts) error {
 	// The one place the default --autocompact reaches every interactive Claude
 	// launch (claude, yolo, dev, delegate spawn workers): feat-3fcabee6.
 	opts.ExtraArgs = withAutoCompact(opts.ExtraArgs, os.Getenv, paths.UserConfigPath(), os.Stderr)
-	if line := storeTrustAtLaunch(opts.WipnoteRoot, paths.UserConfigPath()); line != "" {
-		fmt.Fprintln(os.Stderr, line)
-	}
 	claudeArgs := buildClaudeArgs(opts, systemPromptFile)
 
 	claudePath, err := exec.LookPath("claude")
 	if err != nil {
 		return fmt.Errorf("claude not found in PATH: %w", err)
 	}
+	// After the lookup: a launch that cannot start claude grants no trust.
+	printStoreTrustLine(os.Stderr, opts.WipnoteRoot)
 
 	// Show the one-time OTel first-launch notice before starting the
 	// server so users see the explanation before any server output.

@@ -69,7 +69,7 @@ func runStoreTrust(w io.Writer, owner string, dryRun bool) error {
 	case dryRun:
 		fmt.Fprintf(w, "Dry run: would mark %s as trusted in %s. Nothing was changed.\n", owner, oneshot.ClaudeConfigPath())
 	default:
-		if err := oneshot.TrustFolder(owner); err != nil {
+		if _, err := oneshot.TrustFolder(owner); err != nil {
 			return fmt.Errorf("store trust: %w", err)
 		}
 		fmt.Fprintf(w, "Marked %s as trusted in %s. New Claude sessions will not ask about it.\n", owner, oneshot.ClaudeConfigPath())
@@ -77,15 +77,10 @@ func runStoreTrust(w io.Writer, owner string, dryRun bool) error {
 	return nil
 }
 
-// storeTrustWarning is the warning for a Claude launch that adds the store
-// owner, or "" when the store is in the project or already trusted.
-func storeTrustWarning(owner string) string {
-	if !paths.IsExternalStore(owner) {
-		return ""
-	}
-	if ok, err := oneshot.TrustAccepted(owner); ok || err != nil {
-		return "" // an unreadable config is Claude Code's to report
-	}
+// storeUntrustedWarning is the warning text for an app store Claude Code does
+// not trust. The caller has checked that. The text fits a person's own launch
+// and a delegated worker alike.
+func storeUntrustedWarning(owner string) string {
 	return "wipnote: warning: Claude Code does not trust the store folder " + owner +
-		", so this worker will stop at a trust prompt until someone answers it in its pane; " + storeTrustHint
+		", so each new session asks about it, and a delegated worker waits at that question until someone answers; " + storeTrustHint
 }
