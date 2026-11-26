@@ -147,6 +147,7 @@ func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, f
 	if env.InHerdr {
 		o.Herdr = herdr.NewClient(env, 0)
 		o.Worker = delegateWorkerOptions(wipnoteDir, session)
+		o.OnWorkerStart = func() { printStoreTrustLine(cmd.ErrOrStderr(), projectDir) }
 	}
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

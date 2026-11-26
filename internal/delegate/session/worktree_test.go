@@ -155,7 +155,13 @@ func TestSpawnWorktree_CapStillSix(t *testing.T) {
 }
 
 func TestSpawnWorktree_BootFailureRemovesFreshWorktree(t *testing.T) {
-	e, _ := gitEnv(t)
+	e, seeded := gitEnv(t)
+	// A spawn that types no boot line seeds no trust.
+	defer func() {
+		if len(*seeded) != 0 {
+			t.Errorf("a failed boot seeded trust for %v", *seeded)
+		}
+	}()
 	e.herdr.shellAfter = 1 << 20
 	o := e.wtOpts("w1")
 	o.ShellWait = 20_000_000

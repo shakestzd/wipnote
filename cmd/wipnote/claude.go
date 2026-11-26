@@ -271,6 +271,8 @@ func launchClaude(opts LaunchOpts) error {
 	if err != nil {
 		return fmt.Errorf("claude not found in PATH: %w", err)
 	}
+	// After the lookup: a launch that cannot start claude grants no trust.
+	printStoreTrustLine(os.Stderr, opts.WipnoteRoot)
 
 	// Show the one-time OTel first-launch notice before starting the
 	// server so users see the explanation before any server output.

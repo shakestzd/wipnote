@@ -272,6 +272,11 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	if s.Harness == session.HarnessCodex && spawnedInContainer(d, s.Run) {
 		fmt.Fprintln(cmd.ErrOrStderr(), "wipnote: warning: the Codex worker runs with --sandbox danger-full-access inside the devcontainer (bwrap does not work there; this host opted in through delegate.codex.dangerFullAccessHosts)")
 	}
+	if s.Harness != session.HarnessClaude {
+		// Only Claude asks about the store folder.
+	} else {
+		printStoreTrustLine(cmd.ErrOrStderr(), projectDir)
+	}
 	fmt.Fprintln(cmd.ErrOrStderr(), spawnNextHint(s.Name))
 	fmt.Fprintln(cmd.ErrOrStderr(), spawnWatchHint)
 	return writeJSON(cmd.OutOrStdout(), s)

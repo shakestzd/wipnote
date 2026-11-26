@@ -104,6 +104,9 @@ func runClaudeWorker(ctx context.Context, o Options, r Recipe) (Result, bool, er
 		fmt.Fprintf(o.Stderr, "wipnote: claude runs as claude -p here: the worker did not start: %v\n", err)
 		return Result{}, false, nil
 	}
+	if o.OnWorkerStart != nil {
+		o.OnWorkerStart()
+	}
 	v := wk.watch(ctx)
 	wk.end(ctx, v)
 	return wk.report(r, v), true, nil
@@ -119,8 +122,10 @@ func warnPlan(stderr io.Writer, p claudePlan) {
 	}
 }
 
-// spawnWorker pre-seeds trust and onboarding, then spawns the worker with
-// the prompt as its brief and the launch args after it.
+// spawnWorker spawns the worker with the prompt as its brief and the launch
+// args after it. The spawn pre-seeds trust and onboarding for the working
+// folder just before it types the boot line (Deps.PreseedTrust), so a worker
+// that never gets a pane leaves Claude Code's config alone (bug-65bf54aa).
 func spawnWorker(ctx context.Context, o Options, plan claudePlan) (*worker, error) {
 	w := o.Worker
 	deps := w.Deps
@@ -133,8 +138,8 @@ func spawnWorker(ctx context.Context, o Options, plan claudePlan) (*worker, erro
 	// linked worktree stays the worktree (the launcher is told by
 	// --work-dir), and trust and the transcript are keyed on that dir.
 	dir := filepath.Clean(o.Cwd)
-	if err := preseedClaude(firstNonEmpty(w.ClaudeConfig, ClaudeConfigPath()), dir); err != nil {
-		fmt.Fprintf(o.Stderr, "wipnote: warning: workspace trust was not pre-seeded: %v\n", err)
+	deps.PreseedTrust = func(d string) error {
+		return preseedClaude(firstNonEmpty(w.ClaudeConfig, ClaudeConfigPath()), filepath.Clean(d))
 	}
 	so := session.SpawnOptions{
 		Harness: session.HarnessClaude, Profile: session.ProfileFull, WorkItem: o.WorkItem, WorkTitle: o.WorkTitle, CallerSession: o.CallerSession,
@@ -146,6 +151,9 @@ func spawnWorker(ctx context.Context, o Options, plan claudePlan) (*worker, erro
 	sp, err := session.Spawn(ctx, deps, so)
 	if err != nil {
 		return nil, err
+	}
+	if sp.Warning != "" {
+		fmt.Fprintf(o.Stderr, "wipnote: warning: %s\n", sp.Warning)
 	}
 	rf, err := o.Store.Run(sp.Run)
 	if err != nil {

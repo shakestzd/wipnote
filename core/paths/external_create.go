@@ -40,7 +40,7 @@ func CreateExternalStore(dir, origin string, seed func(storeDir string) error) (
 		return "", false, err
 	}
 	defer os.RemoveAll(tmp) //nolint:errcheck // nothing is left after the rename
-	if err := buildShadowRoot(tmp, projectFile{Kind: externalStoreKind, CodeRoot: key, Origin: origin}, seed); err != nil {
+	if err := buildShadowRoot(tmp, projectFile{Kind: externalStoreKind, CodeRoot: key, Origin: origin, MadeOn: machineMark()}, seed); err != nil {
 		return "", false, err
 	}
 	if err := os.Rename(tmp, root); err != nil {
@@ -121,4 +121,32 @@ func initStoreGit(root string) error {
 	}
 	_, err := gitOutput(root, "commit", "--quiet", "--no-verify", "-m", "Create wipnote store")
 	return err
+}
+
+// StoreMadeHere reports whether owner is the shadow root this machine keys to
+// its own code_root, that folder exists here, and the store's machine mark, when
+// it has one, is this machine's. A store copied or synced from another machine
+// must not get Claude Code trust from a launcher on its own (bug-65bf54aa). The
+// path check alone passes for a store restored to a machine with the same user
+// name and project path, so a new store also records the machine that made it.
+// A store with no mark is judged by the path check.
+func StoreMadeHere(owner string) bool { return StoreNotMadeHere(owner) == "" }
+
+// StoreNotMadeHere says why owner does not count as made on this machine, or
+// "" when it does. Why a reason: the launch warning gave none, so a store
+// that failed one of these checks looked the same as an owner's opt-out
+// (bug-65bf54aa).
+func StoreNotMadeHere(owner string) string {
+	pf, ok := readProjectFile(owner)
+	switch {
+	case !ok:
+		return "the store's project.json is missing or unreadable"
+	case !isDir(pf.CodeRoot) || inAppHome(pf.CodeRoot):
+		return "the project folder the store names is not a project folder on this machine"
+	case pf.MadeOn != "" && pf.MadeOn != machineMark():
+		return "the store's machine mark is not this machine's, as for a store copied from another machine"
+	case realDir(ShadowRootFor(pf.CodeRoot)) != realDir(owner):
+		return "the store is not at the path this machine uses for its project folder"
+	}
+	return ""
 }
