@@ -274,7 +274,7 @@ func runDelegateSpawn(cmd *cobra.Command, a spawnArgs) error {
 	}
 	if s.Harness != session.HarnessClaude {
 		// Only Claude asks about the store folder.
-	} else if w := storeTrustWarning(projectDir); w != "" {
+	} else if w := storeTrustAtLaunch(projectDir, paths.UserConfigPath()); w != "" {
 		fmt.Fprintln(cmd.ErrOrStderr(), w)
 	}
 	fmt.Fprintln(cmd.ErrOrStderr(), spawnNextHint(s.Name))

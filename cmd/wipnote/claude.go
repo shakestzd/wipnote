@@ -265,6 +265,9 @@ func launchClaude(opts LaunchOpts) error {
 	// The one place the default --autocompact reaches every interactive Claude
 	// launch (claude, yolo, dev, delegate spawn workers): feat-3fcabee6.
 	opts.ExtraArgs = withAutoCompact(opts.ExtraArgs, os.Getenv, paths.UserConfigPath(), os.Stderr)
+	if line := storeTrustAtLaunch(opts.WipnoteRoot, paths.UserConfigPath()); line != "" {
+		fmt.Fprintln(os.Stderr, line)
+	}
 	claudeArgs := buildClaudeArgs(opts, systemPromptFile)
 
 	claudePath, err := exec.LookPath("claude")

@@ -141,6 +141,9 @@ Commands for autonomous development, building, agent configuration, and maintena
 !!! note "`launch.claude.autoCompactWindow` (config key)"
     `wipnote claude`, `yolo`, `dev` and `delegate spawn` Claude workers pass `--autocompact 300k` to Claude Code. Claude Code compacts 1M-context models at about 967K by default, and cost per turn grows with context. Set `launch.claude.autoCompactWindow` in `~/.wipnote/config.json` to another size (`"400k"` or `400000`, from 100k to 1M), or to `"auto"` or `"off"` to add no flag. An invalid value warns once and uses `300k`. wipnote adds nothing when you pass `--autocompact` yourself or set `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, `DISABLE_AUTO_COMPACT` or `DISABLE_COMPACT`. Codex and Antigravity launches are unchanged.
 
+!!! note "`launch.claude.trustStore` (config key)"
+    `wipnote claude`, `yolo`, `dev` and delegated Claude workers add the project's app store to the session. Claude Code asks about an added folder in every new session until that folder has its own trust flag. At launch wipnote sets that one flag in Claude Code's config for a store made on this machine, and prints one line when it does. Set `launch.claude.trustStore` to `false` in `~/.wipnote/config.json` to keep the choice. wipnote then only warns, and `wipnote store trust` sets the flag on request. A store copied from another machine always needs `wipnote store trust`.
+
 ---
 
 ## Work Item Types

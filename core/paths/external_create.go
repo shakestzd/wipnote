@@ -122,3 +122,15 @@ func initStoreGit(root string) error {
 	_, err := gitOutput(root, "commit", "--quiet", "--no-verify", "-m", "Create wipnote store")
 	return err
 }
+
+// StoreMadeHere reports whether owner is the shadow root this machine keys to
+// its own code_root, and that folder exists here. A store copied or synced from
+// another machine names a code root this machine does not key to it, so a
+// launcher must not grant it Claude Code trust on its own (bug-65bf54aa).
+func StoreMadeHere(owner string) bool {
+	pf, ok := readProjectFile(owner)
+	if !ok || !isDir(pf.CodeRoot) || inAppHome(pf.CodeRoot) {
+		return false
+	}
+	return realDir(ShadowRootFor(pf.CodeRoot)) == realDir(owner)
+}

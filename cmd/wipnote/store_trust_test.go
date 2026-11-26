@@ -30,14 +30,20 @@ func trustStore(t *testing.T) (owner, cfgPath string) {
 	return owner, oneshot.ClaudeConfigPath()
 }
 
-func TestStoreTrust_SetsOnlyTheStoreFlagAndIsIdempotent(t *testing.T) {
-	owner, cfgPath := trustStore(t)
+// writeClaudeConfig writes body as Claude Code's config.
+func writeClaudeConfig(t *testing.T, cfgPath, body string) {
+	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(cfgPath, []byte(`{"numStartups":12345678901234567890,"projects":{"/other":{"x":1}}}`), 0o600); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestStoreTrust_SetsOnlyTheStoreFlagAndIsIdempotent(t *testing.T) {
+	owner, cfgPath := trustStore(t)
+	writeClaudeConfig(t, cfgPath, `{"numStartups":12345678901234567890,"projects":{"/other":{"x":1}}}`)
 	if w := storeTrustWarning(owner); !strings.Contains(w, "wipnote store trust") {
 		t.Fatalf("no warning for an untrusted store: %q", w)
 	}
@@ -81,7 +87,12 @@ func TestStoreTrust_SetsOnlyTheStoreFlagAndIsIdempotent(t *testing.T) {
 		t.Fatalf("warning after trust: %q", w)
 	}
 
-	out.Reset()
+	assertSecondTrustRunChangesNothing(t, owner, cfgPath, data)
+}
+
+func assertSecondTrustRunChangesNothing(t *testing.T, owner, cfgPath string, data []byte) {
+	t.Helper()
+	var out bytes.Buffer
 	if err := runStoreTrust(&out, owner, false); err != nil {
 		t.Fatal(err)
 	}

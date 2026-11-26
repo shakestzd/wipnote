@@ -13,7 +13,8 @@ import (
 // wipnote claude adds an app store to the session with --add-dir. Claude Code
 // 2.1.326 and later asks for trust on an added folder in every new session, so
 // a delegated worker waits for an answer nobody sees (bug-65bf54aa). Trust set
-// once in Claude Code's own config lasts, and the owner sets it on request.
+// once in Claude Code's own config lasts. A Claude launch sets it for a store
+// made on this machine (storeTrustAtLaunch), and this command sets it on request.
 
 // storeTrustHint names the fix for an untrusted app store.
 const storeTrustHint = "run `wipnote store trust` once so Claude Code stops asking about this project's store"
@@ -29,8 +30,13 @@ every new session, which stops a delegated worker until someone answers.
 
 This sets Claude Code's own trust flag for that one folder
 (projects["<store>"].hasTrustDialogAccepted in ~/.claude.json), the edit Claude
-Code documents for trusting a folder by hand. It changes no other key. Run it
-once per project. A store inside the project needs no trust of its own.`,
+Code documents for trusting a folder by hand. It changes no other key. A store
+inside the project needs no trust of its own.
+
+wipnote claude and a delegated Claude worker set the same flag at launch for a
+store made on this machine, and print one line when they do. Run this command
+for a store copied from another machine, or after you set
+launch.claude.trustStore to false in ~/.wipnote/config.json.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Never make a store here: a dry run in a plain folder must change nothing.

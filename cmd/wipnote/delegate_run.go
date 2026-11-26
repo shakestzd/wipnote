@@ -142,12 +142,7 @@ func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, f
 	if env.InHerdr {
 		o.Herdr = herdr.NewClient(env, 0)
 		o.Worker = delegateWorkerOptions(wipnoteDir, session)
-		// Inside herdr a claude -p run is an interactive worker that adds the store folder.
-		if !f.container && len(argv) > 0 && filepath.Base(argv[0]) == "claude" {
-			if w := storeTrustWarning(projectDir); w != "" {
-				fmt.Fprintln(cmd.ErrOrStderr(), w)
-			}
-		}
+		trustStoreForClaudeRun(cmd.ErrOrStderr(), argv, projectDir, f.container)
 	}
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

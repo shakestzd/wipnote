@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- A delegated Claude worker no longer waits unseen at Claude Code's trust prompt for the app store folder. `wipnote store trust` marks the project's store as trusted once, and `wipnote delegate spawn` warns when it is not (bug-65bf54aa). The check needs the store's own trust flag: a trusted parent folder, such as the home folder, no longer counts.
+- A delegated Claude worker no longer waits unseen at Claude Code's trust prompt for the app store folder. `wipnote store trust` marks the project's store as trusted once, and `wipnote delegate spawn` warns when it is not (bug-65bf54aa). The check needs the store's own trust flag: a trusted parent folder, such as the home folder, no longer counts. `wipnote claude` and a delegated Claude worker now set that flag at launch for a store made on this machine, and print one line when they do. Set `launch.claude.trustStore` to `false` in `~/.wipnote/config.json` to keep the choice. A store copied from another machine still needs `wipnote store trust`.
 
 ## [0.85.0] - 2026-10-29
 
