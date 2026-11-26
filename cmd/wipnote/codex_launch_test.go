@@ -954,6 +954,9 @@ func TestConfiguredCodexDeveloperInstructions_Layers(t *testing.T) {
 		{[]string{"--profile", "b", "--yolo"}, "b"},
 		{[]string{"--profile=c"}, "c"},
 		{[]string{"--model", "x"}, ""},
+		{[]string{"-pd"}, "d"},
+		{[]string{"-p=e"}, "e"},
+		{[]string{"fix", "--", "-p", "f"}, ""},
 	} {
 		if got := codexProfileFromArgs(tc.args); got != tc.want {
 			t.Errorf("codexProfileFromArgs(%v) = %q, want %q", tc.args, got, tc.want)
