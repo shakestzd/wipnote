@@ -121,6 +121,7 @@ Commands for data import, export, and index maintenance.
 | `ingest` | `wipnote ingest` | Ingest Claude Code session transcripts (JSONL) |
 | `backfill` | `wipnote backfill [feature-files\|tool-calls-feature]` | Rebuild derived tables |
 | `reindex` | `wipnote reindex` | Sync HTML work items to SQLite index |
+| `store move` | `wipnote store move [--dry-run] [--untrack]` | Move an in-tree `.wipnote/` store to the app store, so store commits stop landing on the project's branches. Every command does the copy on first use, and the launchers also do `--untrack`: one commit that removes the folder from the git index, then the folder is deleted. |
 
 ---
 

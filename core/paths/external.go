@@ -38,6 +38,10 @@ type projectFile struct {
 	// OriginLauncher for a launcher that made one on its own. Walking up from a
 	// non-git folder honours only explicit stores. Absent reads as a launcher's.
 	Origin string `json:"origin,omitempty"`
+	// MovedFrom is where a moved store lived in each checkout, relative to the
+	// checkout's top (".wipnote", or "sub/.wipnote" for a nested store). A later
+	// launch untracks that path on branches that still hold it.
+	MovedFrom string `json:"moved_from,omitempty"`
 }
 
 // Store origins recorded in project.json.
@@ -172,10 +176,11 @@ func hasStoreAt(dir string) bool {
 	return err == nil && !IsReservedDir(dir)
 }
 
-// isExplicitStore reports a shadow root made by `wipnote init`.
+// isExplicitStore reports a shadow root the owner asked for: made by `wipnote
+// init` or by `wipnote store move`.
 func isExplicitStore(owner string) bool {
 	pf, ok := readProjectFile(owner)
-	return ok && pf.Origin == OriginInit
+	return ok && (pf.Origin == OriginInit || pf.Origin == OriginMoved)
 }
 
 // ownerAt is the owner of the store at dir outside a git repo: its .wipnote, or
@@ -184,6 +189,10 @@ func isExplicitStore(owner string) bool {
 // those of $HOME or the filesystem root, which would take in every folder below.
 // The app home keys no store at all.
 func ownerAt(dir string, start bool) string {
+	// A moved store outranks the folder it left, which may still be on disk.
+	if shadow := ShadowRootFor(dir); !inAppHome(dir) && IsMovedStore(shadow) && validStoreOwner(shadow) {
+		return shadow
+	}
 	if hasStoreAt(dir) {
 		return dir
 	}
@@ -329,6 +338,9 @@ func StoreOwnerFor(dir string) string {
 		return ""
 	}
 	if s, ok := scopeOf(dir); ok {
+		if shadow := s.shadow(); IsMovedStore(shadow) {
+			return shadow // a moved store outranks a folder an old commit put back
+		}
 		if owner := s.inRepoStore(dir, 0); owner != "" {
 			return owner
 		}
@@ -336,6 +348,9 @@ func StoreOwnerFor(dir string) string {
 			return s.MainRoot
 		}
 		return s.shadow()
+	}
+	if moved := movedStoreOver(dir); moved != "" {
+		return moved
 	}
 	if owner := ownerAt(dir, true); owner != "" {
 		return owner
@@ -349,6 +364,9 @@ func Roots(dir string) (owner, code string) {
 	if IsExternalStore(dir) {
 		return dir, CodeRoot(dir)
 	}
+	if moved := movedStoreOver(dir); moved != "" {
+		return moved, dir
+	}
 	if !hasStoreAt(dir) {
 		if shadow := ExternalStoreFor(dir); shadow != "" {
 			return shadow, dir
@@ -359,7 +377,7 @@ func Roots(dir string) (owner, code string) {
 
 // StoreCreationAllowed reports whether code that needs .wipnote/ under
 // projectDir may make it. $HOME's belongs to the application, and inside a repo
-// only `wipnote init --in-repo` may; elsewhere the old create-on-demand stands
+// nothing may (`wipnote init --in-repo` is gone, feat-b153fe64); elsewhere the old create-on-demand stands
 // for the low-level helpers, which the CLI no longer reaches without a store.
 func StoreCreationAllowed(projectDir string) bool {
 	if IsReservedDir(projectDir) {
@@ -386,12 +404,18 @@ func MainRepoRoot(dir string) string {
 // app home, a passive caller that never makes stores, or a store that could not
 // be made. Commands must not make .wipnote/ on first write, or fall back to a
 // .wipnote above the repo; projects get their app-owned store instead.
-var ErrNoStore = errors.New("no wipnote store for this project: run `wipnote claude` or `wipnote init` to create one (it is kept under ~/.wipnote/projects, with nothing added here), or `wipnote init --in-repo` to keep it in this folder")
+var ErrNoStore = errors.New("no wipnote store for this project: run `wipnote claude` or `wipnote init` to create one (it is kept under ~/.wipnote/projects, with nothing added here)")
 
 // gitOutput runs git in dir, with the variables that would redirect it to
 // another repo removed (a git hook sets them for its own repo).
 func gitOutput(dir string, args ...string) (string, error) {
-	cmd, cancel := boundedGit(dir, args...)
+	return gitOutputWithin(gitProbeTimeout, dir, args...)
+}
+
+// gitOutputWithin is gitOutput with its own time limit, for git commands that
+// write a whole store and so take longer than a probe.
+func gitOutputWithin(limit time.Duration, dir string, args ...string) (string, error) {
+	cmd, cancel := boundedGitWithin(limit, dir, args...)
 	defer cancel()
 	for _, kv := range os.Environ() {
 		name, _, _ := strings.Cut(kv, "=")
@@ -412,7 +436,11 @@ func gitOutput(dir string, args ...string) (string, error) {
 const gitProbeTimeout = 5 * time.Second
 
 func boundedGit(dir string, args ...string) (*exec.Cmd, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(context.Background(), gitProbeTimeout)
+	return boundedGitWithin(gitProbeTimeout, dir, args...)
+}
+
+func boundedGitWithin(limit time.Duration, dir string, args ...string) (*exec.Cmd, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
 	cmd.WaitDelay = time.Second // a git stuck in the kernel cannot hold us past the kill
 	return cmd, cancel
