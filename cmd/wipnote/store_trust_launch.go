@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -98,11 +99,27 @@ func printStoreTrustLine(w io.Writer, owner string) {
 	}
 }
 
-// storeHoldsClaudeConfig reports a .claude entry at the top of the store
-// folder. wipnote never writes one there.
-func storeHoldsClaudeConfig(owner string) bool {
-	_, err := os.Lstat(filepath.Join(owner, ".claude"))
-	return err == nil
+// storeClaudeEntry returns the first entry named .claude anywhere in the store
+// folder, or "". It looks at every depth because Claude Code also finds
+// .claude folders below the folder it was given, and agents write under the
+// store's .wipnote folder. It skips the store's .git folder and follows no
+// link. wipnote never writes a .claude entry into a store.
+func storeClaudeEntry(owner string) string {
+	found := ""
+	_ = filepath.WalkDir(owner, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // an unreadable folder holds nothing Claude Code can load
+		}
+		switch {
+		case d.Name() == ".claude" && path != owner:
+			found = path
+			return filepath.SkipAll
+		case d.IsDir() && d.Name() == ".git":
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	return found
 }
 
 // storeClaudeConfigWarning is the warning for a store that holds a .claude
@@ -111,10 +128,10 @@ func storeHoldsClaudeConfig(owner string) bool {
 // hooks when it is opened directly. Agents can write to the store, so a launch
 // must not grant trust over a .claude entry nobody checked (bug-65bf54aa).
 func storeClaudeConfigWarning(owner string, trusted bool) string {
-	if !storeHoldsClaudeConfig(owner) {
+	entry := storeClaudeEntry(owner)
+	if entry == "" {
 		return ""
 	}
-	entry := filepath.Join(owner, ".claude")
 	head := "wipnote: warning: the store folder holds " + entry +
 		", which wipnote did not put there; Claude Code loads skills, commands and agents from it"
 	if trusted {

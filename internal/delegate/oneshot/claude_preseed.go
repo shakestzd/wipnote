@@ -208,7 +208,7 @@ func readClaudeConfig(path string) (map[string]any, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	if len(bytes.TrimSpace(data)) == 0 {
+	if len(bytes.Trim(data, jsonSpace)) == 0 {
 		return cfg, nil
 	}
 	dec := json.NewDecoder(bytes.NewReader(data))

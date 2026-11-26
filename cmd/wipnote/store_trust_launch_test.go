@@ -197,7 +197,7 @@ func TestStoreTrustAtLaunch_ClaudeEntryOfAnyKindCounts(t *testing.T) {
 	if err := os.Symlink(filepath.Join(t.TempDir(), "missing"), filepath.Join(owner, ".claude")); err != nil {
 		t.Fatal(err)
 	}
-	if !storeHoldsClaudeConfig(owner) {
+	if storeClaudeEntry(owner) == "" {
 		t.Fatal("a dangling .claude symlink was not seen")
 	}
 	if line := storeTrustAtLaunch(owner, ""); !strings.Contains(line, "did not mark the store as trusted") {
@@ -205,5 +205,34 @@ func TestStoreTrustAtLaunch_ClaudeEntryOfAnyKindCounts(t *testing.T) {
 	}
 	if ok, _ := oneshot.TrustAccepted(owner); ok {
 		t.Fatal("trust was set over a .claude symlink")
+	}
+}
+
+// A .claude entry below the top of the store counts too: agents write under the
+// store's .wipnote folder. The store's own .git folder is not searched.
+func TestStoreTrustAtLaunch_NestedClaudeEntryBlocksTrust(t *testing.T) {
+	owner, cfgPath := trustStore(t)
+	if err := os.MkdirAll(filepath.Join(owner, ".git", ".claude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := storeClaudeEntry(owner); got != "" {
+		t.Fatalf("an entry inside .git counted: %s", got)
+	}
+	nested := filepath.Join(owner, ".wipnote", "notes", "deep", ".claude")
+	if err := os.MkdirAll(filepath.Join(nested, "skills"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	line := storeTrustAtLaunch(owner, "")
+	if !strings.Contains(line, nested) || !strings.Contains(line, "did not mark the store as trusted") {
+		t.Fatalf("no warning for a nested .claude entry: %q", line)
+	}
+	if _, err := os.Stat(cfgPath); err == nil {
+		t.Fatal("Claude Code's config was written over a nested .claude entry")
+	}
+	if err := os.RemoveAll(nested); err != nil {
+		t.Fatal(err)
+	}
+	if line := storeTrustAtLaunch(owner, ""); !strings.Contains(line, "marked the store folder") {
+		t.Fatalf("no trust once the entry is gone: %q", line)
 	}
 }

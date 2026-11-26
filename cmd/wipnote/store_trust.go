@@ -60,8 +60,8 @@ func runStoreTrust(w io.Writer, owner string, dryRun bool) error {
 	if err != nil {
 		return fmt.Errorf("store trust: %w", err)
 	}
-	if storeHoldsClaudeConfig(owner) && !ok {
-		fmt.Fprintf(w, "Note: the store holds %s. Claude Code loads skills, commands and agents from it once the store is trusted.\n", filepath.Join(owner, ".claude"))
+	if entry := storeClaudeEntry(owner); entry != "" && !ok {
+		fmt.Fprintf(w, "Note: the store holds %s. Claude Code loads skills, commands and agents from it once the store is trusted.\n", entry)
 	}
 	switch {
 	case ok:

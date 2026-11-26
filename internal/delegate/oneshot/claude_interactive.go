@@ -99,13 +99,13 @@ func runClaudeWorker(ctx context.Context, o Options, r Recipe) (Result, bool, er
 		return Result{}, false, fmt.Errorf("delegate run: plugin_not_loaded: claude --plugin-dir %s is not a directory; claude would start without it and say nothing", d)
 	}
 	warnPlan(o.Stderr, plan)
-	if o.BeforeWorker != nil {
-		o.BeforeWorker()
-	}
 	wk, err := spawnWorker(ctx, o, plan)
 	if err != nil {
 		fmt.Fprintf(o.Stderr, "wipnote: claude runs as claude -p here: the worker did not start: %v\n", err)
 		return Result{}, false, nil
+	}
+	if o.OnWorkerStart != nil {
+		o.OnWorkerStart()
 	}
 	v := wk.watch(ctx)
 	wk.end(ctx, v)

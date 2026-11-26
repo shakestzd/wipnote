@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 // Claude Code's config is not wipnote's file, so the seed copies it and edits
@@ -125,20 +126,73 @@ func jsonString(s string) []byte {
 	return bytes.TrimSpace(b.Bytes())
 }
 
-func isJSONTrue(v json.RawMessage) bool { return string(bytes.TrimSpace(v)) == "true" }
+func isJSONTrue(v json.RawMessage) bool { return string(bytes.Trim(v, jsonSpace)) == "true" }
+
+// jsonSpace is the white space JSON allows around a value. Go's TrimSpace also
+// drops form feed and Unicode spaces, which are not JSON: trimming those let the
+// seed rewrite a file that the reader refuses (bug-65bf54aa).
+const jsonSpace = " \t\r\n"
+
+// jsonLayout is how a config file is laid out: the indent unit and the line
+// end. An empty line end means the file is on one line.
+type jsonLayout struct{ indent, lineEnd string }
+
+// claudeLayout is the layout Claude Code writes, used for a new or empty config.
+var claudeLayout = jsonLayout{indent: "  ", lineEnd: "\n"}
+
+// layoutOf reads the layout from the white space between an object's opening
+// brace and its first key.
+func layoutOf(body []byte) jsonLayout {
+	rest := body[1:]
+	ws := string(rest[:len(rest)-len(bytes.TrimLeft(rest, jsonSpace))])
+	i := strings.LastIndexByte(ws, '\n')
+	if i < 0 {
+		return jsonLayout{}
+	}
+	l := jsonLayout{indent: ws[i+1:], lineEnd: "\n"}
+	if strings.Contains(ws, "\r\n") {
+		l.lineEnd = "\r\n"
+	}
+	return l
+}
+
+// render writes raw in the layout.
+func (l jsonLayout) render(raw []byte) ([]byte, error) {
+	if l.lineEnd == "" {
+		var b bytes.Buffer
+		err := json.Compact(&b, raw)
+		return b.Bytes(), err
+	}
+	var b bytes.Buffer
+	if err := json.Indent(&b, raw, "", l.indent); err != nil {
+		return nil, err
+	}
+	if l.lineEnd == "\n" {
+		return b.Bytes(), nil
+	}
+	// A JSON string holds no raw line feed, so every one is a line end.
+	return bytes.ReplaceAll(b.Bytes(), []byte("\n"), []byte(l.lineEnd)), nil
+}
 
 // seedConfig returns data with each dir's trust flag set, and the onboarding
 // flag when onboarding is true. changed false means every key was already set.
-// The output is indented by two spaces, as Claude Code writes the file, so a
-// file Claude Code wrote gains only the new lines.
+// The output keeps the file's own indent and line ends, so a file in a regular
+// layout gains only the new lines. A file in an irregular layout is laid out
+// again in its first indent, with every key and value kept. A file on one line
+// that has a space after a colon or comma loses those spaces.
 func seedConfig(data []byte, dirs []string, onboarding bool) (out []byte, changed bool, err error) {
-	body, tail := bytes.TrimSpace(data), []byte("\n")
+	body := bytes.Trim(data, jsonSpace)
+	head, tail, layout := []byte(nil), []byte("\n"), claudeLayout
 	top := jsonObject{}
 	if len(body) > 0 {
 		if top, err = parseJSONObject(body); err != nil {
 			return nil, false, err
 		}
-		tail = data[len(bytes.TrimRight(data, " \t\r\n")):]
+		head = data[:len(data)-len(bytes.TrimLeft(data, jsonSpace))]
+		tail = data[len(bytes.TrimRight(data, jsonSpace)):]
+		if len(top) > 0 {
+			layout = layoutOf(body)
+		}
 	}
 	if v, _ := top.get("hasCompletedOnboarding"); onboarding && !isJSONTrue(v) {
 		top.set("hasCompletedOnboarding", jsonTrue)
@@ -163,10 +217,13 @@ func seedConfig(data []byte, dirs []string, onboarding bool) (out []byte, change
 		return nil, false, nil
 	}
 	top.set("projects", projects.raw())
-	var b bytes.Buffer
-	if err := json.Indent(&b, top.raw(), "", "  "); err != nil {
+	laid, err := layout.render(top.raw())
+	if err != nil {
 		return nil, false, err
 	}
-	b.Write(tail)
-	return b.Bytes(), true, nil
+	// A new buffer: head and tail are slices of data, and an append to head
+	// would write over the tail when data has spare capacity, as a file read does.
+	out = make([]byte, 0, len(head)+len(laid)+len(tail))
+	out = append(append(append(out, head...), laid...), tail...)
+	return out, true, nil
 }

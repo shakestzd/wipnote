@@ -14,6 +14,11 @@ func madeHereStore(t *testing.T) (owner, project string) {
 	if err := os.MkdirAll(project, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// Its own repository: a temp folder inside another work tree would
+	// otherwise key the store to that work tree's root.
+	if _, err := gitOutput(project, "init", "--quiet"); err != nil {
+		t.Fatal(err)
+	}
 	owner, _, err := CreateExternalStore(project, OriginLauncher, nil)
 	if err != nil {
 		t.Fatal(err)

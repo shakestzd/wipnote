@@ -26,10 +26,12 @@ type Options struct {
 	WorkTitle     string   // the work item's title, for the pane label
 	CallerSession string
 	NoPane        bool // force headless inside herdr
-	// BeforeWorker runs once an interactive Claude worker is about to start, and
-	// not for a run that stays claude -p. The caller sets store trust there, so a
-	// headless run writes nothing to Claude Code's config (bug-65bf54aa).
-	BeforeWorker func()
+	// OnWorkerStart runs once an interactive Claude worker has started, and not
+	// for a run that stays claude -p, including one whose worker failed to
+	// start. The caller checks store trust there, so a headless run writes
+	// nothing to Claude Code's config (bug-65bf54aa). The worker's own launcher
+	// sets the trust before it starts claude.
+	OnWorkerStart func()
 	// Container runs the tool in the project's own devcontainer (slice 21);
 	// Root is the project root, the --workspace-folder.
 	Container bool

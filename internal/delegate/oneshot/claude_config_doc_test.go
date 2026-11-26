@@ -1,6 +1,8 @@
 package oneshot
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,6 +66,87 @@ func TestSeedConfig_ChangesOnlyItsOwnLines(t *testing.T) {
 	}
 }
 
+// restyle lays a config out again with the given indent and line end. An empty
+// line end puts it on one line.
+func restyle(t *testing.T, src, indent, lineEnd string) string {
+	t.Helper()
+	var b bytes.Buffer
+	if lineEnd == "" {
+		must(t, json.Compact(&b, []byte(src)))
+		return b.String()
+	}
+	must(t, json.Indent(&b, []byte(src), "", indent))
+	return strings.ReplaceAll(b.String(), "\n", lineEnd)
+}
+
+// The seed keeps the file's own indent and line ends. In each layout the
+// output is the input with the new member added and no other byte changed.
+func TestSeedConfig_KeepsTheFilesLayout(t *testing.T) {
+	want2 := strings.Replace(claudeWritten, `      "x": 1e21
+    }
+  },`, `      "x": 1e21
+    },
+    "/s/store": {
+      "hasTrustDialogAccepted": true
+    }
+  },`, 1)
+	for name, l := range map[string]jsonLayout{
+		"four spaces": {"    ", "\n"}, "tabs": {"\t", "\n"}, "one space": {" ", "\n"},
+		"CRLF": {"  ", "\r\n"}, "tabs and CRLF": {"\t", "\r\n"}, "one line": {"", ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, wrap := range [][2]string{{"", ""}, {"", l.lineEnd}, {"\n ", "\n\n"}} {
+				in := wrap[0] + restyle(t, claudeWritten, l.indent, l.lineEnd) + wrap[1]
+				want := wrap[0] + restyle(t, want2, l.indent, l.lineEnd) + wrap[1]
+				out, changed, err := seedConfig([]byte(in), []string{"/s/store"}, false)
+				if err != nil || !changed {
+					t.Fatalf("changed %v err %v", changed, err)
+				}
+				if string(out) != want {
+					t.Fatalf("got:\n%q\nwant:\n%q", out, want)
+				}
+			}
+		})
+	}
+}
+
+// The input slice has spare capacity after a file read. The seed must not
+// build its output in that memory: it would write over the file's own tail.
+func TestSeedConfig_InputWithSpareCapacityKeepsItsTail(t *testing.T) {
+	in := "\n{\n  \"a\": 1\n}\n\n"
+	data := append(make([]byte, 0, len(in)+4096), in...)
+	out, changed, err := seedConfig(data, []string{"/s"}, false)
+	want := "\n{\n  \"a\": 1,\n  \"projects\": {\n    \"/s\": {\n      \"hasTrustDialogAccepted\": true\n    }\n  }\n}\n\n"
+	if err != nil || !changed || string(out) != want {
+		t.Fatalf("changed %v err %v out %q", changed, err, out)
+	}
+	if string(data) != in {
+		t.Fatalf("the input was changed: %q", data)
+	}
+}
+
+// Seeding one folder after another through the file keeps the config valid.
+func TestPreseed_RepeatedSeedsKeepTheFileValid(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".claude.json")
+	for _, d := range []string{"/a/b/c", "/a/b", "/a"} {
+		must(t, preseedClaude(path, d))
+	}
+	cfg := readConfig(t, path)
+	if !trusted(cfg, "/a") || !trusted(cfg, "/a/b") || !trusted(cfg, "/a/b/c") {
+		t.Fatalf("cfg %v", cfg)
+	}
+	if _, _, err := seedConfig(mustRead(t, path), []string{"/z"}, false); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	must(t, err)
+	return data
+}
+
 // A new or empty config gets the keys and a final newline. A path with HTML
 // characters is written as it is.
 func TestSeedConfig_EmptyConfigAndOddPath(t *testing.T) {
@@ -80,24 +163,34 @@ func TestSeedConfig_EmptyConfigAndOddPath(t *testing.T) {
 // A config the seed cannot edit safely is refused and left byte for byte.
 func TestTrustFolder_RefusesWhatItCannotKeep(t *testing.T) {
 	for name, body := range map[string]string{
-		"projects is an array":  `{"projects":["a"]}`,
-		"projects is a string":  `{"projects":"x"}`,
-		"projects is null":      `{"projects":null}`,
-		"the entry is a string": `{"projects":{"/s/store":"x"}}`,
-		"data after the object": `{"a":1} GARBAGE`,
-		"a second object":       `{"a":1}{"b":2}`,
-		"an array at the top":   `[1]`,
-		"null at the top":       `null`,
-		"a cut file":            `{"a":`,
+		"projects is an array":   `{"projects":["a"]}`,
+		"projects is a string":   `{"projects":"x"}`,
+		"projects is null":       `{"projects":null}`,
+		"the entry is a string":  `{"projects":{"/s/store":"x"}}`,
+		"the entry is null":      `{"projects":{"/s/store":null}}`,
+		"a form feed at the end": "{\"a\":1}\f\n",
+		"a vertical tab":         "{\"a\":1}\v",
+		"U+2028 at the end":      "{\"a\":1}\u2028",
+		"U+00A0 at the start":    "\u00a0{\"a\":1}",
+		"a byte order mark":      "\xef\xbb\xbf{\"a\":1}",
+		"data after the object":  `{"a":1} GARBAGE`,
+		"a second object":        `{"a":1}{"b":2}`,
+		"an array at the top":    `[1]`,
+		"null at the top":        `null`,
+		"a cut file":             `{"a":`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
 			t.Setenv("CLAUDE_CONFIG_DIR", dir)
 			path := filepath.Join(dir, ".claude.json")
 			must(t, os.WriteFile(path, []byte(body), 0o600))
-			wrote, err := seedLocked(path, false, []string{"/s/store"})
+			wrote, err := TrustFolder("/s/store")
 			if err == nil || wrote || !strings.Contains(err.Error(), "nothing was changed") {
 				t.Fatalf("wrote %v err %v", wrote, err)
+			}
+			// The onboarding seed refuses the same files.
+			if err := preseedClaude(path, "/s/store"); err == nil {
+				t.Fatal("preseedClaude wrote a config TrustFolder refuses")
 			}
 			if data, _ := os.ReadFile(path); string(data) != body {
 				t.Fatalf("config changed to %s", data)
