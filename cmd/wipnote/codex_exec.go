@@ -44,6 +44,9 @@ type codexLaunchOpts struct {
 	// WritableRoots are passed to Codex before any subcommand so resumed
 	// sessions and spawned subagents inherit required writable directories.
 	WritableRoots []string
+	// NoDaemon passes --no-daemon. applyCodexHostFlags sets it in an hc
+	// terminal when the installed Codex accepts the flag.
+	NoDaemon bool
 	// ExtraEnv is layered onto the child process after the launcher sets its
 	// standard wipnote and telemetry environment.
 	ExtraEnv []string
@@ -173,6 +176,7 @@ func applyCodexSandboxMode(codexPath string, opts *codexLaunchOpts) bool {
 		sandboxDegraded = true
 		fmt.Fprintln(os.Stderr, renderCodexWarningBanner(notice))
 	}
+	applyCodexHostFlags(codexPath, opts)
 	return sandboxDegraded
 }
 
@@ -255,9 +259,7 @@ func buildCodexArgs(opts codexLaunchOpts, otelPort int, instructionArgs []string
 	var args []string
 	args = append(args, buildCodexOtelConfigArgsAt(otelPort, opts.OtelEndpointPath)...)
 	args = append(args, instructionArgs...)
-	// herdr-core's manual: Codex must run with --no-daemon in an hc terminal,
-	// or its commands execute in the shared server, outside that terminal.
-	if os.Getenv("HC_TERMINAL_ID") != "" {
+	if opts.NoDaemon {
 		args = append(args, "--no-daemon")
 	}
 	if opts.Yolo {
