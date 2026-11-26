@@ -35,8 +35,8 @@ inside the project needs no trust of its own.
 
 wipnote claude and a delegated Claude worker set the same flag at launch for a
 store made on this machine, and print one line when they do. Run this command
-for a store copied from another machine, or after you set
-launch.claude.trustStore to false in ~/.wipnote/config.json.`,
+for a store copied from another machine, for a store that holds a .claude entry, or
+after you set launch.claude.trustStore to false in ~/.wipnote/config.json.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Never make a store here: a dry run in a plain folder must change nothing.
@@ -59,6 +59,9 @@ func runStoreTrust(w io.Writer, owner string, dryRun bool) error {
 	ok, err := oneshot.TrustAccepted(owner)
 	if err != nil {
 		return fmt.Errorf("store trust: %w", err)
+	}
+	if storeHoldsClaudeConfig(owner) && !ok {
+		fmt.Fprintf(w, "Note: the store holds %s. Claude Code loads skills, commands and agents from it once the store is trusted.\n", filepath.Join(owner, ".claude"))
 	}
 	switch {
 	case ok:

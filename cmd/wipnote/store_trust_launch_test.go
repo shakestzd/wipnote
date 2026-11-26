@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -111,5 +112,50 @@ func TestStoreTrustAtLaunch_InRepoStoreIsSilent(t *testing.T) {
 	}
 	if _, err := os.Stat(cfgPath); err == nil {
 		t.Fatal("Claude Code's config was written for an in-repo store")
+	}
+}
+
+// A store that holds a .claude entry gets no trust from a launch: Claude Code
+// would load skills, commands and agents from it. The launch warns instead, and
+// keeps warning once the owner has trusted the store.
+func TestStoreTrustAtLaunch_ClaudeEntryInTheStoreBlocksTrust(t *testing.T) {
+	owner, cfgPath := trustStore(t)
+	entry := filepath.Join(owner, ".claude")
+	if err := os.MkdirAll(filepath.Join(entry, "skills"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	line := storeTrustAtLaunch(owner, "")
+	if !strings.Contains(line, entry) || !strings.Contains(line, "did not mark the store as trusted") {
+		t.Fatalf("no warning for a .claude entry: %q", line)
+	}
+	if _, err := os.Stat(cfgPath); err == nil {
+		t.Fatal("Claude Code's config was written over a .claude entry")
+	}
+	var out bytes.Buffer
+	if err := runStoreTrust(&out, owner, false); err != nil || !strings.Contains(out.String(), "Note: the store holds "+entry) {
+		t.Fatalf("store trust said nothing about the entry: %v %s", err, out.String())
+	}
+	if ok, _ := oneshot.TrustAccepted(owner); !ok {
+		t.Fatal("the owner's own store trust run did not set the flag")
+	}
+	if line := storeTrustAtLaunch(owner, ""); !strings.Contains(line, "already trusts this store") {
+		t.Fatalf("no warning for a trusted store with a .claude entry: %q", line)
+	}
+}
+
+// A dangling .claude symlink or a plain file counts too.
+func TestStoreTrustAtLaunch_ClaudeEntryOfAnyKindCounts(t *testing.T) {
+	owner, _ := trustStore(t)
+	if err := os.Symlink(filepath.Join(t.TempDir(), "missing"), filepath.Join(owner, ".claude")); err != nil {
+		t.Fatal(err)
+	}
+	if !storeHoldsClaudeConfig(owner) {
+		t.Fatal("a dangling .claude symlink was not seen")
+	}
+	if line := storeTrustAtLaunch(owner, ""); !strings.Contains(line, "did not mark the store as trusted") {
+		t.Fatalf("launch trusted a store with a .claude symlink: %q", line)
+	}
+	if ok, _ := oneshot.TrustAccepted(owner); ok {
+		t.Fatal("trust was set over a .claude symlink")
 	}
 }

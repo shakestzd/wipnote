@@ -21,13 +21,18 @@ const storeTrustOffHint = "set launch.claude.trustStore to false in ~/.wipnote/c
 // the question (bug-65bf54aa). wipnote made the store and adds it itself, so it
 // sets that one flag and says so. It leaves the choice to the owner, with a
 // warning, when the config key is off, when the store was not made on this
-// machine, or when Claude Code's config cannot be written.
+// machine, when the store holds a .claude entry, or when Claude Code's config
+// cannot be written.
 func storeTrustAtLaunch(owner, cfgPath string) string {
 	if !paths.IsExternalStore(owner) {
 		return ""
 	}
-	if ok, err := oneshot.TrustAccepted(owner); ok || err != nil {
+	ok, err := oneshot.TrustAccepted(owner)
+	if err != nil {
 		return "" // an unreadable config is Claude Code's to report
+	}
+	if w := storeClaudeConfigWarning(owner, ok); w != "" || ok {
+		return w
 	}
 	if !launchTrustsStore(cfgPath) || !paths.StoreMadeHere(owner) {
 		return storeTrustWarning(owner)
@@ -72,4 +77,29 @@ func trustStoreForClaudeRun(w io.Writer, argv []string, projectDir string, conta
 	if line := storeTrustAtLaunch(projectDir, paths.UserConfigPath()); line != "" {
 		fmt.Fprintln(w, line)
 	}
+}
+
+// storeHoldsClaudeConfig reports a .claude entry at the top of the store
+// folder. wipnote never writes one there.
+func storeHoldsClaudeConfig(owner string) bool {
+	_, err := os.Lstat(filepath.Join(owner, ".claude"))
+	return err == nil
+}
+
+// storeClaudeConfigWarning is the warning for a store that holds a .claude
+// entry, or "" when it holds none. Why: Claude Code loads skills, commands and
+// subagents from a folder added with --add-dir, and runs a trusted folder's
+// hooks when it is opened directly. Agents can write to the store, so a launch
+// must not grant trust over a .claude entry nobody checked (bug-65bf54aa).
+func storeClaudeConfigWarning(owner string, trusted bool) string {
+	if !storeHoldsClaudeConfig(owner) {
+		return ""
+	}
+	entry := filepath.Join(owner, ".claude")
+	head := "wipnote: warning: the store folder holds " + entry +
+		", which wipnote did not put there; Claude Code loads skills, commands and agents from it"
+	if trusted {
+		return head + ". Claude Code already trusts this store. Check that entry and remove it if you did not add it"
+	}
+	return head + ". wipnote did not mark the store as trusted. Check that entry, then " + storeTrustHint
 }
