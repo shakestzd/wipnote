@@ -80,7 +80,11 @@ type CloudEvent struct {
 	// SessionStart / SessionEnd / Stop — common session fields
 	TranscriptPath string `json:"transcript_path"`
 	Source         string `json:"source"` // startup, resume, clear, compact
-	Model          string `json:"model"`
+	// ScratchpadDir is the session's scratch folder. Claude Code sends it as a
+	// common input field (live SessionEnd capture, Claude Code 2.1.331:
+	// testdata/claude-2.1.331-session-end.json). Empty on other harnesses.
+	ScratchpadDir string `json:"scratchpad_dir"`
+	Model         string `json:"model"`
 
 	// SessionEnd
 	Reason   string `json:"reason"` // prompt_input_exit, interrupt, etc.

@@ -60,6 +60,12 @@ func SessionEnd(event *CloudEvent, projectDir string) (*HookResult, error) {
 		note = SessionEndNote{SessionID: sessionID, EndedAt: time.Now().UTC().Format(time.RFC3339Nano), Reason: event.Reason, TranscriptPath: event.TranscriptPath}
 	}
 
+	// The session's active item, read before step 2 closes its claims, so a
+	// draft saved in step 4 still names it. "" when the payload names no
+	// scratchpad.
+	scratchSession := resolveStopSessionID(event)
+	scratchItem := scratchWorkItem(event, projectDir, scratchSession)
+
 	// 2. The essential writes, all local file or in-memory work: no git, no
 	// full ledger scan, no waiting on another process.
 	closeSessionClaimsAndLedger(projectDir, note)
@@ -67,6 +73,13 @@ func SessionEnd(event *CloudEvent, projectDir string) (*HookResult, error) {
 	// 3. One SIGTERM to the collector, no wait. Draining it, the telemetry
 	// finalize, the handoff and the rest run in CatchUpEndedSessions.
 	termCollector(projectDir, sessionID)
+
+	// 4. Authored scratch drafts, last (feat-7884b1d0). A print-mode session
+	// may end with no Stop, so this is its only capture. It is the same
+	// bounded pass Stop runs, into the same folder. It comes after the
+	// essential writes: if the harness cancels the hook here, the session is
+	// already closed and only a draft copy is lost.
+	captureScratch(event, projectDir, scratchSession, scratchItem)
 
 	return &HookResult{Continue: true}, nil
 }
