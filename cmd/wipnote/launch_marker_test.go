@@ -108,6 +108,9 @@ func TestExecCodexWritesFreshLaunchMarker(t *testing.T) {
 	t.Setenv("WIPNOTE_OTEL_ENABLED", "0")
 	t.Setenv("WIPNOTE_DB_PATH", filepath.Join(projectRoot, "wipnote.db"))
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	// The launch reads the Codex user config, so point it away from the
+	// developer's own file.
+	t.Setenv("CODEX_HOME", t.TempDir())
 	t.Setenv("WIPNOTE_PROJECT_DIR", "")
 
 	markerPath := filepath.Join(projectRoot, ".wipnote", ".launch-mode")

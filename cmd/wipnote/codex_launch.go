@@ -183,13 +183,20 @@ const codexSystemConfigPath = "/etc/codex/config.toml"
 
 // codexProfileFromArgs returns the profile selected by -p/--profile in the
 // args forwarded to codex, or "".
+//
+// It reads the attached short form too (-pwork), and stops at "--": words
+// after it are prompt text.
 func codexProfileFromArgs(args []string) string {
 	for i, a := range args {
 		switch {
+		case a == "--":
+			return ""
 		case (a == "-p" || a == "--profile") && i+1 < len(args):
 			return args[i+1]
 		case strings.HasPrefix(a, "--profile="):
 			return strings.TrimPrefix(a, "--profile=")
+		case strings.HasPrefix(a, "-p") && !strings.HasPrefix(a, "--") && len(a) > 2:
+			return strings.TrimPrefix(strings.TrimPrefix(a, "-p"), "=")
 		}
 	}
 	return ""

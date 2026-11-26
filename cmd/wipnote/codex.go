@@ -99,6 +99,10 @@ Flags that wipnote does not define go to Codex as written, for example
 when it comes before a Codex subcommand. Every word from a Codex subcommand
 on goes to Codex: "wipnote codex review --base main".
 
+A plain launch adds --approve-for-me, Codex's automatic approval review in
+the workspace-write sandbox. wipnote leaves it out when you chose a sandbox or
+an approval policy yourself, on the line or in your Codex config.
+
 A "--" ends wipnote's flags. After Codex flags it also reaches Codex, so a
 prompt may start with a dash: "wipnote codex --search -- '-v fails'". With
 no Codex flag before it, write it twice: "wipnote codex -- -- '-v fails'".`,
@@ -127,6 +131,10 @@ func runCodexCmd(f *codexFlags, args []string) error {
 	// `codex --version` and a subcommand's --help only print. Run them as
 	// they are, with no launch marker, daemon or collector (bug-fc843d71).
 	if codexInfoOnly(args) && !f.init_ {
+		if f.dryRun {
+			fmt.Println("would run: codex " + strings.Join(args, " "))
+			return nil
+		}
 		return runCodexPlainFn(args)
 	}
 	if !f.init_ && !f.dryRun {
@@ -173,15 +181,27 @@ func registerCodexFlags(cmd *cobra.Command, f *codexFlags) {
 
 // codexInfoOnly reports whether the words forwarded to Codex only ask it to
 // print its version or a help page.
+//
+// The version flag counts before the first subcommand or prompt word, and the
+// help subcommand counts as the first such word. A flag's value is skipped.
 func codexInfoOnly(args []string) bool {
-	for i, a := range args {
-		switch {
+	codex := passthroughLaunchers[harnessCodex]
+	words := 0
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
 		case a == "--":
 			return false
 		case a == "--help" || a == "-h":
 			return true
-		case i == 0 && (a == "--version" || a == "-V"):
+		case words == 0 && (a == "--version" || a == "-V"):
 			return true
+		case codex.valueFlags[a]:
+			i++
+		case !strings.HasPrefix(a, "-"):
+			if words == 0 && a == "help" {
+				return true
+			}
+			words++
 		}
 	}
 	return false
