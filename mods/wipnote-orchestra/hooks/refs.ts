@@ -85,6 +85,16 @@ export function changedRefs(command: string): string[] {
 /** How long a loaded or failed card is shown before it is fetched again. */
 export const CARD_TTL_MS = 60_000
 
+/** Ticks of the band's one-second clock between two refreshes of the band's cards. One refresh starts up to fifteen wipnote processes. */
+export const CARDS_EVERY_TICKS = 30
+
+/**
+ * On while a refresh of the band's cards runs. A tick that finds it on skips:
+ * slow wipnote calls stacked a new refresh on the old one in every open session
+ * and loaded the machine (bug-0672aef0).
+ */
+export const cardsBusy = { on: false }
+
 /**
  * Whether a card needs a (re)fetch: missing, or loaded/failed longer than the
  * TTL ago. A loading entry is left alone unless it is stuck past the TTL.

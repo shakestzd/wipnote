@@ -7,7 +7,7 @@ import type { Hint } from './agents'
 import type { BandData } from './band'
 import { drawBand } from './band'
 import { CLI_TIMEOUT_MS, cardOf, cardResult, changedIds, cliResult, drawAssistant, entryOf, openIds, questionsOf, replyIds, replyText, staleIds, transcriptIds } from './refcards'
-import { Latest, parseWho, splitRefs } from './refs'
+import { CARDS_EVERY_TICKS, Latest, cardsBusy, parseWho, splitRefs } from './refs'
 import type { CliResult } from './refs'
 import { fresh, itemQuestionsArgv, openArgv, parseOpen, questionsText } from './questions'
 import type { OpenQuestion } from './questions'
@@ -336,7 +336,7 @@ async function tick($: EngineInterface, n: number, pending: ReadonlyMap<string, 
   if (isBusy(rows, at, KEEP_DONE_MS) || n % 30 === 0) await update($, now, () => at)
   if (n % 2 === 0) await reconcileAgents($, at, pending)
   if (n % 5 === 0) await refreshPrompt($)
-  if (n % 5 === 1) await refreshCards($)
+  if (n % CARDS_EVERY_TICKS === 1 && !cardsBusy.on && (cardsBusy.on = true)) await refreshCards($).finally(() => (cardsBusy.on = false))
   if (n % 5 === 3) await refreshQuestions($)
 }
 

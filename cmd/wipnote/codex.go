@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -91,7 +92,20 @@ Modes:
   wipnote codex --track <id>      Launch in the track's git worktree.
   wipnote codex --yolo            Launch without Codex approvals/sandbox prompts.
 
-Session IDs come from ~/.codex/session_index.jsonl.`,
+Session IDs come from ~/.codex/session_index.jsonl.
+
+Flags that wipnote does not define go to Codex as written, for example
+"wipnote codex --sandbox read-only". A flag below keeps wipnote's meaning
+when it comes before a Codex subcommand. Every word from a Codex subcommand
+on goes to Codex: "wipnote codex review --base main".
+
+A plain launch adds --approve-for-me, Codex's automatic approval review in
+the workspace-write sandbox. wipnote leaves it out when you chose a sandbox or
+an approval policy yourself, on the line or in your Codex config.
+
+A "--" ends wipnote's flags. After Codex flags it also reaches Codex, so a
+prompt may start with a dash: "wipnote codex --search -- '-v fails'". With
+no Codex flag before it, write it twice: "wipnote codex -- -- '-v fails'".`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCodexCmd(&f, args)
 		},
@@ -114,6 +128,15 @@ func runCodexCmd(f *codexFlags, args []string) error {
 	// every other mode execs an interactive Codex TUI, so refuse a
 	// non-TTY stdin BEFORE any launch marker, serve/collector spawn,
 	// worktree or session write happens (issue #148).
+	// `codex --version` and a subcommand's --help only print. Run them as
+	// they are, with no launch marker, daemon or collector (bug-fc843d71).
+	if codexInfoOnly(args) && !f.init_ {
+		if f.dryRun {
+			fmt.Println("would run: codex " + strings.Join(args, " "))
+			return nil
+		}
+		return runCodexPlainFn(args)
+	}
 	if !f.init_ && !f.dryRun {
 		if err := requireInteractiveLaunch(harnessCodex, f.allowNonInteractive, args); err != nil {
 			return err
@@ -154,4 +177,44 @@ func registerCodexFlags(cmd *cobra.Command, f *codexFlags) {
 	cmd.Flags().StringVar(&f.baseBranch, "base", "", "Base branch for managed worktree (advanced; default: current HEAD)")
 	cmd.Flags().BoolVar(&f.allowNonInteractive, allowNonInteractiveFlag, false,
 		"Launch even when stdin is not a terminal (default: refuse; env "+allowNonTTYEnv+"=1 is equivalent)")
+}
+
+// codexInfoOnly reports whether the words forwarded to Codex only ask it to
+// print its version or a help page.
+//
+// The version flag counts before the first subcommand or prompt word, and the
+// help subcommand counts as the first such word. A flag's value is skipped.
+func codexInfoOnly(args []string) bool {
+	codex := passthroughLaunchers[harnessCodex]
+	words := 0
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--":
+			return false
+		case a == "--help" || a == "-h":
+			return true
+		case words == 0 && (a == "--version" || a == "-V"):
+			return true
+		case codex.valueFlags[a]:
+			i++
+		case !strings.HasPrefix(a, "-"):
+			if words == 0 && a == "help" {
+				return true
+			}
+			words++
+		}
+	}
+	return false
+}
+
+// runCodexPlainFn runs codex with args and this process's terminal, and
+// nothing else. It is a package-level var so tests can record the call.
+var runCodexPlainFn = func(args []string) error {
+	path, err := exec.LookPath("codex")
+	if err != nil {
+		return fmt.Errorf("codex not found in PATH: %w", err)
+	}
+	c := exec.Command(path, args...)
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return c.Run()
 }

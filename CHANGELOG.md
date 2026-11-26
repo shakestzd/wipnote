@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `wipnote delegate run -- agy -p PROMPT` runs the Antigravity CLI as a recorded one-shot delegation, with a ledger row (harness `antigravity-print`), a run folder and the answer in the report (feat-e014b05b).
+
 ### Fixed
 - A delegated Claude worker no longer waits unseen at Claude Code's trust prompt for the app store folder. `wipnote store trust` marks the project's store as trusted once, and `wipnote delegate spawn` warns when it is not (bug-65bf54aa). The check needs the store's own trust flag: a trusted parent folder, such as the home folder, no longer counts. `wipnote claude` and a delegated Claude worker now set that flag at launch for a store made on this machine, and print one line when they do. Set `launch.claude.trustStore` to `false` in `~/.wipnote/config.json` to keep the choice. A store copied from another machine, or one that holds a `.claude` entry at any depth or a folder wipnote cannot list, still needs `wipnote store trust`. Claude Code loads skills, commands and agents from an added folder, so the launch warns about that entry. A `launch.claude.trustStore` value that is not `true` or `false` now turns launch-time trust off with a warning. The write to Claude Code's config copies the file and changes only the trust flag: key order, escapes, numbers, indent and line ends stay as they were. It refuses a `projects` value that is not an object, data after the config object, and a config link whose target is missing. A left-over config lock no longer delays each launch. A run that stays `claude -p`, and a launch that cannot find `claude`, write no trust. A worker that gets no pane leaves Claude Code's config alone: the working folder is seeded just before the boot line is typed. The launch warning now says why it did not set trust for a store.
 
@@ -47,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standalone `install.sh` one-liner is now documented in README and docs/index.md. The installer itself already existed but was not advertised.
 
 ### Fixed
+- The wipnote-orchestra band refreshes its cards every 30 s, down from every 5 s, and never starts a refresh while one is running. Stacked refreshes from every open session loaded the machine (bug-0672aef0).
 - `bootstrap.sh` standalone install — now resolves version via `$WIPNOTE_VERSION` env var or GitHub API when no `plugin.json` is present (bug-b08a2ec9)
 
 ## [0.13.9] - 2025-12-30

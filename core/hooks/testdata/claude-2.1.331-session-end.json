@@ -1,0 +1,9 @@
+{
+  "cwd": "<home>/project",
+  "hook_event_name": "SessionEnd",
+  "prompt_id": "<prompt-id>",
+  "reason": "other",
+  "scratchpad_dir": "<temp-root>/claude-<uid>/-<encoded-cwd>/<session-id>/scratchpad",
+  "session_id": "<session-id>",
+  "transcript_path": "<home>/.claude/projects/-<encoded-cwd>/<session-id>.jsonl"
+}

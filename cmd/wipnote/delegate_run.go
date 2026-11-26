@@ -25,7 +25,7 @@ import (
 var delegateRunExit = os.Exit
 
 // delegateRunLong is delegate run's help.
-const delegateRunLong = `Runs one tool call (codex exec or review, claude -p, ccx task) as a recorded
+const delegateRunLong = `Runs one tool call (codex exec or review, claude -p, agy -p, ccx task) as a recorded
 delegation: a row in .wipnote/delegations-ledger.html, a run folder under
 .wipnote/delegate/runs/, and a herdr pane or hc terminal when inside one (headless otherwise,
 or with --no-pane). Inside herdr a claude -p run is an interactive worker
@@ -48,6 +48,11 @@ ccxRunsDir, ccxWaitSeconds, keepDays), merged per key from ~/.wipnote/config.jso
 then .wipnote/config.json, then .wipnote/config.local.json (gitignored). The
 host path ccxRunsDir is read only from the user and local files. CCX_RUNS_DIR
 overrides ccxRunsDir.
+
+agy -p (the Antigravity CLI, also as antigravity --print) runs as given on the host:
+its text answer is the result, its progress the log, and no token usage is
+recorded. wipnote adds no sandbox or mode flag, so pass agy's own --mode plan or
+--sandbox for a read-only run. --write and --container are refused for it.
 
 codex exec runs with --sandbox read-only, or workspace-write with --write.
 danger-full-access is passed, with a warning, only on a host listed in
@@ -80,8 +85,8 @@ func delegateRunCmd() *cobra.Command {
 	var label, workItem string
 	var noPane, write, inContainer, progress bool
 	cmd := &cobra.Command{
-		Use:   "run [--label L] [--work-item ID] [--no-pane] [--write] [--container] -- <codex exec|codex review|claude -p|ccx task> ...",
-		Short: "Run one delegated codex, claude -p or ccx call and print its report",
+		Use:   "run [--label L] [--work-item ID] [--no-pane] [--write] [--container] -- <codex exec|codex review|claude -p|agy -p|ccx task> ...",
+		Short: "Run one delegated codex, claude -p, agy -p or ccx call and print its report",
 		Long:  delegateRunLong,
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

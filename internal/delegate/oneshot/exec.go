@@ -78,6 +78,8 @@ func Execute(ctx context.Context, rf *runstore.RunFolder, job Job) int {
 		exit = runCcx(ctx, rf, job)
 	case KindCodexReview:
 		exit = runReview(ctx, rf, job)
+	case KindAntigravity:
+		exit = runAnswerOnStdout(ctx, rf, job)
 	default:
 		exit = runMerged(ctx, rf, job)
 	}
