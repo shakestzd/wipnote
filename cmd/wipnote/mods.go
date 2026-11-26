@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -104,11 +103,17 @@ func modsSystemPrompt(modsDir string) string {
 	return strings.Join(rules, "\n\n")
 }
 
-// mirrorModsTree replaces dst with the mods a checkout at projectRoot holds:
+// mirrorModsTree makes dst hold the mods a checkout at projectRoot holds:
 // its git-tracked files under mods/, without test suites, fixtures and stubs
 // (what Claude Code loads needs none of them, and an untracked node_modules or
 // generated file never comes along). A checkout with no mods/ (a branch that
 // predates them) leaves dst as it is.
+//
+// It writes a file only when its content or mode differs, and removes only
+// what left the source. Every open Claude Code session watches dst and
+// reloads a mod whose files change on disk, so the earlier remove-and-recopy
+// made each build reload every mod in every session and print a line per mod,
+// with nothing changed.
 func mirrorModsTree(projectRoot, dst string) error {
 	src := filepath.Join(projectRoot, "mods")
 	if info, err := os.Stat(src); err != nil || !info.IsDir() {
@@ -118,19 +123,73 @@ func mirrorModsTree(projectRoot, dst string) error {
 	if err != nil {
 		return fmt.Errorf("list tracked mods files: %w", err)
 	}
-	if err := os.RemoveAll(dst); err != nil {
-		return fmt.Errorf("remove %s: %w", dst, err)
-	}
+	kept := map[string]bool{}
 	for _, rel := range bytes.Split(out, []byte{0}) {
 		name := filepath.FromSlash(strings.TrimPrefix(string(rel), "mods/"))
 		if name == "" || isModTestFile(name) {
 			continue
 		}
-		if err := copyFileMode(filepath.Join(src, name), filepath.Join(dst, name)); err != nil {
+		copied, err := syncFileMode(filepath.Join(src, name), filepath.Join(dst, name))
+		if err != nil {
 			return err
 		}
+		if copied {
+			kept[name] = true
+		}
+	}
+	return pruneModsTree(dst, kept)
+}
+
+// pruneModsTree removes the files under dst that the mirror did not keep,
+// then the folders that left empty. It leaves each kept mod's
+// .claude-plugin/types/ alone: Claude Code writes its own type files there
+// once it loads the mod, and they are not part of the source.
+func pruneModsTree(dst string, kept map[string]bool) error {
+	var dirs []string
+	err := filepath.WalkDir(dst, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		rel, _ := filepath.Rel(dst, path)
+		if rel == "." {
+			return nil
+		}
+		if d.IsDir() {
+			// Only for a mod the source still holds. A removed mod must
+			// leave no folder: --plugin-dir loads every child of dst.
+			if isEngineTypesDir(rel) && kept[filepath.Join(filepath.Dir(rel), "plugin.json")] {
+				return filepath.SkipDir
+			}
+			dirs = append(dirs, path)
+			return nil
+		}
+		if kept[rel] {
+			return nil
+		}
+		if err := os.Remove(path); err != nil {
+			return fmt.Errorf("remove %s: %w", path, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	// Deepest first, so a folder is tried after its children. Remove fails on
+	// a folder that still holds a file, which is the wanted outcome.
+	for i := len(dirs) - 1; i >= 0; i-- {
+		os.Remove(dirs[i]) //nolint:errcheck
 	}
 	return nil
+}
+
+// isEngineTypesDir reports whether a path inside the mods tree (relative to
+// it) is <mod>/.claude-plugin/types, the folder Claude Code generates.
+func isEngineTypesDir(rel string) bool {
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	return len(parts) == 3 && parts[1] == ".claude-plugin" && parts[2] == "types"
 }
 
 // isModTestFile reports whether a path inside mods/ (relative to it) is a test
@@ -144,31 +203,49 @@ func isModTestFile(rel string) bool {
 	return strings.Contains(filepath.Base(rel), ".test.")
 }
 
-// copyFileMode copies one file, creating its folders and keeping its mode.
-func copyFileMode(src, dst string) error {
+// syncFileMode makes dst a copy of src with its mode, creating its folders.
+// It leaves dst untouched when content and mode already match, and otherwise
+// replaces it by rename, so a watcher never reads a half-written file. It
+// reports false when src is gone, with nothing copied.
+func syncFileMode(src, dst string) (bool, error) {
 	info, err := os.Stat(src)
 	if err != nil {
 		// Tracked but deleted in the working tree: nothing to copy.
 		if os.IsNotExist(err) {
-			return nil
+			return false, nil
 		}
-		return err
+		return false, err
+	}
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return false, err
+	}
+	mode := info.Mode().Perm()
+	if have, err := os.Stat(dst); err == nil && have.Mode().IsRegular() && have.Mode().Perm() == mode {
+		if old, err := os.ReadFile(dst); err == nil && bytes.Equal(old, data) {
+			return true, nil
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
+		return false, err
 	}
-	in, err := os.Open(src)
+	tmp, err := os.CreateTemp(filepath.Dir(dst), ".mirror-*")
 	if err != nil {
-		return err
+		return false, err
 	}
-	defer in.Close() //nolint:errcheck
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
-	if err != nil {
-		return err
+	defer os.Remove(tmp.Name()) //nolint:errcheck
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close() //nolint:errcheck
+		return false, err
 	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close() //nolint:errcheck
-		return err
+	if err := tmp.Close(); err != nil {
+		return false, err
 	}
-	return out.Close()
+	if err := os.Chmod(tmp.Name(), mode); err != nil {
+		return false, err
+	}
+	if err := os.Rename(tmp.Name(), dst); err != nil {
+		return false, err
+	}
+	return true, nil
 }
