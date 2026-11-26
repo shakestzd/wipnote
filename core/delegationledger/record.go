@@ -59,7 +59,7 @@ const (
 
 var (
 	modes      = set(ModeOneshot, ModeInteractive)
-	harnesses  = set("claude", "claude-print", "codex", "codex-review", "ccx")
+	harnesses  = set("claude", "claude-print", "codex", "codex-review", "ccx", "antigravity-print")
 	links      = set("tag", "sid")
 	hosts      = set("host", "container")
 	endReasons = set(EndExit, EndStop, EndPaneClosed, EndGone, EndImported)
@@ -83,7 +83,7 @@ func set(vs ...string) map[string]bool {
 type Record struct {
 	ID            string // dlg-<12 hex>, also the row's fragment id
 	Mode          string // oneshot | interactive
-	Harness       string // claude | claude-print | codex | codex-review | ccx
+	Harness       string // claude | claude-print | codex | codex-review | ccx | antigravity-print| claude-print | codex | codex-review | ccx
 	Name          string // interactive runs only
 	Label         string // an explicit --label only; never derived
 	WorkItem      string // feat-/bug-/spk- id or empty
