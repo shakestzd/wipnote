@@ -118,13 +118,12 @@ func Spawn(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 		}
 	}
 	linkedDirs(&o)
-	warn := seedTrust(d, o)
 	s, err := spawnPlaced(ctx, d, o)
 	if err != nil {
 		dropWorktree(o)
 		return Spawned{}, err
 	}
-	s.Worktree, s.Branch, s.Warning = o.wt.Path, o.wt.Branch, warn
+	s.Worktree, s.Branch = o.wt.Path, o.wt.Branch
 	return s, nil
 }
 
@@ -140,7 +139,8 @@ func spawnPlaced(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 	if err != nil {
 		return Spawned{}, err
 	}
-	if err := boot(ctx, d, o, info); err != nil {
+	warn, err := boot(ctx, d, o, info)
+	if err != nil {
 		abandon(d, info.Run, rf, info)
 		_ = withWorkers(d.Store, func(w *Workers) error {
 			_, err := release(ctx, d.Herdr, w, herdr.PaneID(info.Pane))
@@ -148,7 +148,7 @@ func spawnPlaced(ctx context.Context, d Deps, o SpawnOptions) (Spawned, error) {
 		})
 		return Spawned{}, err
 	}
-	return Spawned{Run: info.Run, Name: info.Name, Pane: info.Pane, Harness: info.Harness, Status: StatusStarting, Model: info.Model,
+	return Spawned{Run: info.Run, Name: info.Name, Pane: info.Pane, Harness: info.Harness, Status: StatusStarting, Model: info.Model, Warning: warn,
 		Profile: info.Setup.Profile, Effort: info.Setup.Effort, Tools: info.Setup.Tools, MCP: info.Setup.MCP, Plugins: info.Setup.Plugins}, nil
 }
 
@@ -357,7 +357,7 @@ func abandon(d Deps, run string, rf *runstore.RunFolder, placed Info) {
 
 // boot waits for the new pane's shell to settle, then types the boot line.
 // It never types blind: an unsettled shell is ErrShellNotReady.
-func boot(ctx context.Context, d Deps, o SpawnOptions, info Info) error {
+func boot(ctx context.Context, d Deps, o SpawnOptions, info Info) (string, error) {
 	wait, poll := o.ShellWait, o.Poll
 	if wait <= 0 {
 		wait = DefaultShellWait
@@ -373,19 +373,25 @@ func boot(ctx context.Context, d Deps, o SpawnOptions, info Info) error {
 			break
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("%w within %s (pane %s); nothing was typed", ErrShellNotReady, wait, pane)
+			return "", fmt.Errorf("%w within %s (pane %s); nothing was typed", ErrShellNotReady, wait, pane)
 		}
 		if err := sleepCtx(ctx, poll); err != nil {
-			return err
+			return "", err
 		}
 	}
 	if ok, why := ownPane(ctx, d.Herdr, info); !ok {
-		return fmt.Errorf("delegate: %s; the boot line was not typed", why)
+		return "", fmt.Errorf("delegate: %s; the boot line was not typed", why)
 	}
+	// Seed trust here, as the last step before the line is typed. Why: seeded
+	// before the pane existed, a spawn that then failed left the working
+	// folder trusted in Claude Code's config with no worker to use it. Seeded
+	// after the line, the worker could reach the trust question first
+	// (bug-65bf54aa).
+	warn := seedTrust(d, o)
 	if err := d.Herdr.Run(ctx, pane, o.BootLine(info.Run)); err != nil {
-		return fmt.Errorf("delegate: herdr would not run the boot line in %s: %w", pane, err)
+		return warn, fmt.Errorf("delegate: herdr would not run the boot line in %s: %w", pane, err)
 	}
-	return nil
+	return warn, nil
 }
 
 // bareShell is POSITIVELY a shell alone: herdr named the shell pid and every

@@ -3,6 +3,7 @@ package paths
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -80,5 +81,35 @@ func TestStoreMadeHere_MarkSurvivesMarkStoreExplicit(t *testing.T) {
 	}
 	if after, _ := readProjectFile(owner); after.MadeOn != before.MadeOn || after.Origin != OriginInit {
 		t.Fatalf("project file after: %+v", after)
+	}
+}
+
+// Each failed check has its own reason, and a store made here has none.
+func TestStoreNotMadeHere_NamesTheFailedCheck(t *testing.T) {
+	setMachineID(t, "machine-a")
+	owner, project := madeHereStore(t)
+	if why := StoreNotMadeHere(owner); why != "" {
+		t.Fatalf("a store made here: %q", why)
+	}
+	setMachineID(t, "machine-b")
+	if why := StoreNotMadeHere(owner); !strings.Contains(why, "machine mark") {
+		t.Fatalf("another machine's mark: %q", why)
+	}
+	setMachineID(t, "machine-a")
+	moved := filepath.Join(t.TempDir(), "moved-store")
+	if err := os.Rename(owner, moved); err != nil {
+		t.Fatal(err)
+	}
+	if why := StoreNotMadeHere(moved); !strings.Contains(why, "not at the path") {
+		t.Fatalf("a moved store: %q", why)
+	}
+	if err := os.RemoveAll(project); err != nil {
+		t.Fatal(err)
+	}
+	if why := StoreNotMadeHere(moved); !strings.Contains(why, "not a project folder") {
+		t.Fatalf("a missing project folder: %q", why)
+	}
+	if why := StoreNotMadeHere(t.TempDir()); !strings.Contains(why, "project.json") {
+		t.Fatalf("no project file: %q", why)
 	}
 }

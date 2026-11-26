@@ -61,7 +61,7 @@ func runStoreTrust(w io.Writer, owner string, dryRun bool) error {
 		return fmt.Errorf("store trust: %w", err)
 	}
 	if entry := storeClaudeEntry(owner); entry != "" && !ok {
-		fmt.Fprintf(w, "Note: the store holds %s. Claude Code loads skills, commands and agents from it once the store is trusted.\n", entry)
+		fmt.Fprintf(w, "Note: the store folder %s. That applies once the store is trusted.\n", storeClaudeClause(entry))
 	}
 	switch {
 	case ok:

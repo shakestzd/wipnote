@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -180,7 +181,7 @@ func TestStoreTrustAtLaunch_ClaudeEntryInTheStoreBlocksTrust(t *testing.T) {
 		t.Fatal("Claude Code's config was written over a .claude entry")
 	}
 	var out bytes.Buffer
-	if err := runStoreTrust(&out, owner, false); err != nil || !strings.Contains(out.String(), "Note: the store holds "+entry) {
+	if err := runStoreTrust(&out, owner, false); err != nil || !strings.Contains(out.String(), "Note: the store folder holds "+entry) {
 		t.Fatalf("store trust said nothing about the entry: %v %s", err, out.String())
 	}
 	if ok, _ := oneshot.TrustAccepted(owner); !ok {
@@ -234,5 +235,90 @@ func TestStoreTrustAtLaunch_NestedClaudeEntryBlocksTrust(t *testing.T) {
 	}
 	if line := storeTrustAtLaunch(owner, ""); !strings.Contains(line, "marked the store folder") {
 		t.Fatalf("no trust once the entry is gone: %q", line)
+	}
+}
+
+// Each of these stores got launch-time trust before a review found the bypass.
+func TestStoreTrustAtLaunch_GuardBypassesBlockTrust(t *testing.T) {
+	for name, plant := range map[string]func(t *testing.T, owner string) (launchAs, named string){
+		"a name in another letter case": func(t *testing.T, owner string) (string, string) {
+			p := filepath.Join(owner, ".Claude")
+			mustMkdir(t, filepath.Join(p, "skills"))
+			return owner, p
+		},
+		"a store folder that is a link": func(t *testing.T, owner string) (string, string) {
+			mustMkdir(t, filepath.Join(owner, ".claude", "skills"))
+			link := filepath.Join(t.TempDir(), "store-link")
+			if err := os.Symlink(owner, link); err != nil {
+				t.Fatal(err)
+			}
+			return link, ".claude"
+		},
+		"a .git folder below the top": func(t *testing.T, owner string) (string, string) {
+			p := filepath.Join(owner, ".wipnote", "notes", ".git", ".claude")
+			mustMkdir(t, filepath.Join(p, "skills"))
+			return owner, p
+		},
+		"a folder that cannot be listed": func(t *testing.T, owner string) (string, string) {
+			if os.Getuid() == 0 {
+				t.Skip("root can list any folder")
+			}
+			p := filepath.Join(owner, ".wipnote", "closed")
+			mustMkdir(t, filepath.Join(p, ".claude", "skills"))
+			if err := os.Chmod(p, 0o311); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Chmod(p, 0o755) })
+			return owner, p
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			owner, cfgPath := trustStore(t)
+			launchAs, named := plant(t, owner)
+			if storeClaudeEntry(launchAs) == "" {
+				t.Fatal("the guard found nothing")
+			}
+			line := storeTrustAtLaunch(owner, "")
+			if !strings.Contains(line, named) || !strings.Contains(line, "did not mark the store as trusted") {
+				t.Fatalf("no warning: %q", line)
+			}
+			if _, err := os.Stat(cfgPath); err == nil {
+				t.Fatal("Claude Code's config was written")
+			}
+		})
+	}
+}
+
+func mustMkdir(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A store that fails the origin check gets the reason in its warning, so it
+// does not read like the owner's opt-out.
+func TestStoreTrustAtLaunch_SaysWhyAStoreIsNotMadeHere(t *testing.T) {
+	owner, cfgPath := trustStore(t)
+	pf := filepath.Join(owner, "project.json")
+	data, err := os.ReadFile(pf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatal(err)
+	}
+	m["made_on"] = "0000000000000000"
+	out, _ := json.Marshal(m)
+	if err := os.WriteFile(pf, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	line := storeTrustAtLaunch(owner, "")
+	if !strings.Contains(line, "wipnote did not set it: the store's machine mark is not this machine's") {
+		t.Fatalf("no reason in %q", line)
+	}
+	if _, err := os.Stat(cfgPath); err == nil {
+		t.Fatal("Claude Code's config was written")
 	}
 }

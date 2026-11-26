@@ -2,6 +2,7 @@ package oneshot
 
 import (
 	"context"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -66,6 +67,11 @@ func TestClaudeRun_OnWorkerStartRunsOnlyForAWorker(t *testing.T) {
 			_, _, _ = runClaudeWorker(context.Background(), w.o, Recipe{Kind: KindClaude, Argv: w.o.Argv})
 			if calls != tc.want {
 				t.Fatalf("OnWorkerStart ran %d times, want %d", calls, tc.want)
+			}
+			// No worker, no seed: the working folder's trust and the
+			// onboarding flag are written only for a worker that gets a pane.
+			if _, err := os.Stat(w.config); (err == nil) != (tc.want == 1) {
+				t.Fatalf("Claude Code's config exists: %v, with %d workers started", err == nil, tc.want)
 			}
 		})
 	}

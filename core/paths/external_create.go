@@ -130,13 +130,23 @@ func initStoreGit(root string) error {
 // path check alone passes for a store restored to a machine with the same user
 // name and project path, so a new store also records the machine that made it.
 // A store with no mark is judged by the path check.
-func StoreMadeHere(owner string) bool {
+func StoreMadeHere(owner string) bool { return StoreNotMadeHere(owner) == "" }
+
+// StoreNotMadeHere says why owner does not count as made on this machine, or
+// "" when it does. Why a reason: the launch warning gave none, so a store
+// that failed one of these checks looked the same as an owner's opt-out
+// (bug-65bf54aa).
+func StoreNotMadeHere(owner string) string {
 	pf, ok := readProjectFile(owner)
-	if !ok || !isDir(pf.CodeRoot) || inAppHome(pf.CodeRoot) {
-		return false
+	switch {
+	case !ok:
+		return "the store's project.json is missing or unreadable"
+	case !isDir(pf.CodeRoot) || inAppHome(pf.CodeRoot):
+		return "the project folder the store names is not a project folder on this machine"
+	case pf.MadeOn != "" && pf.MadeOn != machineMark():
+		return "the store's machine mark is not this machine's, as for a store copied from another machine"
+	case realDir(ShadowRootFor(pf.CodeRoot)) != realDir(owner):
+		return "the store is not at the path this machine uses for its project folder"
 	}
-	if pf.MadeOn != "" && pf.MadeOn != machineMark() {
-		return false
-	}
-	return realDir(ShadowRootFor(pf.CodeRoot)) == realDir(owner)
+	return ""
 }

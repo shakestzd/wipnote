@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 )
 
 // Claude Code's config is not wipnote's file, so the seed copies it and edits
@@ -140,20 +139,41 @@ type jsonLayout struct{ indent, lineEnd string }
 // claudeLayout is the layout Claude Code writes, used for a new or empty config.
 var claudeLayout = jsonLayout{indent: "  ", lineEnd: "\n"}
 
-// layoutOf reads the layout from the white space between an object's opening
-// brace and its first key.
-func layoutOf(body []byte) jsonLayout {
+// lineEndOf is the first kind of line end in s, or "" when s is on one line.
+// A JSON string holds no raw CR or LF, so each one found is a line end.
+func lineEndOf(s []byte) string {
+	i := bytes.IndexAny(s, "\r\n")
+	switch {
+	case i < 0:
+		return ""
+	case s[i] == '\n':
+		return "\n"
+	case i+1 < len(s) && s[i+1] == '\n':
+		return "\r\n"
+	}
+	return "\r"
+}
+
+// layoutOf reads the layout of a config whose object is body. The indent is
+// the white space between the opening brace and the first key, after its last
+// line end. A file with line ends but the first key on the brace line gets
+// Claude Code's indent: an earlier version put such a file on one line
+// (bug-65bf54aa). An empty object keeps the line end of the white space
+// around it.
+func layoutOf(data, body []byte, empty bool) jsonLayout {
+	if empty {
+		l := claudeLayout
+		if le := lineEndOf(data); le != "" {
+			l.lineEnd = le
+		}
+		return l
+	}
 	rest := body[1:]
-	ws := string(rest[:len(rest)-len(bytes.TrimLeft(rest, jsonSpace))])
-	i := strings.LastIndexByte(ws, '\n')
-	if i < 0 {
-		return jsonLayout{}
+	ws := rest[:len(rest)-len(bytes.TrimLeft(rest, jsonSpace))]
+	if le := lineEndOf(ws); le != "" {
+		return jsonLayout{indent: string(ws[bytes.LastIndexAny(ws, "\r\n")+1:]), lineEnd: le}
 	}
-	l := jsonLayout{indent: ws[i+1:], lineEnd: "\n"}
-	if strings.Contains(ws, "\r\n") {
-		l.lineEnd = "\r\n"
-	}
-	return l
+	return jsonLayout{indent: claudeLayout.indent, lineEnd: lineEndOf(body)}
 }
 
 // render writes raw in the layout.
@@ -170,7 +190,6 @@ func (l jsonLayout) render(raw []byte) ([]byte, error) {
 	if l.lineEnd == "\n" {
 		return b.Bytes(), nil
 	}
-	// A JSON string holds no raw line feed, so every one is a line end.
 	return bytes.ReplaceAll(b.Bytes(), []byte("\n"), []byte(l.lineEnd)), nil
 }
 
@@ -178,8 +197,10 @@ func (l jsonLayout) render(raw []byte) ([]byte, error) {
 // flag when onboarding is true. changed false means every key was already set.
 // The output keeps the file's own indent and line ends, so a file in a regular
 // layout gains only the new lines. A file in an irregular layout is laid out
-// again in its first indent, with every key and value kept. A file on one line
-// that has a space after a colon or comma loses those spaces.
+// again in its first indent and its first kind of line end, with every key and
+// value kept. The white space before and after the object stays as it was, so
+// a file with mixed line ends there keeps them. A file on one line that has a
+// space after a colon or comma loses those spaces.
 func seedConfig(data []byte, dirs []string, onboarding bool) (out []byte, changed bool, err error) {
 	body := bytes.Trim(data, jsonSpace)
 	head, tail, layout := []byte(nil), []byte("\n"), claudeLayout
@@ -190,9 +211,7 @@ func seedConfig(data []byte, dirs []string, onboarding bool) (out []byte, change
 		}
 		head = data[:len(data)-len(bytes.TrimLeft(data, jsonSpace))]
 		tail = data[len(bytes.TrimRight(data, jsonSpace)):]
-		if len(top) > 0 {
-			layout = layoutOf(body)
-		}
+		layout = layoutOf(data, body, len(top) == 0)
 	}
 	if v, _ := top.get("hasCompletedOnboarding"); onboarding && !isJSONTrue(v) {
 		top.set("hasCompletedOnboarding", jsonTrue)

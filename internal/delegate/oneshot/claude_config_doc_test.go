@@ -272,3 +272,37 @@ func TestSeed_RemovesOldTempFiles(t *testing.T) {
 		t.Fatalf("second seed: wrote %v err %v", wrote, err)
 	}
 }
+
+// A file with line ends but the first key on the brace line, or with CR-only
+// line ends, keeps its lines. An earlier version put it on one line.
+func TestSeedConfig_IrregularLayoutKeepsItsLines(t *testing.T) {
+	for name, tc := range map[string]struct{ in, want string }{
+		"first key on the brace line": {
+			"{\"a\": 1,\n  \"b\": {\n    \"c\": 2\n  }\n}\n",
+			"{\n  \"a\": 1,\n  \"b\": {\n    \"c\": 2\n  },\n  \"projects\": {\n    \"/s\": {\n      \"hasTrustDialogAccepted\": true\n    }\n  }\n}\n",
+		},
+		"CR-only line ends": {
+			"{\r\t\"a\": 1\r}\r",
+			"{\r\t\"a\": 1,\r\t\"projects\": {\r\t\t\"/s\": {\r\t\t\t\"hasTrustDialogAccepted\": true\r\t\t}\r\t}\r}\r",
+		},
+		"an empty object with CRLF": {
+			"{\r\n}\r\n",
+			"{\r\n  \"projects\": {\r\n    \"/s\": {\r\n      \"hasTrustDialogAccepted\": true\r\n    }\r\n  }\r\n}\r\n",
+		},
+		"an empty object on one line": {
+			"{}\n",
+			"{\n  \"projects\": {\n    \"/s\": {\n      \"hasTrustDialogAccepted\": true\n    }\n  }\n}\n",
+		},
+		"one line stays one line": {
+			"{\"a\":1}",
+			"{\"a\":1,\"projects\":{\"/s\":{\"hasTrustDialogAccepted\":true}}}",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			out, changed, err := seedConfig([]byte(tc.in), []string{"/s"}, false)
+			if err != nil || !changed || string(out) != tc.want {
+				t.Fatalf("changed %v err %v\n got %q\nwant %q", changed, err, out, tc.want)
+			}
+		})
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/internal/delegate/oneshot"
@@ -42,8 +43,11 @@ func storeTrustAtLaunch(owner, cfgPath string) string {
 	if problem != "" {
 		return storeUntrustedWarning(owner) + " (wipnote did not set it: " + problem + ")"
 	}
-	if !on || !paths.StoreMadeHere(owner) {
+	if !on {
 		return storeUntrustedWarning(owner)
+	}
+	if why := paths.StoreNotMadeHere(owner); why != "" {
+		return storeUntrustedWarning(owner) + " (wipnote did not set it: " + why + ")"
 	}
 	wrote, err := oneshot.TrustFolder(owner)
 	if err != nil {
@@ -99,27 +103,53 @@ func printStoreTrustLine(w io.Writer, owner string) {
 	}
 }
 
-// storeClaudeEntry returns the first entry named .claude anywhere in the store
-// folder, or "". It looks at every depth because Claude Code also finds
+// storeClaudeEntry returns the first entry in the store folder that blocks
+// launch-time trust, or "": an entry named .claude at any depth, or a folder
+// wipnote cannot list. It looks at every depth because Claude Code also finds
 // .claude folders below the folder it was given, and agents write under the
-// store's .wipnote folder. It skips the store's .git folder and follows no
-// link. wipnote never writes a .claude entry into a store.
+// store's .wipnote folder. wipnote never writes a .claude entry into a store.
+//
+// Four rules, each from a bypass a review found (bug-65bf54aa):
+//   - The name matches without case. macOS opens .Claude as .claude.
+//   - A store folder that is a link is resolved first. WalkDir does not
+//     descend a root that is a link.
+//   - Only the store's own .git folder is skipped. A .git folder deeper in
+//     the store is an ordinary folder that an agent can write.
+//   - A folder that cannot be listed blocks trust. Its entries still open by
+//     name, so it may hold a .claude entry.
+//
+// It follows no link below the root.
 func storeClaudeEntry(owner string) string {
-	found := ""
-	_ = filepath.WalkDir(owner, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil // an unreadable folder holds nothing Claude Code can load
-		}
+	root := owner
+	if r, err := filepath.EvalSymlinks(owner); err == nil {
+		root = r
+	}
+	ownGit, found := filepath.Join(root, ".git"), ""
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		switch {
-		case d.Name() == ".claude" && path != owner:
+		case err != nil && d == nil:
+			return nil // the store folder itself is missing
+		case err != nil || (path != root && strings.EqualFold(d.Name(), ".claude")):
 			found = path
 			return filepath.SkipAll
-		case d.IsDir() && d.Name() == ".git":
+		case path == ownGit && d.IsDir():
 			return filepath.SkipDir
 		}
 		return nil
 	})
+	if found != "" {
+		found = owner + found[len(root):] // name it by the path the owner knows
+	}
 	return found
+}
+
+// storeClaudeClause says what storeClaudeEntry found, as the middle of a
+// sentence that starts "the store folder".
+func storeClaudeClause(entry string) string {
+	if strings.EqualFold(filepath.Base(entry), ".claude") {
+		return "holds " + entry + ", which wipnote did not put there; Claude Code loads skills, commands and agents from it"
+	}
+	return "holds " + entry + ", which wipnote cannot list, so it may hold a .claude folder that Claude Code loads skills, commands and agents from"
 }
 
 // storeClaudeConfigWarning is the warning for a store that holds a .claude
@@ -132,8 +162,7 @@ func storeClaudeConfigWarning(owner string, trusted bool) string {
 	if entry == "" {
 		return ""
 	}
-	head := "wipnote: warning: the store folder holds " + entry +
-		", which wipnote did not put there; Claude Code loads skills, commands and agents from it"
+	head := "wipnote: warning: the store folder " + storeClaudeClause(entry)
 	if trusted {
 		return head + ". Claude Code already trusts this store. Check that entry and remove it if you did not add it"
 	}
