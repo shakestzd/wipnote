@@ -15,7 +15,7 @@ import (
 // the append path finds its offset by matching the footer against the file's
 // trailing bytes.
 const ledgerHeader = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Delegation Runs</title></head><body>
+<html lang="en"><head><meta charset="utf-8"><title>Delegation Runs</title></head><body>
 <main>
 <table data-delegation-ledger="true">
 <thead><tr><th>Run</th><th>Mode</th><th>Harness</th><th>Name</th><th>Label</th><th>Work Item</th><th>Link</th><th>Caller Session</th><th>Worker Sessions</th><th>Host</th><th>Started</th><th>Ended</th><th>Exit</th><th>End Reason</th><th>Input</th><th>Cached</th><th>Output</th><th>Reasoning</th><th>Resumed From</th><th>Model</th><th>Setup</th></tr></thead>

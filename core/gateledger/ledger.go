@@ -15,7 +15,7 @@ import (
 // footer against the file's trailing bytes — any drift here must be a deliberate
 // format change, and would be caught by the round-trip tests.
 const ledgerHeader = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Gate Runs</title></head><body>
+<html lang="en"><head><meta charset="utf-8"><title>Gate Runs</title></head><body>
 <main>
 <table data-gate-ledger="true">
 <thead><tr><th>Record</th><th>Work Item</th><th>Session</th><th>Harness</th><th>Project Type</th><th>Gate Command</th><th>Status</th><th>Checked</th><th>Source</th><th>Guards</th><th>Profile</th><th>Allowlist Hits</th><th>Summary</th></tr></thead>

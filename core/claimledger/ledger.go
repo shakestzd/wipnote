@@ -19,7 +19,7 @@ import (
 // footer against the file's trailing bytes — any drift here must be a
 // deliberate format change, and would be caught by the round-trip tests.
 const ledgerHeader = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Claim Episodes</title></head><body>
+<html lang="en"><head><meta charset="utf-8"><title>Claim Episodes</title></head><body>
 <main>
 <table data-claim-ledger="true">
 <thead><tr><th>Episode</th><th>Work Item</th><th>Session</th><th>Agent</th><th>Start</th><th>End</th><th>Outcome</th></tr></thead>
