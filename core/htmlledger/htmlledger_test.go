@@ -148,3 +148,39 @@ func TestReadRows_MissingFile(t *testing.T) {
 		t.Fatalf("ReadRows(missing) = %v, want IsNotExist", err)
 	}
 }
+
+// TestAppendRow_KeepsRowsUnderAShorterOldHeader covers a header that grew
+// between versions, as it did when the pages gained a lang attribute
+// (bug-e794cbc0). The append path measures the file against the current
+// header, so a file written with the shorter one must still keep its rows.
+func TestAppendRow_KeepsRowsUnderAShorterOldHeader(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ledger.html")
+	if err := testFormat.AppendRow(path, row("a", "old")); err != nil {
+		t.Fatal(err)
+	}
+	grown := testFormat
+	grown.Header = strings.Replace(testFormat.Header, "<html>", `<html lang="en">`, 1)
+	if err := grown.AppendRow(path, row("b", "new")); err != nil {
+		t.Fatal(err)
+	}
+	ids, _ := readNotes(t, path)
+	if strings.Join(ids, ",") != "a,b" {
+		t.Fatalf("ids = %q, want a,b", ids)
+	}
+	// An old file with no rows is shorter still. It may be rewritten, and
+	// must then hold the new row.
+	empty := filepath.Join(t.TempDir(), "empty.html")
+	if err := os.WriteFile(empty, []byte(testFormat.Header+testFormat.Footer), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := grown.AppendRow(empty, row("c", "first")); err != nil {
+		t.Fatal(err)
+	}
+	ids = nil
+	if err := grown.ReadRows(empty, func(r *goquery.Selection) { ids = append(ids, Attr(r, "data-id")) }); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(ids, ",") != "c" {
+		t.Fatalf("ids = %q, want c", ids)
+	}
+}

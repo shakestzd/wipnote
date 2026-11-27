@@ -223,7 +223,7 @@ func WriteLedger(path string, entries []*LedgerEntry) error {
 func marshalLedger(entries []*LedgerEntry) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("<!DOCTYPE html>\n")
-	buf.WriteString("<html><head><meta charset=\"utf-8\"><title>Archived Work Items</title></head><body>\n")
+	buf.WriteString("<html lang=\"en\"><head><meta charset=\"utf-8\"><title>Archived Work Items</title></head><body>\n")
 	buf.WriteString("<main>\n")
 	buf.WriteString("<table data-workitem-ledger=\"true\">\n")
 	buf.WriteString("<thead><tr><th>ID</th><th>Type</th><th>Status</th><th>Priority</th><th>Title</th><th>Track</th><th>Created By</th><th>Archived</th><th>HTML</th></tr></thead>\n")

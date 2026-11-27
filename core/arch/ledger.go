@@ -161,7 +161,7 @@ func WriteLedger(path string, cards []*Card) error {
 func marshalLedger(cards []*Card) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteString("<!DOCTYPE html>\n")
-	buf.WriteString("<html><head><meta charset=\"utf-8\"><title>Architecture Memory</title></head><body>\n")
+	buf.WriteString("<html lang=\"en\"><head><meta charset=\"utf-8\"><title>Architecture Memory</title></head><body>\n")
 	buf.WriteString("<main>\n")
 	buf.WriteString("<table data-architecture-ledger=\"true\">\n")
 	buf.WriteString("<thead><tr><th>ID</th><th>Kind</th><th>Status</th><th>Paths</th><th>Links</th><th>Verified</th><th>Created By</th><th>Body</th></tr></thead>\n")

@@ -12,7 +12,7 @@ import (
 )
 
 const ledgerHeader = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Background Runs</title></head><body>
+<html lang="en"><head><meta charset="utf-8"><title>Background Runs</title></head><body>
 <main>
 <table data-run-ledger="true">
 <thead><tr><th>Run</th><th>Phase</th><th>At</th><th>Task</th><th>Tool Use</th><th>Kind</th><th>Description</th><th>Command</th><th>Folder</th><th>Status</th><th>Exit</th><th>Log</th><th>Last Line</th><th>First Error</th><th>Commit</th><th>Session</th><th>Work Item</th><th>Harness</th></tr></thead>
